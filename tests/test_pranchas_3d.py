@@ -42,7 +42,7 @@ def test_extrair_layers_no_espaco_exibido(pdf_com_layers):
 def test_pacote_vetorial_ida_e_volta(pdf_com_layers):
     pac = pdf_cad.pacote_vetorial(pdf_com_layers, simplificar_pt=0)
     assert (pac["largura"], pac["altura"]) == (300, 400)
-    d = np.frombuffer(gzip.decompress(base64.b64decode(pac["coords"])), "<i2").reshape(-1, 2)
+    d = np.frombuffer(gzip.decompress(base64.b64decode(pac["coords"])), "<i4").reshape(-1, 2)
     partes = np.frombuffer(gzip.decompress(base64.b64decode(pac["partes"])), "<u4").reshape(-1, 4)
     pts = np.cumsum(d.astype(np.int64), axis=0) / 10
     assert partes[:, 0].sum() == len(pts)

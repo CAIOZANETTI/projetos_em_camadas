@@ -202,20 +202,38 @@ def etapa_escopo(cfg: dict) -> dict | None:
     if Path(e.get("itens_csv", "")).exists():
         itens = pd.read_csv(e["itens_csv"], sep=";", decimal=",", encoding="utf-8-sig",
                             dtype={"tabela": str, "item": str, "codigo": str})
+    precos = {}
+    if itens is not None:
+        for t, it, cod, pr, un, q in itens[["tabela", "item", "codigo", "preco_unit", "unidade", "quantidade"]].itertuples(index=False):
+            precos.setdefault((str(t), str(it), str(cod)), (pr, str(un), q))
+
+    def qtd(v):
+        """Quantidade numérica; serial de data do Excel (≈ 2009–2036) vira alerta."""
+        if pd.isna(v):
+            return 0.0, None
+        v = float(v)
+        if 40000 <= v <= 50000 and v == int(v):
+            return 0.0, f"quantidade na planilha parece data do Excel ({int(v)})"
+        return v, None
+
     lin = []
     for r in rel.itertuples():
-        preco = None
-        if itens is not None:
-            m = itens[(itens.tabela == r.tabela) & (itens.item == r.item)]
-            if len(m):
-                preco = m.iloc[0].get("preco_unit")
-        q1 = float(r.qtd_etapa1) if pd.notna(r.qtd_etapa1) else 0.0
-        q2 = float(r.qtd_etapa2) if pd.notna(r.qtd_etapa2) else 0.0
+        # tabela+item+código: o número do item repete entre blocos
+        pr, un_orc, q_orc = precos.get((str(r.tabela), str(r.item), str(r.codigo)), (None, None, None))
+        q1, a1 = qtd(r.qtd_etapa1)
+        q2, a2 = qtd(r.qtd_etapa2)
+        a3 = None
+        if un_orc and str(r.unidade).strip().lower() != un_orc.strip().lower():
+            a3 = f"unidade diverge do orçamento ({r.unidade} × {un_orc} {q_orc})"
+        alerta = a1 or a2 or a3
+        if alerta:
+            pr = None                                    # fora dos totais até alguém conferir
         lin.append({"tabela": r.tabela, "nome_tabela": r.nome_tabela, "item": r.item, "codigo": str(r.codigo),
-                    "descricao": r.descricao, "un": r.unidade, "q1": q1, "q2": q2,
+                    "descricao": r.descricao + (f"  ⚠ {alerta}" if alerta else ""), "un": r.unidade,
+                    "q1": q1, "q2": q2, "alerta": alerta,
                     "etapa": r.etapa if isinstance(r.etapa, str) else "",
                     "material": r.material_base if isinstance(r.material_base, str) else "",
-                    "local": r.local, "preco": float(preco) if preco is not None and pd.notna(preco) else None})
+                    "local": r.local, "preco": float(pr) if pr is not None and pd.notna(pr) else None})
     # tabela -> desenho (para ligar item a prancha/camada no mapa)
     desenhos = {}
     if itens is not None and "projeto_desenho" in itens:

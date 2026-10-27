@@ -355,7 +355,7 @@ def pacote_vetorial(caminho: str | Path, regras: list[Regra] | None = None, pagi
     Retorna:
       largura/altura (pt), layers [{nome, n, cor, classe}], estilos [{s, f, w}],
       geometria (gzip+base64):
-        coords: Int16 com deltas de (x, y)·10 — 0,1 pt de precisão, encadeados entre partes
+        coords: Int32 com deltas de (x, y)·10 — 0,1 pt de precisão, encadeados entre partes
         partes: Uint32 [n_pontos, layer, estilo, flags] por subcaminho (flags: 1 fechado, 2 preenchido)
       textos: spans de texto com posição (pt), ângulo e altura.
     """
@@ -384,7 +384,7 @@ def pacote_vetorial(caminho: str | Path, regras: list[Regra] | None = None, pagi
             ult = qi[-1]
             coords.append(d)
             partes.append((len(qi), li["i"], ei, flags))
-    coords = np.clip(np.vstack(coords), -32768, 32767).astype("<i2")
+    coords = np.vstack(coords).astype("<i4")      # Int32: saltos entre partes passam de 3276 pt
     lista_layers = sorted(layers.values(), key=lambda l: l["i"])
     return {
         "largura": largura, "altura": altura,
