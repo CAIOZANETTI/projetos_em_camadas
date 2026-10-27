@@ -10,7 +10,7 @@
 :root{
   --papel:#eef0ec; --painel:#fafbf8; --tinta:#1b211e; --mut:#5d6762; --linha:#d5dad4; --realce:#e6eae4;
   --acento:#c2410c; --acento-tinta:#ffffff; --medida:#0f766e;
-  --civil:#ea580c; --hidro:#0284c7; --eletrica:#ca8a04; --geral:#0f766e;
+  --civil:#ea580c; --hidro:#0284c7; --eletrica:#ca8a04; --geral:#0f766e; --mec:#7c3aed;
   --ok:#15803d; --aberta:#b45309; --sombra:0 1px 2px rgb(20 30 25 / .12), 0 4px 14px rgb(20 30 25 / .10);
   --f-ui:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-titulo:"IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -19,12 +19,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --papel:#121614; --painel:#181d1b; --tinta:#e4e8e5; --mut:#97a19c; --linha:#2b3330; --realce:#222a27;
   --acento:#f97316; --acento-tinta:#1b0d03; --medida:#2dd4bf;
-  --civil:#fb923c; --hidro:#38bdf8; --eletrica:#facc15; --geral:#2dd4bf;
+  --civil:#fb923c; --hidro:#38bdf8; --eletrica:#facc15; --geral:#2dd4bf; --mec:#a78bfa;
   --ok:#4ade80; --aberta:#fbbf24; --sombra:0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .35); color-scheme:dark}}
 :root[data-theme="dark"]{
   --papel:#121614; --painel:#181d1b; --tinta:#e4e8e5; --mut:#97a19c; --linha:#2b3330; --realce:#222a27;
   --acento:#f97316; --acento-tinta:#1b0d03; --medida:#2dd4bf;
-  --civil:#fb923c; --hidro:#38bdf8; --eletrica:#facc15; --geral:#2dd4bf;
+  --civil:#fb923c; --hidro:#38bdf8; --eletrica:#facc15; --geral:#2dd4bf; --mec:#a78bfa;
   --ok:#4ade80; --aberta:#fbbf24; --sombra:0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .35); color-scheme:dark}
 
 *{box-sizing:border-box}
@@ -199,6 +199,9 @@ table.esc td{padding:5px 6px;border-bottom:1px solid var(--linha);vertical-align
 table.esc td.d{text-align:left}
 table.esc td.d .cod{display:block;color:var(--mut);font:10.5px var(--f-dado);margin-top:1px;overflow-wrap:anywhere}
 table.esc td.u{text-align:center;color:var(--mut)}
+table.esc tr[data-alerta]{background:color-mix(in srgb,var(--aberta) 14%,transparent)}
+.esc-alerta{display:block;color:var(--aberta);font-size:11px;font-weight:600;margin-top:2px}
+.tot .gt{font:600 11px var(--f-ui);letter-spacing:.04em;text-transform:uppercase}
 table.esc td.q.ativa{font-weight:600}
 table.esc tr[data-sit="escopo"]{box-shadow:inset 3px 0 0 var(--ok)}
 table.esc tr[data-sit="fora"]{box-shadow:inset 3px 0 0 var(--mut);opacity:.6}
@@ -258,6 +261,68 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
 .barra3d .btn{padding:4px 9px}
 .barra3d .btn.on{background:var(--tinta);color:var(--painel);border-color:var(--tinta)}
 
+/* ---------- v3: árvore por disciplina, intervenções, 4D, estacas e marcos ---------- */
+.gd>summary .cb-esc,.sd>summary .cb-esc{flex:none}
+.gd>summary .nota{margin-left:auto;font:11px var(--f-dado);color:var(--mut);font-weight:400}
+.sd .linhaC{padding-left:14px}
+.sd .pr-l .linhaC{padding-left:14px}
+.sd .pr-cfg>summary{padding-left:40px}
+.sd .pr-cfg .ajuste,.sd .pr-cfg .btns,.sd .pr-cfg .aviso,.sd .pr-cfg .arv{margin-left:40px;padding-left:0}
+.sd .pr-cfg .ajuste{padding-left:0}
+.ly.filtrado,.ly.filtrado .ln{opacity:.5}
+.marco-pin{width:0;height:0;margin:2px 1px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:15px solid #0ea5e9;filter:drop-shadow(0 1px 2px rgb(0 0 0 / .55))}
+.marco-pin.destruido{border-bottom-color:#dc2626}
+.destruido-t{color:#dc2626;font-weight:700}
+@keyframes pulso{50%{opacity:.3}}
+.pulso{animation:pulso 1s ease-in-out infinite}
+.int-resumo{width:calc(100% - 26px);margin:4px 0 0 26px;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.int-resumo td,.int-resumo th{padding:3px 6px;border-bottom:1px solid var(--linha);text-align:right}
+.int-resumo td:first-child,.int-resumo th:first-child{text-align:left;padding-left:0}
+.int-resumo th{font:600 10.5px var(--f-ui);color:var(--mut)}
+#intTot{margin:6px 0 6px 26px}
+#intLista{margin-left:26px}
+#dlgInterv{width:min(460px,calc(100% - 32px))}
+#intTipos{display:grid;gap:6px;margin:10px 0}
+#intTipos .btn{display:flex;align-items:center;gap:8px;text-align:left}
+
+#bar4d{position:absolute;left:0;right:0;bottom:0;z-index:1200;max-height:64%;overflow:auto;background:var(--painel);border-top:2px solid var(--acento);box-shadow:var(--sombra);padding:0 12px 10px}
+#mapaWrap.com4d .leaflet-bottom{bottom:var(--h4d,0px)}
+.b4-topo{position:sticky;top:0;z-index:2;background:var(--painel);padding:8px 0 4px;border-bottom:1px solid var(--linha)}
+.b4-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.b4-cab strong{font:600 13px var(--f-titulo)}
+.b4-cab .data{font:500 12px var(--f-dado);margin-right:auto}
+.b4-cab select,.b4-cab input[type=date]{width:auto;padding:3px 5px}
+.b4-cab label{display:flex;align-items:center;gap:5px;color:var(--mut);font-size:11.5px}
+.b4-aviso{margin:4px 0 0;font-size:11.5px;color:var(--aberta)}
+.b4-linha{position:relative;padding-bottom:26px}
+#b4Dia{margin:6px 0 0;display:block}
+.b4-marcos{position:absolute;left:8px;right:8px;top:26px;height:24px}
+.b4-marcos button{position:absolute;transform:translateX(-50%);background:none;border:0;padding:0;cursor:pointer;color:var(--mut);font:500 9.5px/1 var(--f-dado);display:flex;flex-direction:column;align-items:center;gap:1px}
+.b4-marcos button::before{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:6px solid var(--acento)}
+.b4-marcos button.baixo{top:11px}
+.b4-info{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;margin:6px 0}
+.b4-info .pc{font:12px var(--f-dado);white-space:nowrap}
+.b4-info .pc b{font-size:15px}
+.b4-exec{display:flex;gap:5px;flex-wrap:wrap;flex:1;min-width:0}
+.b4-exec span{font-size:11.5px;padding:2px 7px;border-radius:9px;border:1px solid var(--acento);color:var(--tinta)}
+.b4-exec .nada{border-color:var(--linha);color:var(--mut)}
+.b4-graf{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
+.b4-graf h2{margin:6px 0 4px}
+.g4{display:grid;grid-template-columns:minmax(110px,42%) 1fr;align-items:start}
+.g4-n{height:14px;line-height:14px;font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:6px}
+.g4-n b{font:500 10px var(--f-dado)}
+.g4-s{width:100%;display:block;background:var(--papel)}
+.g4-b{fill:var(--linha);stroke:none}
+.g4-b.e2{fill:var(--acento)}.g4-b.e3{fill:var(--ok)}
+.g4-g{stroke:var(--linha);stroke-width:1;vector-effect:non-scaling-stroke}
+.g4-a{stroke:var(--tinta);stroke-width:1.5;vector-effect:non-scaling-stroke}
+#b4Curva svg{width:100%;height:auto;display:block}
+.b4-fonte{font-size:11px;color:var(--mut);margin:8px 0 0}
+@media (max-width:760px){
+  .b4-graf{grid-template-columns:1fr}
+  #bar4d{max-height:70%;padding-inline:10px}
+}
+
 @media (max-width:760px){
   aside.larga{width:auto}
   .fbarra,.barra3d{flex-wrap:nowrap;gap:5px;padding:6px}
@@ -286,6 +351,8 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
   <symbol id="i-nota" viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9 10h6M9 7.5h6M9 12.5h3" stroke="currentColor" stroke-width="1.5"/></symbol>
   <symbol id="i-swipe" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v20" stroke="currentColor" stroke-width="1.8"/><path d="M3 4h9v16H3z" fill="currentColor" fill-opacity=".25"/></symbol>
   <symbol id="i-3d" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-recorte" viewBox="0 0 24 24"><path d="M4 6l9-3 7 6-2 10-12 2z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2" stroke-linejoin="round"/><path d="M9 12l2.2 2.2L16 9.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-4d" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
   <symbol id="i-enquadrar" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
 </svg>
 
@@ -384,9 +451,23 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
           <div class="corpo">
             <label>Cor dos pontos<select id="v3Cor"><option value="foto">Cores da foto</option><option value="altura">Por altura</option></select></label>
             <label>Tamanho do ponto <input type="range" id="v3Tam" min="1" max="8" step=".5" value="2"></label>
-            <div class="lin"><label><input type="checkbox" id="v3Cam" checked> Câmeras</label><label><input type="checkbox" id="v3Pr" checked> Pranchas</label></div>
+            <div class="lin"><label><input type="checkbox" id="v3Cam" checked> Câmeras</label><label><input type="checkbox" id="v3Pr" checked> Pranchas</label><label><input type="checkbox" id="v3Est" checked> Estacas</label></div>
           </div>
         </details>
+      </section>
+      <section id="bar4d" hidden aria-label="Linha do tempo 4D do cronograma">
+        <div class="b4-topo">
+          <div class="b4-cab"><strong>4D · cronograma</strong><span class="data" id="b4Data" aria-live="polite"></span>
+            <button class="btn" id="b4Play" aria-pressed="false">&#9654; Play</button>
+            <select id="b4Vel" aria-label="Velocidade"><option value="15">15 dias/s</option><option value="45" selected>45 dias/s</option><option value="120">120 dias/s</option></select>
+            <label>Data da OS <input type="date" id="b4Os" aria-label="Data da OS (só muda o rótulo)"></label>
+            <button class="btn" id="b4Fechar">Fechar 4D</button></div>
+          <p class="b4-aviso" id="b4Aviso" hidden>Data da OS hipotética: as datas são só referência. Troque no campo acima (muda apenas o rótulo).</p>
+        </div>
+        <div class="b4-linha"><input type="range" id="b4Dia" min="0" max="720" step="1" value="0" aria-label="Dia do cronograma"><div class="b4-marcos" id="b4Marcos"></div></div>
+        <div class="b4-info"><span class="pc">Planejado <b id="b4Pct"></b></span><div class="b4-exec" id="b4Exec" aria-live="polite"></div></div>
+        <div class="b4-graf"><div><h2>Atividades</h2><div id="b4Gantt"></div></div><div><h2>Curva S planejada</h2><div id="b4Curva"></div></div></div>
+        <p class="b4-fonte" id="b4Fonte"></p>
       </section>
       <div id="status"><span>E <b id="sE">—</b></span><span>N <b id="sN">—</b></span><span id="sLL"></span><span class="sob" id="sSob"></span></div>
     </div>
@@ -397,6 +478,12 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
   <div class="cab-dlg"><h3 id="dlgTit">Exportar</h3><button class="btn" id="dlgFechar">Fechar</button></div>
   <textarea id="dlgTxt" readonly></textarea>
   <div class="btns" style="margin-top:8px"><button class="btn prim" id="dlgCopiar">Copiar</button><button class="btn" id="dlgBaixar" hidden>Baixar arquivo</button><span class="aviso" id="dlgMsg" style="margin:auto 0"></span></div>
+</dialog>
+
+<dialog id="dlgInterv" aria-labelledby="intTit">
+  <div class="cab-dlg"><h3 id="intTit">Classificar o recorte</h3><button class="btn" id="intCancelar">Cancelar</button></div>
+  <div class="valor" id="intArea"></div>
+  <div id="intTipos"></div>
 </dialog>
 
 <dialog id="dlgFoto" aria-labelledby="fotoTit">
@@ -472,25 +559,83 @@ for (const b of D.bases) {
   if (b.visivel) lay.addTo(map);
 }
 const COR_CAM = {nadir: "#f5c518", obliqua: "#f97316"};   // mesmas cores das pirâmides do 3D
+
+/* ---------- v3: tudo vem pronto do Python; aqui só se seleciona e exibe ---------- */
+const GRUPOS = D.grupos || {}, INTERV = D.intervencoes || [], CRONO = D.cronograma || null;
+const TEM_ARV = Object.keys(GRUPOS).length > 0;
+const INTERV_COR = Object.fromEntries(INTERV.map(t => [t.id, t.cor]));
+const LARANJA = "#ff7a00", COR3_LARANJA = [1, .478, 0];
+const GR_COR = {"Civil": "--civil", "Hidráulica": "--hidro", "Mecânica": "--mec", "Elétrica e automação": "--eletrica", "Geral": "--geral"};
+const F4 = {on: false, dia: 0, max: 0, play: false, fase: 0, int: new Map(), os: CRONO?.data_os || null, salvo: null, raf: 0, itens: null, tm: 0};
+const ESTACAS = [];   // {id, ll, E, N, d, comp, estr, cor, marker, f4}
+const PALETA_ESTR = ["#7c3aed", "#0284c7", "#ea580c", "#15803d", "#be185d", "#ca8a04", "#0f766e", "#6366f1"], nomesEstr = [];
+const corEstr = e => { if (!nomesEstr.includes(e)) nomesEstr.push(e); return PALETA_ESTR[nomesEstr.indexOf(e) % PALETA_ESTR.length]; };
+const semMarcas = t => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const tabelaProps = (p, linhas) => `<table class="info">${linhas.map(([k, rot, f]) =>
+  `<tr><td>${rot}</td><td>${p[k] == null || p[k] === "" ? "—" : esc(f ? f(p[k]) : p[k])}</td></tr>`).join("")}</table>`;
+
+/* estacas: círculos com raio proporcional ao diâmetro (em metros reais, com mínimo legível) */
+function criarEstacas(v) {
+  const g = L.featureGroup();
+  for (const f of v.geojson.features) {
+    const p = f.properties, [lng, lat] = f.geometry.coordinates, ll = L.latLng(lat, lng);
+    const e = {id: p.id, ll, E: parseFloat(p.E), N: parseFloat(p.N), d: p.diametro_cm || 40, comp: p.comprimento_m, estr: p.estrutura, f4: 0, cor: corEstr(p.estrutura)};
+    e.marker = L.circleMarker(ll, {pane: "overlayPane", radius: 3, color: "#fff", weight: 1, fillColor: e.cor, fillOpacity: .9})
+      .bindPopup(`<div class="pop"><b>Estaca ${esc(p.id)}</b>${tabelaProps(p, [["diametro_cm", "Diâmetro", x => fmt(x, 0) + " cm"],
+        ["comprimento_m", "Comprimento", x => fmt(x, 1) + " m"], ["estrutura", "Estrutura"], ["cota_arrasamento", "Cota de arrasamento"], ["desenho_origem", "Desenho"]])}</div>`);
+    ESTACAS.push(e); g.addLayer(e.marker);
+  }
+  const ajustar = () => {
+    if (!ESTACAS.length) return;
+    const mpp = 156543.03392 * Math.cos(ESTACAS[0].ll.lat * Math.PI / 180) / 2 ** map.getZoom();
+    for (const e of ESTACAS) e.marker.setRadius(Math.max(2.5 * e.d / 40, e.d / 200 / mpp));
+  };
+  map.on("zoomend", ajustar); ajustar();
+  return g;
+}
+
+/* marcos geodésicos: triângulo; "DESTRUÍDO" em vermelho */
+function criarMarcos(v) {
+  const g = L.featureGroup();
+  for (const f of v.geojson.features) {
+    const p = f.properties, [lng, lat] = f.geometry.coordinates, sit = p.SITUACAO || p["SITUAÇÃO"] || "";
+    const destr = /destru/i.test(semMarcas(sit)), kc = Object.keys(p).find(k => /^classifica/i.test(semMarcas(k)));
+    const linhas = [["Classificação", kc ? esc(p[kc] ?? "—") : "—"], ["Situação", destr ? `<span class="destruido-t">DESTRUÍDO</span>` : esc(sit || "não informada")],
+      ["Distância à obra", p.distancia_m == null ? "—" : fmt(p.distancia_m, 1) + " m"], ["Município", esc(p.MUNICIPIO || "—")], ["Última visita", esc(p.VISITA || "—")],
+      ["Altura geométrica", p.ALTGEOM ? esc(p.ALTGEOM) + " m" : "—"]];
+    L.marker([lat, lng], {title: p.nome, keyboard: true, icon: L.divIcon({className: "", html: `<div class="marco-pin${destr ? " destruido" : ""}"></div>`, iconSize: [20, 20], iconAnchor: [10, 16]})})
+      .bindPopup(`<div class="pop"><b>${esc(p.nome)}</b> <span class="nota-l">${esc(p.rede || "")}</span><table class="info">${linhas.map(([k, x]) => `<tr><td>${k}</td><td>${x}</td></tr>`).join("")}</table>
+        ${destr ? '<div class="nota-l destruido-t">Marco destruído: não usar como referência.</div>' : ""}</div>`)
+      .bindTooltip(esc(p.nome), {direction: "top", className: "rotulo", offset: [0, -14]}).addTo(g);
+  }
+  return g;
+}
+
 for (const v of D.vetores) {
   const fotos = !!(v.fotos && D.fotos);   // vetor "cameras": clique abre a foto do drone num diálogo
-  const geo = L.geoJSON(v.geojson, {pane: "overlayPane",
-    style: f => fotos ? {...v.estilo, color: COR_CAM[f.properties.tipo] || v.estilo.color, weight: 3} : v.estilo,
-    onEachFeature: (f, l) => {
-      const p = f.properties || {};
-      if (fotos && p.foto) l.on("click", ev => { L.DomEvent.stopPropagation(ev); abrirFoto(p.foto); });
-      else l.bindPopup(`<div class="pop">${Object.entries(p).map(([k, x]) => `<div><b>${esc(k)}</b>: ${esc(x)}</div>`).join("")}</div>`);
-    }});
-  let lay = geo;
-  if (fotos) {   // marca a posição da câmera (alvo de clique maior que a linha de visada)
-    const marcas = v.geojson.features.filter(f => f.properties?.foto).map(f => {
-      const [lng, lat] = f.geometry.coordinates[0];
-      return L.circleMarker([lat, lng], {pane: "overlayPane", radius: 7, color: "#fff", weight: 2, fillOpacity: 1,
-        fillColor: COR_CAM[f.properties.tipo] || "#f5c518"}).on("click", ev => { L.DomEvent.stopPropagation(ev); abrirFoto(f.properties.foto); });
-    });
-    lay = L.featureGroup([geo, ...marcas]);
+  const estilo = f => fotos ? {...v.estilo, color: COR_CAM[f.properties.tipo] || v.estilo.color, weight: 3}
+    : v.id === "supressao" ? {...v.estilo, color: INTERV_COR[f.properties.categoria] || v.estilo.color, fillColor: INTERV_COR[f.properties.categoria] || v.estilo.color} : v.estilo;
+  let lay;
+  if (v.estacas) lay = criarEstacas(v);
+  else if (v.id === "marcos") lay = criarMarcos(v);
+  else {
+    const geo = L.geoJSON(v.geojson, {pane: "overlayPane", style: estilo,
+      onEachFeature: (f, l) => {
+        const p = f.properties || {};
+        if (fotos && p.foto) l.on("click", ev => { L.DomEvent.stopPropagation(ev); abrirFoto(p.foto); });
+        else l.bindPopup(`<div class="pop">${Object.entries(p).map(([k, x]) => `<div><b>${esc(k)}</b>: ${esc(x)}</div>`).join("")}</div>`);
+      }});
+    lay = geo;
+    if (fotos) {   // marca a posição da câmera (alvo de clique maior que a linha de visada)
+      const marcas = v.geojson.features.filter(f => f.properties?.foto).map(f => {
+        const [lng, lat] = f.geometry.coordinates[0];
+        return L.circleMarker([lat, lng], {pane: "overlayPane", radius: 7, color: "#fff", weight: 2, fillOpacity: 1,
+          fillColor: COR_CAM[f.properties.tipo] || "#f5c518"}).on("click", ev => { L.DomEvent.stopPropagation(ev); abrirFoto(f.properties.foto); });
+      });
+      lay = L.featureGroup([geo, ...marcas]);
+    }
   }
-  camadasMapa[v.id] = {layer: lay, nome: v.nome, grupo: v.grupo, etapa: v.etapa, on: !!v.visivel};
+  camadasMapa[v.id] = {layer: lay, nome: v.nome, grupo: v.grupo, sub: v.subgrupo, etapa: v.etapa, on: !!v.visivel, estilo, f4: 0};
   if (v.visivel) lay.addTo(map);
 }
 const enquadrar = () => { const b = Object.values(camadasMapa).find(c => c.base); if (b) map.fitBounds(b.layer.bounds(), {padding: [20, 20]}); };
@@ -607,11 +752,12 @@ const PR = (D.pranchas || []).map(d => {
     fEt: new Uint8Array(nl),           // 1 = escondido pelo filtro de etapa
     ef: new Uint8Array(nl).fill(1),    // visibilidade efetiva = vis && !fEt
     versao: 0, pronta: false, carga: null, arvores: [], grupos: null,
+    f4d: new Uint8Array(nl),           // 4D: 1 = oculto pelo cronograma, 2 = em execução (destacado)
     papel: [d.largura, d.altura], rot: 0,
     mapa: {on: false, opac: 100, modo: "cad", halo: false, lay: null}};
 });
 const prPorId = id => PR.find(p => p.id === id);
-function recalcEf(P) { for (let i = 0; i < P.ef.length; i++) P.ef[i] = P.vis[i] && !P.fEt[i] ? 1 : 0; P.versao++; }
+function recalcEf(P) { for (let i = 0; i < P.ef.length; i++) P.ef[i] = P.vis[i] && !P.fEt[i] && P.f4d[i] !== 1 ? 1 : 0; P.versao++; }
 
 /* Textos de fontes TrueType sem ToUnicode saem do PDF como índices de glifo (espaço = \x03, 'G' = '*'):
    no cabeçalho Arial, glifo 3..97 = ASCII 32..126 e 98..129 = Ä…ü (ordem Mac Roman). Decodifica quando há controle no texto. */
@@ -772,13 +918,13 @@ function coresEstilo(P, modo, papel) {
 }
 /* Pressupõe ctx.setTransform já em coordenadas de folha (pt). o.k = pixels de tela por pt. */
 function desenharPrancha(ctx, P, o) {
-  const cs = coresEstilo(P, o.modo, o.papel), est = P.d.estilos, ef = P.ef;
+  const cs = coresEstilo(P, o.modo, o.papel), est = P.d.estilos, ef = P.ef, f4 = o.f4 ? P.f4d : null, lc = o.f4cor || LARANJA;
   let n = 0;
   ctx.lineJoin = "round"; ctx.lineCap = "round";
   ctx.globalAlpha = o.alfaPreench ?? 1;
   for (const e of P.ents) {
     if (!e.f || !ef[e.li]) continue;
-    const c = cs[e.ei].f; if (!c || (o.semBranco && lumin(c) > .93)) continue;
+    const c0 = cs[e.ei].f, c = c0 && f4 && f4[e.li] === 2 ? lc : c0; if (!c || (o.semBranco && lumin(c) > .93)) continue;
     ctx.fillStyle = c; ctx.fill(e.f); n++;
   }
   ctx.globalAlpha = 1;
@@ -788,7 +934,8 @@ function desenharPrancha(ctx, P, o) {
   }
   for (const e of P.ents) {
     if (!e.s || !ef[e.li]) continue;
-    ctx.strokeStyle = cs[e.ei].s; ctx.lineWidth = Math.max(est[e.ei].w, o.minPx / o.k); ctx.stroke(e.s); n++;
+    const hl = f4 && f4[e.li] === 2;
+    ctx.strokeStyle = hl ? lc : cs[e.ei].s; ctx.lineWidth = Math.max(est[e.ei].w, o.minPx / o.k) * (hl ? 1.8 : 1); ctx.stroke(e.s); n++;
   }
   return n;
 }
@@ -847,7 +994,7 @@ const PranchaMapa = L.Renderer.extend({
     ctx.save();
     const c = clipPrancha(P);
     ctx.beginPath(); ctx.rect(c[0], c[1], c[2] - c[0], c[3] - c[1]); ctx.clip();   // só a implantação (sem carimbo/tabelas)
-    const n = desenharPrancha(ctx, P, {k, modo: o.modo, halo: o.halo, minPx: .8, alfaPreench: .5, semBranco: true});
+    const n = desenharPrancha(ctx, P, {k, modo: o.modo, halo: o.halo, minPx: .8, alfaPreench: .5, semBranco: true, f4: F4.on, f4cor: F4.fase ? "#ffc27a" : LARANJA});
     ctx.restore();
     P.ultimoDesenho = {ms: performance.now() - t0, n, k};
   }
@@ -859,13 +1006,13 @@ function limitesMapa(P) {
 }
 /* liga/desliga a prancha no mapa (carrega o vetor na primeira vez) */
 async function ligarPranchaMapa(P, on) {
-  P.mapa.on = on;
+  P.mapa.on = on; sincDisc();
   const nota = porId("pn-" + P.id);
   if (!on) { if (P.mapa.lay) map.removeLayer(P.mapa.lay); if (nota) nota.textContent = ""; v3Sujo(); return; }
   if (nota) nota.textContent = "carregando…";
   try { await carregarPrancha(P); } catch (e) { if (nota) nota.textContent = "erro: " + e.message; P.mapa.on = false; const cb = porId("v-prancha-" + P.id); if (cb) cb.checked = false; return; }
   if (!P.mapa.on) return;   // desligada enquanto carregava
-  if (nota) nota.textContent = "";
+  if (nota) nota.textContent = ""; sincDisc();
   P.mapa.lay ||= new PranchaMapa(P);
   P.mapa.lay.addTo(map);
   const lb = limitesMapa(P);
@@ -876,7 +1023,7 @@ function redesenharMapa(P) { if (P.mapa.on && P.mapa.lay) P.mapa.lay.pedir(); }
 const pranchasNoMapa = () => PR.filter(P => P.mapa.on && P.pronta && P.mapa.lay && map.hasLayer(P.mapa.lay));
 function prMudou(P) {
   recalcEf(P);
-  sincArvores(P); redesenharMapa(P);
+  sincArvores(P); sincDisc(); redesenharMapa(P);
   if (FV.P === P && vista === "folha") fvMudou(true);
   v3Sujo();
 }
@@ -995,32 +1142,155 @@ function badgeGeoref(P) {
   const r = g.residuo_mediano_m;
   return `<span class="badge-g ${g.ok ? "ok" : "med"}" title="${esc(g.motivo || "")}">${g.ok ? "georref." : "incerta"}${r != null ? " " + fmt(r) + " m" : ""}</span>`;
 }
-function htmlPranchasCamadas() {
+function htmlCfgPrancha(P) {
+  return `<details class="pr-cfg"><summary>Ajustes e layers CAD</summary>
+    <div class="ajuste"><span>Opacidade</span><input type="range" id="po-${P.id}" min="10" max="100" value="100" ${P.M ? "" : "disabled"}>
+      <span>Cores</span><select id="pm-${P.id}" ${P.M ? "" : "disabled"}><option value="cad">Do CAD</option><option value="claro">Claras (sobre a foto)</option><option value="uma">Uma cor</option></select>
+      <span>Contorno</span><label><input type="checkbox" id="ph-${P.id}" ${P.M ? "" : "disabled"}> escuro por baixo</label></div>
+    <p class="aviso">${P.M ? "" : "Sem georreferência no mapa. "}${esc((P.d.georef || {}).motivo || "")}</p>
+    <div class="btns"><button class="btn mini" data-abrir="${P.id}">Abrir folha inteira</button></div>
+    <div class="arv" id="arv-c-${P.id}"></div>
+  </details>`;
+}
+const htmlSnap = () => `<label class="linhaC" style="grid-template-columns:18px 1fr"><input type="checkbox" id="snap" checked><span>Grudar medições nos vértices (8 px)</span></label>`;
+function htmlPranchasCamadas() {   // sem `grupos` nos dados: lista por disciplina da prancha
   if (!PR.length) return "";
   let h = `<details class="grupo" open><summary>Pranchas de projeto (vetor)</summary>
-    <p class="aviso" style="margin-left:0">Cada prancha vai inteira em vetor, com os layers do CAD. Ligue no mapa ou abra a folha inteira.</p>
-    <label class="linhaC" style="grid-template-columns:18px 1fr"><input type="checkbox" id="snap" checked><span>Grudar medições nos vértices (8 px)</span></label>`;
+    <p class="aviso" style="margin-left:0">Cada prancha vai inteira em vetor, com os layers do CAD. Ligue no mapa ou abra a folha inteira.</p>${htmlSnap()}`;
   for (const dc of [...new Set(PR.map(p => p.d.disciplina))]) {
     h += `<div class="pr-ger"><span class="disc" style="background:var(${DISC[dc] || "--geral"});display:inline-block;margin-right:5px"></span>${esc(dc)}</div>`;
-    for (const P of PR.filter(p => p.d.disciplina === dc)) {
+    for (const P of PR.filter(p => p.d.disciplina === dc))
       h += `<div class="pr-l" data-p="${P.id}"><div class="linhaC"><input type="checkbox" id="v-prancha-${P.id}" ${P.M ? "" : "disabled"}>
-        <label for="v-prancha-${P.id}">${esc(P.d.nome)} <span class="nota-l" id="pn-${P.id}"></span></label>${badgeGeoref(P)}</div>
-        <details class="pr-cfg"><summary>Ajustes e layers CAD</summary>
-          <div class="ajuste"><span>Opacidade</span><input type="range" id="po-${P.id}" min="10" max="100" value="100" ${P.M ? "" : "disabled"}>
-            <span>Cores</span><select id="pm-${P.id}" ${P.M ? "" : "disabled"}><option value="cad">Do CAD</option><option value="claro">Claras (sobre a foto)</option><option value="uma">Uma cor</option></select>
-            <span>Contorno</span><label><input type="checkbox" id="ph-${P.id}" ${P.M ? "" : "disabled"}> escuro por baixo</label></div>
-          <p class="aviso">${P.M ? "" : "Sem georreferência no mapa. "}${esc((P.d.georef || {}).motivo || "")}</p>
-          <div class="btns"><button class="btn mini" data-abrir="${P.id}">Abrir folha inteira</button></div>
-          <div class="arv" id="arv-c-${P.id}"></div>
-        </details></div>`;
-    }
+        <label for="v-prancha-${P.id}">${esc(P.d.nome)} <span class="nota-l" id="pn-${P.id}"></span></label>${badgeGeoref(P)}</div>${htmlCfgPrancha(P)}</div>`;
   }
   return h + `</details>`;
 }
+
+/* ---- v3 · árvore por disciplina: Grupo › Subgrupo › (prancha › layers) e camadas vetoriais ---- */
+let ARV = null;   // grupo -> subgrupo -> {pr: Map(P -> [índices de layer]), vet: [ids]}
+function indiceDisc() {
+  const ix = {};
+  for (const [g, subs] of Object.entries(GRUPOS)) { ix[g] = {}; subs.forEach(sb => ix[g][sb] = {pr: new Map(), vet: []}); }
+  const no = (g, sb) => ((ix[g] ||= {})[sb] ||= {pr: new Map(), vet: []});
+  for (const P of PR) {
+    P.d.layers.forEach((l, i) => {
+      const m = no(l.grupo || P.d.grupo || "Geral", l.subgrupo || P.d.subgrupo || "").pr;
+      if (!m.has(P)) m.set(P, []);
+      m.get(P).push(i);
+    });
+    // "casa" da prancha (onde ficam o liga/desliga e os ajustes): o grupo/subgrupo dela, ou onde ela tem mais layers
+    const chaves = [];
+    for (const [g, subs] of Object.entries(ix)) for (const [sb, n] of Object.entries(subs)) if (n.pr.has(P)) chaves.push([g + "|" + sb, n.pr.get(P).length]);
+    const propria = (P.d.grupo || "") + "|" + (P.d.subgrupo || "");
+    P.casa = chaves.some(c => c[0] === propria) ? propria : chaves.sort((a, b) => b[1] - a[1])[0]?.[0];
+  }
+  for (const [id, c] of Object.entries(camadasMapa)) if (c.grupo in GRUPOS) no(c.grupo, c.sub || "").vet.push(id);
+  return ix;
+}
+const contarEsc = nos => {   // [ligados, total] dentro de um conjunto de subgrupos
+  let n = 0, t = 0;
+  for (const no of nos) {
+    for (const id of no.vet) { t++; n += camadasMapa[id].on ? 1 : 0; }
+    for (const [P, idx] of no.pr) for (const i of idx) { t++; n += P.mapa.on && P.vis[i] ? 1 : 0; }
+  }
+  return [n, t];
+};
+function htmlPranchaSub(P, idx, chave) {
+  const casa = P.casa === chave, Ls = P.d.layers;
+  const cb = casa ? `<input type="checkbox" id="v-prancha-${P.id}" ${P.M ? "" : "disabled"}>` : `<input type="checkbox" class="pr-esp" data-p="${P.id}" ${P.M ? "" : "disabled"} aria-label="Ligar ${esc(P.d.nome)} no mapa">`;
+  return `<div class="pr-l" data-p="${P.id}"><div class="linhaC">${cb}
+    <label ${casa ? `for="v-prancha-${P.id}"` : ""}>${esc(P.d.nome)} <span class="nota-l" ${casa ? `id="pn-${P.id}"` : ""}></span></label>${badgeGeoref(P)}</div>
+    ${casa ? htmlCfgPrancha(P) : ""}
+    <details class="pr-cfg pr-lay"><summary>Layers CAD deste subgrupo (${idx.length})</summary>
+      <div class="btns"><button class="btn mini" data-so title="Mostrar só estes layers da prancha">só estes</button></div>
+      <div class="arv">${idx.slice().sort((a, b) => Ls[b].n - Ls[a].n).map(i => `<label class="ly"><input type="checkbox" data-d="${i}"><span class="sw" style="background:${Ls[i].cor}"></span><span class="ln">${esc(Ls[i].nome || "(sem nome)")}</span><span class="nota">${fmt(Ls[i].n, 0)}</span></label>`).join("")}</div>
+    </details></div>`;
+}
+function htmlArvoreDisc() {
+  ARV = indiceDisc();
+  const vazio = no => !no.pr.size && !no.vet.length;
+  let h = `<h2>Projeto por disciplina</h2><p class="aviso" style="margin-left:0">Disciplina › subgrupo › prancha › layer CAD. A caixa de uma disciplina ou subgrupo liga e desliga tudo o que está abaixo.</p>${htmlSnap()}`;
+  for (const [g, subs] of Object.entries(ARV)) {
+    if (Object.values(subs).every(vazio)) continue;
+    const nos = Object.values(subs), nPr = new Set(nos.flatMap(n => [...n.pr.keys()])).size;
+    h += `<details class="grupo gd" open data-g="${esc(g)}"><summary><input type="checkbox" class="cb-esc" aria-label="Ligar ou desligar ${esc(g)}"><span class="disc" style="background:var(${GR_COR[g] || "--geral"})"></span>${esc(g)}<span class="nota">${nPr} pranchas</span></summary>`;
+    for (const [sb, no] of Object.entries(subs)) {
+      if (vazio(no)) continue;
+      h += `<details class="gl-d sd" open data-g="${esc(g)}" data-s="${esc(sb)}"><summary><input type="checkbox" class="cb-esc" aria-label="Ligar ou desligar ${esc(sb)}"><span class="gn">${esc(sb || "(sem subgrupo)")}</span><span class="nota">${no.pr.size ? no.pr.size + " pranchas" : ""}</span></summary>`;
+      h += no.vet.map(id => htmlLinhaVetor(id, camadasMapa[id])).join("");
+      for (const [P, idx] of no.pr) h += htmlPranchaSub(P, idx, g + "|" + sb);
+      h += `</details>`;
+    }
+    h += `</details>`;
+  }
+  return h;
+}
+/* estado dos checkboxes da árvore a partir do estado real (P.mapa.on, P.vis, c.on) */
+function sincDisc() {
+  if (!TEM_ARV || !ARV) return;
+  abaC.querySelectorAll("input[data-d]").forEach(c => {
+    const P = prPorId(c.closest(".pr-l").dataset.p), i = +c.dataset.d;
+    c.checked = !!(P.mapa.on && P.vis[i]);
+    const f = P.fEt[i] || P.f4d[i] === 1;
+    c.closest("label").classList.toggle("filtrado", !!f);
+    c.closest("label").title = P.f4d[i] === 1 ? "Escondido pelo 4D (ainda não começou)" : P.fEt[i] ? "Escondido pelo filtro de etapa" : "";
+  });
+  abaC.querySelectorAll("input.pr-esp").forEach(c => c.checked = prPorId(c.dataset.p).mapa.on);
+  abaC.querySelectorAll("input[id^='v-prancha-']").forEach(c => c.checked = prPorId(c.id.slice(10)).mapa.on);
+  const marca = (cb, [n, t]) => { cb.checked = t > 0 && n === t; cb.indeterminate = n > 0 && n < t; };
+  abaC.querySelectorAll(".sd").forEach(d => marca(d.querySelector(".cb-esc"), contarEsc([ARV[d.dataset.g][d.dataset.s]])));
+  abaC.querySelectorAll(".gd").forEach(d => marca(d.querySelector(".cb-esc"), contarEsc(Object.values(ARV[d.dataset.g]))));
+}
+/* liga/desliga tudo o que está sob um grupo ou subgrupo. Ao ligar uma prancha que estava desligada, só os layers do escopo aparecem. */
+function ligarEscopo(nos, on) {
+  const tocadas = new Set();
+  for (const no of nos) {
+    for (const id of no.vet) { const c = camadasMapa[id]; c.on = on; sincCamada(c); }
+    for (const [P, idx] of no.pr) {
+      if (!P.M) continue;
+      if (on && !P.mapa.on && !tocadas.has(P)) P.vis.fill(0);
+      tocadas.add(P); idx.forEach(i => P.vis[i] = on ? 1 : 0);
+    }
+  }
+  for (const P of tocadas) {
+    prMudou(P);
+    if (on && !P.mapa.on) ligarPranchaMapa(P, true);
+    else if (!on && P.mapa.on && !P.vis.some(v => v)) ligarPranchaMapa(P, false);
+  }
+  sincDisc();
+}
+function tocarLayer(P, i, on) {
+  if (on && !P.mapa.on) P.vis.fill(0);
+  P.vis[i] = on ? 1 : 0; prMudou(P);
+  if (on && !P.mapa.on) ligarPranchaMapa(P, true);
+  else if (!on && P.mapa.on && !P.vis.some(v => v)) ligarPranchaMapa(P, false);
+}
+function alternarPrancha(P, on) {
+  if (on && !P.vis.some(v => v)) { P.vis.fill(1); prMudou(P); }
+  return ligarPranchaMapa(P, on);
+}
+const nosDe = el => { const d = el.closest(".sd"); return d ? [ARV[d.dataset.g][d.dataset.s]] : Object.values(ARV[el.closest(".gd").dataset.g]); };
+function ligarArvoreDisc() {
+  if (!TEM_ARV) return;
+  abaC.addEventListener("change", e => {
+    const t = e.target;
+    if (t.classList.contains("cb-esc")) ligarEscopo(nosDe(t), t.checked);
+    else if (t.classList.contains("pr-esp")) alternarPrancha(prPorId(t.dataset.p), t.checked);
+    else if (t.dataset.d != null) tocarLayer(prPorId(t.closest(".pr-l").dataset.p), +t.dataset.d, t.checked);
+  });
+  abaC.addEventListener("click", e => {
+    const b = e.target.closest("button[data-so]"); if (!b) return;
+    const pl = b.closest(".pr-l"), P = prPorId(pl.dataset.p);
+    P.vis.fill(0); pl.querySelectorAll(".pr-lay input[data-d]").forEach(c => P.vis[+c.dataset.d] = 1);
+    prMudou(P); if (!P.mapa.on) ligarPranchaMapa(P, true);
+  });
+  sincDisc();
+}
+
 function ligarPranchasCamadas() {
   for (const P of PR) {
     const cb = porId("v-prancha-" + P.id), det = porId("v-prancha-" + P.id)?.closest(".pr-l")?.querySelector(".pr-cfg");
-    if (cb) cb.onchange = e => ligarPranchaMapa(P, e.target.checked);
+    if (cb) cb.onchange = e => alternarPrancha(P, e.target.checked);
     if (!det) continue;
     det.addEventListener("toggle", () => { if (det.open && !P.arvores.some(b => b.id === "arv-c-" + P.id)) montarArvore(P, porId("arv-c-" + P.id)); });
     porId("po-" + P.id).oninput = e => { P.mapa.opac = +e.target.value; P.mapa.lay?.estilo(); };
@@ -1350,8 +1620,10 @@ const chaveItem = it => `${it.tabela}|${it.item}|${it.codigo}`;
 const abertos = new Set();   // tabelas com o grupo aberto (sobrevive ao redesenho da lista)
 
 const casaItem = (it, id) => casaEtapa(it.etapa, id) || (!!id && !it.etapa && ((/^1ª/.test(id) && it.q1 > 0) || (/^2ª/.test(id) && it.q2 > 0)));
-const qtdItem = (it, id) => /^1ª/.test(id || "") ? it.q1 : /^2ª/.test(id || "") ? it.q2 : (it.q1 || 0) + (it.q2 || 0);
-const valorItem = (it, id) => it.preco == null ? null : (qtdItem(it, id) || 0) * it.preco;
+/* valores vêm prontos do Python (valor_q1/valor_q2); aqui só se escolhe a coluna da etapa e se soma para exibir */
+const valorItem = (it, id) => /^1ª/.test(id || "") ? it.valor_q1 : /^2ª/.test(id || "") ? it.valor_q2
+  : it.valor_q1 == null && it.valor_q2 == null ? null : (it.valor_q1 || 0) + (it.valor_q2 || 0);
+const descItem = it => String(it.descricao || "").split("  ⚠")[0];   // o aviso fica no campo `alerta`
 const reais = v => v == null ? "—" : "R$ " + fmt(v, 2);
 const qfmt = v => v == null || v === "" ? "—" : (v === 0 ? "0" : fmt(v, Math.abs(v) < 100 && v % 1 ? 2 : 0));
 const nz = s => semAcento(s).replace(/[^a-z0-9]/g, "");
@@ -1403,16 +1675,23 @@ function listaEscopo() {
     (!fs || (fs === "nada" ? !sit[chaveItem(it)] : sit[chaveItem(it)] === fs)));
 }
 function renderTotais(lista = listaEscopo()) {
+  const T = D.escopo?.totais, fs = $("#eSit")?.value || "", q = ($("#eBusca")?.value || "").trim();
   const ativos = lista.filter(it => sit[chaveItem(it)] !== "fora");
-  const soma = f => ativos.reduce((s, it) => s + (f(it) || 0), 0);
-  const v1 = soma(it => it.preco == null ? 0 : (it.q1 || 0) * it.preco), v2 = soma(it => it.preco == null ? 0 : (it.q2 || 0) * it.preco);
-  const semPreco = ativos.filter(it => it.preco == null).length;
-  $("#eTot").innerHTML = `<span>Itens na lista</span><b>${fmt(lista.length, 0)}</b>
-    <span>No escopo / verificar / fora</span><b>${lista.filter(i => sit[chaveItem(i)] === "escopo").length} / ${lista.filter(i => sit[chaveItem(i)] === "verificar").length} / ${lista.filter(i => sit[chaveItem(i)] === "fora").length}</b>
+  const marcados = lista.filter(i => sit[chaveItem(i)] === "escopo").length + " / " + lista.filter(i => sit[chaveItem(i)] === "verificar").length + " / " + lista.filter(i => sit[chaveItem(i)] === "fora").length;
+  // sem busca, etapa, situação nem item marcado "fora": valem os totais do orçamento calculados no Python; senão, a soma das linhas visíveis (apresentação)
+  const global = !!T && !q && !etapaSel && !fs && ativos.length === lista.length;
+  const soma = k => ativos.reduce((x, it) => x + (it[k] || 0), 0);
+  const v1 = global ? T.valor_q1 : soma("valor_q1"), v2 = global ? T.valor_q2 : soma("valor_q2");
+  const semPreco = global ? T.sem_preco : ativos.filter(it => it.valor_q1 == null && it.valor_q2 == null).length;
+  const comAlerta = global ? T.com_alerta : lista.filter(it => it.alerta).length;
+  $("#eTot").innerHTML = `<span class="gt">${global ? "Totais do orçamento" : "Σ das linhas visíveis"}</span><span class="nota-l">${global ? "do Python" : "soma dos valores prontos"}</span>
+    <span>Itens ${global ? "no orçamento" : "na lista"}</span><b>${fmt(global ? T.itens : lista.length, 0)}</b>
+    <span>No escopo / verificar / fora</span><b>${marcados}</b>
     <span class="sep"></span>
     <span>Valor da 1ª etapa</span><b>${reais(v1)}</b><span>Valor da 2ª etapa</span><b>${reais(v2)}</b>
-    <span>Total (1ª + 2ª)</span><b>${reais(v1 + v2)}</b>
-    ${semPreco ? `<span class="sep"></span><span>Itens sem preço (fora dos valores)</span><b>${semPreco}</b>` : ""}`;
+    <span>Total (1ª + 2ª)</span><b>${reais((v1 || 0) + (v2 || 0))}</b>
+    ${semPreco || comAlerta ? `<span class="sep"></span>` : ""}${semPreco ? `<span>Itens sem preço (fora dos valores)</span><b>${semPreco}</b>` : ""}
+    ${comAlerta ? `<span>Itens com alerta (fora dos valores)</span><b>${comAlerta}</b>` : ""}`;
 }
 function renderEscopo() {
   const lista = listaEscopo(), q = ($("#eBusca")?.value || "").trim();
@@ -1421,13 +1700,15 @@ function renderEscopo() {
   const abrirTodos = !!q && grupos.size <= 12;
   const rot = etapaSel && /^[12]ª/.test(etapaSel) ? etapaSel[0] : null;
   $("#eTabelas").innerHTML = lista.length ? [...grupos].map(([tab, itens]) => {
-    const pr = pranchaDaTabela(tab), sub = itens.filter(it => sit[chaveItem(it)] !== "fora").reduce((s, it) => s + (valorItem(it, etapaSel) || 0), 0);
+    const pr = pranchaDaTabela(tab), pt = D.escopo.por_tabela?.[tab], completa = pt && itens.length === pt.n && itens.every(it => sit[chaveItem(it)] !== "fora");
+    const sub = completa ? valorItem({valor_q1: pt.valor_q1, valor_q2: pt.valor_q2}, etapaSel)
+      : itens.filter(it => sit[chaveItem(it)] !== "fora").reduce((x, it) => x + (valorItem(it, etapaSel) || 0), 0);
     return `<details class="esc-g" data-t="${esc(tab)}" ${abrirTodos || abertos.has(tab) ? "open" : ""}>
       <summary><span class="gt">Tabela ${esc(tab)} · ${esc(itens[0].nome_tabela)}</span><span class="gs">${itens.length} · ${reais(sub)}</span></summary>
       ${pr ? `<div class="btns" style="margin-bottom:6px"><button class="btn mini" data-desenho="${pr.id}">Abrir desenho: ${esc(pr.d.nome)}</button></div>` : ""}
       <div class="esc-tab"><table class="esc"><thead><tr><th>Descrição</th><th>Un</th><th>Q 1ª</th><th>Q 2ª</th><th>Valor${rot ? " " + rot + "ª" : ""}</th></tr></thead><tbody>
-      ${itens.map(it => { const k = chaveItem(it), v = valorItem(it, etapaSel); return `<tr data-sit="${sit[k] || ""}">
-        <td class="d">${esc(it.item)} · ${esc(it.descricao)}<span class="cod">${esc(it.codigo)}${it.local ? " · " + esc(it.local) : ""}${it.material ? " · " + esc(it.material) : ""}${it.etapa ? " · " + esc(it.etapa) : ""}</span>
+      ${itens.map(it => { const k = chaveItem(it), v = valorItem(it, etapaSel); return `<tr data-sit="${sit[k] || ""}" ${it.alerta ? 'data-alerta="1"' : ""}>
+        <td class="d">${esc(it.item)} · ${esc(descItem(it))}${it.alerta ? `<span class="esc-alerta">⚠ Alerta: ${esc(it.alerta)} (item fora dos valores)</span>` : ""}<span class="cod">${esc(it.codigo)}${it.local ? " · " + esc(it.local) : ""}${it.material ? " · " + esc(it.material) : ""}${it.etapa ? " · " + esc(it.etapa) : ""}</span>
           <select data-k="${esc(k)}" aria-label="Situação do item ${esc(it.item)} da tabela ${esc(tab)}"><option value="">Situação…</option>${Object.entries(SIT).map(([v2, n]) => `<option value="${v2}" ${sit[k] === v2 ? "selected" : ""}>${n}</option>`).join("")}</select></td>
         <td class="u">${esc(it.un)}</td><td class="q ${rot === "1" ? "ativa" : ""}">${qfmt(it.q1)}</td><td class="q ${rot === "2" ? "ativa" : ""}">${qfmt(it.q2)}</td><td>${v == null ? "—" : fmt(v, 2)}</td></tr>`; }).join("")}
       </tbody></table></div></details>`;
@@ -1436,12 +1717,12 @@ function renderEscopo() {
 }
 function exportarEscopo() {
   const num = (v, d) => v == null || v === "" ? "" : fmt(v, d).replace(/\./g, "");
-  const cab = ["tabela", "nome_tabela", "item", "codigo", "descricao", "un", "q_1a_etapa", "q_2a_etapa", "etapa", "material", "local", "preco_unitario", "valor_1a_etapa", "valor_2a_etapa", "situacao"];
+  const cab = ["tabela", "nome_tabela", "item", "codigo", "descricao", "un", "q_1a_etapa", "q_2a_etapa", "etapa", "material", "local", "preco_unitario", "valor_1a_etapa", "valor_2a_etapa", "alerta", "situacao"];
   const lin = [cab.join(";")];
   for (const it of listaEscopo()) {
     const k = sit[chaveItem(it)];
-    lin.push([it.tabela, it.nome_tabela, it.item, it.codigo, it.descricao, it.un, num(it.q1, 3), num(it.q2, 3), it.etapa, it.material, it.local, num(it.preco, 2),
-      it.preco == null ? "" : num((it.q1 || 0) * it.preco, 2), it.preco == null ? "" : num((it.q2 || 0) * it.preco, 2), SIT[k] || ""]
+    lin.push([it.tabela, it.nome_tabela, it.item, it.codigo, descItem(it), it.un, num(it.q1, 3), num(it.q2, 3), it.etapa, it.material, it.local, num(it.preco, 2),
+      num(it.valor_q1, 2), num(it.valor_q2, 2), it.alerta || "", SIT[k] || ""]
       .map(v => /[;"\n]/.test(v ?? "") ? `"${String(v).replace(/"/g, '""')}"` : (v ?? "")).join(";"));
   }
   dialogo("CSV do escopo (filtro atual · sep=';', decimal=',')", lin.join("\n"), D.id + "-escopo.csv", "text/csv", true);
@@ -1449,7 +1730,7 @@ function exportarEscopo() {
 
 /* ---- filtro de etapa: manchas, layers CAD e tabela ---- */
 function sincCamada(c) {
-  const quer = !!c.on && (!etapaSel || !c.etapa || c.etapa === etapaSel), tem = map.hasLayer(c.layer);
+  const quer = !!c.on && c.f4 !== 1 && (!etapaSel || !c.etapa || c.etapa === etapaSel), tem = map.hasLayer(c.layer);
   if (quer && !tem) c.layer.addTo(map); else if (!quer && tem) map.removeLayer(c.layer);
   const id = Object.keys(camadasMapa).find(k => camadasMapa[k] === c), lin = id && porId("v-" + id)?.closest(".linhaC");
   if (lin) { lin.classList.toggle("filtrado", !!c.on && !quer); lin.title = c.on && !quer ? "Escondida pelo filtro de etapa" : ""; }
@@ -1649,13 +1930,14 @@ function iniciar3D() {
   geo.setAttribute("color", new THREE.BufferAttribute(V3.rgb, 3, true));
   V3.mat = new THREE.PointsMaterial({size: +$("#v3Tam").value, sizeAttenuation: false, vertexColors: true});
   V3.pontos = new THREE.Points(geo, V3.mat); scene.add(V3.pontos);
-  v3Cameras();
+  v3Cameras(); v3Estacas();
 
   // controles
   $("#v3Tam").oninput = e => { V3.mat.size = +e.target.value; pedir3D(); };
   $("#v3Cor").onchange = e => v3Cor(e.target.value);
   $("#v3Cam").onchange = e => { V3.camGrupo.visible = e.target.checked; pedir3D(); };
   $("#v3Pr").onchange = () => { V3.sig = ""; v3Pranchas(); };
+  $("#v3Est").onchange = e => { if (V3.estacas) V3.estacas.visible = e.target.checked; pedir3D(); };
   $("#v3Topo").onclick = () => { const d = V3.extVista * 1.1, c = V3.centroVista; camera.position.set(c.x, c.y - d * .001, c.z + d); ctl.target.copy(c); ctl.update(); pedir3D(); };
   $("#v3Reset").onclick = () => { v3Enquadrar(); pedir3D(); };
   $("#v3Medir").onclick = () => v3Medir(!V3.medindo);
@@ -1709,6 +1991,28 @@ function v3Cameras() {
   V3.scene.add(g); g.visible = $("#v3Cam").checked;
 }
 
+/* estacas: cilindros verticais do terreno (p10 de z) para baixo, com o comprimento de projeto; cor por estrutura.
+   O raio nunca fica menor que 1/500 da extensão da nuvem, para aparecer na vista geral. */
+function v3Estacas() {
+  const cb = $("#v3Est"); cb.disabled = !ESTACAS.length;
+  if (!ESTACAS.length) return;
+  const g = new THREE.CylinderGeometry(1, 1, 1, 10, 1, false); g.rotateX(Math.PI / 2);   // eixo do cilindro em z
+  const im = V3.estacas = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({depthTest: false}), ESTACAS.length);
+  im.renderOrder = 5; im.frustumCulled = false; im.visible = cb.checked;
+  ESTACAS.forEach((e, i) => im.setColorAt(i, new THREE.Color(e.cor)));
+  V3.scene.add(im); v3EstacasEstado();
+}
+function v3EstacasEstado() {
+  const im = V3.estacas; if (!im) return;
+  const [E0, N0] = D.modelo3d.origem, rmin = V3.extensao / 500, m = new THREE.Matrix4(), q = new THREE.Quaternion(), cor = new THREE.Color();
+  ESTACAS.forEach((e, i) => {
+    const r = Math.max(e.d / 200, rmin), h = e.comp || 1, ocu = e.f4 === 1;
+    m.compose(new THREE.Vector3(e.E - E0, e.N - N0, V3.zg - h / 2), q, ocu ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(r, r, h));
+    im.setMatrixAt(i, m); im.setColorAt(i, cor.set(e.f4 === 2 ? LARANJA : e.cor));
+  });
+  im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; pedir3D();
+}
+
 /* pranchas georreferenciadas visíveis no mapa, como linhas no nível do terreno */
 function v3Pranchas() {
   if (!V3.pronto || V3.falhou) return;
@@ -1725,7 +2029,7 @@ function v3Pranchas() {
     const dentro = j => xy[2 * j] >= c[0] && xy[2 * j] <= c[2] && xy[2 * j + 1] >= c[1] && xy[2 * j + 1] <= c[3];
     P.cor3 ||= ests.map(s => s.s ? rgbHex(clarear(s.s)).map(v => v / 255) : null);
     for (let k = 0; k < P.np; k++) {
-      const cor = P.cor3[est[k]]; if (!cor || !P.ef[lay[k]]) continue;
+      const cor = P.f4d[lay[k]] === 2 ? COR3_LARANJA : P.cor3[est[k]]; if (!cor || !P.ef[lay[k]]) continue;
       const a = ini[k], b = ini[k + 1];
       for (let j = a; j < b; j++) {
         const j2 = j + 1 < b ? j + 1 : ((fl[k] & 1) && b - a > 2 ? a : -1); if (j2 < 0) break;
@@ -1795,9 +2099,175 @@ function v3DesenharMedida() {
 }
 
 /* ====================================================================
+   v3 · 4D: linha do tempo do cronograma. O Python entrega atividades, elementos e curva S prontos;
+   aqui só se compara o dia com início/fim de cada atividade (oculto / em execução / concluído) e se interpola o % da curva S.
+   ==================================================================== */
+const somaEst = (o, s) => o === 2 || s === 2 ? 2 : o === 3 || s === 3 ? 3 : s;
+function preparar4D() {
+  if (F4.itens) return;
+  F4.max = Math.max(...CRONO.atividades.map(a => a.fim_dia));
+  F4.itens = CRONO.atividades.map(a => {
+    const e = a.elementos || {}, lay = [];
+    for (const [pid, nomes] of Object.entries(e.layers || {})) {
+      const P = prPorId(pid), set = new Set(nomes), idx = [];
+      if (!P) continue;
+      P.d.layers.forEach((l, i) => { if (set.has(l.nome)) idx.push(i); });
+      if (idx.length) lay.push([P, idx]);
+    }
+    return {a, lay, vet: (e.vetores || []).filter(id => camadasMapa[id]), est: e.estacas || [], int: e.intervencoes || []};
+  });
+}
+/* estado de cada elemento no dia d: 1 oculto (ainda não começou), 2 em execução, 3 concluído. Em várias atividades: execução > concluído > oculto. */
+function estadoDia(d) {
+  const r = {pr: new Map(), vet: new Map(), est: new Map(), int: new Map()};
+  for (const it of F4.itens) {
+    const s = d < it.a.inicio_dia ? 1 : d <= it.a.fim_dia ? 2 : 3;
+    for (const [P, idx] of it.lay) {
+      let v = r.pr.get(P); if (!v) r.pr.set(P, v = new Uint8Array(P.d.layers.length));
+      idx.forEach(i => v[i] = somaEst(v[i], s));
+    }
+    it.vet.forEach(id => r.vet.set(id, somaEst(r.vet.get(id) || 0, s)));
+    it.est.forEach(id => r.est.set(id, somaEst(r.est.get(id) || 0, s)));
+    it.int.forEach(t => r.int.set(t, somaEst(r.int.get(t) || 0, s)));
+  }
+  return r;
+}
+function aplicarEstado4D(r) {
+  for (const P of PR) {
+    const novo = r.pr.get(P) || new Uint8Array(P.d.layers.length);
+    if (novo.some((v, i) => v !== P.f4d[i])) { P.f4d.set(novo); prMudou(P); }
+  }
+  for (const [id, c] of Object.entries(camadasMapa)) {
+    if (!r.vet.has(id) && !c.f4) continue;
+    const s = r.vet.get(id) || 0, antes = c.f4;
+    c.f4 = s; sincCamada(c);
+    if (c.layer.setStyle && (s === 2) !== (antes === 2))
+      c.layer.setStyle(s === 2 ? {color: LARANJA, fillColor: LARANJA, weight: 3} : f => ({fillColor: undefined, ...c.estilo(f)}));
+    c.layer.eachLayer?.(l => l._path?.classList.toggle("pulso", s === 2));
+  }
+  const gE = camadasMapa.estacas?.layer; let mudou = false;
+  for (const e of ESTACAS) {
+    const s = r.est.get(e.id) || 0;
+    if (s !== e.f4) {
+      e.marker.setStyle(s === 2 ? {fillColor: LARANJA, color: LARANJA} : {fillColor: e.cor, color: "#fff"});
+      if (s === 1) gE.removeLayer(e.marker); else if (e.f4 === 1) gE.addLayer(e.marker);
+      e.f4 = s; mudou = true;
+    }
+    e.marker._path?.classList.toggle("pulso", s === 2);
+  }
+  if (mudou) v3EstacasEstado();
+  const igual = INTERV.every(t => (r.int.get(t.id) || 0) === (F4.int.get(t.id) || 0));
+  F4.int = r.int; if (!igual) desenharAnotacoes();
+}
+function pctPlanejado(d) {
+  const x = CRONO.curva_s.dia, y = CRONO.curva_s.planejado_pct;
+  if (d <= x[0]) return y[0];
+  if (d >= x.at(-1)) return y.at(-1);
+  let i = 1; while (x[i] < d) i++;
+  return y[i - 1] + (y[i] - y[i - 1]) * (d - x[i - 1]) / (x[i] - x[i - 1]);
+}
+function dataDia(d) {
+  const t = Date.parse((F4.os || "") + "T00:00:00Z");
+  return isNaN(t) ? "—" : new Date(t + d * 864e5).toLocaleDateString("pt-BR", {timeZone: "UTC"});
+}
+function svgCurvaS() {
+  const c = CRONO.curva_s, W = 340, H = 190, ml = 34, mr = 12, mt = 12, mb = 26, M = F4.max;
+  const X = d => ml + d / M * (W - ml - mr), Y = p => mt + (1 - p / 100) * (H - mt - mb);
+  const txt = "font:9.5px 'IBM Plex Mono',monospace;fill:var(--mut)";
+  let g = [0, 25, 50, 75, 100].map(p => `<line x1="${ml}" x2="${W - mr}" y1="${Y(p)}" y2="${Y(p)}" style="stroke:var(--linha)"/><text x="${ml - 4}" y="${Y(p) + 3}" text-anchor="end" style="${txt}">${p}%</text>`).join("");
+  for (let d = 0; d <= M; d += 120) g += `<line x1="${X(d)}" x2="${X(d)}" y1="${mt}" y2="${H - mb}" style="stroke:var(--linha)"/><text x="${X(d)}" y="${H - mb + 12}" text-anchor="middle" style="${txt}">${d}</text>`;
+  g += `<text x="${W - mr}" y="${H - 2}" text-anchor="end" style="${txt}">dias desde a OS</text>`;
+  if (CRONO.prazo_dias <= M) g += `<line x1="${X(CRONO.prazo_dias)}" x2="${X(CRONO.prazo_dias)}" y1="${mt}" y2="${H - mb}" style="stroke:var(--mut);stroke-dasharray:4 3"/><text x="${X(CRONO.prazo_dias) - 3}" y="${mt + 9}" text-anchor="end" style="${txt}">prazo ${CRONO.prazo_dias} d</text>`;
+  g += `<polyline points="${c.dia.map((d, i) => `${X(d).toFixed(1)},${Y(c.planejado_pct[i]).toFixed(1)}`).join(" ")}" style="fill:none;stroke:var(--acento);stroke-width:2;stroke-linejoin:round"/>
+    <line id="csDia" y1="${mt}" y2="${H - mb}" style="stroke:var(--tinta);stroke-width:1.5"/><circle id="csPt" r="4" style="fill:var(--painel);stroke:var(--tinta);stroke-width:2"/>
+    <text id="csTx" style="font:600 10.5px 'IBM Plex Mono',monospace;fill:var(--tinta)"></text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Curva S planejada: percentual acumulado por dia desde a OS">${g}</svg>`;
+}
+function montar4D() {
+  const ats = CRONO.atividades, M = F4.max, W = 720, h = 14;
+  $("#b4Dia").max = M;
+  $("#b4Gantt").innerHTML = `<div class="g4"><div>${ats.map(a => `<div class="g4-n" title="${esc(`${a.id} · ${a.nome} · dias ${a.inicio_dia}–${a.fim_dia}`)}"><b>${esc(a.id)}</b> ${esc(a.nome)}</div>`).join("")}</div>
+    <svg class="g4-s" viewBox="0 0 ${W} ${ats.length * h}" preserveAspectRatio="none" style="height:${ats.length * h}px" role="img" aria-label="Mini-Gantt das atividades">
+      ${[0, 120, 240, 360, 480, 600, 720].filter(d => d <= M).map(d => `<line class="g4-g" x1="${d / M * W}" x2="${d / M * W}" y1="0" y2="${ats.length * h}"/>`).join("")}
+      ${ats.map((a, i) => `<rect class="g4-b" data-a="${esc(a.id)}" x="${a.inicio_dia / M * W}" y="${i * h + 2}" width="${Math.max(2, (a.fim_dia - a.inicio_dia) / M * W)}" height="${h - 4}"><title>${esc(a.id)}: dias ${a.inicio_dia}–${a.fim_dia}</title></rect>`).join("")}
+      <line id="g4Agora" class="g4-a" y1="0" y2="${ats.length * h}"/></svg></div>`;
+  $("#b4Curva").innerHTML = svgCurvaS();
+  $("#b4Marcos").innerHTML = (CRONO.marcos || []).map((m, i) => `<button class="${i % 2 ? "baixo" : ""}" style="left:${m.dia / M * 100}%" data-dia="${m.dia}" title="${esc(`${m.id} · dia ${m.dia} · ${m.descricao}`)}">${esc(m.id)}</button>`).join("");
+  $("#b4Aviso").hidden = !CRONO.data_os_hipotese;
+  $("#b4Os").value = F4.os || "";
+  $("#b4Fonte").textContent = CRONO.fonte || "";
+}
+function definirDia4D(d, forcar = false) {
+  d = Math.max(0, Math.min(F4.max, Math.round(d)));
+  if (d === F4.dia && !forcar) return;
+  F4.dia = d; $("#b4Dia").value = d;
+  const exec = CRONO.atividades.filter(a => d >= a.inicio_dia && d <= a.fim_dia), p = pctPlanejado(d), M = F4.max;
+  $("#b4Data").textContent = `Dia ${d} · ${dataDia(d)}`;
+  $("#b4Pct").textContent = fmt(p, 1) + " %";
+  $("#b4Exec").innerHTML = exec.length ? exec.map(a => `<span title="dias ${a.inicio_dia}–${a.fim_dia}"><b>${esc(a.id)}</b> ${esc(a.nome)}</span>`).join("") : `<span class="nada">Nenhuma atividade em execução neste dia.</span>`;
+  document.querySelectorAll("#b4Gantt rect[data-a]").forEach(r => { const a = CRONO.atividades.find(x => x.id === r.dataset.a); r.setAttribute("class", "g4-b e" + (d < a.inicio_dia ? 1 : d <= a.fim_dia ? 2 : 3)); });
+  const ag = $("#g4Agora"); ag.setAttribute("x1", d / M * 720); ag.setAttribute("x2", d / M * 720);
+  const W = 340, ml = 34, mr = 12, mt = 12, H = 190, mb = 26, x = ml + d / M * (W - ml - mr), y = mt + (1 - p / 100) * (H - mt - mb);
+  $("#csDia").setAttribute("x1", x); $("#csDia").setAttribute("x2", x); $("#csPt").setAttribute("cx", x); $("#csPt").setAttribute("cy", y);
+  const tx = $("#csTx"); tx.textContent = fmt(p, 1) + " %"; tx.setAttribute("x", d > M * .6 ? x - 7 : x + 7); tx.setAttribute("y", Math.max(y + 14, 24)); tx.setAttribute("text-anchor", d > M * .6 ? "end" : "start");
+  aplicarEstado4D(estadoDia(d));
+}
+function tocar4D(on) {
+  F4.play = on; $("#b4Play").setAttribute("aria-pressed", on); $("#b4Play").innerHTML = on ? "&#10074;&#10074; Pausa" : "&#9654; Play";
+  cancelAnimationFrame(F4.raf);
+  if (!on) return;
+  if (F4.dia >= F4.max) definirDia4D(0);
+  const t0 = performance.now(), d0 = F4.dia, vel = () => +$("#b4Vel").value;
+  const passo = ts => {
+    if (!F4.play) return;
+    definirDia4D(d0 + (ts - t0) / 1000 * vel());
+    if (F4.dia >= F4.max) return tocar4D(false);
+    F4.raf = requestAnimationFrame(passo);
+  };
+  F4.raf = requestAnimationFrame(passo);
+}
+function pulsar4D() {
+  if (!F4.on || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  F4.fase ^= 1;
+  for (const P of pranchasNoMapa()) if (P.f4d.some(v => v === 2) && (P.ultimoDesenho?.ms ?? 0) < 150) redesenharMapa(P);
+}
+function entrar4D() {
+  preparar4D(); montar4D(); F4.on = true;
+  F4.salvo = {vet: Object.fromEntries(Object.entries(camadasMapa).map(([id, c]) => [id, c.on])), pr: PR.map(P => ({P, on: P.mapa.on, vis: P.vis.slice()}))};
+  const usadas = new Map();
+  for (const it of F4.itens) {
+    for (const [P, idx] of it.lay) { const u = usadas.get(P) || new Set(); idx.forEach(i => u.add(i)); usadas.set(P, u); }
+    const ids = [...it.vet, ...(it.est.length ? ["estacas"] : [])].filter(id => camadasMapa[id]);
+    ids.forEach(id => { camadasMapa[id].on = true; sincCamada(camadasMapa[id]); const cb = porId("v-" + id); if (cb) cb.checked = true; });
+  }
+  // o 4D mostra só os layers que o cronograma cita (o estado anterior volta ao sair)
+  for (const [P, u] of usadas) if (P.M) { P.vis.fill(0); u.forEach(i => P.vis[i] = 1); prMudou(P); ligarPranchaMapa(P, true); }
+  $("#bar4d").hidden = false; $("#mapaWrap").classList.add("com4d"); $("#b-4d").setAttribute("aria-pressed", "true");
+  F4.tm = setInterval(pulsar4D, 700);
+  definirDia4D(F4.dia, true);
+}
+function sair4D() {
+  tocar4D(false); clearInterval(F4.tm); F4.on = false;
+  aplicarEstado4D({pr: new Map(), vet: new Map(), est: new Map(), int: new Map()});
+  for (const {P, on, vis} of F4.salvo.pr) { P.vis.set(vis); prMudou(P); if (P.mapa.on !== on) ligarPranchaMapa(P, on); }
+  for (const [id, on] of Object.entries(F4.salvo.vet)) { const c = camadasMapa[id]; c.on = on; sincCamada(c); const cb = porId("v-" + id); if (cb) cb.checked = on; }
+  F4.salvo = null; $("#bar4d").hidden = true; $("#mapaWrap").classList.remove("com4d"); $("#b-4d").setAttribute("aria-pressed", "false");
+  sincDisc();
+}
+const alternar4D = () => F4.on ? sair4D() : entrar4D();
+if (CRONO) {
+  $("#b4Fechar").onclick = sair4D;
+  $("#b4Play").onclick = () => tocar4D(!F4.play);
+  $("#b4Dia").oninput = e => { tocar4D(false); definirDia4D(+e.target.value); };
+  $("#b4Os").onchange = e => { if (e.target.value) { F4.os = e.target.value; definirDia4D(F4.dia, true); } };   // só muda o rótulo da data
+  $("#b4Marcos").onclick = e => { const b = e.target.closest("button[data-dia]"); if (b) { tocar4D(false); definirDia4D(+b.dataset.dia); } };
+  new ResizeObserver(() => $("#mapaWrap").style.setProperty("--h4d", $("#bar4d").hidden ? "0px" : $("#bar4d").offsetHeight + "px")).observe($("#bar4d"));
+}
+
+/* ====================================================================
    v2 · inicialização
    ==================================================================== */
-window.__viz = {PR, D, FV, map, camadasMapa, marcaSnd, indexar, consultaPrancha, abrirFolha, ligarPranchaMapa, definirEtapa, abrir3D, abrirFoto, htmlSondagem, pt2ll, snapMapa, identificarPranchas};   // ganchos para scripts/testar_visualizador.py
+window.__viz = {PR, D, FV, F4, ESTACAS, INTERV, map, camadasMapa, marcaSnd, get anot() { return anot; }, get ARV() { return ARV; }, entrar4D, sair4D, definirDia4D, alternar4D, indexar, consultaPrancha, abrirFolha, ligarPranchaMapa, definirEtapa, abrir3D, abrirFoto, htmlSondagem, pt2ll, snapMapa, identificarPranchas};   // ganchos para scripts/testar_visualizador.py
 function iniciarV2() {
   if (PR.length) { $("#t-pranchas").hidden = false; montarSelecaoPranchas(); }
   if (PR.length || ESC.length || ETAPAS.length) { $("#t-escopo").hidden = !(ESC.length || ETAPAS.length); montarEscopo(); }
@@ -1809,22 +2279,47 @@ const abaC = $("#aba-camadas");
 function linhaCamada(id, nome, ligado, extra = "") {
   return `<div class="linhaC"><input type="checkbox" id="v-${id}" ${ligado ? "checked" : ""}><label for="v-${id}">${nome}</label><span class="nota">${extra}</span></div>`;
 }
+function htmlLinhaVetor(id, c) {
+  let h = linhaCamada(id, c.nome, map.hasLayer(c.layer), c.etapa ? `<span class="sw" style="background:${ETAPA_COR[c.etapa] || "var(--mut)"}"></span>` : "");
+  if (id === "satelite") h += `<p class="aviso erro" id="aviso-sat" ${satErro ? "" : "hidden"}>Satélite indisponível aqui: precisa de internet e é bloqueado em visualizadores restritos. Abra o HTML localmente.</p>`;
+  if (c.base) h += `<div class="ajuste"><span>Opacidade</span><input type="range" id="op-${id}" min="0" max="100" value="100">
+    <span>Brilho</span><input type="range" id="br-${id}" min="30" max="140" value="100">
+    <span>Saturação</span><input type="range" id="sa-${id}" min="0" max="140" value="100"></div>`;
+  return h;
+}
+/* ---- v3 · intervenções: resumo de supressão por etapa, recortes classificados e totais por tipo ---- */
+function htmlRecortes() {
+  const sup = D.vetores.find(v => v.resumo);
+  const resumo = sup ? `<table class="int-resumo"><tr><th>Estimativa por etapa</th><th>Supressão m²</th><th>Limpeza m²</th></tr>${Object.entries(sup.resumo).map(([et, r]) =>
+    `<tr><td>${esc(et)}</td><td>${fmt(r.supressao_m2, 1)}</td><td>${fmt(r.limpeza_m2, 1)}</td></tr>`).join("")}</table>
+    <p class="aviso">Áreas estimadas pela vegetação (ExG + altura): não são medidas de campo.</p>` : "";
+  return resumo + (INTERV.length ? `<div class="btns" style="margin:8px 0 4px 26px"><button class="btn" id="intRecortar">Recortar intervenção</button></div>
+    <div class="tot" id="intTot" aria-live="polite"></div><div class="lista" id="intLista"></div>` : "");
+}
+function renderRecortes() {
+  const box = $("#intLista"); if (!box) return;
+  const tot = {}, linhas = [];
+  for (const f of anot.features) {
+    const p = f.properties; if (!p.intervencao) continue;
+    const a = medir("area", coordsLL(f)).valor, t = tot[p.intervencao] ||= {n: 0, a: 0};
+    t.n++; t.a += a;
+    linhas.push(`<div class="item ${p.id === selId ? "sel" : ""}" data-id="${p.id}" tabindex="0"><span class="sw" style="background:${INTERV_COR[p.intervencao] || "var(--mut)"};margin-top:3px"></span>
+      <span class="t">${esc(p.titulo)}</span><span class="v">${fmt(a, 1)} m²</span></div>`);
+  }
+  const tipos = INTERV.filter(t => tot[t.id]);
+  $("#intTot").hidden = !tipos.length;
+  $("#intTot").innerHTML = tipos.map(t => `<span><span class="sw" style="background:${t.cor}"></span> ${esc(t.nome)} (${tot[t.id].n})</span><b>${fmt(tot[t.id].a, 1)} m²</b>`).join("")
+    + (tipos.length > 1 ? `<span class="sep"></span><span>Soma dos recortes</span><b>${fmt(tipos.reduce((x, t) => x + tot[t.id].a, 0), 1)} m²</b>` : "");
+  box.innerHTML = linhas.length ? linhas.join("") : `<p class="aviso">Nenhum recorte ainda. Use “Recortar intervenção”, feche o polígono e escolha o tipo.</p>`;
+}
 function montarPainel() {
   const grupos = {};
-  for (const [id, c] of Object.entries(camadasMapa)) (grupos[c.grupo] ||= []).push([id, c]);
+  for (const [id, c] of Object.entries(camadasMapa)) if (!(TEM_ARV && c.grupo in GRUPOS)) (grupos[c.grupo] ||= []).push([id, c]);
+  if (INTERV.length) grupos["Intervenções"] ||= [];
   let h = "";
-  for (const [g, itens] of Object.entries(grupos)) {
-    h += `<details class="grupo" open><summary>${g}</summary>`;
-    for (const [id, c] of itens) {
-      h += linhaCamada(id, c.nome, map.hasLayer(c.layer), c.etapa ? `<span class="sw" style="background:${ETAPA_COR[c.etapa] || "var(--mut)"}"></span>` : "");
-      if (id === "satelite") h += `<p class="aviso erro" id="aviso-sat" ${satErro ? "" : "hidden"}>Satélite indisponível aqui: precisa de internet e é bloqueado em visualizadores restritos. Abra o HTML localmente.</p>`;
-      if (c.base) h += `<div class="ajuste"><span>Opacidade</span><input type="range" id="op-${id}" min="0" max="100" value="100">
-        <span>Brilho</span><input type="range" id="br-${id}" min="30" max="140" value="100">
-        <span>Saturação</span><input type="range" id="sa-${id}" min="0" max="140" value="100"></div>`;
-    }
-    h += `</details>`;
-  }
-  h += htmlPranchasCamadas() + htmlSondagensCamadas();   // v2: pranchas vetoriais e sondagens logo após os levantamentos
+  for (const [g, itens] of Object.entries(grupos))
+    h += `<details class="grupo" open><summary>${g}</summary>${itens.map(([id, c]) => htmlLinhaVetor(id, c)).join("")}${g === "Intervenções" ? htmlRecortes() : ""}</details>`;
+  h += (TEM_ARV ? htmlArvoreDisc() : htmlPranchasCamadas()) + htmlSondagensCamadas();   // pranchas por disciplina e sondagens logo após os levantamentos
   const disciplinas = [...new Set([...D.folhas.map(f => f.disciplina), ...Object.keys(D.pendentes || {})])];
   for (const d of disciplinas) {
     h += `<details class="grupo" open><summary><span class="disc" style="background:var(${DISC[d] || "--geral"})"></span>${d}</summary>`;
@@ -1844,10 +2339,11 @@ function montarPainel() {
   }
   h += `<details class="grupo" open><summary>Anotações</summary>${linhaCamada("anot", "Medições e notas", true)}${linhaCamada("rotulos", "Rótulos com valores", true)}</details>`;
   abaC.innerHTML = h;
-  ligarPranchasCamadas(); ligarSondagensCamadas();
+  ligarPranchasCamadas(); ligarSondagensCamadas(); ligarArvoreDisc();
+  if (INTERV.length) $("#intRecortar").onclick = () => usar("recorte");
 
   for (const [id, c] of Object.entries(camadasMapa)) {
-    porId("v-" + id).onchange = e => { c.on = e.target.checked; sincCamada(c); };
+    porId("v-" + id).onchange = e => { c.on = e.target.checked; sincCamada(c); sincDisc(); };
     if (c.base) {
       const up = () => { c.img.style.opacity = porId("op-" + id).value / 100;
         c.img.style.filter = `brightness(${porId("br-" + id).value / 100}) saturate(${porId("sa-" + id).value / 100})`; };
@@ -1919,7 +2415,9 @@ function desenharAnotacoes() {
   const rot = !$("#v-rotulos") || $("#v-rotulos").checked;
   let nNota = 0;
   for (const f of anot.features) {
-    const p = f.properties, cor = corDisc(p.disciplina), pts = coordsLL(f), sel = p.id === selId, m = medir(p.tipo, pts);
+    const p = f.properties, s4 = p.intervencao ? F4.int.get(p.intervencao) || 0 : 0;
+    if (s4 === 1) continue;   // 4D: a intervenção ainda não começou
+    const cor = s4 === 2 ? LARANJA : INTERV_COR[p.intervencao] || corDisc(p.disciplina), pts = coordsLL(f), sel = p.id === selId, m = medir(p.tipo, pts);
     let l;
     if (p.tipo === "nota") {
       nNota++;
@@ -1928,7 +2426,7 @@ function desenharAnotacoes() {
       l = L.circleMarker(pts[0], {radius: sel ? 7 : 5, color: "#fff", weight: 2, fillColor: cor, fillOpacity: 1});
       if (rot) l.bindTooltip(m.texto, {permanent: true, direction: "right", className: "rotulo", offset: [8, 0]});
     } else if (p.tipo === "area") {
-      l = L.polygon(pts, {color: cor, weight: sel ? 4 : 2.5, fillOpacity: .18});
+      l = L.polygon(pts, {color: cor, weight: sel ? 4 : 2.5, fillOpacity: p.intervencao ? .32 : .18, className: s4 === 2 ? "pulso" : ""});
       if (rot) l.bindTooltip(m.texto, {permanent: true, direction: "center", className: "rotulo"});
     } else {
       l = L.polyline(pts, {color: cor, weight: sel ? 5 : 3, dashArray: p.tipo === "angulo" ? "6 4" : null});
@@ -1946,13 +2444,15 @@ function listar() {
   $("#lista").innerHTML = itens.length ? itens.map(f => {
     const p = f.properties, m = medir(p.tipo, coordsLL(f));
     return `<div class="item ${p.id === selId ? "sel" : ""}" data-id="${p.id}" tabindex="0">
-      <span style="color:${corDisc(p.disciplina)}">${icone(p.tipo)}</span>
+      <span style="color:${INTERV_COR[p.intervencao] || corDisc(p.disciplina)}">${icone(p.tipo)}</span>
       <span class="t">${esc(p.titulo || TIPOS[p.tipo])}</span>
       <span class="v">${p.tipo === "nota" ? "" : p.tipo === "ponto" ? "" : m.texto.split(" · ")[0]}</span>
       <span class="m"><span class="dchip"><span class="disc" style="background:${corDisc(p.disciplina)}"></span>${p.disciplina}</span>
+      ${p.intervencao ? `<span class="pill" style="color:${INTERV_COR[p.intervencao] || "var(--mut)"}">${esc(INTERV.find(t => t.id === p.intervencao)?.nome || p.intervencao)}</span>` : ""}
       <span class="pill ${p.status}">${p.status === "resolvida" ? "Resolvida" : "Aberta"}</span>
       <span>${esc(p.autor || "")}${p.exemplo ? "" : " · " + new Date(p.criado).toLocaleDateString("pt-BR")}</span></span></div>`;
   }).join("") : `<p class="vazio">Nenhuma anotação com esses filtros. Use as ferramentas no mapa para medir ou criar uma nota.</p>`;
+  renderRecortes();
   document.querySelectorAll(".item").forEach(el => {
     el.onclick = () => selecionar(el.dataset.id, true);
     el.onkeydown = e => { if (e.key === "Enter") selecionar(el.dataset.id, true); };
@@ -1972,15 +2472,19 @@ function editor() {
   box.innerHTML = `<div class="editor">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="aviso" style="margin:0">${TIPOS[p.tipo]}${p.exemplo ? " · exemplo" : ""}</span><span class="valor">${p.tipo === "nota" ? "" : esc(m.texto)}</span></div>
     <label>Título<input type="text" id="edTitulo" value="${esc(p.titulo)}"></label>
+    ${p.tipo === "area" && INTERV.length ? `<label>Intervenção<select id="edInt"><option value="">(nenhuma)</option>${INTERV.map(t => `<option value="${t.id}" ${t.id === p.intervencao ? "selected" : ""}>${esc(t.nome)}</option>`).join("")}</select></label>` : ""}
     <div class="lin2"><label>Disciplina<select id="edDisc">${Object.keys(DISC).map(d => `<option ${d === p.disciplina ? "selected" : ""}>${d}</option>`).join("")}</select></label>
     <label>Situação<select id="edStatus"><option value="aberta" ${p.status === "aberta" ? "selected" : ""}>Aberta</option><option value="resolvida" ${p.status === "resolvida" ? "selected" : ""}>Resolvida</option></select></label></div>
     <label>Comentário técnico<textarea id="edTexto">${esc(p.texto)}</textarea></label>
     <div class="coord">${fmtUTM(u)}${pts.length > 1 ? ` (1º vértice de ${pts.length - (p.tipo === "area" ? 1 : 0)})` : ""} · ${p.autor ? esc(p.autor) + " · " : ""}${new Date(p.criado).toLocaleString("pt-BR")}</div>
     <div class="btns"><button class="btn" id="edCopiar">Copiar coordenadas</button><button class="btn perigo" id="edExcluir">Excluir</button></div></div>`;
-  const up = () => { p.titulo = $("#edTitulo").value; p.disciplina = $("#edDisc").value; p.status = $("#edStatus").value; p.texto = $("#edTexto").value; salvar(); };
+  const up = () => { p.titulo = $("#edTitulo").value; p.disciplina = $("#edDisc").value; p.status = $("#edStatus").value; p.texto = $("#edTexto").value;
+    if ($("#edInt")) { if ($("#edInt").value) p.intervencao = $("#edInt").value; else delete p.intervencao; }
+    salvar(); };
   $("#edTitulo").oninput = () => { up(); const t = document.querySelector(`.item[data-id="${p.id}"] .t`); if (t) t.textContent = p.titulo; };
   $("#edTexto").oninput = up;
   $("#edDisc").onchange = $("#edStatus").onchange = () => { up(); listar(); desenharAnotacoes(); };
+  if ($("#edInt")) $("#edInt").onchange = () => { up(); listar(); desenharAnotacoes(); };
   $("#edCopiar").onclick = () => copiar(pts.map(ll => ll2utm(ll).map(v => v.toFixed(3)).join(";")).join("\n"), $("#edCopiar"));
   confirmarExclusao = false;
   $("#edExcluir").onclick = e => {
@@ -1992,20 +2496,35 @@ function copiar(txt, btn) {
   const ok = () => { const t = btn.textContent; btn.textContent = "Copiado"; setTimeout(() => btn.textContent = t, 1400); };
   navigator.clipboard?.writeText(txt).then(ok).catch(() => {});
 }
-function novaAnotacao(tipo, pts) {
-  const n = anot.features.filter(f => f.properties.tipo === tipo).length + 1;
+function novaAnotacao(tipo, pts, extra = {}) {
+  const tIv = INTERV.find(t => t.id === extra.intervencao);
+  const n = anot.features.filter(f => tIv ? f.properties.intervencao === tIv.id : f.properties.tipo === tipo).length + 1;
   const ll = pts.map(p => [+p.lng.toFixed(9), +p.lat.toFixed(9)]);
   const geom = tipo === "nota" || tipo === "ponto" ? {type: "Point", coordinates: ll[0]}
     : tipo === "area" ? {type: "Polygon", coordinates: [[...ll, ll[0]]]} : {type: "LineString", coordinates: ll};
   const id = "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const f = {type: "Feature", geometry: geom, properties: {id, tipo, titulo: `${TIPOS[tipo]} ${n}`, texto: "",
-    disciplina: $("#fDisc").value || "Geral", status: "aberta", autor: $("#autor").value || "", criado: new Date().toISOString()}};
+  const f = {type: "Feature", geometry: geom, properties: {id, tipo, titulo: `${tIv ? tIv.nome : TIPOS[tipo]} ${n}`, texto: "",
+    disciplina: $("#fDisc").value || "Geral", status: "aberta", autor: $("#autor").value || "", criado: new Date().toISOString(), ...extra}};
   f.properties.valor = medir(tipo, coordsLL(f)).valor;
   anot.features.push(f); salvar(); selecionar(id, false); desenharAnotacoes();
   setTimeout(() => { const t = $("#edTitulo"); if (t) { t.focus(); t.select(); } }, 30);
 }
 $("#fDisc").innerHTML += Object.keys(DISC).map(d => `<option>${d}</option>`).join("");
 $("#fDisc").onchange = $("#fStatus").onchange = listar;
+
+/* recorte classificado: depois de fechar o polígono, escolhe-se o tipo de intervenção (a área vem da medição UTM) */
+let recortePts = null;
+function escolherIntervencao(pts) {
+  recortePts = pts;
+  $("#intArea").textContent = medir("area", pts).texto;
+  $("#intTipos").innerHTML = INTERV.map(t => `<button class="btn" data-t="${esc(t.id)}"><span class="sw" style="background:${t.cor}"></span>${esc(t.nome)}</button>`).join("");
+  $("#dlgInterv").showModal();
+}
+$("#intTipos").onclick = e => {
+  const b = e.target.closest("button[data-t]"); if (!b || !recortePts) return;
+  novaAnotacao("area", recortePts, {intervencao: b.dataset.t}); recortePts = null; $("#dlgInterv").close();
+};
+$("#intCancelar").onclick = () => { recortePts = null; $("#dlgInterv").close(); };
 
 /* exportar / importar */
 function dialogo(titulo, txt, nomeArq, mime, bom = false) {
@@ -2019,11 +2538,11 @@ function dialogo(titulo, txt, nomeArq, mime, bom = false) {
 $("#dlgFechar").onclick = () => $("#dlg").close();
 $("#expGeo").onclick = () => dialogo("GeoJSON das anotações (WGS84)", JSON.stringify(anot, null, 1), D.id + "-anotacoes.geojson", "application/geo+json");
 $("#expCsv").onclick = () => {
-  const lin = [["id", "tipo", "titulo", "disciplina", "status", "valor", "unidade", "E", "N", "autor", "criado", "texto"].join(";")];
+  const lin = [["id", "tipo", "titulo", "disciplina", "intervencao", "status", "valor", "unidade", "E", "N", "autor", "criado", "texto"].join(";")];
   const un = {distancia: "m", area: "m2", angulo: "graus", ponto: "", nota: ""};
   for (const f of anot.features) {
     const p = f.properties, pts = coordsLL(f), m = medir(p.tipo, pts), [E, N] = ll2utm(pts[0]);
-    lin.push([p.id, p.tipo, p.titulo, p.disciplina, p.status, m.valor == null ? "" : fmt(m.valor, 3).replace(/\./g, ""), un[p.tipo],
+    lin.push([p.id, p.tipo, p.titulo, p.disciplina, p.intervencao || "", p.status, m.valor == null ? "" : fmt(m.valor, 3).replace(/\./g, ""), un[p.tipo],
       fmt(E, 3).replace(/\./g, ""), fmt(N, 3).replace(/\./g, ""), p.autor, p.criado, (p.texto || "").replace(/\s+/g, " ")]
       .map(v => /[;"]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : v).join(";"));
   }
@@ -2042,19 +2561,21 @@ $("#impArq").onchange = async e => {
 };
 
 /* ---------- ferramentas ---------- */
-const FERR = [["navegar", "Navegar"], ["distancia", "Distância"], ["area", "Área"], ["angulo", "Ângulo"], ["ponto", "Coordenada"], ["nota", "Nota"], ["-"], ["swipe", "Comparar"],
-  ...(D.modelo3d ? [["3d", "3D"]] : []), ["enquadrar", "Enquadrar"]];
+const FERR = [["navegar", "Navegar"], ["distancia", "Distância"], ["area", "Área"], ...(INTERV.length ? [["recorte", "Recortar"]] : []), ["angulo", "Ângulo"], ["ponto", "Coordenada"], ["nota", "Nota"], ["-"], ["swipe", "Comparar"],
+  ...(CRONO ? [["4d", "4D"]] : []), ...(D.modelo3d ? [["3d", "3D"]] : []), ["enquadrar", "Enquadrar"]];
 const DICAS = {distancia: "Clique nos vértices · duplo clique ou Enter conclui", area: "Clique nos vértices · duplo clique ou Enter fecha o polígono",
-  angulo: "Clique: ponto A, vértice, ponto B", ponto: "Clique para ler a coordenada", nota: "Clique onde quer a nota técnica"};
+  angulo: "Clique: ponto A, vértice, ponto B", recorte: "Clique nos vértices · Enter fecha o polígono e pede o tipo de intervenção", ponto: "Clique para ler a coordenada", nota: "Clique onde quer a nota técnica"};
 $("#ferramentas").innerHTML = FERR.map(([id, r]) => id === "-" ? "<hr>" :
   `<button id="b-${id}" aria-pressed="${id === "navegar"}" title="${r}">${icone(id)}<span class="rot">${r}</span></button>`).join("");
 let ferramenta = "navegar", pts = [], temp = L.layerGroup().addTo(map);
+const tipoMed = () => ferramenta === "recorte" ? "area" : ferramenta;   // o recorte mede como a ferramenta Área
 function usar(t) {
   if (t === "enquadrar") return enquadrar();
   if (t === "swipe") return alternarSwipe();
   if (t === "3d") return abrir3D();
+  if (t === "4d") return alternar4D();
   ferramenta = t; pts = []; temp.clearLayers(); mostrarSnap(null);
-  FERR.forEach(([id]) => { const b = $("#b-" + id); if (b && id !== "swipe" && id !== "3d") b.setAttribute("aria-pressed", id === t); });
+  FERR.forEach(([id]) => { const b = $("#b-" + id); if (b && id !== "swipe" && id !== "3d" && id !== "4d") b.setAttribute("aria-pressed", id === t); });
   t === "navegar" ? map.doubleClickZoom.enable() : map.doubleClickZoom.disable();
   map.getContainer().style.cursor = t === "navegar" ? "" : "crosshair";
   atualizarDica();
@@ -2063,7 +2584,7 @@ FERR.forEach(([id]) => { const b = $("#b-" + id); if (b) b.onclick = () => usar(
 function atualizarDica(vivo = "") {
   const d = $("#dica");
   if (ferramenta === "navegar") { d.hidden = true; return; }
-  const podeConcluir = (ferramenta === "distancia" && pts.length >= 2) || (ferramenta === "area" && pts.length >= 3);
+  const podeConcluir = (ferramenta === "distancia" && pts.length >= 2) || ((ferramenta === "area" || ferramenta === "recorte") && pts.length >= 3);
   d.hidden = false;
   d.innerHTML = `<span>${DICAS[ferramenta]}</span><span class="vivo">${vivo}</span>${podeConcluir ? '<button id="dConcluir">Concluir</button>' : ""}<button id="dSair">Esc</button>`;
   if (podeConcluir) $("#dConcluir").onclick = concluir;
@@ -2074,14 +2595,15 @@ function desenharTemp(cursor) {
   const p = cursor ? [...pts, cursor] : pts;
   if (!p.length) return;
   const cor = corDisc($("#fDisc").value || "Geral");
-  if (ferramenta === "area" && p.length > 2) L.polygon(p, {color: cor, weight: 2, fillOpacity: .15, dashArray: "5 4", interactive: false}).addTo(temp);
+  if ((ferramenta === "area" || ferramenta === "recorte") && p.length > 2) L.polygon(p, {color: cor, weight: 2, fillOpacity: .15, dashArray: "5 4", interactive: false}).addTo(temp);
   else L.polyline(p, {color: cor, weight: 2.5, dashArray: "5 4", interactive: false}).addTo(temp);
   pts.forEach(q => L.circleMarker(q, {radius: 4, color: "#fff", weight: 2, fillColor: cor, fillOpacity: 1, interactive: false}).addTo(temp));
-  if (p.length > 1) atualizarDica(medir(ferramenta, p).texto);
+  if (p.length > 1) atualizarDica(medir(tipoMed(), p).texto);
 }
 function concluir() {
   if (ferramenta === "distancia" && pts.length >= 2) novaAnotacao("distancia", pts);
   else if (ferramenta === "area" && pts.length >= 3) novaAnotacao("area", pts);
+  else if (ferramenta === "recorte" && pts.length >= 3) escolherIntervencao(pts.slice());
   else return;
   pts = []; temp.clearLayers(); atualizarDica();
 }
@@ -2098,7 +2620,7 @@ map.on("click", e => {
   pts.push(alvo);
   if (ferramenta === "ponto" || ferramenta === "nota") { novaAnotacao(ferramenta, pts); pts = []; temp.clearLayers(); return; }
   if (ferramenta === "angulo" && pts.length === 3) { novaAnotacao("angulo", pts); pts = []; temp.clearLayers(); atualizarDica(); return; }
-  desenharTemp(); atualizarDica(pts.length > 1 ? medir(ferramenta, pts).texto : "");
+  desenharTemp(); atualizarDica(pts.length > 1 ? medir(tipoMed(), pts).texto : "");
 });
 map.on("dblclick", () => { if (ferramenta !== "navegar") concluir(); });
 let rafMove = 0;
