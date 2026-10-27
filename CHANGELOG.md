@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 — 2026-10-28 · Foz, rodada 4
+- Cota absoluta: `sfm.ajustar_vertical` / `aplicar_vertical` ajustam o plano z → cota às cotas de boca das SPT
+  (rejeição robusta, validação cruzada deixa-um-fora); nuvem, câmeras, 3D e GeoTIFF do MDS passam a cota.
+  Foz: 12 furos, 0,23 m.
+- Quantitativos do desenho por layer CAD (`pdf_cad.quantitativos`, `decodificar_pacote`): comprimento (m) e área (m²)
+  pela afim pt → UTM, exibidos na aba Pranchas.
+- `mosaico.py` sem classe nem dataclass: `carregar → casar → ajustar_global → renderizar` com estado em dict;
+  `executar(pasta, saida, ...)` devolve o relatório com `epsg`. Mesmos números no Foz.
+- Marcos destruídos identificados (RN07A a 22 m, RN2 a 2,06 km).
+
 ## 0.3.0 — 2026-10-27 · Foz, rodada de qualidade
 - 20/20 pranchas georreferenciadas: CAD × CAD por SIFT + RANSAC (`georef_prancha.registrar_cad`), critério rígido e
   conferência visual; recorte automático do mapa à área do levantamento.

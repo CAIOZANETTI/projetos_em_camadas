@@ -1589,6 +1589,16 @@ function montarSelecaoPranchas() {
     `<button data-id="${p.id}"><span class="nm">${esc(p.d.nome)}</span>${badgeGeoref(p)}</button>`).join("")).join("");
   $("#pLista").onclick = e => { const b = e.target.closest("button[data-id]"); if (b) abrirFolha(b.dataset.id); };
 }
+/* quantitativos por layer: calculados no Python (pdf_cad.quantitativos); aqui só a tabela */
+function htmlQuantitativos(q) {
+  const linhas = (q || []).filter(l => l.comprimento_m || l.area_m2);
+  if (!linhas.length) return "";
+  return `<details class="pr-quant" style="margin-top:8px"><summary>Quantitativos do desenho (${linhas.length} layers)</summary>
+    <div style="overflow:auto;max-height:280px"><table class="esc" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:68px"><col style="width:60px"></colgroup><thead><tr><th>Layer</th><th>m</th><th>m²</th></tr></thead><tbody>` +
+    linhas.map(l => `<tr><td class="d" style="overflow-wrap:anywhere">${esc(l.layer)}<span class="cod">${esc([l.grupo, l.subgrupo].filter(Boolean).join(" › "))}${l.classe ? " · " + esc(l.classe) : ""}</span></td>` +
+      `<td>${l.comprimento_m ? fmt(l.comprimento_m, 1) : "—"}</td><td>${l.area_m2 ? fmt(l.area_m2, 1) : "—"}</td></tr>`).join("") +
+    `</tbody></table></div><p class="mut" style="font-size:11px;margin:4px 0 0">Medida do desenho dentro do recorte: linha dupla conta 2×; hachura e texto ficam de fora. Serve para conferir ordem de grandeza contra o orçamento.</p></details>`;
+}
 function fecharFolha() {
   FV.P = null; $("#pCorpo").hidden = true; $("#pLista").hidden = false; $("#pSel").value = "";
   if (vista === "folha") mostrarVista("mapa");
@@ -1600,7 +1610,8 @@ async function abrirFolha(id) {
   $("#fTit").textContent = P.d.nome; $("#pLista").hidden = true; $("#pCorpo").hidden = false;
   const g = P.d.georef || {};
   $("#pInfo").innerHTML = `${esc(P.d.disciplina)} · ${esc(P.d.pdf)}<br>Folha ${fmt(P.d.largura, 0)} × ${fmt(P.d.altura, 0)} pt · ${fmt(P.d.n_partes, 0)} subcaminhos · ${fmt((P.d.textos || []).length, 0)} textos<br>` +
-    (P.M ? `Georreferenciada (${esc(g.motivo || "")}${g.residuo_mediano_m != null ? "; resíduo mediano " + fmt(g.residuo_mediano_m) + " m" : ""}).` : `Sem georreferência (${esc(g.motivo || "sem pontos de controle")}): medidas em pt${P.escala ? " e metros pela escala" : ""}.`);
+    (P.M ? `Georreferenciada (${esc(g.motivo || "")}${g.residuo_mediano_m != null ? "; resíduo mediano " + fmt(g.residuo_mediano_m) + " m" : ""}).` : `Sem georreferência (${esc(g.motivo || "sem pontos de controle")}): medidas em pt${P.escala ? " e metros pela escala" : ""}.`) +
+    htmlQuantitativos(P.d.quantitativos);
   abrirAba("pranchas"); mostrarVista("folha");
   $("#fCarga").hidden = P.pronta; fvAjustarTamanho();
   try { await carregarPrancha(P); } catch (e) { $("#fCarga").textContent = "Não foi possível ler o vetor: " + e.message; return; }
@@ -1808,6 +1819,7 @@ function htmlSondagem(s) {
   const dt = s.data && typeof s.data === "object" ? Object.values(s.data).filter(Boolean).join(" → ") : s.data;
   return `<div class="pop snd-pop"><b>${esc(s.id)}</b> <span class="nota-l">${esc(s.tipo || "")}${s.unidade ? " · " + esc(s.unidade) : ""}</span>
     <div class="nota-l">Cota da boca ${fmtM(s.cota_boca)} · profundidade ${fmtM(s.profundidade_m)} · NA ${fmtM(s.na_m)}${dt ? " · " + esc(dt) : ""}</div>
+    ${s.controle_vertical ? `<div class="nota-l">Controle vertical: ${esc(s.controle_vertical.situacao)}${s.controle_vertical.terreno_m != null ? ` · terreno do 3D ${fmtM(s.controle_vertical.terreno_m)} · boca − terreno ${fmtM(s.controle_vertical.diferenca_m)}` : ""}</div>` : ""}
     ${svgSondagem(s)}
     ${s.fim_do_furo ? `<div class="nota-l">Fim do furo: ${esc(s.fim_do_furo)}</div>` : ""}
     ${cam.length ? `<table>${cam.map(c => `<tr><td><span class="sw" style="background:${corSolo(c.classe, c.descricao)}"></span></td><td style="white-space:nowrap">${c.de != null && c.ate != null ? `${fmt(c.de, 2)}–${fmt(c.ate, 2)} m` : "? m"}</td><td>${esc(c.descricao || c.classe || "")}</td></tr>`).join("")}</table>` : ""}

@@ -45,3 +45,21 @@ def test_separar_por_cor_com_antisserrilhado():
 def test_empacotar_ida_e_volta():
     ms = [np.full((4, 4), v, np.uint8) for v in (10, 20, 30, 40)]
     assert [m[0, 0] for m in desempacotar(empacotar(ms), 4)] == [10, 20, 30, 40]
+
+
+def test_mosaico_ajuste_global_com_estado_em_dict():
+    from camadas import mosaico
+    s = 0.1                                                    # m/px
+    def foto(nome, tx):
+        return {"meta": {"gsd": s}, "nome": nome, "img": np.zeros((100, 100, 3), np.uint8), "escala": 1.0,
+                "prior": np.array([[s, 0, tx], [0, s, 5.0], [0, 0, 1]]), "kp": None, "desc": None, "T": None}
+    pa = np.random.default_rng(1).uniform(40, 100, (50, 2))
+    mos = {"fotos": [foto("a.jpg", 5.0), foto("b.jpg", 8.4)],  # GPS de b 0,4 m fora (verdade: 8,0)
+           "pares": [{"i": 0, "j": 1, "n": 50, "pa": pa, "pb": pa - [30, 0]}],
+           "relatorio": {}, "log": lambda *a: None}
+    mosaico.ajustar_global(mos, "similaridade", sigma_gps_m=1.5)
+    a = mos["relatorio"]["ajuste"]
+    assert a["residuo_costura_m"]["mediana"] < 1e-6 and a["fotos_so_por_gps"] == []
+    Ta, Tb = mos["fotos"][0]["T"], mos["fotos"][1]["T"]
+    assert Tb[0, 2] - Ta[0, 2] == pytest.approx(3.0, abs=1e-6)   # 30 px × 0,1 m
+    assert a["gsd_ajustado_m"] == pytest.approx(s)
