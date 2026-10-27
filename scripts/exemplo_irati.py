@@ -25,7 +25,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from camadas import geo, visualizador  # noqa: E402
 from camadas.mosaico import Mosaico  # noqa: E402
-from camadas.registro import registrar  # noqa: E402
+from camadas.georef_prancha import registrar_imagem  # noqa: E402
 
 
 def ler_conceito(caminho: Path) -> dict:
@@ -69,7 +69,7 @@ def main():
     # 2-3. folha do conceito registrada no mosaico ----------------------
     D = ler_conceito(Path(a.conceito))
     foto = decodificar(D["foto"])
-    r = registrar(foto[..., :3], mos, "similaridade", mascara_movel=foto[..., 3] > 0)
+    r = registrar_imagem(foto[..., :3], mos, "similaridade", mascara_movel=foto[..., 3] > 0)
     M_folha = M_mos @ r["M"]                                          # px da folha -> UTM
     esc_folha = float(np.sqrt(abs(np.linalg.det(M_folha[:2, :2]))))
     print(f"Folha registrada no mosaico: {r['inliers']} pontos, resíduo mediano "

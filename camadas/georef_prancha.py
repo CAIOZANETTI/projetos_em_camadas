@@ -14,7 +14,7 @@ contornos de edificações e tanques existentes. Este módulo casa as linhas da 
 
 Uso típico:
     tr = pdf_cad.extrair(pdf, clip=...)
-    pts = pontos_de_traco(tr, filtro=lambda t: "EXISTENTES" in t.layer)
+    pts = pontos_de_traco(tr, filtro=lambda t: "EXISTENTES" in t["layer"])
     r = registrar(pts, "saida/foz/sfm/ortofoto.jpg", rot_norte_graus=90, escalas=(0.05, 0.2))
     r["M"]  # 3x3 pt -> UTM
 
@@ -39,7 +39,7 @@ def pontos_de_traco(tracos, filtro=None, passo_pt: float = 2.0) -> np.ndarray:
     for t in tracos:
         if filtro is not None and not filtro(t):
             continue
-        for p in t.partes:
+        for p in t["partes"]:
             seg = np.diff(p, axis=0)
             comp = np.hypot(*seg.T)
             for a, d, c in zip(p[:-1], seg, comp):
@@ -235,6 +235,97 @@ def registrar(pts: np.ndarray, ortofoto: str | Path, rot_norte_graus: float | No
     return {"M": M, "epsg": epsg, "escala_m_pt": esc, "rotacao_graus": rot, "score_global": score, **diag}
 
 
+def _preparar(img: np.ndarray, lado: int) -> tuple[np.ndarray, float]:
+    if img.ndim == 3:
+        img = cv2.cvtColor(img[..., :3], cv2.COLOR_BGR2GRAY)
+    k = min(1.0, lado / max(img.shape[:2]))
+    if k < 1:
+        img = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
+    return cv2.createCLAHE(2.0, (8, 8)).apply(img), k
+
+
+def registrar_imagem(movel: np.ndarray, referencia: np.ndarray, tipo: str = "similaridade",
+              lado: int = 2400, mascara_movel: np.ndarray | None = None) -> dict:
+    """Registro imagem↔imagem por SIFT + RANSAC (ex.: prancha com foto -> mosaico, CAD × CAD).
+    Encontra a transformação 3x3 que leva pixels de `movel` para pixels de `referencia`.
+
+    Retorna {"M", "inliers", "residuo_px" (mediana, em px da referência), "pts_movel", "pts_ref"}.
+    """
+    a, ka = _preparar(movel, lado)
+    b, kb = _preparar(referencia, lado)
+    m = None
+    if mascara_movel is not None:
+        m = cv2.resize(mascara_movel.astype(np.uint8) * 255, a.shape[::-1], interpolation=cv2.INTER_NEAREST)
+    sift = cv2.SIFT_create(nfeatures=12000)
+    kpa, da = sift.detectAndCompute(a, m)
+    kpb, db = sift.detectAndCompute(b, None)
+    pares = cv2.FlannBasedMatcher({"algorithm": 1, "trees": 5}, {"checks": 64}).knnMatch(da, db, k=2)
+    bons = [p[0] for p in pares if len(p) == 2 and p[0].distance < 0.75 * p[1].distance]
+    pa = np.float32([kpa[g.queryIdx].pt for g in bons]) / ka
+    pb = np.float32([kpb[g.trainIdx].pt for g in bons]) / kb
+    if tipo == "homografia":
+        M, inl = cv2.findHomography(pa, pb, cv2.RANSAC, 6.0 / kb)
+    elif tipo == "afim":
+        M, inl = cv2.estimateAffine2D(pa, pb, method=cv2.RANSAC, ransacReprojThreshold=6.0 / kb)
+    else:
+        M, inl = cv2.estimateAffinePartial2D(pa, pb, method=cv2.RANSAC, ransacReprojThreshold=6.0 / kb)
+    if M is None:
+        raise RuntimeError("Registro falhou: poucos pontos em comum")
+    inl = inl.ravel().astype(bool)
+    M = M if M.shape == (3, 3) else np.vstack([M, [0, 0, 1]])
+    # refina por mínimos quadrados só com os inliers
+    M = geo.ajustar(pa[inl], pb[inl], tipo)
+    r = geo.residuos(M, pa[inl], pb[inl])
+    return {"M": M, "inliers": int(inl.sum()), "residuo_px": float(np.median(r)),
+            "pts_movel": pa[inl], "pts_ref": pb[inl]}
+
+
+def registrar_cad(tracos, referencia: str | Path, M_base: np.ndarray, padrao_layers: str = "EXIST",
+                  min_inliers: int = 50, max_residuo_m: float = 0.15, log=print) -> dict:
+    """Prancha irmã contra o raster georreferenciado das linhas de outra prancha do mesmo
+    modelo CAD (CAD × CAD): SIFT + RANSAC de similaridade nos cantos das linhas.
+
+    Muito mais estável que o ICP quando a escala de plotagem muda entre folhas (0,077 a
+    0,095 m/pt em Foz). Retorna {"M" (pt -> UTM) | None, "ok", "motivo", diagnóstico}.
+    """
+    import re
+    from . import pdf_cad
+    referencia = Path(referencia)
+    meta = json.loads(referencia.with_suffix(".json").read_text())
+    e0, n1 = meta["canto_sup_esq"]
+    res = meta["res_m_px"]
+    ref = cv2.imread(str(referencia), cv2.IMREAD_GRAYSCALE)
+    esc_base = float(np.sqrt(abs(np.linalg.det(M_base[:2, :2]))))
+    rot_base = float(np.degrees(np.arctan2(M_base[1, 0], M_base[0, 0])))
+    k = esc_base / res                                    # px por pt na escala da base
+    img, _ = pdf_cad.rasterizar(tracos, dpi=72 * k, espessura=2,
+                                filtro=lambda t: re.search(padrao_layers, t["layer"], re.I) is not None)
+    if img.max() == 0:
+        return {"M": None, "ok": False, "motivo": f"sem traços nos layers '{padrao_layers}'"}
+    try:
+        r = registrar_imagem(cv2.cvtColor(255 - img, cv2.COLOR_GRAY2BGR), cv2.cvtColor(ref, cv2.COLOR_GRAY2BGR),
+                          "similaridade", lado=3000)
+    except RuntimeError as e:
+        return {"M": None, "ok": False, "motivo": str(e)}
+    M = np.array([[res, 0, e0], [0, -res, n1], [0, 0, 1]]) @ r["M"] @ np.diag([k, k, 1.0])
+    esc = float(np.sqrt(abs(np.linalg.det(M[:2, :2]))))
+    rot = float(np.degrees(np.arctan2(M[1, 0], M[0, 0])))
+    drot = abs((rot - rot_base + 180) % 360 - 180)
+    d = {"inliers": r["inliers"], "residuo_mediano_m": r["residuo_px"] * res, "escala_m_pt": esc,
+         "rotacao_graus": rot, "frac_05m": None}
+    falhas = []
+    if r["inliers"] < min_inliers:
+        falhas.append(f"{r['inliers']} correspondências")
+    if d["residuo_mediano_m"] > max_residuo_m:
+        falhas.append(f"resíduo {d['residuo_mediano_m']:.2f} m")
+    if not 0.75 < esc / esc_base < 1.25 or drot > 5:
+        falhas.append(f"escala {esc:.4f} m/pt / rotação {rot:.1f}° incoerentes com a base")
+    ok = not falhas
+    log(f"  CAD×CAD: {r['inliers']} correspondências, resíduo {d['residuo_mediano_m'] * 100:.0f} cm, "
+        f"escala {esc:.4f} m/pt, rotação {rot:.1f}° -> {'OK' if ok else 'rejeitado'}")
+    return {"M": M if ok else None, "ok": ok, "motivo": "CAD×CAD (SIFT)" if ok else "; ".join(falhas), **d}
+
+
 def aceitavel(r: dict, M_ref: np.ndarray | None = None, max_residuo_m: float = 0.6, min_frac: float = 0.45,
               tol_rot_graus: float = 5.0, tol_escala: float = 0.12) -> tuple[bool, str]:
     """Critérios para aceitar um registro automático; senão a prancha pede pontos de controle."""
@@ -253,3 +344,31 @@ def salvar(r: dict, caminho: str | Path, extra: dict | None = None) -> None:
     d = {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in r.items()}
     d.update(extra or {})
     Path(caminho).write_text(json.dumps(d, indent=2, ensure_ascii=False))
+
+
+def metadados() -> dict:
+    """Rastreabilidade dos métodos e limiares de georreferência de prancha (regra 9 do estilo)."""
+    return {
+        "modulo": "georef_prancha",
+        "descricao": "prancha CAD em PDF -> UTM: pontos de controle + ICP, CAD × CAD por SIFT, busca global FFT",
+        "funcoes": ["matriz_inicial", "registrar", "refinar", "registrar_cad", "registrar_imagem", "aceitavel"],
+        "bibliografia": [
+            {"obra": "Lowe — Distinctive Image Features from Scale-Invariant Keypoints (SIFT)", "ano": 2004,
+             "editora": "IJCV", "aplicacao": {"registrar_imagem": ["SIFT_create(nfeatures=12000)", "razão 0,75"]}},
+            {"obra": "Fischler & Bolles — Random Sample Consensus (RANSAC)", "ano": 1981, "editora": "CACM",
+             "aplicacao": {"registrar_imagem": ["ransacReprojThreshold=6 px"]}},
+            {"obra": "Besl & McKay — A Method for Registration of 3-D Shapes (ICP)", "ano": 1992,
+             "editora": "IEEE TPAMI", "aplicacao": {"refinar": ["corte_m", "huber_m=0,5", "max_var_escala=0,10"]}},
+            {"obra": "QGIS — Georreferenciador (transformações e arquivo .points)", "versao": "3.x",
+             "editora": "QGIS.org", "aplicacao": {"matriz_inicial": ["similaridade com reflexão (y da folha ↓)"]}},
+        ],
+        "premissas": [
+            {"aplicacao": {"registrar_cad": ["min_inliers=50", "max_residuo_m=0,15", "escala ±25 %", "rotação ±5°"]},
+             "fonte": "calibrado em Foz: aceitas com 58–1491 correspondências e 3–10 cm; rejeitadas degeneradas (escala ≈ 0)"},
+            {"aplicacao": {"aceitavel": ["max_residuo_m=0,6", "min_frac=0,45", "tol_rot_graus=5", "tol_escala=0,12"]},
+             "fonte": "calibrado em Foz contra a ortofoto (prancha 004: 30 cm de resíduo mediano)"},
+            {"aplicacao": {"mapa_bordas": ["min_compr_m=4", "sigma_m"]},
+             "fonte": "bordas curtas = textura de grama/copa; média zero evita preferir escalas pequenas"},
+        ],
+        "ultima_revisao": "2026-10-27",
+    }

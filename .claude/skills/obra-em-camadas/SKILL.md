@@ -14,7 +14,7 @@ O pipeline inteiro é `python -m camadas.obra <obra.json>`. Cada etapa grava cac
 | Quem | Tarefas | Por quê |
 |---|---|---|
 | **Haiku** (`model: "haiku"`) | inventário recursivo do Drive (só metadados) → CSV; download em massa dos PDFs/fotos e decodificação base64 | mecânico, muitas chamadas, zero julgamento |
-| **Sonnet** (`model: "sonnet"`) | ler planilhas de orçamento e extrair escopo/etapas; ler relatórios de sondagem, pranchas de fundação, TR e memoriais e estruturar em JSON; implementar front-end a partir de spec | leitura técnica extensa com regras claras |
+| **Sonnet** (`model: "sonnet"`) | ler planilhas de orçamento e extrair escopo/etapas; ler relatórios de sondagem, pranchas de fundação, TR e memoriais e estruturar em JSON; implementar front-end a partir de spec (`docs/VISUALIZADOR_V2.md`, seções v2 e v3) | leitura técnica extensa com regras claras |
 | **Opus** (sessão principal) | arquitetura, decisões de engenharia, georreferenciamento (pontos de controle visuais, validação), SfM/ortofoto, revisão dos resultados dos agentes, PR | julgamento, geometria, integração |
 
 Rode os agentes Haiku/Sonnet **em segundo plano e em paralelo**, com prompts autocontidos
@@ -43,6 +43,19 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
    passar do limite, reduza `max_pontos_3d` e `res_html` no obra.json.
 8. **Conferência visual (Opus)** — sobreponha cada prancha aceita à ortofoto em zoom alto; marque
    no obra.json como pendente o que não convencer. Nunca aceite georreferência só pelo número.
+
+## Rodada 3 (o que entrou e como usar)
+- **Conceitos editáveis** em `conceitos/*.json` (etapas Sanepar, disciplinas, intervenções), com metadata e fonte.
+  Classificação errada (ex.: PLATERRA = aterramento, REESTRUTURAR ≠ estrutura) se corrige ali, com teste.
+- **Marcos geodésicos**: `referencias/sanepar/*.kmz` (Sanepar MRRN/RN, IBGE, municipal, RBMC). `obra.json`
+  `referencias_geodesicas: {pasta, raio_m}` cria a camada com distância à obra. Use os marcos em bom estado para
+  pontos de controle GNSS e datum vertical; a RBMC mais próxima é a base do RTK/PPK.
+- **Supressão vegetal estimada** (`supressao`): `obra.json` `supressao: {faixa_m, altura_min_m, etapas}`.
+- **4D**: `cronograma` com atividades (início/fim em dias da OS, peso % das UCs do TR, seletor por pranchas,
+  grupos, etapas, vetores, estacas). Elementos e curva S são calculados no Python; o HTML só exibe.
+- **SIG**: `sig/` com ortofoto.tif, mds.tif, obra.gpkg e pontos/*.points (`"sig": true`).
+- **Estilo do Caio** (skill `estilo-caio-python`): dict puro, pt-BR, YAGNI, cálculo no Python,
+  `metadados()` com bibliografia, `python scripts/afericao.py --registrar` antes do PR.
 
 ## Regras que valem ouro
 - **Mantenha o vetor.** PDF de prancha tem layers CAD, textos e quantidades: nada de rasterizar

@@ -70,12 +70,6 @@ def data_url(img: np.ndarray, fmt: str = "webp", qualidade: int = 80) -> str:
     return f"data:{mime};base64," + base64.b64encode(buf.tobytes()).decode()
 
 
-def arquivo_data_url(caminho: str | Path) -> str:
-    caminho = Path(caminho)
-    mime = {".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg"}[caminho.suffix.lower()]
-    return f"data:{mime};base64," + base64.b64encode(caminho.read_bytes()).decode()
-
-
 def crs_info(epsg: int, extensao_utm, altitude_m: float = 0.0) -> dict:
     """Afins UTM<->lon/lat válidas na área (erro sub-milimétrico em obras de algumas centenas
     de metros) e fator de escala combinado (projeção × altitude) no centro."""

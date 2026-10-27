@@ -1,0 +1,49 @@
+{
+ "metadata": {
+  "fonte": "nomes de layer usuais em pranchas Sanepar/projetistas (PROJET, EXIST, TUBUL...)",
+  "estado": "premissa",
+  "observacoes": "classes genéricas para pranchas sem convenção de etapa; usadas na supressão e no recorte por classe"
+ },
+ "regras": [
+  {
+   "classe": "Projetado",
+   "layer": "PROJET|NOVO|_PROJ",
+   "rotulo": "Projetado"
+  },
+  {
+   "classe": "Existente",
+   "layer": "EXIST",
+   "rotulo": "Existente"
+  },
+  {
+   "classe": "Tubulação",
+   "layer": "TUBUL|TUB_|REDE|ADUTORA|DRENAG",
+   "rotulo": "Tubulações e redes"
+  },
+  {
+   "classe": "Estrutura",
+   "layer": "CONCRETO|ESTRUT|FORMA|PILAR|VIGA|ESTACA|BLOCO|SAPATA|FUND",
+   "rotulo": "Estrutura / fundação"
+  },
+  {
+   "classe": "Equipamentos",
+   "layer": "EQUIP|BOMBA|VALV|COMPORT",
+   "rotulo": "Equipamentos"
+  },
+  {
+   "classe": "Elétrica",
+   "layer": "ELET|CABO|ELETROD|ILUMIN|ATERR|SPDA|FORCA|COMANDO",
+   "rotulo": "Elétrica"
+  },
+  {
+   "classe": "Terraplenagem",
+   "layer": "TERRAP|TALUDE|CURVA|PLATAF|CORTE|ATERRO",
+   "rotulo": "Terraplenagem"
+  },
+  {
+   "classe": "Linhas gerais",
+   "layer": "LINHA|ALVENARIA|PROJE",
+   "rotulo": "Linhas gerais"
+  }
+ ]
+}
