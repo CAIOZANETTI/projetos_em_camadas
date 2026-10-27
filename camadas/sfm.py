@@ -29,7 +29,7 @@ import cv2
 import numpy as np
 
 from . import geo
-from .exif import ler_meta
+from .mosaico import ler_meta
 
 LIMITE_NADIR_GRAUS = 20.0     # eixo óptico a menos de 20° da vertical = foto nadiral
 
@@ -91,12 +91,12 @@ def georreferenciar(rec, pasta: str | Path, epsg: int | None = None) -> dict:
     pasta = Path(pasta)
     poses = _poses(rec)
     metas = {n: ler_meta(pasta / n) for n in poses}
-    lon0 = np.mean([m.lon for m in metas.values()])
-    lat0 = np.mean([m.lat for m in metas.values()])
+    lon0 = np.mean([m["lon"] for m in metas.values()])
+    lat0 = np.mean([m["lat"] for m in metas.values()])
     epsg = epsg or geo.epsg_utm_sirgas(lon0, lat0)
     nomes = sorted(poses)
-    E, N = geo.para_utm([metas[n].lon for n in nomes], [metas[n].lat for n in nomes], epsg)
-    Z = [metas[n].alt_rel or 0.0 for n in nomes]
+    E, N = geo.para_utm([metas[n]["lon"] for n in nomes], [metas[n]["lat"] for n in nomes], epsg)
+    Z = [metas[n]["alt_rel"] or 0.0 for n in nomes]
     dest = np.c_[E, N, Z]
     orig = np.array([poses[n][1] for n in nomes])
     s, R, t = umeyama(orig, dest)
@@ -104,7 +104,7 @@ def georreferenciar(rec, pasta: str | Path, epsg: int | None = None) -> dict:
     return {"epsg": epsg, "s": s, "R": R, "t": t, "nomes": nomes, "metas": metas, "poses": poses,
             "residuo_gps_m": dict(zip(nomes, res.round(2).tolist())),
             "rmse_gps_m": float(np.sqrt(np.mean(res ** 2))),
-            "alt_decolagem_m": float(np.median([m.alt_abs - (m.alt_rel or 0) for m in metas.values()]))}
+            "alt_decolagem_m": float(np.median([m["alt_abs"] - (m["alt_rel"] or 0) for m in metas.values()]))}
 
 
 def para_mundo(g: dict, X: np.ndarray) -> np.ndarray:
@@ -128,16 +128,10 @@ def cameras(rec, g: dict, limite_nadir: float = LIMITE_NADIR_GRAUS) -> list[dict
                     "eixo": eixo.round(5).tolist(), "topo": topo.round(5).tolist(),
                     "angulo_vertical": round(ang, 1), "rumo_visada": round(rumo, 1),
                     "tipo": "nadir" if ang < limite_nadir else "obliqua",
-                    "data": m.data, "alt_rel": m.alt_rel,
+                    "data": m["data"], "alt_rel": m["alt_rel"],
                     "largura": cam.width, "altura": cam.height,
                     "focal_px": float(cam.params[0]), "residuo_gps_m": g["residuo_gps_m"][n]})
     return out
-
-
-def classificar_fotos(pasta: str | Path, trabalho: str | Path, **kw) -> dict[str, str]:
-    """{nome: 'nadir'|'obliqua'} — atalho para separar as fotos antes do mosaico."""
-    rec = reconstruir(pasta, trabalho, **kw)
-    return {c["nome"]: c["tipo"] for c in cameras(rec, georreferenciar(rec, pasta))}
 
 
 # 4 -------------------------------------------------------------------------
@@ -240,15 +234,18 @@ def densificar(rec, g: dict, pasta: str | Path, pares: list[tuple[str, str]], la
     return np.vstack(pts), np.vstack(cores).astype(np.uint8)
 
 
+def _celula(pontos: np.ndarray, origem: np.ndarray, tamanho_m: float) -> np.ndarray:
+    """Chave inteira da célula de `tamanho_m` de cada ponto (x, y) — para agrupar sem dicionário."""
+    k = np.floor((pontos[:, :2] - origem) / tamanho_m).astype(np.int64)
+    return k[:, 0] * 1_000_003 + k[:, 1]
+
+
 def _desvio_vertical(densa: np.ndarray, esparsa: np.ndarray, celula: float = 1.0) -> float:
     """Mediana de |z_densa − z_esparsa| nas células de 1 m que têm os dois."""
     if len(densa) < 100:
         return np.inf
     o = esparsa[:, :2].min(0)
-    def grade(p):
-        k = np.floor((p[:, :2] - o) / celula).astype(np.int64)
-        return k[:, 0] * 1_000_003 + k[:, 1]
-    kd, ke = grade(densa), grade(esparsa)
+    kd, ke = _celula(densa, o, celula), _celula(esparsa, o, celula)
     ordem = np.argsort(kd)
     kd, zd = kd[ordem], densa[ordem, 2]
     ini = np.searchsorted(kd, ke, "left")
@@ -293,16 +290,13 @@ def filtrar(xyz: np.ndarray, rgb: np.ndarray, esparsa: np.ndarray | None = None,
         return xyz, rgb
     if esparsa is not None and len(esparsa):
         o = esparsa[:, :2].min(0) - celula
-        def chave(p):
-            k = np.floor((p[:, :2] - o) / celula).astype(np.int64)
-            return k[:, 0] * 1_000_003 + k[:, 1]
-        ke = chave(esparsa)
+        ke = _celula(esparsa, o, celula)
         cel, inv = np.unique(ke, return_inverse=True)
         zmin = np.full(len(cel), np.inf)
         zmax = np.full(len(cel), -np.inf)
         np.minimum.at(zmin, inv, esparsa[:, 2])
         np.maximum.at(zmax, inv, esparsa[:, 2])
-        kd = chave(xyz)
+        kd = _celula(xyz, o, celula)
         lo = np.full(len(xyz), np.inf)
         hi = np.full(len(xyz), -np.inf)
         for dx in (-1, 0, 1):                       # apoio na célula ou nas 8 vizinhas
@@ -512,3 +506,31 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
+
+
+def metadados() -> dict:
+    """Rastreabilidade: de onde vem cada método e constante deste módulo (regra 9 do estilo)."""
+    return {
+        "modulo": "sfm",
+        "descricao": "3D por SfM (COLMAP), estéreo SGBM, georreferência por similaridade 3D, MDS e ortofoto verdadeira",
+        "funcoes": ["reconstruir", "georreferenciar", "cameras", "densificar", "filtrar", "mds", "ortofoto", "executar"],
+        "bibliografia": [
+            {"obra": "Schönberger & Frahm — Structure-from-Motion Revisited (COLMAP)", "ano": 2016, "editora": "CVPR",
+             "aplicacao": {"reconstruir": ["OPENCV (modelo de câmera)", "max_lado", "max_pontos"]}},
+            {"obra": "Umeyama — Least-squares estimation of transformation parameters between two point patterns",
+             "ano": 1991, "editora": "IEEE TPAMI", "aplicacao": {"umeyama": ["s", "R", "t"]}},
+            {"obra": "Hirschmüller — Stereo Processing by Semiglobal Matching and Mutual Information", "ano": 2008,
+             "editora": "IEEE TPAMI", "aplicacao": {"densificar": ["blockSize=5", "P1=8·25", "P2=32·25", "uniquenessRatio=10"]}},
+            {"obra": "Bradski & Kaehler — Learning OpenCV (retificação estéreo, stereoRectify)", "ano": 2008,
+             "editora": "O'Reilly", "aplicacao": {"densificar": ["Z = -f·B/d"]}},
+        ],
+        "premissas": [
+            {"aplicacao": {"cameras": ["LIMITE_NADIR_GRAUS"]},
+             "fonte": "medido em Foz: nadirais a 3–4°, oblíquas a 41–42° da vertical; 20° separa com folga"},
+            {"aplicacao": {"densificar": ["tol_m=1,0"], "pares_estereo": ["base_min=0,08", "base_max=1,0", "ang_max=50"]},
+             "fonte": "calibrado em Foz (pares validados com desvio de 3–14 cm contra o SfM)"},
+            {"aplicacao": {"mds": ["fechar_telhado_m=2,0", "fechar_m=20"]},
+             "fonte": "calibrado em Foz: corrigiu o prédio administrativo torto (buracos de telhado preenchidos como chão)"},
+        ],
+        "ultima_revisao": "2026-10-27",
+    }

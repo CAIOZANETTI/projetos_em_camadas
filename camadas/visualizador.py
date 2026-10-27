@@ -31,6 +31,13 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   "modelo3d": {"origem": [E0, N0, 0], "n", "pos_cm_b64": Int32LE xyz em cm, "rgb_b64": Uint8 rgb,
                "cameras": [{"nome", "centro", "eixo", "topo", "tipo", "focal_px", "largura", "altura", ...}]},
   "fotos": {"DJI_0249.JPG": data URL webp},   # aberta ao clicar nas câmeras (vetor "cameras", properties.foto)
+
+  # --- visualizador v3 (opcionais; veja a seção "v3" de docs/VISUALIZADOR_V2.md) ---
+  "grupos": {"Civil": ["Drenagem", ...]},      # árvore por disciplina; pranchas[].grupo/subgrupo e layers[].grupo/subgrupo
+  "intervencoes": [{"id", "nome", "cor"}],     # tipos do recorte classificado
+  "cronograma": {"data_os", "data_os_hipotese", "prazo_dias", "marcos", "atividades", "curva_s": {"dia", "planejado_pct"}},   # 4D
+  # vetores especiais: "estacas" (flag estacas), "supressao" (resumo por etapa) e "marcos" (marcos geodésicos)
+  # escopo ganha valor_q1/valor_q2/alerta por item, por_tabela e totais (calculados no Python)
 }
 
 `gerar(..., leaflet="inline")` embute Leaflet e three.js r128 (+ OrbitControls); com "cdn" ambos vêm de CDN.
@@ -68,12 +75,6 @@ def data_url(img: np.ndarray, fmt: str = "webp", qualidade: int = 80) -> str:
         raise RuntimeError("falha ao codificar imagem")
     mime = {"webp": "image/webp", "jpg": "image/jpeg", "png": "image/png"}[fmt]
     return f"data:{mime};base64," + base64.b64encode(buf.tobytes()).decode()
-
-
-def arquivo_data_url(caminho: str | Path) -> str:
-    caminho = Path(caminho)
-    mime = {".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg"}[caminho.suffix.lower()]
-    return f"data:{mime};base64," + base64.b64encode(caminho.read_bytes()).decode()
 
 
 def crs_info(epsg: int, extensao_utm, altitude_m: float = 0.0) -> dict:

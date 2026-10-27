@@ -31,10 +31,14 @@ use-as como pontos de controle exatos.
    mesma feição na prancha renderizada com grade de 100 pt e confira a **razão de aspecto** dos
    prédios (34×23 m ↔ 360×240 pt ⇒ 0,095 m/pt). `matriz_inicial(pt, utm)` e
    `registrar(pts_existentes, ortofoto, M_inicial=M0)`.
-3. **Prancha irmã** — outras pranchas do mesmo projeto CAD têm a mesma escala/rotação e outro
-   enquadramento: `registrar(pts, referencia, M_irma=M_base)` contra o raster das linhas de
-   existentes da prancha base (CAD × CAD; `obra.referencia_cad`). Critério de aceite rígido
-   (`aceitavel`: resíduo ≤ 0,25 m e ≥ 60 % dos pontos a < 0,5 m quando a referência é CAD).
+3. **Prancha irmã, CAD × CAD (o modo que mais rende)** — pranchas do mesmo modelo CAD diferem só por
+   uma similaridade, mesmo com escala de plotagem diferente (0,077–0,095 m/pt em Foz):
+   `registrar_cad(tracos, referencia, M_base, padrao_layers)` faz SIFT + RANSAC entre o raster das linhas
+   da prancha e o das linhas da prancha base já georreferenciada (`obra.referencia_cad`). Aceite rígido:
+   ≥ 50 correspondências, resíduo ≤ 15 cm, escala ±25 % e rotação ±5° da base. No `obra.json`:
+   `irma`, `layers_irma` (layers da base usados de referência) e `layers_referencia` (da prancha).
+   Contenção casou com escavação; elétricas com `SW_LAYOUT_01|EXIST`; layer sem nome → padrão `^`.
+   Em Foz levou de 8 para **20/20 pranchas**. ICP fica como alternativa.
 4. **Busca global automática** (`rot_norte_graus` + faixa de escalas) — só quando a prancha e o voo
    cobrem a mesma área; com área muito maior que o voo ela tende a falhar.
 
@@ -42,6 +46,14 @@ use-as como pontos de controle exatos.
 Desenhe as classes da prancha sobre a ortofoto reduzida (ver `docs/PLANO_FOZ.md`, "Conferência")
 e olhe: meios-fios, tanques circulares e cantos de prédios precisam coincidir. Número bom com
 imagem ruim = rejeite.
+
+## Recorte do mapa
+Sem `clip` no obra.json, `obra.prancha_vetorial` recorta a folha à área do levantamento + 25 m (carimbo e tabelas
+ficam só na aba Pranchas). Folha com dois desenhos de afins diferentes: `clip` manual por desenho.
+
+## Exportar para o QGIS
+`sig.pontos_qgis` grava o `.points` (4 cantos da área útil) e `sig.geopackage` uma camada por prancha, com uma
+feição por layer CAD (grupo/subgrupo nos atributos).
 
 ## Armadilhas conhecidas
 - `/Rotate 270`: PyMuPDF devolve vetores e texto no espaço **sem rotação**; `pdf_cad` converte

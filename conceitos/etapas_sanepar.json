@@ -1,0 +1,96 @@
+{
+ "metadata": {
+  "fonte": "Prancha 004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES (legenda CONVENÇÕES) e Escopo_1etapa_PBES.pdf (Sanepar/GPES, 05/09/2023)",
+  "estado": "confirmado",
+  "data_referencia": "2026-10",
+  "observacoes": "cor = cor de contorno ou preenchimento RGB 0–1 lida no PDF; layer = expressão regular no nome do layer CAD (OCG); a primeira regra que casa vence. A 3ª etapa (unidades futuras) aparece na legenda mas não no TR."
+ },
+ "regras": [
+  {
+   "classe": "1ª etapa",
+   "layer": "_PROJETADOS",
+   "cor": [
+    0.0,
+    0.43,
+    0.87
+   ],
+   "tol": 0.06,
+   "rotulo": "Projetado — 1ª etapa",
+   "estilo": {
+    "color": "#0b6fde",
+    "fillOpacity": 0.45
+   }
+  },
+  {
+   "classe": "2ª etapa",
+   "layer": "_PROJETADOS",
+   "cor": [
+    0.66,
+    0.33,
+    0.63
+   ],
+   "tol": 0.06,
+   "rotulo": "Projetado — 2ª etapa",
+   "estilo": {
+    "color": "#a855a1",
+    "fillOpacity": 0.45
+   }
+  },
+  {
+   "classe": "3ª etapa (futura)",
+   "layer": "_UNIDADES FUTURAS",
+   "cor": null,
+   "tol": 0.06,
+   "rotulo": "Unidades futuras — 3ª etapa",
+   "estilo": {
+    "color": "#ef4444",
+    "fillOpacity": 0.15,
+    "dashArray": "4 3"
+   }
+  },
+  {
+   "classe": "Existente a reestruturar",
+   "layer": "_EXISTENTES A REESTRUTURAR",
+   "cor": null,
+   "tol": 0.06,
+   "rotulo": "Existente a restaurar/reformar",
+   "estilo": {
+    "color": "#5cb85c",
+    "fillOpacity": 0.2
+   }
+  },
+  {
+   "classe": "Existente a manter",
+   "layer": "LINHA_UNI_EXISTENTES",
+   "cor": null,
+   "tol": 0.06,
+   "rotulo": "Existente a manter",
+   "estilo": {
+    "color": "#f59e0b",
+    "weight": 1
+   }
+  },
+  {
+   "classe": "Tubulação",
+   "layer": "TUBULA",
+   "cor": null,
+   "tol": 0.06,
+   "rotulo": "Tubulações (traço preto)",
+   "estilo": {
+    "color": "#111827",
+    "weight": 1
+   }
+  },
+  {
+   "classe": "Equipamentos",
+   "layer": "EQUIPAMENTOS|BOMBAS|COMPORTAS|Valvulas",
+   "cor": null,
+   "tol": 0.06,
+   "rotulo": "Equipamentos, bombas, válvulas",
+   "estilo": {
+    "color": "#334155",
+    "weight": 1
+   }
+  }
+ ]
+}

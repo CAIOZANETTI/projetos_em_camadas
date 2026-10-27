@@ -26,19 +26,14 @@ import numpy as np
 
 from . import geo, georef_prancha, pdf_cad, sfm, visualizador
 
-REGRAS = {"etapa_sanepar": pdf_cad.REGRAS_ETAPA_SANEPAR}
+REGRAS = {"etapa_sanepar": "etapas_sanepar"}     # nome no obra.json -> conceitos/<arquivo>.json
 
-# Classes genéricas para pranchas sem convenção de etapa: agrupam layers por função.
-REGRAS_GENERICAS = [
-    pdf_cad.Regra("Projetado", layer=r"PROJET|NOVO|_PROJ", rotulo="Projetado"),
-    pdf_cad.Regra("Existente", layer=r"EXIST", rotulo="Existente"),
-    pdf_cad.Regra("Tubulação", layer=r"TUBUL|TUB_|REDE|ADUTORA|DRENAG", rotulo="Tubulações e redes"),
-    pdf_cad.Regra("Estrutura", layer=r"CONCRETO|ESTRUT|FORMA|PILAR|VIGA|ESTACA|BLOCO|SAPATA|FUND", rotulo="Estrutura / fundação"),
-    pdf_cad.Regra("Equipamentos", layer=r"EQUIP|BOMBA|VALV|COMPORT", rotulo="Equipamentos"),
-    pdf_cad.Regra("Elétrica", layer=r"ELET|CABO|ELETROD|ILUMIN|ATERR|SPDA|FORCA|COMANDO", rotulo="Elétrica"),
-    pdf_cad.Regra("Terraplenagem", layer=r"TERRAP|TALUDE|CURVA|PLATAF|CORTE|ATERRO", rotulo="Terraplenagem"),
-    pdf_cad.Regra("Linhas gerais", layer=r"LINHA|ALVENARIA|PROJE", rotulo="Linhas gerais"),
-]
+
+def _regras(p: dict) -> list[dict]:
+    """Regras da prancha (convenção de etapa) ou as classes genéricas de layer."""
+    return pdf_cad.regras(REGRAS.get(p.get("regras", ""), "classes_genericas"))
+
+
 def _log(*a):
     print(*a, flush=True)
 
@@ -65,7 +60,9 @@ def etapa_controle_absoluto(cfg: dict, out: Path, refazer: bool) -> np.ndarray:
     if not c:
         return np.zeros(2)
     if arq.exists() and not refazer:
-        return np.array(json.loads(arq.read_text())["deslocamento_m"])
+        desloc = np.array(json.loads(arq.read_text())["deslocamento_m"])
+        _aplicar_deslocamento(out, desloc)
+        return desloc
     M = np.vstack([np.asarray(c["afim_pt_utm"], float), [0, 0, 1]])
     tr = pdf_cad.extrair(c["pdf"])
     pts = georef_prancha.pontos_de_traco(tr, passo_pt=4)
@@ -73,20 +70,30 @@ def etapa_controle_absoluto(cfg: dict, out: Path, refazer: bool) -> np.ndarray:
     r = georef_prancha.registrar(pts, orto, M_inicial=M, log=_log)
     d = geo.aplicar(r["M"], pts[::100]) - geo.aplicar(M, pts[::100])
     desloc = d.mean(0)                                # ortofoto (GPS) - absoluto
-    meta = json.loads(orto.with_suffix(".json").read_text())
-    e0, n1 = meta["canto_sup_esq"]
-    e0, n1 = e0 - desloc[0], n1 - desloc[1]
-    ext = meta["extensao_utm"]
-    meta["extensao_utm"] = [ext[0] - desloc[0], ext[1] - desloc[1], ext[2] - desloc[0], ext[3] - desloc[1]]
-    meta["ajuste_absoluto_m"] = desloc.round(3).tolist()
-    geo.salvar_georef(orto, e0, n1, meta["res_m_px"], meta["epsg"],
-                      {k: v for k, v in meta.items() if k not in ("epsg", "canto_sup_esq", "res_m_px")})
     arq.write_text(json.dumps({"deslocamento_m": desloc.round(3).tolist(), "desvio_m": d.std(0).round(3).tolist(),
                                "residuo_mediano_m": r["residuo_mediano_m"], "fonte": c.get("fonte", ""),
                                "prancha": Path(c["pdf"]).name}, indent=2, ensure_ascii=False))
     _log(f"Controle absoluto: ortofoto deslocada {-desloc[0]:+.2f} m E, {-desloc[1]:+.2f} m N "
          f"(viés do GPS do drone; desvio {d.std(0).max():.2f} m)")
+    _aplicar_deslocamento(out, desloc)
     return desloc
+
+
+def _aplicar_deslocamento(out: Path, desloc: np.ndarray) -> None:
+    """Desloca o georreferenciamento da ortofoto e do MDS (idempotente: marca no .json)."""
+    for img in (out / "sfm" / "ortofoto.jpg", out / "sfm" / "ortofoto_mds.png"):
+        if not img.exists():
+            continue
+        meta = json.loads(img.with_suffix(".json").read_text())
+        if "ajuste_absoluto_m" in meta:
+            continue
+        e0, n1 = meta["canto_sup_esq"]
+        if "extensao_utm" in meta:
+            x = meta["extensao_utm"]
+            meta["extensao_utm"] = [x[0] - desloc[0], x[1] - desloc[1], x[2] - desloc[0], x[3] - desloc[1]]
+        meta["ajuste_absoluto_m"] = np.round(desloc, 3).tolist()
+        geo.salvar_georef(img, e0 - desloc[0], n1 - desloc[1], meta["res_m_px"], meta["epsg"],
+                          {k: v for k, v in meta.items() if k not in ("epsg", "canto_sup_esq", "res_m_px")})
 
 
 # 2 ---------------------------------------------------------------------------
@@ -105,8 +112,8 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
             continue
         t = time.time()
         tr = pdf_cad.extrair(p["pdf"], clip=p.get("clip"))
-        filtro_ref = p.get("layers_referencia", "EXISTENTE")
-        pts = georef_prancha.pontos_de_traco(tr, filtro=lambda t, f=filtro_ref: f.upper() in t.layer.upper(),
+        filtro_ref = p.get("layers_referencia", "EXIST")
+        pts = georef_prancha.pontos_de_traco(tr, filtro=lambda t, f=filtro_ref: re.search(f, t["layer"], re.I) is not None,
                                              passo_pt=3)
         r, ok, motivo = None, False, ""
         pc = p.get("pontos_controle")
@@ -121,12 +128,16 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
             r = georef_prancha.registrar(pts, orto, M_inicial=M0, log=_log) if len(pts) > 200 else \
                 {"M": M0, "residuo_mediano_m": None, "frac_05m": None, "escala_m_pt": None}
             ok, motivo = True, "pontos de controle" + (" + ICP" if len(pts) > 200 else "")
-        elif irma is not None and len(pts) > 200:
+        elif irma is not None:
             # referência = linhas de existentes da prancha irmã já georreferenciada (CAD × CAD)
-            ref = referencia_cad(feitas[p["irma"]], pasta, filtro_ref)
-            r = georef_prancha.registrar(pts, ref, M_irma=irma, log=lambda *a: None)
-            ok, motivo = georef_prancha.aceitavel(r, irma, max_residuo_m=0.25, min_frac=0.6)
-            motivo = f"automático sobre a prancha {p['irma']} ({motivo})"
+            ref = referencia_cad(feitas[p["irma"]], pasta, p.get("layers_irma", "EXIST"))
+            r = georef_prancha.registrar_cad(tr, ref, irma, p.get("layers_referencia", "EXIST"), log=_log)
+            ok, motivo = r["ok"], f"automático sobre a prancha {p['irma']}: {r['motivo']}"
+            if not ok and len(pts) > 200:                 # alternativa: ICP a partir da escala da irmã
+                r2 = georef_prancha.registrar(pts, ref, M_irma=irma, log=lambda *a: None)
+                ok2, m2 = georef_prancha.aceitavel(r2, irma, max_residuo_m=0.25, min_frac=0.6)
+                if ok2:
+                    r, ok, motivo = r2, True, f"automático (ICP) sobre a prancha {p['irma']}"
         else:
             motivo = "sem pontos de controle nem prancha irmã"
         info = {"ok": bool(ok), "motivo": motivo, "segundos": round(time.time() - t, 1)}
@@ -141,12 +152,13 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
 def referencia_cad(base: dict, pasta: Path, filtro: str, res: float = 0.10) -> Path:
     """Raster georreferenciado (preto sobre branco) das linhas de referência de uma prancha
     já georreferenciada — serve de "ortofoto" para registrar as pranchas irmãs."""
-    caminho = pasta / f"_ref_{base['id']}.png"
+    import hashlib
+    caminho = pasta / f"_ref_{base['id']}_{hashlib.md5(filtro.encode()).hexdigest()[:6]}.png"
     if caminho.exists():
         return caminho
     tr = pdf_cad.extrair(base["pdf"], clip=base.get("clip"))
     M = np.asarray(base["M"])
-    partes = [geo.aplicar(M, q) for t in tr if filtro.upper() in t.layer.upper() for q in t.partes]
+    partes = [geo.aplicar(M, q) for t in tr if re.search(filtro, t["layer"], re.I) for q in t["partes"]]
     todos = np.vstack(partes)
     e0, n0 = todos.min(0) - 20
     e1, n1 = todos.max(0) + 20
@@ -160,33 +172,52 @@ def referencia_cad(base: dict, pasta: Path, filtro: str, res: float = 0.10) -> P
     return caminho
 
 
-def prancha_vetorial(p: dict) -> dict:
-    """Prancha inteira em vetor (layers CAD, estilos, textos) + matriz pt -> UTM se houver."""
-    pac = pdf_cad.pacote_vetorial(p["pdf"], REGRAS.get(p.get("regras", "")))
+def prancha_vetorial(p: dict, extensao_utm=None, margem_m: float = 25.0) -> dict:
+    """Prancha inteira em vetor (layers CAD, estilos, textos) + matriz pt -> UTM se houver.
+
+    Grupo/subgrupo da prancha e de cada layer vêm de `camadas.disciplinas` (ou do
+    obra.json). Sem `clip` explícito, o recorte do mapa é a área do levantamento + margem
+    levada para o espaço da folha — carimbo e tabelas ficam só na aba Pranchas.
+    """
+    pac = pdf_cad.pacote_vetorial(p["pdf"], _regras(p) if p.get("regras") in REGRAS else None)
+    g, sg = pdf_cad.disciplina_da_prancha(Path(p["pdf"]).name, p["nome"])
+    g, sg = p.get("grupo", g), p.get("subgrupo", sg)
+    for l in pac["layers"]:
+        l["grupo"], l["subgrupo"] = pdf_cad.disciplina_do_layer(l["nome"], (g, sg))
     M = p.get("M")
+    clip = p.get("clip")
+    if clip is None and M is not None and extensao_utm is not None:
+        e0, n0, e1, n1 = extensao_utm
+        cantos = np.array([[e0 - margem_m, n0 - margem_m], [e1 + margem_m, n0 - margem_m],
+                           [e1 + margem_m, n1 + margem_m], [e0 - margem_m, n1 + margem_m]])
+        q = geo.aplicar(np.linalg.inv(np.asarray(M)), cantos)
+        clip = [max(0.0, float(q[:, 0].min())), max(0.0, float(q[:, 1].min())),
+                min(pac["largura"], float(q[:, 0].max())), min(pac["altura"], float(q[:, 1].max()))]
     esc = float(np.sqrt(abs(np.linalg.det(np.asarray(M)[:2, :2])))) if M is not None else None
-    return {"id": p["id"], "nome": p["nome"], "disciplina": p.get("disciplina", "Geral"),
+    return {"id": p["id"], "nome": p["nome"], "disciplina": p.get("disciplina", g), "grupo": g, "subgrupo": sg,
             "pdf": Path(p["pdf"]).name, **pac,
             "M": np.asarray(M)[:2].ravel().tolist() if M is not None else None,
-            "escala_m_pt": esc, "clip_mapa": p.get("clip"),
+            "escala_m_pt": esc, "clip_mapa": clip,
             "georef": {k: p.get(k) for k in ("ok", "motivo", "residuo_mediano_m", "frac_05m")}}
 
 
 def manchas_etapa(p: dict, epsg: int) -> list:
     """Áreas fundidas por etapa (polígonos clicáveis com área) a partir das cores da prancha."""
     tr = pdf_cad.extrair(p["pdf"], clip=p.get("clip"))
-    regras = REGRAS.get(p.get("regras", ""), REGRAS_GENERICAS)
+    regras = _regras(p)
     cls = pdf_cad.classificar(tr, regras)
     vetores = []
     for r in regras:
-        if r.classe not in set(cls) or ("etapa" not in r.classe.lower() and "reestrutur" not in r.classe.lower()):
+        classe, rotulo = r["classe"], r.get("rotulo") or r["classe"]
+        if classe not in set(cls) or ("etapa" not in classe.lower() and "reestrutur" not in classe.lower()):
             continue
-        fc = pdf_cad.manchas(tr, cls, r.classe, np.asarray(p["M"]), epsg)
+        fc = pdf_cad.manchas(tr, cls, classe, np.asarray(p["M"]), epsg)
         for f in fc["features"]:
-            f["properties"].update({"etapa": r.classe, "prancha": p["nome"], "nome": r.rotulo or r.classe})
-        vetores.append({"id": f"{p['id']}-{r.classe}", "nome": f"{r.rotulo or r.classe} (áreas)",
-                        "grupo": "Etapas", "etapa": r.classe, "visivel": True, "geojson": fc,
-                        "estilo": {"color": r.estilo.get("color", "#888"), "weight": 2, "fillOpacity": 0.25}})
+            f["properties"].update({"etapa": classe, "prancha": p["nome"], "nome": rotulo})
+        vetores.append({"id": f"{p['id']}-{classe}", "nome": f"{rotulo} (áreas)",
+                        "grupo": "Etapas", "subgrupo": "Áreas por etapa", "etapa": classe, "visivel": True,
+                        "geojson": fc,
+                        "estilo": {"color": r.get("estilo", {}).get("color", "#888"), "weight": 2, "fillOpacity": 0.25}})
     return vetores
 
 
@@ -239,7 +270,23 @@ def etapa_escopo(cfg: dict) -> dict | None:
     if itens is not None and "projeto_desenho" in itens:
         for t, d in itens[["tabela", "projeto_desenho"]].dropna().drop_duplicates().itertuples(index=False):
             desenhos.setdefault(t, d)
-    return {"itens": lin, "desenhos_por_tabela": desenhos, "fonte": e.get("fonte", "")}
+    for item in lin:                                    # valores em R$ por etapa (None sem preço ou com alerta)
+        item["valor_q1"] = round(item["q1"] * item["preco"], 2) if item["preco"] is not None else None
+        item["valor_q2"] = round(item["q2"] * item["preco"], 2) if item["preco"] is not None else None
+    por_tabela = {}
+    for item in lin:
+        t = por_tabela.setdefault(item["tabela"], {"nome": item["nome_tabela"], "n": 0, "valor_q1": 0.0, "valor_q2": 0.0})
+        t["n"] += 1
+        t["valor_q1"] += item["valor_q1"] or 0.0
+        t["valor_q2"] += item["valor_q2"] or 0.0
+    for t in por_tabela.values():
+        t["valor_q1"], t["valor_q2"] = round(t["valor_q1"], 2), round(t["valor_q2"], 2)
+    totais = {"valor_q1": round(sum(t["valor_q1"] for t in por_tabela.values()), 2),
+              "valor_q2": round(sum(t["valor_q2"] for t in por_tabela.values()), 2),
+              "itens": len(lin), "sem_preco": sum(i["preco"] is None for i in lin),
+              "com_alerta": sum(bool(i["alerta"]) for i in lin)}
+    return {"itens": lin, "por_tabela": por_tabela, "totais": totais,
+            "desenhos_por_tabela": desenhos, "fonte": e.get("fonte", "")}
 
 
 # 4 ---------------------------------------------------------------------------
@@ -288,6 +335,122 @@ def sondagens(cfg: dict, epsg: int) -> list:
     return furos
 
 
+def estacas(cfg: dict, epsg: int) -> dict | None:
+    """Estacas (CSV id;E;N;diametro_cm;cota_arrasamento;comprimento_m;estrutura;...) -> vetor."""
+    caminho = cfg.get("estacas")
+    if not caminho or not Path(caminho).exists():
+        return None
+    import pandas as pd
+    t = pd.read_csv(caminho, sep=";", decimal=",", dtype={"id": str}).dropna(subset=["E", "N"])
+    lon, lat = geo.para_lonlat(t["E"].to_numpy(float), t["N"].to_numpy(float), epsg)
+    feats = []
+    for (_, r), x, y in zip(t.iterrows(), lon, lat):
+        props = {k: (None if pd.isna(v) else (float(v) if isinstance(v, (int, float, np.integer, np.floating)) else str(v)))
+                 for k, v in r.items() if k not in ("x_pt_prancha", "y_pt_prancha")}
+        props["tipo"] = "estaca"
+        feats.append({"type": "Feature", "properties": props,
+                      "geometry": {"type": "Point", "coordinates": [round(float(x), 8), round(float(y), 8)]}})
+    return {"id": "estacas", "nome": f"Estacas hélice contínua ({len(feats)})", "grupo": "Civil",
+            "subgrupo": "Geotecnia e fundação", "visivel": False, "estacas": True,
+            "geojson": {"type": "FeatureCollection", "features": feats},
+            "estilo": {"color": "#7c3aed", "radius": 3, "weight": 1, "fillOpacity": 0.8}}
+
+
+def vetor_supressao(cfg: dict, out: Path, pranchas: list) -> dict | None:
+    """Supressão vegetal estimada na faixa de obra das pranchas com regras de etapa."""
+    c = cfg.get("supressao")
+    if not c:
+        return None
+    from . import supressao
+    etapas = c.get("etapas", ["1ª etapa", "2ª etapa", "3ª etapa (futura)"])
+    geoms: dict[str, list] = {}
+    for p in pranchas:
+        if p.get("M") is None or p.get("regras") not in REGRAS:
+            continue
+        tr = pdf_cad.extrair(p["pdf"], clip=p.get("clip"))
+        cls = pdf_cad.classificar(tr, _regras(p))
+        for e, gs in supressao.geoms_utm_de_tracos(tr, cls, np.asarray(p["M"]), {e: e for e in etapas}).items():
+            geoms.setdefault(e, []).extend(gs)
+    if not geoms:
+        return None
+    fc = supressao.estimar(out / "sfm" / "ortofoto.jpg", out / "sfm" / "ortofoto_mds.png",
+                           {e: geoms[e] for e in etapas if e in geoms},
+                           faixa_m=c.get("faixa_m", 4.0), folga_unidades_m=c.get("folga_unidades_m", 2.0),
+                           altura_min_m=c.get("altura_min_m", 1.5))
+    resumo = fc.pop("resumo")
+    _log("Supressão vegetal estimada: " + "; ".join(
+        f"{e}: {r['supressao_m2']:.0f} m² árvores/arbustos, {r['limpeza_m2']:.0f} m² rasteira" for e, r in resumo.items()))
+    return {"id": "supressao", "nome": "Supressão vegetal estimada (faixa de obra)", "grupo": "Intervenções",
+            "subgrupo": "Supressão vegetal", "visivel": False, "geojson": fc, "resumo": resumo,
+            "estilo": {"color": "#dc2626", "weight": 1, "fillOpacity": 0.35}}
+
+
+def vetor_marcos(cfg: dict, epsg: int, centro_utm) -> dict | None:
+    """Marcos geodésicos (Sanepar MRRN/RN, IBGE, municipal, RBMC) num raio da obra."""
+    c = cfg.get("referencias_geodesicas")
+    if not c or not Path(c["pasta"]).exists():
+        return None
+    from . import sig
+    lon, lat = geo.para_lonlat(centro_utm[0], centro_utm[1], epsg)
+    fc = sig.marcos_proximos(c["pasta"], float(lon), float(lat), c.get("raio_m", 3000), epsg)
+    _log(f"Marcos geodésicos a até {c.get('raio_m', 3000)} m: {len(fc['features'])} "
+         f"(mais próximo: {fc['features'][0]['properties']['nome'] if fc['features'] else '—'})")
+    return {"id": "marcos", "nome": f"Marcos geodésicos ({len(fc['features'])})", "grupo": "Levantamento",
+            "subgrupo": "Referências geodésicas", "visivel": True, "geojson": fc,
+            "estilo": {"color": "#0ea5e9", "radius": 5, "weight": 2, "fillOpacity": 0.9}}
+
+
+def cronograma_4d(cfg: dict, dados: dict) -> dict | None:
+    """Resolve os seletores de cada atividade em elementos do HTML e calcula a curva S planejada.
+
+    Seletor: pranchas (ids), grupos ([grupo, subgrupo] dos layers), etapas (classe dos layers e manchas),
+    vetores (ids), estacas (estrutura), intervencoes (tipos desenhados pelo usuário). O front só compara a data
+    escolhida com início/fim — a conta (elementos e curva S) é daqui (regra 12 do estilo).
+    """
+    c = cfg.get("cronograma")
+    if not c:
+        return None
+    estacas = next((v for v in dados["vetores"] if v["id"] == "estacas"), None)
+    ids_vetor = {v["id"] for v in dados["vetores"]}
+    atividades = []
+    for a in c["atividades"]:
+        sel = a.get("seletor", {})
+        layers = {}
+        for pr in dados["pranchas"]:
+            if pr["M"] is None:
+                continue
+            nomes = [l["nome"] for l in pr["layers"]
+                     if (pr["id"] in sel.get("pranchas", []) and not sel.get("grupos") and not sel.get("etapas"))
+                     or [l.get("grupo"), l.get("subgrupo")] in sel.get("grupos", [])
+                     or (l.get("classe") in sel.get("etapas", []) and not sel.get("grupos"))
+                     or (pr["id"] in sel.get("pranchas", []) and [l.get("grupo"), l.get("subgrupo")] in sel.get("grupos", []))]
+            if nomes:
+                layers[pr["id"]] = nomes
+        vetores = [v["id"] for v in dados["vetores"]
+                   if v["id"] in sel.get("vetores", []) or (v.get("etapa") and v["etapa"] in sel.get("etapas", []))]
+        ids_estacas = [f["properties"]["id"] for f in (estacas["geojson"]["features"] if estacas else [])
+                       if f["properties"].get("estrutura") in sel.get("estacas", [])]
+        n = sum(map(len, layers.values())) + len(vetores) + len(ids_estacas) + len(sel.get("intervencoes", []))
+        if sel and not n:
+            _log(f"  cronograma: atividade {a['id']} sem elemento no mapa (seletor {sel})")
+        faltam = [v for v in sel.get("vetores", []) if v not in ids_vetor]
+        atividades.append({**{k: v for k, v in a.items() if k != "seletor"},
+                           "elementos": {"layers": layers, "vetores": vetores, "estacas": ids_estacas,
+                                         "intervencoes": sel.get("intervencoes", [])},
+                           "n_elementos": n, "vetores_ausentes": faltam})
+    fim = max(a["fim_dia"] for a in atividades)
+    dias = np.arange(fim + 1)
+    peso = np.array([a.get("peso_pct", 0.0) for a in atividades], float)
+    inicio = np.array([a["inicio_dia"] for a in atividades], float)
+    termino = np.array([a["fim_dia"] for a in atividades], float)
+    avanco = np.clip((dias[:, None] - inicio) / np.maximum(termino - inicio, 1), 0, 1)   # linear por atividade
+    curva = avanco @ peso / max(peso.sum(), 1e-9) * 100
+    return {**{k: v for k, v in c.items() if k != "atividades"}, "atividades": atividades,
+            "curva_s": {"dia": dias[::5].tolist() + ([int(fim)] if fim % 5 else []),
+                        "planejado_pct": np.round(np.r_[curva[::5], [curva[-1]] if fim % 5 else []], 2).tolist()},
+            "peso_total_pct": round(float(peso.sum()), 2)}
+
+
 # 5 ---------------------------------------------------------------------------
 def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     cfg_path = Path(cfg_path)
@@ -296,7 +459,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     rel = etapa_sfm(cfg, out, "sfm" in refazer)
     epsg = rel["epsg"]
-    desloc = etapa_controle_absoluto(cfg, out, bool({"sfm", "controle"} & refazer))
+    desloc = etapa_controle_absoluto(cfg, out, "sfm" in refazer)   # remedir exige ortofoto nova
     for c in rel["cameras"]:                          # câmeras no referencial absoluto
         c["centro"] = [c["centro"][0] - desloc[0], c["centro"][1] - desloc[1], c["centro"][2]]
     orto = json.loads((out / "sfm" / "ortofoto.json").read_text())
@@ -305,7 +468,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     pranchas = etapa_pranchas(cfg, out, "pranchas" in refazer)
     lista, vetores, pendentes = [], [], {}
     for p in pranchas:
-        lista.append(prancha_vetorial(p))
+        lista.append(prancha_vetorial(p, [e0, n0, e1, n1]))
         if p.get("M") is None:
             pendentes.setdefault(p.get("disciplina", "Geral"), []).append(
                 f"{p['nome']} — sem georreferência ({p.get('motivo', '')}); veja na aba Pranchas")
@@ -324,8 +487,13 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
 
     crs = visualizador.crs_info(epsg, [e0, n0, e1, n1], rel["alt_decolagem_m"])
     vetores.append({"id": "cameras", "nome": "Fotos do drone (posição e visada)", "grupo": "Levantamento",
+                    "subgrupo": "Drone",
                     "visivel": False, "geojson": vetores_cameras(rel, epsg), "fotos": True,
                     "estilo": {"color": "#f5c518", "weight": 2}})
+    for v in (estacas(cfg, epsg), vetor_supressao(cfg, out, pranchas),
+              vetor_marcos(cfg, epsg, ((e0 + e1) / 2, (n0 + n1) / 2))):
+        if v:
+            vetores.append(v)
     escopo = etapa_escopo(cfg)
     n_obl = sum(c["tipo"] == "obliqua" for c in rel["cameras"])
     dados = {
@@ -336,6 +504,9 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
                    "w": small.shape[1], "h": small.shape[0], "m": M_orto.ravel().tolist(), "visivel": True}],
         "folhas": [], "pranchas": lista, "vetores": vetores, "pendentes": pendentes,
         "etapas": cfg.get("etapas", []),
+        "grupos": pdf_cad.disciplinas()["grupos"],
+        "intervencoes": json.loads((pdf_cad.CONCEITOS / "intervencoes.json").read_text(encoding="utf-8"))["intervencoes"],
+        "cronograma": None,
         "escopo": escopo,
         "sondagens": sondagens(cfg, epsg),
         "modelo3d": modelo3d(out, rel, cfg.get("max_pontos_3d", 300_000), desloc),
@@ -357,12 +528,28 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
               for f in lista if f["M"] is not None],
         ],
     }
+    dados["cronograma"] = cronograma_4d(cfg, dados)
     (out / "dados.json").write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")))
+    if cfg.get("sig", True):
+        etapa_sig(out, dados, pranchas, epsg)
     html = visualizador.gerar(dados, out / "visualizador.html", "inline")
     _log(f"Visualizador: {html} ({html.stat().st_size / 1e6:.1f} MB)")
     if cfg.get("artifact"):
         visualizador.gerar(dados, out / "visualizador_artifact.html", "cdn", documento=False)
     return html
+
+
+def etapa_sig(out: Path, dados: dict, pranchas: list, epsg: int) -> None:
+    """GeoTIFF (ortofoto, MDS), GeoPackage com todas as camadas e .points do QGIS."""
+    from . import sig
+    pasta = out / "sig"
+    sig.geotiff(out / "sfm" / "ortofoto.jpg", pasta / "ortofoto.tif")
+    sig.geotiff(out / "sfm" / "ortofoto_mds.png", pasta / "mds.tif", mds=True)
+    for p, pv in zip(pranchas, dados["pranchas"]):
+        if p.get("M") is not None:
+            sig.pontos_qgis(np.asarray(p["M"]), pv["clip_mapa"], pasta / "pontos" / f"{p['id']}.points", epsg)
+    sig.geopackage(dados, pasta / "obra.gpkg", epsg)
+    _log(f"SIG: {pasta}/ (ortofoto.tif, mds.tif, obra.gpkg, pontos/*.points)")
 
 
 def main(argv=None):

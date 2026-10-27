@@ -1,0 +1,164 @@
+{
+ "metadata": {
+  "fonte": "Códigos de disciplina Sanepar nos nomes de arquivo (PBGE, PBES, PARQ, PBHI, PBME/PMEC, PBEA) e nomes de layer CAD das pranchas da LE 211/2026",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "prancha: regex no nome do arquivo + título; layer: regex no nome do layer; primeira que casa vence; layer sem casamento herda o grupo da prancha. Revisar com a equipe de orçamento. PLATERRA (PBEA) = planta de aterramento, não terraplenagem (corrigido 27/10/2026). 'REESTRUTURAR' não é estrutura: ESTRUT só sem 'RE' antes (27/10/2026)."
+ },
+ "grupos": {
+  "Civil": [
+   "Geotecnia e fundação",
+   "Estrutura",
+   "Arquitetura",
+   "Urbanização",
+   "Drenagem",
+   "Pavimentação",
+   "Terraplenagem"
+  ],
+  "Hidráulica": [
+   "Tubulações e conexões",
+   "Processo"
+  ],
+  "Mecânica": [
+   "Equipamentos"
+  ],
+  "Elétrica e automação": [
+   "Força e iluminação",
+   "Comando e automação",
+   "Aterramento e SPDA"
+  ],
+  "Geral": [
+   "Existente",
+   "Base / outros"
+  ]
+ },
+ "prancha": [
+  {
+   "regex": "ATERR|SPDA|PLATERRA",
+   "grupo": "Elétrica e automação",
+   "subgrupo": "Aterramento e SPDA"
+  },
+  {
+   "regex": "DRENAG",
+   "grupo": "Civil",
+   "subgrupo": "Drenagem"
+  },
+  {
+   "regex": "PAVIM",
+   "grupo": "Civil",
+   "subgrupo": "Pavimentação"
+  },
+  {
+   "regex": "URBANIZ|PAISAG",
+   "grupo": "Civil",
+   "subgrupo": "Urbanização"
+  },
+  {
+   "regex": "TERRAP",
+   "grupo": "Civil",
+   "subgrupo": "Terraplenagem"
+  },
+  {
+   "regex": "PBGE|SOND|FUNDAC|ESCAVAC|CONTENC|GEO",
+   "grupo": "Civil",
+   "subgrupo": "Geotecnia e fundação"
+  },
+  {
+   "regex": "PBES|ESTR-|FORMA|ARMADURA",
+   "grupo": "Civil",
+   "subgrupo": "Estrutura"
+  },
+  {
+   "regex": "PARQ|ARQ",
+   "grupo": "Civil",
+   "subgrupo": "Arquitetura"
+  },
+  {
+   "regex": "PBME|PMEC|PNEU|VALV|COMPORT",
+   "grupo": "Mecânica",
+   "subgrupo": "Equipamentos"
+  },
+  {
+   "regex": "COMAN|AUTOM|REDEASI|DIAG|FUNCIO",
+   "grupo": "Elétrica e automação",
+   "subgrupo": "Comando e automação"
+  },
+  {
+   "regex": "PBEA|ELETR|FORCA|PLANTIM",
+   "grupo": "Elétrica e automação",
+   "subgrupo": "Força e iluminação"
+  },
+  {
+   "regex": "PBHI|PBEN|AAT|ADUT|LAYOUT|INTERLIG|QUIM",
+   "grupo": "Hidráulica",
+   "subgrupo": "Tubulações e conexões"
+  }
+ ],
+ "layer": [
+  {
+   "regex": "DRENAG|PLUVIAL|BOCA.?LOBO|SARJET",
+   "grupo": "Civil",
+   "subgrupo": "Drenagem"
+  },
+  {
+   "regex": "PAVIM|ASFALT|PAVER|CALÇAD|CALCAD|MEIO.?FIO",
+   "grupo": "Civil",
+   "subgrupo": "Pavimentação"
+  },
+  {
+   "regex": "TERRAP|TALUDE|CURVA|PLATAF|OFFSET|CORTE_ATERRO",
+   "grupo": "Civil",
+   "subgrupo": "Terraplenagem"
+  },
+  {
+   "regex": "VEGETA|PAISAG|GRAMA|ARVORE|ÁRVORE|URBANIZ",
+   "grupo": "Civil",
+   "subgrupo": "Urbanização"
+  },
+  {
+   "regex": "FUNDA|ESTACA|SAPATA|TIRANTE|CONTEN|SONDAG",
+   "grupo": "Civil",
+   "subgrupo": "Geotecnia e fundação"
+  },
+  {
+   "regex": "ARMADURA|FORMA|CONCRETO|(?<!RE)ESTRUT|PILAR|VIGA|LAJE",
+   "grupo": "Civil",
+   "subgrupo": "Estrutura"
+  },
+  {
+   "regex": "ALVENARIA|ESQUADR|CERAMICA|GUARDA.?CORPO|PISO|ESCADA",
+   "grupo": "Civil",
+   "subgrupo": "Arquitetura"
+  },
+  {
+   "regex": "ATERR|SPDA|CAPTOR|MALHA",
+   "grupo": "Elétrica e automação",
+   "subgrupo": "Aterramento e SPDA"
+  },
+  {
+   "regex": "INSTR|AUTOM|COMANDO|REDE.?ASI|SINAL",
+   "grupo": "Elétrica e automação",
+   "subgrupo": "Comando e automação"
+  },
+  {
+   "regex": "ELETR|CABO|PTOLUZ|LUMIN|PAINEL|QUADRO|CIRCUITO|BARRAMENTO|ELETROD|CONDUT|SW_",
+   "grupo": "Elétrica e automação",
+   "subgrupo": "Força e iluminação"
+  },
+  {
+   "regex": "EQUIP|BOMBA|VALV|COMPORT|TALHA|MOTOR",
+   "grupo": "Mecânica",
+   "subgrupo": "Equipamentos"
+  },
+  {
+   "regex": "TUBUL|ADUTORA|ÁGUA|AGUA|ESGOTO|LODO|RECALQUE|PEAD|FOFO",
+   "grupo": "Hidráulica",
+   "subgrupo": "Tubulações e conexões"
+  },
+  {
+   "regex": "EXIST",
+   "grupo": "Geral",
+   "subgrupo": "Existente"
+  }
+ ]
+}

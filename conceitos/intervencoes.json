@@ -1,0 +1,49 @@
+{
+ "metadata": {
+  "fonte": "tipos de intervenção pedidos pelo Caio (27/10/2026) para recortes no visualizador",
+  "estado": "premissa",
+  "observacoes": "o usuário desenha o polígono no HTML e escolhe o tipo; a área é medida no plano UTM"
+ },
+ "intervencoes": [
+  {
+   "id": "supressao",
+   "nome": "Supressão vegetal (desmatamento)",
+   "cor": "#dc2626"
+  },
+  {
+   "id": "limpeza",
+   "nome": "Limpeza / roçada",
+   "cor": "#f59e0b"
+  },
+  {
+   "id": "demolicao",
+   "nome": "Demolição",
+   "cor": "#7f1d1d"
+  },
+  {
+   "id": "escavacao",
+   "nome": "Escavação / movimento de terra",
+   "cor": "#92400e"
+  },
+  {
+   "id": "interferencia",
+   "nome": "Interferência (rede existente)",
+   "cor": "#9333ea"
+  },
+  {
+   "id": "canteiro",
+   "nome": "Canteiro / área de apoio",
+   "cor": "#0f766e"
+  },
+  {
+   "id": "app",
+   "nome": "APP / restrição ambiental",
+   "cor": "#15803d"
+  },
+  {
+   "id": "outro",
+   "nome": "Outro",
+   "cor": "#475569"
+  }
+ ]
+}

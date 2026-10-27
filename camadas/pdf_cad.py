@@ -4,11 +4,13 @@ A maioria das pranchas da Sanepar (e de projetistas que plotam do AutoCAD com
 "criar layers PDF") traz os layers do CAD como OCG e o texto convertido em vetor.
 Este módulo aproveita isso sem depender do DWG:
 
-    tr = extrair("004-...LAYOUTPROCES-R5.pdf")             # traços com layer, cor, preenchimento
-    resumo_layers(tr)                                       # DataFrame: layer × nº × cores
-    cls = classificar(tr, REGRAS_ETAPA_SANEPAR)             # classe por layer/cor (ex.: etapa)
-    img = rasterizar(tr, dpi=50, filtro=lambda t: ...)      # para registrar com a ortofoto
-    fc = para_geojson(tr, M_pt_utm, epsg, filtro=...)       # FeatureCollection lon/lat
+    tr = extrair("004-...LAYOUTPROCES-R5.pdf")             # traços (dict) com layer, cor, preenchimento
+    cls = classificar(tr, regras("etapas_sanepar"))         # classe por layer/cor (conceitos/*.json)
+    img, k = rasterizar(tr, dpi=50, filtro=lambda t: ...)   # para registrar com a ortofoto
+    pac = pacote_vetorial(pdf)                              # prancha inteira em vetor para o HTML
+
+Traço = dict {"layer", "cor", "preenchimento", "largura", "partes", "fechado", "tracejado"}:
+cores RGB 0–1 (ou None) e `partes` = lista de arrays (N, 2) em pt, uma por subcaminho.
 
 Coordenadas: "pt" = pontos PDF (1/72") com origem no canto superior esquerdo da
 página (convenção do PyMuPDF, y para baixo). O georreferenciamento é uma matriz
@@ -16,9 +18,9 @@ página (convenção do PyMuPDF, y para baixo). O georreferenciamento é uma mat
 """
 from __future__ import annotations
 
+import functools
 import json
 import re
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import cv2
@@ -27,20 +29,13 @@ import numpy as np
 from . import geo
 
 
-@dataclass
-class Traco:
-    layer: str
-    cor: tuple | None            # contorno RGB 0–1
-    preenchimento: tuple | None  # preenchimento RGB 0–1
-    largura: float
-    partes: list = field(default_factory=list)   # lista de arrays (N, 2) em pt, uma por subcaminho
-    fechado: bool = False
-    tracejado: bool = False
+CONCEITOS = Path(__file__).resolve().parents[1] / "conceitos"
 
-    @property
-    def bbox(self) -> tuple:
-        p = np.vstack(self.partes)
-        return (*p.min(0), *p.max(0))
+
+def caixa(traco: dict) -> tuple:
+    """(x0, y0, x1, y1) em pt de todas as partes do traço."""
+    pontos = np.vstack(traco["partes"])
+    return (*pontos.min(0), *pontos.max(0))
 
 
 def _rotacao(pg) -> np.ndarray | None:
@@ -56,6 +51,10 @@ def _aplicar_rot(R: np.ndarray, p: np.ndarray) -> np.ndarray:
     return p @ R[:2, :2].T + R[:2, 2]
 
 
+def _cor(c) -> tuple | None:
+    return tuple(round(float(x), 3) for x in c) if c else None
+
+
 def _bezier(p0, p1, p2, p3, n: int) -> list:
     t = np.linspace(0, 1, n + 1)[1:, None]
     u = 1 - t
@@ -63,11 +62,40 @@ def _bezier(p0, p1, p2, p3, n: int) -> list:
     return list(u ** 3 * a[0] + 3 * u * u * t * a[1] + 3 * u * t * t * a[2] + t ** 3 * a[3])
 
 
+def _partes_do_desenho(itens: list, n_bezier: int) -> list[np.ndarray]:
+    """Itens de um desenho do PyMuPDF (l, c, re, qu) -> subcaminhos contínuos (arrays N×2 em pt)."""
+    partes, atual, ultimo = [], [], None
+    for item in itens:
+        operacao = item[0]
+        if operacao == "re":
+            q = item[1]
+            partes.append(np.array([[q.x0, q.y0], [q.x1, q.y0], [q.x1, q.y1], [q.x0, q.y1], [q.x0, q.y0]]))
+            continue
+        if operacao == "qu":
+            q = item[1]
+            partes.append(np.array([[q.ul.x, q.ul.y], [q.ur.x, q.ur.y], [q.lr.x, q.lr.y], [q.ll.x, q.ll.y],
+                                    [q.ul.x, q.ul.y]]))
+            continue
+        inicio = item[1]
+        if ultimo is None or abs(inicio.x - ultimo[0]) > 1e-3 or abs(inicio.y - ultimo[1]) > 1e-3:
+            if len(atual) > 1:
+                partes.append(np.array(atual))
+            atual = [[inicio.x, inicio.y]]
+        if operacao == "l":
+            atual.append([item[2].x, item[2].y])
+        elif operacao == "c":
+            atual += _bezier(item[1], item[2], item[3], item[4], n_bezier)
+        ultimo = atual[-1]
+    if len(atual) > 1:
+        partes.append(np.array(atual))
+    return partes
+
+
 def extrair(caminho: str | Path, pagina: int = 0, n_bezier: int = 6, layers: set | None = None,
-            clip=None) -> list[Traco]:
+            clip=None) -> list[dict]:
     """Traços vetoriais da página separados em subcaminhos contínuos.
 
-    Diferente de `folha.vetores_pdf`, não emenda subcaminhos (evita segmentos espúrios
+    Não emenda subcaminhos (evita segmentos espúrios
     entre peças desconexas do mesmo bloco). `clip` = (x0, y0, x1, y1) em pt para
     ignorar carimbo e tabelas. Requer PyMuPDF.
     """
@@ -87,38 +115,15 @@ def extrair(caminho: str | Path, pagina: int = 0, n_bezier: int = 6, layers: set
             r = d.get("rect")
             if clip is not None and r is not None and (r.x1 < clip[0] or r.x0 > clip[2] or r.y1 < clip[1] or r.y0 > clip[3]):
                 continue
-            partes, atual, ult = [], [], None
-            for it in d["items"]:
-                op = it[0]
-                if op == "re":
-                    q = it[1]
-                    partes.append(np.array([[q.x0, q.y0], [q.x1, q.y0], [q.x1, q.y1], [q.x0, q.y1], [q.x0, q.y0]]))
-                    continue
-                if op == "qu":
-                    q = it[1]
-                    partes.append(np.array([[q.ul.x, q.ul.y], [q.ur.x, q.ur.y], [q.lr.x, q.lr.y],
-                                            [q.ll.x, q.ll.y], [q.ul.x, q.ul.y]]))
-                    continue
-                ini = it[1]
-                if ult is None or abs(ini.x - ult[0]) > 1e-3 or abs(ini.y - ult[1]) > 1e-3:
-                    if len(atual) > 1:
-                        partes.append(np.array(atual))
-                    atual = [[ini.x, ini.y]]
-                if op == "l":
-                    atual.append([it[2].x, it[2].y])
-                elif op == "c":
-                    atual += _bezier(it[1], it[2], it[3], it[4], n_bezier)
-                ult = atual[-1]
-            if len(atual) > 1:
-                partes.append(np.array(atual))
+            partes = _partes_do_desenho(d["items"], n_bezier)
             if not partes:
                 continue
             if R is not None:
                 partes = [_aplicar_rot(R, q) for q in partes]
-            arr = lambda c: tuple(round(float(x), 3) for x in c) if c else None
-            out.append(Traco(layer, arr(d.get("color")), arr(d.get("fill")), float(d.get("width") or 0),
-                             partes, bool(d.get("closePath")) or d.get("fill") is not None,
-                             bool(d.get("dashes")) and d.get("dashes") not in ("[] 0", "[] 0.0")))
+            out.append({"layer": layer, "cor": _cor(d.get("color")), "preenchimento": _cor(d.get("fill")),
+                        "largura": float(d.get("width") or 0), "partes": partes,
+                        "fechado": bool(d.get("closePath")) or d.get("fill") is not None,
+                        "tracejado": bool(d.get("dashes")) and d.get("dashes") not in ("[] 0", "[] 0.0")})
     return out
 
 
@@ -129,133 +134,72 @@ def layers_pdf(caminho: str | Path) -> list[str]:
         return [o["name"] for o in (doc.get_ocgs() or {}).values()]
 
 
-def resumo_layers(tracos: list[Traco]):
-    """DataFrame com nº de traços e cores mais frequentes por layer (para montar as regras)."""
-    import collections
-    import pandas as pd
-    linhas = collections.defaultdict(lambda: {"n": 0, "cores": collections.Counter(), "preench": collections.Counter()})
-    for t in tracos:
-        l = linhas[t.layer]
-        l["n"] += 1
-        if t.cor:
-            l["cores"][t.cor] += 1
-        if t.preenchimento:
-            l["preench"][t.preenchimento] += 1
-    return pd.DataFrame([{"layer": k, "n": v["n"], "cores": v["cores"].most_common(3),
-                          "preenchimentos": v["preench"].most_common(3)} for k, v in linhas.items()]
-                        ).sort_values("n", ascending=False, ignore_index=True)
+def regras(nome: str) -> list[dict]:
+    """Regras de classificação de `conceitos/<nome>.json` (classe por layer regex e/ou cor)."""
+    dados = json.loads((CONCEITOS / f"{nome}.json").read_text(encoding="utf-8"))
+    return [{**r, "cor": tuple(r["cor"]) if r.get("cor") else None} for r in dados["regras"]]
 
 
-# --- classificação por regras -------------------------------------------------
-@dataclass
-class Regra:
-    """Uma classe (ex.: '1ª etapa') definida por layer (regex) e/ou cor RGB 0–1."""
-    classe: str
-    layer: str | None = None          # regex aplicada ao nome do layer
-    cor: tuple | None = None          # cor de contorno OU preenchimento
-    tol: float = 0.06
-    so_preenchimento: bool = False
-    rotulo: str = ""
-    estilo: dict = field(default_factory=dict)
-
-    def casa(self, t: Traco) -> bool:
-        if self.layer is not None and not re.search(self.layer, t.layer, re.I):
-            return False
-        if self.cor is None:
-            return True
-        cores = [t.preenchimento] if self.so_preenchimento else [t.preenchimento, t.cor]
-        return any(c is not None and max(abs(a - b) for a, b in zip(c, self.cor)) <= self.tol for c in cores)
+def casa(regra: dict, traco: dict) -> bool:
+    """O traço pertence à classe da regra? Layer por regex; cor de contorno ou preenchimento."""
+    if regra.get("layer") is not None and not re.search(regra["layer"], traco["layer"], re.I):
+        return False
+    if regra.get("cor") is None:
+        return True
+    tolerancia = regra.get("tol", 0.06)
+    return any(c is not None and max(abs(a - b) for a, b in zip(c, regra["cor"])) <= tolerancia
+               for c in (traco["preenchimento"], traco["cor"]))
 
 
-# Convenções da prancha de layout da Sanepar (ETA Vila C, folha 04): cores = etapas.
-REGRAS_ETAPA_SANEPAR = [
-    Regra("1ª etapa", layer=r"_PROJETADOS", cor=(0.0, 0.43, 0.87), rotulo="Projetado — 1ª etapa",
-          estilo={"color": "#0b6fde", "fillOpacity": 0.45}),
-    Regra("2ª etapa", layer=r"_PROJETADOS", cor=(0.66, 0.33, 0.63), rotulo="Projetado — 2ª etapa",
-          estilo={"color": "#a855a1", "fillOpacity": 0.45}),
-    Regra("3ª etapa (futura)", layer=r"_UNIDADES FUTURAS", rotulo="Unidades futuras — 3ª etapa",
-          estilo={"color": "#ef4444", "fillOpacity": 0.15, "dashArray": "4 3"}),
-    Regra("Existente a reestruturar", layer=r"_EXISTENTES A REESTRUTURAR", rotulo="Existente a restaurar/reformar",
-          estilo={"color": "#5cb85c", "fillOpacity": 0.2}),
-    Regra("Existente a manter", layer=r"LINHA_UNI_EXISTENTES", rotulo="Existente a manter",
-          estilo={"color": "#f59e0b", "weight": 1}),
-    Regra("Tubulação", layer=r"TUBULA", rotulo="Tubulações (traço preto)", estilo={"color": "#111827", "weight": 1}),
-    Regra("Equipamentos", layer=r"EQUIPAMENTOS|BOMBAS|COMPORTAS|Valvulas", rotulo="Equipamentos, bombas, válvulas",
-          estilo={"color": "#334155", "weight": 1}),
-]
-
-
-def classificar(tracos: list[Traco], regras: list[Regra]) -> list[str | None]:
+def classificar(tracos: list[dict], lista_regras: list[dict]) -> list[str | None]:
     """Primeira regra que casa com cada traço (None = sem classe)."""
-    return [next((r.classe for r in regras if r.casa(t)), None) for t in tracos]
+    return [next((r["classe"] for r in lista_regras if casa(r, t)), None) for t in tracos]
 
 
-# --- raster e GeoJSON ----------------------------------------------------------
-def rasterizar(tracos: list[Traco], dpi: float = 50, tamanho_pt=None, espessura: int = 1,
+@functools.lru_cache(maxsize=1)
+def disciplinas() -> dict:
+    """`conceitos/disciplinas.json`: grupos, regras de prancha e de layer (com metadata e fonte)."""
+    return json.loads((CONCEITOS / "disciplinas.json").read_text(encoding="utf-8"))
+
+
+def disciplina_da_prancha(nome: str, titulo: str = "") -> tuple[str, str]:
+    """(grupo, subgrupo) pelo código Sanepar no nome do arquivo (PBGE, PBES, PARQ, PBHI, PBME, PBEA) e pelo título."""
+    alvo = f"{nome} {titulo}".upper()
+    for regra in disciplinas()["prancha"]:
+        if re.search(regra["regex"], alvo):
+            return regra["grupo"], regra["subgrupo"]
+    return "Geral", "Base / outros"
+
+
+def disciplina_do_layer(nome_layer: str, padrao: tuple[str, str]) -> tuple[str, str]:
+    """Grupo do layer pelo nome (ex.: DRENAGEM numa prancha hidráulica vai para Civil › Drenagem);
+    sem casamento, herda o da prancha."""
+    alvo = nome_layer.upper()
+    for regra in disciplinas()["layer"]:
+        if re.search(regra["regex"], alvo):
+            return regra["grupo"], regra["subgrupo"]
+    return padrao
+
+
+def rasterizar(tracos: list[dict], dpi: float = 50, tamanho_pt=None, espessura: int = 1,
                filtro=None, cor=255) -> tuple[np.ndarray, float]:
     """Desenha os traços (uint8, fundo 0). Retorna (imagem, px por pt)."""
     k = dpi / 72
     if tamanho_pt is None:
-        b = np.array([t.bbox for t in tracos])
+        b = np.array([caixa(t) for t in tracos])
         tamanho_pt = (b[:, 2].max(), b[:, 3].max())
     img = np.zeros((int(tamanho_pt[1] * k) + 1, int(tamanho_pt[0] * k) + 1), np.uint8)
     for t in tracos:
         if filtro is not None and not filtro(t):
             continue
-        pts = [np.round(p * k).astype(np.int32) for p in t.partes]
-        if t.preenchimento is not None:
+        pts = [np.round(p * k).astype(np.int32) for p in t["partes"]]
+        if t["preenchimento"] is not None:
             cv2.fillPoly(img, pts, cor)
-        cv2.polylines(img, pts, t.fechado, cor, espessura, cv2.LINE_AA)
+        cv2.polylines(img, pts, t["fechado"], cor, espessura, cv2.LINE_AA)
     return img, k
 
 
-def _simplificar(p: np.ndarray, tol: float) -> np.ndarray:
-    if len(p) < 3 or tol <= 0:
-        return p
-    s = cv2.approxPolyDP(p.astype(np.float32).reshape(-1, 1, 2), tol, False).reshape(-1, 2)
-    return s if len(s) >= 2 else p[[0, -1]]
-
-
-def para_geojson(tracos: list[Traco], M: np.ndarray, epsg: int, classes: list | None = None,
-                 filtro=None, propriedades: dict | None = None, simplificar_m: float = 0.05,
-                 unir_poligonos: bool = False) -> dict:
-    """FeatureCollection (lon/lat, RFC 7946) com os traços transformados por M (pt -> UTM).
-
-    Cada feature leva layer, classe, cores e `propriedades`. Traços preenchidos viram
-    Polygon/MultiPolygon; os demais, LineString/MultiLineString. Com unir_poligonos=True,
-    os preenchimentos de mesma classe são fundidos (raster + contornos) para aliviar o HTML.
-    """
-    feats = []
-    esc = float(np.sqrt(abs(np.linalg.det(M[:2, :2]))))      # m por pt
-    tol_pt = simplificar_m / max(esc, 1e-9)
-
-    def ll(p):
-        u = geo.aplicar(M, p)
-        lon, lat = geo.para_lonlat(u[:, 0], u[:, 1], epsg)
-        return np.c_[lon, lat].round(8).tolist()
-
-    for i, t in enumerate(tracos):
-        if filtro is not None and not filtro(t):
-            continue
-        cls = classes[i] if classes is not None else None
-        props = {"layer": t.layer, "classe": cls, "cor": t.cor, "preenchimento": t.preenchimento,
-                 **(propriedades or {})}
-        partes = [_simplificar(p, tol_pt) for p in t.partes]
-        if t.preenchimento is not None and not unir_poligonos:
-            aneis = [ll(np.vstack([p, p[:1]])) for p in partes if len(p) >= 3]
-            if not aneis:
-                continue
-            g = {"type": "Polygon", "coordinates": aneis[:1]} if len(aneis) == 1 else \
-                {"type": "MultiPolygon", "coordinates": [[a] for a in aneis]}
-        else:
-            linhas = [ll(p) for p in partes]
-            g = {"type": "LineString", "coordinates": linhas[0]} if len(linhas) == 1 else \
-                {"type": "MultiLineString", "coordinates": linhas}
-        feats.append({"type": "Feature", "geometry": g, "properties": props})
-    return {"type": "FeatureCollection", "features": feats}
-
-
-def manchas(tracos: list[Traco], classes: list, classe: str, M: np.ndarray, epsg: int,
+def manchas(tracos: list[dict], classes: list, classe: str, M: np.ndarray, epsg: int,
             res_m: float = 0.10, fechar_m: float = 0.3, min_area_m2: float = 2.0,
             simplificar_m: float = 0.10) -> dict:
     """Polígonos fundidos ("manchas") de todos os traços de uma classe — hachuras e
@@ -263,17 +207,17 @@ def manchas(tracos: list[Traco], classes: list, classe: str, M: np.ndarray, epsg
     sel = [t for t, c in zip(tracos, classes) if c == classe]
     if not sel:
         return {"type": "FeatureCollection", "features": []}
-    pts = np.vstack([geo.aplicar(M, np.vstack(t.partes)) for t in sel])
+    pts = np.vstack([geo.aplicar(M, np.vstack(t["partes"])) for t in sel])
     e0, n0 = pts.min(0) - 2
     e1, n1 = pts.max(0) + 2
     W, H = int((e1 - e0) / res_m) + 1, int((n1 - n0) / res_m) + 1
     img = np.zeros((H, W), np.uint8)
     for t in sel:
         cs = [np.round(np.c_[(u[:, 0] - e0) / res_m, (n1 - u[:, 1]) / res_m]).astype(np.int32)
-              for u in (geo.aplicar(M, p) for p in t.partes)]
-        if t.preenchimento is not None:
+              for u in (geo.aplicar(M, p) for p in t["partes"])]
+        if t["preenchimento"] is not None:
             cv2.fillPoly(img, cs, 255)
-        cv2.polylines(img, cs, t.fechado, 255, max(1, int(0.15 / res_m)))
+        cv2.polylines(img, cs, t["fechado"], 255, max(1, int(0.15 / res_m)))
     k = max(1, int(fechar_m / res_m)) * 2 + 1
     img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((k, k), np.uint8))
     cont, hier = cv2.findContours(img, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
@@ -300,11 +244,6 @@ def manchas(tracos: list[Traco], classes: list, classe: str, M: np.ndarray, epsg
     return {"type": "FeatureCollection", "features": feats}
 
 
-def salvar_geojson(fc: dict, caminho: str | Path) -> None:
-    Path(caminho).write_text(json.dumps(fc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-
-
-# --- pacote vetorial para o visualizador ----------------------------------------
 def _hex(c) -> str | None:
     return None if c is None else "#%02x%02x%02x" % tuple(int(round(v * 255)) for v in c[:3])
 
@@ -330,25 +269,24 @@ def textos_pdf(caminho: str | Path, pagina: int = 0) -> list[dict]:
     with pymupdf.open(caminho) as doc:
         pg = doc[pagina]
         R = _rotacao(pg)
-        d = pg.get_text("dict")
-        for b in d["blocks"]:
-            for l in b.get("lines", []):
-                for s in l["spans"]:
-                    t = s["text"].strip()
-                    if not t or not _texto_legivel(t):
-                        continue
-                    o, dr = np.array([s["origin"]], float), np.array(l["dir"], float)
-                    if R is not None:
-                        o, dr = _aplicar_rot(R, o), R[:2, :2] @ dr
-                    ang = float(np.degrees(np.arctan2(-dr[1], dr[0])))
-                    out.append({"t": t, "x": round(float(o[0, 0]), 2), "y": round(float(o[0, 1]), 2),
-                                "a": round(ang, 1), "h": round(s["size"], 2), "cor": _hex(
-                                    [((s["color"] >> 16) & 255) / 255, ((s["color"] >> 8) & 255) / 255,
-                                     (s["color"] & 255) / 255])})
+        spans = ((linha, span) for bloco in pg.get_text("dict")["blocks"]
+                 for linha in bloco.get("lines", []) for span in linha["spans"])
+        for linha, span in spans:
+            texto = span["text"].strip()
+            if not texto or not _texto_legivel(texto):
+                continue
+            origem, direcao = np.array([span["origin"]], float), np.array(linha["dir"], float)
+            if R is not None:
+                origem, direcao = _aplicar_rot(R, origem), R[:2, :2] @ direcao
+            cor = span["color"]
+            out.append({"t": texto, "x": round(float(origem[0, 0]), 2), "y": round(float(origem[0, 1]), 2),
+                        "a": round(float(np.degrees(np.arctan2(-direcao[1], direcao[0]))), 1),
+                        "h": round(span["size"], 2),
+                        "cor": _hex([((cor >> 16) & 255) / 255, ((cor >> 8) & 255) / 255, (cor & 255) / 255])})
     return out
 
 
-def pacote_vetorial(caminho: str | Path, regras: list[Regra] | None = None, pagina: int = 0,
+def pacote_vetorial(caminho: str | Path, lista_regras: list[dict] | None = None, pagina: int = 0,
                     simplificar_pt: float = 0.25) -> dict:
     """Prancha inteira em vetor, compacta, para o visualizador (sem rasterizar nada).
 
@@ -365,18 +303,18 @@ def pacote_vetorial(caminho: str | Path, regras: list[Regra] | None = None, pagi
         largura, altura = float(r.width), float(r.height)
     tr = extrair(caminho, pagina)
     layers, estilos = {}, {}
-    cls = classificar(tr, regras) if regras else [None] * len(tr)
+    cls = classificar(tr, lista_regras) if lista_regras else [None] * len(tr)
     coords, partes = [], []
     ult = np.zeros(2, np.int32)
     for t, c in zip(tr, cls):
-        li = layers.setdefault(t.layer, {"i": len(layers), "nome": t.layer, "n": 0, "cores": {}, "classe": c})
+        li = layers.setdefault(t["layer"], {"i": len(layers), "nome": t["layer"], "n": 0, "cores": {}, "classe": c})
         li["n"] += 1
-        cor = _hex(t.cor) or _hex(t.preenchimento) or "#000000"
+        cor = _hex(t["cor"]) or _hex(t["preenchimento"]) or "#000000"
         li["cores"][cor] = li["cores"].get(cor, 0) + 1
-        chave = (_hex(t.cor), _hex(t.preenchimento), round(t.largura, 2))
+        chave = (_hex(t["cor"]), _hex(t["preenchimento"]), round(t["largura"], 2))
         ei = estilos.setdefault(chave, len(estilos))
-        flags = (1 if t.fechado else 0) | (2 if t.preenchimento is not None else 0)
-        for p in t.partes:
+        flags = (1 if t["fechado"] else 0) | (2 if t["preenchimento"] is not None else 0)
+        for p in t["partes"]:
             q = p if simplificar_pt <= 0 or len(p) < 3 else \
                 cv2.approxPolyDP(p.astype(np.float32).reshape(-1, 1, 2), simplificar_pt, False).reshape(-1, 2)
             qi = np.round(q * 10).astype(np.int32)
@@ -395,3 +333,54 @@ def pacote_vetorial(caminho: str | Path, regras: list[Regra] | None = None, pagi
         "n_partes": len(partes), "n_pontos": int(len(coords)),
         "textos": textos_pdf(caminho, pagina),
     }
+
+
+def separar_por_cor(img: np.ndarray, cores: list, tol: float = 40.0, fundo=(255, 255, 255)) -> list[np.ndarray]:
+    """Uma máscara alfa (uint8) por camada.
+
+    Cada camada pode ter várias cores (lista de rgb 0–1). Para cada pixel p,
+    estima-se a cobertura a de uma linha de cor c sobre o fundo branco
+    (p ≈ a·c + (1−a)·fundo, projeção no segmento fundo–c) e aceita-se se o
+    desvio perpendicular ao segmento for < tol. Isso recupera o
+    antisserrilhado das linhas finas em vez de cortar por limiar.
+    O pixel vai para a camada de menor desvio.
+    """
+    p = img.reshape(-1, 3).astype(np.float32)
+    f = np.asarray(fundo, np.float32)
+    d = f - p                                       # "tinta" do pixel
+    melhor = np.full(len(p), np.inf, np.float32)
+    dono = np.full(len(p), -1, np.int32)
+    alfa = np.zeros(len(p), np.float32)
+    for k, cam in enumerate(cores):
+        cam = cam if isinstance(cam[0], (list, tuple, np.ndarray)) else [cam]
+        for rgb in cam:
+            c = f - np.asarray(rgb, np.float32) * 255
+            cc = float(c @ c)
+            if cc < 1:
+                continue
+            a = np.clip((d @ c) / cc, 0, 1)
+            desvio = np.linalg.norm(d - a[:, None] * c, axis=1)
+            ok = (desvio < tol) & (a > 0.08) & (desvio < melhor)
+            melhor[ok], dono[ok], alfa[ok] = desvio[ok], k, a[ok]
+    h, w = img.shape[:2]
+    return [np.where(dono == k, alfa * 255, 0).astype(np.uint8).reshape(h, w) for k in range(len(cores))]
+
+
+def empacotar(mascaras: list[np.ndarray]) -> list[np.ndarray]:
+    """Agrupa as máscaras de 3 em 3 em imagens BGR (canal R = 1ª, G = 2ª, B = 3ª).
+
+    Gravar com webp sem perdas (cv2.IMWRITE_WEBP_QUALITY=101); o visualizador
+    lê os canais R, G, B nessa ordem.
+    """
+    out = []
+    for i in range(0, len(mascaras), 3):
+        trio = mascaras[i:i + 3] + [np.zeros_like(mascaras[0])] * (3 - len(mascaras[i:i + 3]))
+        out.append(np.dstack([trio[2], trio[1], trio[0]]))
+    return out
+
+
+def desempacotar(pacotes: list[np.ndarray], n: int) -> list[np.ndarray]:
+    m = []
+    for p in pacotes:
+        m += [p[..., 2], p[..., 1], p[..., 0]]
+    return m[:n]

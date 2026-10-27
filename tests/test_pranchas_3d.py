@@ -30,12 +30,12 @@ def pdf_com_layers(tmp_path):
 def test_extrair_layers_no_espaco_exibido(pdf_com_layers):
     assert set(pdf_cad.layers_pdf(pdf_com_layers)) == {"EXISTENTES", "_PROJETADOS"}
     tr = pdf_cad.extrair(pdf_com_layers)
-    por_layer = {t.layer: t for t in tr}
-    linha = por_layer["EXISTENTES"].partes[0]
+    por_layer = {t["layer"]: t for t in tr}
+    linha = por_layer["EXISTENTES"]["partes"][0]
     # /Rotate 90: a folha exibida tem 300 de largura e 400 de altura; a linha horizontal vira vertical
     assert np.allclose(linha[:, 0], linha[0, 0], atol=1e-3)
     assert np.ptp(linha[:, 1]) == pytest.approx(300, abs=1e-3)
-    cls = pdf_cad.classificar(tr, pdf_cad.REGRAS_ETAPA_SANEPAR)
+    cls = pdf_cad.classificar(tr, pdf_cad.regras("etapas_sanepar"))
     assert cls[tr.index(por_layer["_PROJETADOS"])] == "1ª etapa"
 
 
@@ -47,7 +47,7 @@ def test_pacote_vetorial_ida_e_volta(pdf_com_layers):
     pts = np.cumsum(d.astype(np.int64), axis=0) / 10
     assert partes[:, 0].sum() == len(pts)
     tr = pdf_cad.extrair(pdf_com_layers)
-    assert np.allclose(pts[: len(tr[0].partes[0])], np.round(tr[0].partes[0] * 10) / 10)
+    assert np.allclose(pts[: len(tr[0]["partes"][0])], np.round(tr[0]["partes"][0] * 10) / 10)
     assert [t["t"] for t in pac["textos"]] == ["TUBO PEAD DN 630"]
     assert {l["nome"] for l in pac["layers"]} >= {"EXISTENTES", "_PROJETADOS"}
 

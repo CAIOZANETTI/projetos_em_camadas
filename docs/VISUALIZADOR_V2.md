@@ -100,3 +100,66 @@ O teste abre no Chromium (Playwright) e verifica:
 - a busca de texto;
 - o 3D renderizando com WebGL por swiftshader;
 - capturas de tela em 1400 px e em 400 px de largura.
+
+---
+
+# v3 — grupos por disciplina, intervenções, 4D, estacas e marcos
+
+Chaves novas em `dados`. Tudo é calculado no Python; o front só seleciona e exibe (regra 12 do estilo).
+
+| chave | conteúdo |
+|---|---|
+| `grupos` | `{grupo: [subgrupos]}` na ordem de exibição (`conceitos/disciplinas.json`) |
+| `pranchas[].grupo/subgrupo` | disciplina da prancha (código Sanepar) |
+| `pranchas[].layers[].grupo/subgrupo` | disciplina de cada layer CAD (o nome do layer pode mudar a da prancha, ex.: DRENAGEM → Civil › Drenagem) |
+| `vetores[].grupo/subgrupo` | idem para camadas vetoriais (`Etapas`, `Intervenções`, `Levantamento`, `Civil`) |
+| `vetores[id=estacas]` | pontos com `id, diametro_cm, comprimento_m, estrutura, cota_arrasamento` |
+| `vetores[id=supressao]` | polígonos estimados `{tipo, categoria: supressao/limpeza, etapa, area_m2, altura_m, estimado: true}` + `resumo` por etapa |
+| `vetores[id=marcos]` | marcos geodésicos `{nome, rede, distancia_m, CLASSIFICAÇÃO, SITUAÇÃO…}` |
+| `intervencoes` | tipos de recorte `{id, nome, cor}` (`conceitos/intervencoes.json`) |
+| `cronograma` | `{fonte, data_os, data_os_hipotese, prazo_dias, marcos[{id,dia,descricao}], atividades[{id,nome,inicio_dia,fim_dia,uc,etapa,peso_pct,origem_peso,elementos:{layers:{prancha:[layers]}, vetores:[], estacas:[ids], intervencoes:[tipos]}, n_elementos}], curva_s:{dia[], planejado_pct[]}}` |
+
+## Interface
+
+1. **Árvore por disciplina** na aba Camadas: Grupo › Subgrupo › (prancha › layers) e camadas vetoriais.
+   - Checkbox de grupo e subgrupo liga e desliga tudo o que está abaixo.
+   - Os layers de uma prancha podem cair em subgrupos diferentes; a prancha aparece em cada subgrupo que tiver layers seus.
+   - Mantém os controles atuais de prancha (opacidade, georref, "só").
+2. **Recorte classificado (intervenções)**: na ferramenta Área (ou num botão "Recortar intervenção"), depois de fechar
+   o polígono o usuário escolhe o tipo em `intervencoes`.
+   - A área em m² vem da medição UTM que já existe.
+   - O recorte é uma anotação com `properties.intervencao` e a cor do tipo.
+   - Lista e totais por tipo (somas de áreas já medidas são apresentação aceitável; não recalcular geometria).
+   - A camada `supressao` aparece no grupo "Intervenções", com o resumo por etapa no painel.
+3. **4D**: botão "4D" abre uma barra inferior com:
+   - linha do tempo de `0…max(fim_dia)`, marcos MI;
+   - data calendário = `data_os` + dias, com aviso "data da OS hipotética" quando `data_os_hipotese` e campo para trocar
+     a data da OS (só muda o rótulo);
+   - botões ▶ play / pausa e velocidade;
+   - mini-Gantt das atividades;
+   - curva S (pontos de `curva_s`, SVG simples, sem biblioteca).
+
+   No dia `d`, cada elemento de cada atividade fica:
+   - **oculto** se `d < inicio_dia`;
+   - **destacado** (laranja, pulsante) se `inicio ≤ d ≤ fim`;
+   - **normal** se `d > fim`.
+
+   Elementos que não pertencem a nenhuma atividade ficam normais. Ao sair do 4D, tudo volta.
+   O painel mostra as atividades em execução no dia e o % planejado (`curva_s`, interpolação linear é aceitável).
+   No 3D, as estacas seguem a mesma regra.
+4. **Estacas**:
+   - no mapa, círculos com raio proporcional ao diâmetro;
+   - no 3D, cilindros verticais do terreno (percentil 10 de z da nuvem) para baixo, com `comprimento_m`, cor por estrutura;
+   - o clique mostra os atributos.
+5. **Marcos geodésicos**: ícone triangular, popup com nome, rede, classificação, situação (destacar "DESTRUÍDO") e
+   distância à obra.
+
+## Teste (acrescentar a `scripts/testar_visualizador.py`)
+- a árvore tem os grupos Civil, Hidráulica, Elétrica e automação, e o subgrupo Civil › Drenagem;
+- desligar Civil esconde as pranchas ou layers do grupo;
+- desenhar um polígono, classificar como "Supressão vegetal (desmatamento)" e ver o recorte na lista com área > 0;
+- 4D: ir ao dia 100 (A04 e A05 em execução, A08 oculta), ao dia 600 (tudo concluído), play por 1 s sem erro;
+  a curva S aparece;
+- estacas no mapa e no 3D;
+- marcos com popup;
+- console sem erros nos dois cenários.

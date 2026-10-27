@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from camadas import geo
-from camadas.folha import desempacotar, empacotar, separar_por_cor
+from camadas.pdf_cad import desempacotar, empacotar, separar_por_cor
 
 
 @pytest.mark.parametrize("tipo", ["similaridade", "afim", "homografia"])

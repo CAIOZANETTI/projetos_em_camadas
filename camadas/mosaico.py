@@ -31,18 +31,71 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import re
+
 import cv2
 import numpy as np
+from PIL import Image
 
 from . import geo
-from .exif import FotoMeta, ler_meta
 
 EXTENSOES = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
 
 
+# Largura do sensor (mm) por modelo de câmera DJI. Completar conforme novos drones.
+SENSOR_MM = {
+    "FC7303": 6.17,   # DJI Mini 2  (1/2.3")
+    "FC3582": 9.70,   # DJI Mini 3 Pro (1/1.3")
+    "FC3411": 13.2,   # DJI Air 2S (1")
+    "FC6310": 13.2,   # Phantom 4 Pro (1")
+    "L1D-20c": 13.2,  # Mavic 2 Pro (1")
+    "FC220": 6.17,    # Mavic Pro
+}
+
+_XMP_TAGS = ("RelativeAltitude", "AbsoluteAltitude", "FlightYawDegree",
+             "GimbalYawDegree", "GimbalPitchDegree")
+
+
+_XMP_TAGS = ("RelativeAltitude", "AbsoluteAltitude", "FlightYawDegree",
+             "GimbalYawDegree", "GimbalPitchDegree")
+
+
+def _dms(v, ref) -> float:
+    g = float(v[0]) + float(v[1]) / 60 + float(v[2]) / 3600
+    return -g if ref in ("S", "W") else g
+
+
+def ler_meta(caminho: str | Path) -> dict:
+    """GPS, altitude relativa (XMP DJI), rumo do voo e câmera; `gsd` em m/px para voo nadiral sobre plano."""
+    caminho = Path(caminho)
+    im = Image.open(caminho)
+    ex = im.getexif()
+    gps = ex.get_ifd(0x8825)
+    sub = ex.get_ifd(0x8769)
+    if 2 not in gps:
+        raise ValueError(f"{caminho.name}: foto sem GPS no EXIF")
+
+    # O XMP da DJI fica no início do arquivo; 256 kB é suficiente.
+    with open(caminho, "rb") as f:
+        bruto = f.read(256_000).decode("latin1")
+    xmp = {}
+    for tag in _XMP_TAGS:
+        m = re.search(rf'drone-dji:{tag}="([^"]+)"', bruto)
+        xmp[tag] = float(m.group(1)) if m else None
+
+    meta = {"arquivo": str(caminho), "largura": im.width, "altura": im.height,
+            "modelo": str(ex.get(272, "")).strip("\x00 "), "focal_mm": float(sub.get(0x920A, 0) or 0),
+            "lat": _dms(gps[2], gps[1]), "lon": _dms(gps[4], gps[3]), "alt_abs": float(gps.get(6, 0) or 0),
+            "alt_rel": xmp["RelativeAltitude"], "rumo": xmp["FlightYawDegree"], "data": sub.get(0x9003)}
+    sensor = SENSOR_MM.get(meta["modelo"])
+    meta["gsd"] = (meta["alt_rel"] * sensor / (meta["focal_mm"] * meta["largura"])
+                   if sensor and meta["alt_rel"] and meta["focal_mm"] else None)
+    return meta
+
+
 @dataclass
 class Foto:
-    meta: FotoMeta
+    meta: dict
     img: np.ndarray            # imagem na escala de trabalho (BGR)
     escala: float              # escala de trabalho / original
     prior: np.ndarray          # 3x3: px de trabalho -> metros locais, pelo GPS/rumo/GSD
@@ -52,7 +105,7 @@ class Foto:
 
     @property
     def nome(self) -> str:
-        return Path(self.meta.arquivo).name
+        return Path(self.meta["arquivo"]).name
 
     @property
     def centro(self) -> list:
@@ -114,25 +167,25 @@ class Mosaico:
         if len(arqs) < 2:
             raise SystemExit(f"Preciso de pelo menos 2 fotos em {self.pasta}")
         metas = [ler_meta(a) for a in arqs]
-        lon0 = np.mean([m.lon for m in metas])
-        lat0 = np.mean([m.lat for m in metas])
+        lon0 = np.mean([m["lon"] for m in metas])
+        lat0 = np.mean([m["lat"] for m in metas])
         self.epsg = epsg or geo.epsg_utm_sirgas(lon0, lat0)
-        E, N = geo.para_utm([m.lon for m in metas], [m.lat for m in metas], self.epsg)
+        E, N = geo.para_utm([m["lon"] for m in metas], [m["lat"] for m in metas], self.epsg)
         self.E0, self.N0 = float(np.floor(min(E))) - 100, float(np.ceil(max(N))) + 100
         for a, m, e, n in zip(arqs, metas, E, N):
             img = cv2.imread(str(a), cv2.IMREAD_COLOR)
             k = self.lado / max(img.shape[:2])
             img = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
             # prior: topo da imagem aponta para o rumo do voo; escala = GSD
-            s = (m.gsd or 0.03) / k
-            h = np.radians(m.rumo or 0.0)
+            s = (m["gsd"] or 0.03) / k
+            h = np.radians(m["rumo"] or 0.0)
             R = np.array([[s * np.cos(h), -s * np.sin(h)], [s * np.sin(h), s * np.cos(h)]])
             c = np.array([img.shape[1] / 2, img.shape[0] / 2])
             t = np.array([e - self.E0, self.N0 - n]) - R @ c
             prior = np.vstack([np.c_[R, t], [0, 0, 1]])
             self.fotos.append(Foto(m, img, k, prior))
         self.log(f"{len(self.fotos)} fotos carregadas; referencial EPSG:{self.epsg}; "
-                 f"GSD pelo EXIF ≈ {np.median([m.gsd or np.nan for m in metas])*100:.2f} cm/px")
+                 f"GSD pelo EXIF ≈ {np.median([m["gsd"] or np.nan for m in metas])*100:.2f} cm/px")
 
     # 2 --------------------------------------------------------------
     def casar(self):
@@ -255,7 +308,7 @@ class Mosaico:
             "desvio_para_gps_m": gps,
             "rmse_gps_m": float(np.sqrt(np.mean(np.square(list(gps.values()))))),
             "gsd_ajustado_m": escala,
-            "gsd_exif_m": float(np.median([f.meta.gsd for f in self.fotos if f.meta.gsd])),
+            "gsd_exif_m": float(np.median([f.meta["gsd"] for f in self.fotos if f.meta["gsd"]])),
             "fotos_so_por_gps": isoladas,
         }
         a = self.relatorio["ajuste"]
@@ -313,7 +366,7 @@ class Mosaico:
 
         def cobertura(k):
             f = fs[k]
-            m = cv2.warpAffine(np.full((f.meta.altura, f.meta.largura), 255, np.uint8),
+            m = cv2.warpAffine(np.full((f.meta["altura"], f.meta["largura"]), 255, np.uint8),
                                Ms[k][:2], (W, H), flags=cv2.INTER_NEAREST)
             return cv2.erode(m, np.ones((5, 5), np.uint8)) > 0
 
@@ -322,7 +375,7 @@ class Mosaico:
         rotulo = np.full((H, W), -1, np.int16)
         yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
         for k, f in enumerate(fs):
-            c = geo.aplicar(Ms[k], [[f.meta.largura / 2, f.meta.altura / 2]])[0]
+            c = geo.aplicar(Ms[k], [[f.meta["largura"] / 2, f.meta["altura"] / 2]])[0]
             d = (xx - c[0]) ** 2 + (yy - c[1]) ** 2
             m = cobertura(k) & (d < melhor)
             melhor[m] = d[m]
@@ -335,7 +388,7 @@ class Mosaico:
         soma = np.zeros((H, W), np.float32)
         for k, f in enumerate(fs):
             w = cv2.GaussianBlur((rotulo == k).astype(np.float32), (0, 0), sigma) * cobertura(k)
-            img = cv2.imread(f.meta.arquivo, cv2.IMREAD_COLOR)
+            img = cv2.imread(f.meta["arquivo"], cv2.IMREAD_COLOR)
             # reduz antes do warp para não serrilhar quando a saída é bem mais grossa
             red = min(1.0, 1.5 * res / np.sqrt(abs(np.linalg.det(f.T[:2, :2]))) * f.escala)
             if red < 1:
@@ -356,7 +409,7 @@ class Mosaico:
         e0, n1 = self.E0 + x0, self.N0 - y0          # canto superior esquerdo em UTM
         e1, n0 = self.E0 + x1, self.N0 - y1
         self.relatorio.update({
-            "fotos": [{**f.meta.to_dict(), "arquivo": f.nome} for f in fs],
+            "fotos": [{**f.meta, "arquivo": f.nome} for f in fs],
             "pares": [{k: p[k] for k in ("i", "j", "n", "desvio_gps_m", "residuo_m")} for p in self.pares],
             "saida": {"arquivo": saida.name, "largura": W, "altura": H, "res_m_px": res,
                       "extensao_utm": [e0, n0, e1, n1],
