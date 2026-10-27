@@ -1,0 +1,720 @@
+<title>__TITULO__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/*__LEAFLET_CSS__*/
+</style>
+<style>
+/* Layout: prancheta de obra — painel de camadas à esquerda, mapa em tela cheia, barra de status como carimbo */
+:root{
+  --papel:#eef0ec; --painel:#fafbf8; --tinta:#1b211e; --mut:#5d6762; --linha:#d5dad4; --realce:#e6eae4;
+  --acento:#c2410c; --acento-tinta:#ffffff; --medida:#0f766e;
+  --civil:#ea580c; --hidro:#0284c7; --eletrica:#ca8a04; --geral:#0f766e;
+  --ok:#15803d; --aberta:#b45309; --sombra:0 1px 2px rgb(20 30 25 / .12), 0 4px 14px rgb(20 30 25 / .10);
+  --f-ui:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-titulo:"IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-dado:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --papel:#121614; --painel:#181d1b; --tinta:#e4e8e5; --mut:#97a19c; --linha:#2b3330; --realce:#222a27;
+  --acento:#f97316; --acento-tinta:#1b0d03; --medida:#2dd4bf;
+  --civil:#fb923c; --hidro:#38bdf8; --eletrica:#facc15; --geral:#2dd4bf;
+  --ok:#4ade80; --aberta:#fbbf24; --sombra:0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .35); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --papel:#121614; --painel:#181d1b; --tinta:#e4e8e5; --mut:#97a19c; --linha:#2b3330; --realce:#222a27;
+  --acento:#f97316; --acento-tinta:#1b0d03; --medida:#2dd4bf;
+  --civil:#fb923c; --hidro:#38bdf8; --eletrica:#facc15; --geral:#2dd4bf;
+  --ok:#4ade80; --aberta:#fbbf24; --sombra:0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .35); color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--papel);color:var(--tinta);font:13px/1.45 var(--f-ui)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--acento);outline-offset:1px}
+#app{height:100%;display:flex;flex-direction:column}
+.topo{display:flex;align-items:center;gap:12px;padding-block:8px;padding-inline:16px;background:var(--painel);border-bottom:1px solid var(--linha);flex-wrap:wrap}
+.topo h1{font:600 16px/1.2 var(--f-titulo);margin:0;letter-spacing:.01em;text-wrap:balance}
+.topo .sub{color:var(--mut);font-size:12px}
+.topo .marca{display:flex;flex-direction:column;min-width:0;flex:1}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:500 11px/1 var(--f-dado);padding:5px 7px;border:1px solid var(--linha);border-radius:3px;color:var(--mut);white-space:nowrap}
+main{flex:1;display:flex;min-height:0}
+aside{width:330px;flex:none;display:flex;flex-direction:column;background:var(--painel);border-right:1px solid var(--linha);min-height:0}
+.abas{display:flex;border-bottom:1px solid var(--linha);padding-inline:8px}
+.abas button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:10px 4px 8px;cursor:pointer;color:var(--mut);font-weight:500}
+.abas button[aria-selected="true"]{color:var(--tinta);border-bottom-color:var(--acento)}
+.badge{display:inline-block;min-width:18px;padding:1px 5px;border-radius:9px;background:var(--realce);font:500 11px/16px var(--f-dado);text-align:center}
+.aba{flex:1;overflow:auto;padding:4px 16px 24px}
+h2{font:600 11px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:18px 0 8px}
+.grupo{border-top:1px solid var(--linha);padding-top:2px}
+.grupo>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:10px 0 6px;font:600 13px var(--f-titulo);letter-spacing:.02em}
+.grupo>summary::-webkit-details-marker{display:none}
+.grupo>summary::before{content:"";width:6px;height:6px;border-right:1.5px solid var(--mut);border-bottom:1.5px solid var(--mut);transform:rotate(-45deg);transition:transform .15s}
+.grupo[open]>summary::before{transform:rotate(45deg)}
+.disc{width:9px;height:9px;border-radius:2px;flex:none}
+.linhaC{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:8px;padding:4px 0;min-height:28px}
+.linhaC label{cursor:pointer;min-width:0}
+.linhaC .nota{color:var(--mut);font-size:11.5px}
+.sub-c{display:grid;grid-template-columns:18px 26px 1fr;align-items:center;gap:7px;padding:2px 0 2px 26px}
+.sub-c input[type=color]{width:24px;height:18px;padding:0;border:1px solid var(--linha);border-radius:3px;background:none;cursor:pointer}
+.pend{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;padding:3px 0;color:var(--mut)}
+.pend .tag{font:500 10.5px/1 var(--f-dado);padding:3px 5px;border:1px dashed var(--linha);border-radius:3px}
+.ajuste{display:grid;grid-template-columns:78px 1fr;align-items:center;gap:4px 8px;padding:4px 0 8px 26px}
+.ajuste span{color:var(--mut);font-size:12px}
+input[type=range]{width:100%;accent-color:var(--acento)}
+select,input[type=text],textarea{background:var(--papel);border:1px solid var(--linha);border-radius:4px;padding:5px 7px;width:100%}
+textarea{resize:vertical;min-height:72px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.btn{padding:5px 10px;border:1px solid var(--linha);background:var(--painel);border-radius:4px;cursor:pointer}
+.btn:hover{border-color:var(--mut)}
+.btn.on{background:var(--tinta);color:var(--painel);border-color:var(--tinta)}
+.btn.prim{background:var(--acento);color:var(--acento-tinta);border-color:var(--acento)}
+.btn.perigo{color:#b91c1c;border-color:currentColor}
+.aviso{font-size:11.5px;color:var(--mut);margin:4px 0 0 26px}
+.aviso.erro{color:#b45309}
+
+/* anotações */
+.filtros{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.lista{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:22px 1fr auto;gap:2px 8px;padding:9px 6px;border-bottom:1px solid var(--linha);cursor:pointer;border-radius:3px}
+.item:hover{background:var(--realce)}
+.item.sel{background:var(--realce);box-shadow:inset 3px 0 0 var(--acento)}
+.item svg{width:18px;height:18px;margin-top:1px}
+.item .t{font-weight:500;min-width:0;overflow-wrap:anywhere}
+.item .v{font:500 12px var(--f-dado);white-space:nowrap}
+.item .m{grid-column:2/4;display:flex;gap:6px;align-items:center;flex-wrap:wrap;color:var(--mut);font-size:11.5px}
+.pill{font:500 10.5px/1 var(--f-ui);padding:3px 6px;border-radius:9px;border:1px solid currentColor}
+.pill.aberta{color:var(--aberta)}.pill.resolvida{color:var(--ok)}
+.dchip{display:inline-flex;align-items:center;gap:4px}
+.editor{margin-top:12px;padding:12px;border:1px solid var(--linha);border-radius:6px;background:var(--papel);display:grid;gap:8px}
+.editor .lin2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.editor label{display:grid;gap:3px;font-size:11.5px;color:var(--mut)}
+.valor{font:500 15px var(--f-dado)}
+.coord{font:12px var(--f-dado);color:var(--mut);overflow-wrap:anywhere}
+.vazio{color:var(--mut);padding:14px 0}
+table.info{width:100%;border-collapse:collapse}
+table.info td{padding:6px 0;border-bottom:1px solid var(--linha);vertical-align:top}
+table.info td:first-child{color:var(--mut);width:38%;padding-right:10px}
+kbd{font:11px var(--f-dado);border:1px solid var(--linha);border-bottom-width:2px;border-radius:3px;padding:0 4px}
+
+/* mapa */
+#mapaWrap{position:relative;flex:1;min-width:0;min-height:0}
+#mapa{position:absolute;inset:0;background:var(--papel)}
+.leaflet-container{font:12px var(--f-ui);background:var(--papel)}
+.af{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none!important;max-height:none!important;pointer-events:none;user-select:none}
+.leaflet-pane.sem-clique{pointer-events:none}
+.barra{position:absolute;top:10px;left:10px;z-index:800;display:flex;flex-direction:column;gap:2px;background:var(--painel);border:1px solid var(--linha);border-radius:6px;padding:4px;box-shadow:var(--sombra)}
+.barra button{display:flex;align-items:center;gap:8px;background:none;border:0;border-radius:4px;padding:6px 8px;cursor:pointer;color:var(--tinta);text-align:left}
+.barra button:hover{background:var(--realce)}
+.barra button[aria-pressed="true"]{background:var(--tinta);color:var(--painel)}
+.barra svg{width:18px;height:18px;flex:none}
+.barra .rot{font-size:12px}
+.barra hr{border:0;border-top:1px solid var(--linha);margin:3px 2px;width:auto}
+#dica{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:800;background:var(--tinta);color:var(--painel);padding:6px 8px 6px 12px;border-radius:5px;display:flex;gap:10px;align-items:center;box-shadow:var(--sombra);max-width:calc(100% - 200px)}
+#dica .vivo{font:500 12px var(--f-dado);color:var(--acento)}
+#dica button{background:var(--painel);color:var(--tinta);border:0;border-radius:3px;padding:3px 8px;cursor:pointer}
+#status{position:absolute;left:0;right:0;bottom:0;z-index:800;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:5px 12px;background:color-mix(in srgb,var(--painel) 92%,transparent);border-top:1px solid var(--linha);font:11.5px var(--f-dado);color:var(--mut);font-variant-numeric:tabular-nums}
+#status b{color:var(--tinta);font-weight:500}
+#status .sob{margin-left:auto;color:var(--tinta)}
+.leaflet-bottom{bottom:28px}
+.leaflet-control-zoom a{background:var(--painel);color:var(--tinta);border-color:var(--linha)}
+.leaflet-control-scale-line{background:color-mix(in srgb,var(--painel) 85%,transparent);color:var(--tinta);border-color:var(--tinta)}
+.leaflet-control-attribution{background:color-mix(in srgb,var(--painel) 80%,transparent)!important;color:var(--mut)}
+.leaflet-control-attribution a{color:var(--mut)}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--painel);color:var(--tinta)}
+.leaflet-popup-content{margin:10px 12px;font:12px var(--f-ui)}
+.pop b{font-weight:600}.pop .coord{margin-top:4px}
+.rotulo{background:var(--tinta);color:var(--painel);border:0;border-radius:3px;padding:2px 6px;font:500 11.5px var(--f-dado);box-shadow:none;white-space:nowrap}
+.rotulo::before{display:none}
+.pin{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 4px rgb(0 0 0 / .45)}
+.pin span{transform:rotate(45deg);color:#fff;font:600 11px var(--f-dado)}
+.pin.sel{outline:3px solid var(--acento);outline-offset:1px}
+#swipe{position:absolute;top:0;bottom:0;width:0;z-index:700;border-left:2px solid #fff;box-shadow:0 0 0 1px rgb(0 0 0 / .35)}
+#swipe .alca{position:absolute;top:50%;left:-17px;width:32px;height:32px;margin-top:-16px;border-radius:50%;background:#fff;box-shadow:var(--sombra);cursor:ew-resize;display:grid;place-items:center;color:#111;touch-action:none}
+#swipe .lado{position:absolute;top:52px;font:500 11px var(--f-ui);background:rgb(0 0 0 / .65);color:#fff;padding:3px 7px;border-radius:3px;white-space:nowrap}
+#swipe .esq{right:8px}#swipe .dir{left:8px}
+#swipeModo{position:absolute;top:10px;right:10px;z-index:800;width:auto;background:var(--painel);box-shadow:var(--sombra)}
+dialog{border:1px solid var(--linha);border-radius:8px;background:var(--painel);color:var(--tinta);width:min(640px,calc(100% - 32px));padding:16px}
+dialog::backdrop{background:rgb(0 0 0 / .4)}
+dialog textarea{height:260px;font:11.5px var(--f-dado)}
+.cab-dlg{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cab-dlg h3{margin:0;font:600 15px var(--f-titulo)}
+@media (max-width:760px){
+  .chips{display:none}
+  .topo h1{font-size:14px}
+  main{flex-direction:column}
+  #mapaWrap{order:-1;flex:none;height:58%}
+  aside{width:auto;flex:1;border-right:0;border-top:1px solid var(--linha)}
+  .barra{flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 20px)}
+  .barra .rot{display:none}
+  .barra hr{border-top:0;border-left:1px solid var(--linha);margin:2px 3px}
+  #dica{top:auto;bottom:34px;max-width:calc(100% - 20px)}
+  #status .sob{margin-left:0}
+  #swipeModo{top:auto;bottom:70px}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-navegar" viewBox="0 0 24 24"><path d="M5 3l14 7-6 2-2 6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  <symbol id="i-distancia" viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-area" viewBox="0 0 24 24"><path d="M4 7l7-4 9 6-3 11-12-2z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-angulo" viewBox="0 0 24 24"><path d="M4 20h17M4 20L15 5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M11 20a7 7 0 0 0-2.4-5.3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-ponto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-nota" viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9 10h6M9 7.5h6M9 12.5h3" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-swipe" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v20" stroke="currentColor" stroke-width="1.8"/><path d="M3 4h9v16H3z" fill="currentColor" fill-opacity=".25"/></symbol>
+  <symbol id="i-enquadrar" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+</svg>
+
+<div id="app">
+  <header class="topo">
+    <div class="marca"><h1 id="titulo"></h1><span class="sub" id="subtitulo"></span></div>
+    <div class="chips" id="chips"></div>
+  </header>
+  <main>
+    <aside>
+      <nav class="abas" role="tablist">
+        <button role="tab" id="t-camadas" aria-selected="true" data-aba="camadas">Camadas</button>
+        <button role="tab" id="t-anotacoes" aria-selected="false" data-aba="anotacoes">Anotações <span class="badge" id="nAnot">0</span></button>
+        <button role="tab" id="t-info" aria-selected="false" data-aba="info">Projeto</button>
+      </nav>
+      <div class="aba" id="aba-camadas"></div>
+      <div class="aba" id="aba-anotacoes" hidden>
+        <h2>Autor</h2>
+        <input type="text" id="autor" placeholder="Seu nome (fica nas anotações que você criar)">
+        <h2>Filtrar</h2>
+        <div class="filtros">
+          <select id="fDisc" aria-label="Disciplina"><option value="">Todas as disciplinas</option></select>
+          <select id="fStatus" aria-label="Situação"><option value="">Todas</option><option value="aberta">Abertas</option><option value="resolvida">Resolvidas</option></select>
+        </div>
+        <div class="lista" id="lista"></div>
+        <div id="editor"></div>
+        <h2>Trocar dados</h2>
+        <div class="btns">
+          <button class="btn" id="expGeo">Exportar GeoJSON</button>
+          <button class="btn" id="expCsv">Exportar CSV</button>
+          <label class="btn" for="impArq">Importar GeoJSON</label>
+          <input type="file" id="impArq" accept=".geojson,.json,application/geo+json,application/json" hidden>
+        </div>
+        <p class="aviso" style="margin-left:0">As anotações ficam salvas neste navegador. Exporte para compartilhar com a equipe ou levar para o QGIS/pandas.</p>
+      </div>
+      <div class="aba" id="aba-info" hidden></div>
+    </aside>
+    <div id="mapaWrap">
+      <div id="mapa" aria-label="Mapa do projeto"></div>
+      <div class="barra" id="ferramentas" role="toolbar" aria-label="Ferramentas"></div>
+      <div id="dica" hidden></div>
+      <div id="swipe" hidden><span class="lado esq" id="swEsq"></span><span class="lado dir" id="swDir"></span><div class="alca" id="swAlca" aria-label="Arraste para comparar"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"/></svg></div></div>
+      <select id="swipeModo" hidden aria-label="O que comparar">
+        <option value="drone">Drone × satélite</option>
+        <option value="projeto">Com projeto × sem projeto</option>
+      </select>
+      <div id="status"><span>E <b id="sE">—</b></span><span>N <b id="sN">—</b></span><span id="sLL"></span><span class="sob" id="sSob"></span></div>
+    </div>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <div class="cab-dlg"><h3 id="dlgTit">Exportar</h3><button class="btn" id="dlgFechar">Fechar</button></div>
+  <textarea id="dlgTxt" readonly></textarea>
+  <div class="btns" style="margin-top:8px"><button class="btn prim" id="dlgCopiar">Copiar</button><button class="btn" id="dlgBaixar" hidden>Baixar arquivo</button><span class="aviso" id="dlgMsg" style="margin:auto 0"></span></div>
+</dialog>
+
+<!--__LEAFLET_JS__-->
+<script>
+"use strict";
+const D = /*__DADOS__*/null;
+const $ = s => document.querySelector(s);
+const fmt = (v, d = 2) => v.toLocaleString("pt-BR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const DISC = {"Civil": "--civil", "Hidromecânica": "--hidro", "Elétrica": "--eletrica", "Geral": "--geral"};
+const corDisc = d => getComputedStyle(document.documentElement).getPropertyValue(DISC[d] || "--geral").trim();
+const A = D.crs.ll2utm, B = D.crs.utm2ll;
+const ll2utm = ll => [A[0] * ll.lng + A[1] * ll.lat + A[2], A[3] * ll.lng + A[4] * ll.lat + A[5]];
+const utm2ll = (E, N) => L.latLng(B[3] * E + B[4] * N + B[5], B[0] * E + B[1] * N + B[2]);
+const fmtUTM = ([E, N]) => `E ${fmt(E)}  N ${fmt(N)}`;
+
+$("#titulo").textContent = D.titulo;
+$("#subtitulo").textContent = D.subtitulo;
+$("#chips").innerHTML = `<span class="chip">${D.crs.nome}</span>` + D.folhas.map(f => `<span class="chip">${f.nome.split("·")[0].trim()}</span>`).join("");
+
+/* ---------- mapa ---------- */
+const map = L.map("mapa", {zoomControl: false, maxZoom: 24, zoomSnap: .25, wheelPxPerZoomLevel: 90, attributionControl: true});
+map.attributionControl.setPrefix(false);
+L.control.zoom({position: "bottomright"}).addTo(map);
+L.control.scale({imperial: false, position: "bottomleft", maxWidth: 140}).addTo(map);
+for (const [nome, z] of [["drone", 250], ["projeto", 350]]) {
+  const p = map.createPane(nome); p.style.zIndex = z; p.classList.add("sem-clique");
+}
+
+/* Imagem posicionada por uma afim pixel -> UTM (precisa no plano, sem reamostrar no navegador) */
+const AffineLayer = L.Layer.extend({
+  initialize(el, m, w, h, pane) { this._el = el; this._m = m; this._w = w; this._h = h; this.options.pane = pane;
+    const a = m, det = a[0] * a[4] - a[1] * a[3];
+    this._inv = [a[4] / det, -a[1] / det, (a[1] * a[5] - a[4] * a[2]) / det, -a[3] / det, a[0] / det, (a[3] * a[2] - a[0] * a[5]) / det]; },
+  onAdd() { const el = this._el; el.classList.add("af", "leaflet-zoom-animated");
+    el.style.width = this._w + "px"; el.style.height = this._h + "px"; this.getPane().appendChild(el); this._reset(); },
+  onRemove() { this._el.remove(); },
+  getEvents() { return {zoom: this._reset, viewreset: this._reset, zoomanim: this._anim}; },
+  ll(x, y) { const m = this._m; return utm2ll(m[0] * x + m[1] * y + m[2], m[3] * x + m[4] * y + m[5]); },
+  px(ll) { const [E, N] = ll2utm(ll), i = this._inv; return [i[0] * E + i[1] * N + i[2], i[3] * E + i[4] * N + i[5]]; },
+  bounds() { return L.latLngBounds([this.ll(0, 0), this.ll(this._w, 0), this.ll(this._w, this._h), this.ll(0, this._h)]); },
+  _apply(f) { const p0 = f(this.ll(0, 0)), px = f(this.ll(this._w, 0)), py = f(this.ll(0, this._h)), w = this._w, h = this._h;
+    this._el.style.transform = `matrix(${(px.x - p0.x) / w},${(px.y - p0.y) / w},${(py.x - p0.x) / h},${(py.y - p0.y) / h},${p0.x},${p0.y})`; },
+  _reset() { const m = this._map; this._apply(ll => m.project(ll)._subtract(m.getPixelOrigin())); },
+  _anim(e) { this._apply(ll => this._map._latLngToNewLayerPoint(ll, e.zoom, e.center)); }
+});
+
+const camadasMapa = {};   // id -> {layer, ...}
+let satErro = false;
+if (D.satelite) {
+  const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {maxNativeZoom: 18, maxZoom: 24, attribution: "Satélite © Esri, Maxar, Earthstar Geographics"});
+  sat.on("tileerror", () => { if (!satErro) { satErro = true; const a = $("#aviso-sat"); if (a) a.hidden = false; } });
+  camadasMapa.satelite = {layer: sat, nome: "Satélite (Esri, online)", grupo: "Levantamento"};
+  sat.addTo(map);
+}
+for (const b of D.bases) {
+  const img = new Image(); img.src = b.src; img.alt = b.nome; img.draggable = false;
+  const lay = new AffineLayer(img, b.m, b.w, b.h, "drone");
+  camadasMapa[b.id] = {layer: lay, nome: b.nome, grupo: b.grupo, img, base: b};
+  if (b.visivel) lay.addTo(map);
+}
+for (const v of D.vetores) {
+  const lay = L.geoJSON(v.geojson, {style: () => v.estilo, pane: "overlayPane",
+    onEachFeature: (f, l) => l.bindPopup(`<div class="pop">${Object.entries(f.properties || {}).map(([k, x]) => `<div><b>${k}</b>: ${x}</div>`).join("")}</div>`)});
+  camadasMapa[v.id] = {layer: lay, nome: v.nome, grupo: v.grupo};
+  if (v.visivel) lay.addTo(map);
+}
+const enquadrar = () => { const b = Object.values(camadasMapa).find(c => c.base); if (b) map.fitBounds(b.layer.bounds(), {padding: [20, 20]}); };
+enquadrar();
+
+/* ---------- folhas do projeto: camadas separadas por cor, compostas num canvas ---------- */
+const folhas = [];
+function loadImg(src) { return new Promise((ok, erro) => { const i = new Image(); i.onload = () => ok(i); i.onerror = erro; i.src = src; }); }
+const hex = a => "#" + a.map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("");
+
+async function prepararFolha(f) {
+  const W = f.w, H = f.h, N = W * H, off = document.createElement("canvas");
+  off.width = W; off.height = H;
+  const ox = off.getContext("2d", {willReadFrequently: true}), mascaras = [];
+  for (const p of f.pacotes) {
+    const im = await loadImg(p); ox.clearRect(0, 0, W, H); ox.drawImage(im, 0, 0);
+    const d = ox.getImageData(0, 0, W, H).data;
+    for (let ch = 0; ch < 3; ch++) { const a = new Uint8Array(N); for (let i = 0, j = ch; i < N; i++, j += 4) a[i] = d[j]; mascaras.push(a); }
+  }
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  f.camadas.forEach(c => { c.cad = hex(c.rgb[0]); c.cor = c.neon; c.vis = !c.oculta; });
+  const F = {def: f, W, H, mascaras, cv, estilo: "neon", espessura: 1, contorno: "#000000", opac: 100, vis: true};
+  F.layer = new AffineLayer(cv, f.m, W, H, "projeto");
+  F.layer.addTo(map);
+  folhas.push(F);
+  compor(F); estiloFolha(F);
+  return F;
+}
+function compor(F) {
+  const {W, H, mascaras, def} = F, N = W * H, vis = [];
+  def.camadas.forEach((c, i) => { if (c.vis && !c.regiao) vis.push([mascaras[i], parseInt(c.cor.slice(1, 3), 16), parseInt(c.cor.slice(3, 5), 16), parseInt(c.cor.slice(5, 7), 16)]); });
+  let img = new Uint8ClampedArray(N * 4); const nv = vis.length;
+  for (let p = 0, q = 0; p < N; p++, q += 4) {
+    let R = 0, G = 0, Bc = 0, Al = 0;
+    for (let j = 0; j < nv; j++) { const Lr = vis[j], a = Lr[0][p]; if (!a) continue; const al = a / 255, k = 1 - al;
+      R = Lr[1] * al + R * k; G = Lr[2] * al + G * k; Bc = Lr[3] * al + Bc * k; Al = al + Al * k; }
+    if (Al > 0) { img[q] = R / Al; img[q + 1] = G / Al; img[q + 2] = Bc / Al; img[q + 3] = Al * 255; }
+  }
+  for (let n = 0; n < F.espessura; n++) img = dilatar(img, W, H);
+  F.cv.getContext("2d").putImageData(new ImageData(img, W, H), 0, 0);
+}
+function dilatar(s, W, H) {
+  const o = new Uint8ClampedArray(s);
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const q = (y * W + x) * 4; let ba = s[q + 3], bq = q;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const t = q + (dy * W + dx) * 4; if (s[t + 3] > ba) { ba = s[t + 3]; bq = t; } }
+    if (bq !== q) { o[q] = s[bq]; o[q + 1] = s[bq + 1]; o[q + 2] = s[bq + 2]; o[q + 3] = ba; }
+  }
+  return o;
+}
+function estiloFolha(F) {
+  const h = F.contorno;
+  F.cv.style.filter = h ? `drop-shadow(0 0 .6px ${h}) drop-shadow(0 0 .6px ${h}) drop-shadow(0 0 1px ${h})` : "none";
+  F.cv.style.opacity = F.opac / 100;
+}
+let tmCompor = null;
+const agendar = F => { clearTimeout(tmCompor); tmCompor = setTimeout(() => compor(F), 60); };
+
+/* camadas do projeto sob um ponto (inspeção) */
+function camadasEm(ll, raio = 4) {
+  const out = [];
+  for (const F of folhas) {
+    if (!F.vis) continue;
+    const [x, y] = F.layer.px(ll).map(Math.round);
+    if (x < raio || y < raio || x >= F.W - raio || y >= F.H - raio) continue;
+    F.def.camadas.forEach((c, i) => {
+      if (!c.vis || c.regiao) return;
+      const m = F.mascaras[i];
+      for (let dy = -raio; dy <= raio; dy++) for (let dx = -raio; dx <= raio; dx++)
+        if (m[(y + dy) * F.W + x + dx] > 60) { out.push({folha: F.def.nome, camada: c.nome, cor: c.cor}); return; }
+    });
+  }
+  return out;
+}
+
+/* ---------- painel de camadas ---------- */
+const abaC = $("#aba-camadas");
+function linhaCamada(id, nome, ligado, extra = "") {
+  return `<div class="linhaC"><input type="checkbox" id="v-${id}" ${ligado ? "checked" : ""}><label for="v-${id}">${nome}</label><span class="nota">${extra}</span></div>`;
+}
+function montarPainel() {
+  const grupos = {};
+  for (const [id, c] of Object.entries(camadasMapa)) (grupos[c.grupo] ||= []).push([id, c]);
+  let h = "";
+  for (const [g, itens] of Object.entries(grupos)) {
+    h += `<details class="grupo" open><summary>${g}</summary>`;
+    for (const [id, c] of itens) {
+      h += linhaCamada(id, c.nome, map.hasLayer(c.layer));
+      if (id === "satelite") h += `<p class="aviso erro" id="aviso-sat" ${satErro ? "" : "hidden"}>Satélite indisponível aqui: precisa de internet e é bloqueado em visualizadores restritos. Abra o HTML localmente.</p>`;
+      if (c.base) h += `<div class="ajuste"><span>Opacidade</span><input type="range" id="op-${id}" min="0" max="100" value="100">
+        <span>Brilho</span><input type="range" id="br-${id}" min="30" max="140" value="100">
+        <span>Saturação</span><input type="range" id="sa-${id}" min="0" max="140" value="100"></div>`;
+    }
+    h += `</details>`;
+  }
+  const disciplinas = [...new Set([...D.folhas.map(f => f.disciplina), ...Object.keys(D.pendentes || {})])];
+  for (const d of disciplinas) {
+    h += `<details class="grupo" open><summary><span class="disc" style="background:var(${DISC[d] || "--geral"})"></span>${d}</summary>`;
+    D.folhas.forEach((f, fi) => {
+      if (f.disciplina !== d) return;
+      h += linhaCamada("folha" + fi, f.nome, true, `<span id="carr-${fi}">carregando…</span>`);
+      h += `<div class="ajuste">
+        <span>Opacidade</span><input type="range" id="fop-${fi}" min="10" max="100" value="100">
+        <span>Estilo</span><select id="fes-${fi}"><option value="neon">Alto contraste</option><option value="cad">Cores do CAD</option><option value="uma">Tudo numa cor</option></select>
+        <span>Espessura</span><select id="fesp-${fi}"><option value="0">Normal</option><option value="1" selected>Grossa</option><option value="2">Extra grossa</option></select>
+        <span>Contorno</span><select id="fct-${fi}"><option value="">Nenhum</option><option value="#000000" selected>Preto</option><option value="#ffffff">Branco</option></select>
+      </div><div id="subs-${fi}"></div>`;
+    });
+    for (const p of (D.pendentes || {})[d] || [])
+      h += `<div class="pend"><input type="checkbox" disabled aria-label="${p}"><span>${p}</span><span class="tag">a extrair</span></div>`;
+    h += `</details>`;
+  }
+  h += `<details class="grupo" open><summary>Anotações</summary>${linhaCamada("anot", "Medições e notas", true)}${linhaCamada("rotulos", "Rótulos com valores", true)}</details>`;
+  abaC.innerHTML = h;
+
+  for (const [id, c] of Object.entries(camadasMapa)) {
+    $("#v-" + id).onchange = e => e.target.checked ? c.layer.addTo(map) : map.removeLayer(c.layer);
+    if (c.base) {
+      const up = () => { c.img.style.opacity = $("#op-" + id).value / 100;
+        c.img.style.filter = `brightness(${$("#br-" + id).value / 100}) saturate(${$("#sa-" + id).value / 100})`; };
+      ["op-", "br-", "sa-"].forEach(p => $("#" + p + id).oninput = up);
+    }
+  }
+  $("#v-anot").onchange = e => e.target.checked ? grupoAnot.addTo(map) : map.removeLayer(grupoAnot);
+  $("#v-rotulos").onchange = () => desenharAnotacoes();
+}
+function montarSubcamadas(fi) {
+  const F = folhas[fi], box = $("#subs-" + fi);
+  box.innerHTML = F.def.camadas.map((c, i) => c.regiao ? "" :
+    `<div class="sub-c"><input type="checkbox" id="c${fi}-${i}" ${c.vis ? "checked" : ""}><input type="color" id="k${fi}-${i}" value="${c.cor}" aria-label="Cor de ${c.nome}"><label for="c${fi}-${i}">${c.nome}</label></div>`).join("") +
+    `<div class="btns" style="margin:6px 0 4px 26px"><button class="btn" id="tod-${fi}">Mostrar todas</button><button class="btn" id="soproj-${fi}">Só projeto</button></div>`;
+  F.def.camadas.forEach((c, i) => {
+    if (c.regiao) return;
+    $(`#c${fi}-${i}`).onchange = e => { c.vis = e.target.checked; compor(F); };
+    $(`#k${fi}-${i}`).oninput = e => { c.cor = e.target.value; agendar(F); };
+  });
+  $("#tod-" + fi).onclick = () => { F.def.camadas.forEach(c => c.vis = !c.oculta); montarSubcamadas(fi); compor(F); };
+  $("#soproj-" + fi).onclick = () => { F.def.camadas.forEach(c => c.vis = /projetad|Drenagem|demolir/i.test(c.nome)); montarSubcamadas(fi); compor(F); };
+}
+function ligarFolha(fi) {
+  const F = folhas[fi];
+  $("#carr-" + fi).textContent = "";
+  $("#v-folha" + fi).onchange = e => { F.vis = e.target.checked; F.vis ? F.layer.addTo(map) : map.removeLayer(F.layer); };
+  $("#fop-" + fi).oninput = e => { F.opac = +e.target.value; estiloFolha(F); };
+  $("#fct-" + fi).onchange = e => { F.contorno = e.target.value; estiloFolha(F); };
+  $("#fesp-" + fi).onchange = e => { F.espessura = +e.target.value; compor(F); };
+  $("#fes-" + fi).onchange = e => { const p = e.target.value;
+    F.def.camadas.forEach(c => c.cor = p === "neon" ? c.neon : p === "cad" ? c.cad : "#ff00e6"); montarSubcamadas(fi); compor(F); };
+  montarSubcamadas(fi);
+}
+
+/* ---------- anotações ---------- */
+const CHAVE = "camadas:" + D.id;
+let anot = carregar();
+let selId = null;
+const grupoAnot = L.layerGroup().addTo(map);
+function carregar() {
+  try { const s = localStorage.getItem(CHAVE); if (s) return JSON.parse(s); } catch (e) {}
+  return JSON.parse(JSON.stringify(D.anotacoes || {type: "FeatureCollection", features: []}));
+}
+function salvar() { try { localStorage.setItem(CHAVE, JSON.stringify(anot)); } catch (e) {} }
+try { $("#autor").value = localStorage.getItem("camadas:autor") || ""; } catch (e) {}
+$("#autor").oninput = e => { try { localStorage.setItem("camadas:autor", e.target.value); } catch (x) {} };
+
+const TIPOS = {distancia: "Distância", area: "Área", angulo: "Ângulo", ponto: "Coordenada", nota: "Nota técnica"};
+const coordsLL = f => { const g = f.geometry; const c = g.type === "Point" ? [g.coordinates] : g.type === "Polygon" ? g.coordinates[0] : g.coordinates; return c.map(([lng, lat]) => L.latLng(lat, lng)); };
+function medir(tipo, pts) {
+  const u = pts.map(ll2utm);
+  if (tipo === "distancia") { let s = 0; for (let i = 1; i < u.length; i++) s += Math.hypot(u[i][0] - u[i - 1][0], u[i][1] - u[i - 1][1]); return {valor: s, texto: fmt(s) + " m"}; }
+  if (tipo === "area") {
+    const v = u[0][0] === u.at(-1)[0] && u[0][1] === u.at(-1)[1] ? u.slice(0, -1) : u;
+    let a = 0, p = 0; for (let i = 0; i < v.length; i++) { const [x1, y1] = v[i], [x2, y2] = v[(i + 1) % v.length]; a += x1 * y2 - x2 * y1; p += Math.hypot(x2 - x1, y2 - y1); }
+    a = Math.abs(a) / 2; return {valor: a, texto: `${fmt(a, 1)} m² · P ${fmt(p)} m`};
+  }
+  if (tipo === "angulo") {
+    if (u.length < 3) return {valor: 0, texto: "—"};
+    const [a, o, b] = u, v1 = [a[0] - o[0], a[1] - o[1]], v2 = [b[0] - o[0], b[1] - o[1]];
+    const ang = Math.abs(Math.atan2(v1[0] * v2[1] - v1[1] * v2[0], v1[0] * v2[0] + v1[1] * v2[1])) * 180 / Math.PI;
+    return {valor: ang, texto: fmt(ang, 1) + "°"};
+  }
+  return {valor: null, texto: fmtUTM(u[0])};
+}
+const icone = t => `<svg aria-hidden="true"><use href="#i-${t}"/></svg>`;
+function desenharAnotacoes() {
+  grupoAnot.clearLayers();
+  const rot = !$("#v-rotulos") || $("#v-rotulos").checked;
+  let nNota = 0;
+  for (const f of anot.features) {
+    const p = f.properties, cor = corDisc(p.disciplina), pts = coordsLL(f), sel = p.id === selId, m = medir(p.tipo, pts);
+    let l;
+    if (p.tipo === "nota") {
+      nNota++;
+      l = L.marker(pts[0], {icon: L.divIcon({className: "", html: `<div class="pin ${sel ? "sel" : ""}" style="background:${cor}"><span>${nNota}</span></div>`, iconSize: [26, 26], iconAnchor: [13, 30]}), title: p.titulo});
+    } else if (p.tipo === "ponto") {
+      l = L.circleMarker(pts[0], {radius: sel ? 7 : 5, color: "#fff", weight: 2, fillColor: cor, fillOpacity: 1});
+      if (rot) l.bindTooltip(m.texto, {permanent: true, direction: "right", className: "rotulo", offset: [8, 0]});
+    } else if (p.tipo === "area") {
+      l = L.polygon(pts, {color: cor, weight: sel ? 4 : 2.5, fillOpacity: .18});
+      if (rot) l.bindTooltip(m.texto, {permanent: true, direction: "center", className: "rotulo"});
+    } else {
+      l = L.polyline(pts, {color: cor, weight: sel ? 5 : 3, dashArray: p.tipo === "angulo" ? "6 4" : null});
+      if (rot) L.tooltip({permanent: true, direction: "right", className: "rotulo", offset: [8, 0]})
+        .setLatLng(p.tipo === "angulo" ? pts[1] : pts.at(-1)).setContent(m.texto).addTo(grupoAnot);
+    }
+    l.on("click", ev => { L.DomEvent.stopPropagation(ev); if (ferramenta === "navegar") selecionar(p.id, false); });
+    l.addTo(grupoAnot);
+  }
+}
+function listar() {
+  const fd = $("#fDisc").value, fs = $("#fStatus").value;
+  const itens = anot.features.filter(f => (!fd || f.properties.disciplina === fd) && (!fs || f.properties.status === fs));
+  $("#nAnot").textContent = anot.features.length;
+  $("#lista").innerHTML = itens.length ? itens.map(f => {
+    const p = f.properties, m = medir(p.tipo, coordsLL(f));
+    return `<div class="item ${p.id === selId ? "sel" : ""}" data-id="${p.id}" tabindex="0">
+      <span style="color:${corDisc(p.disciplina)}">${icone(p.tipo)}</span>
+      <span class="t">${esc(p.titulo || TIPOS[p.tipo])}</span>
+      <span class="v">${p.tipo === "nota" ? "" : p.tipo === "ponto" ? "" : m.texto.split(" · ")[0]}</span>
+      <span class="m"><span class="dchip"><span class="disc" style="background:${corDisc(p.disciplina)}"></span>${p.disciplina}</span>
+      <span class="pill ${p.status}">${p.status === "resolvida" ? "Resolvida" : "Aberta"}</span>
+      <span>${esc(p.autor || "")}${p.exemplo ? "" : " · " + new Date(p.criado).toLocaleDateString("pt-BR")}</span></span></div>`;
+  }).join("") : `<p class="vazio">Nenhuma anotação com esses filtros. Use as ferramentas no mapa para medir ou criar uma nota.</p>`;
+  document.querySelectorAll(".item").forEach(el => {
+    el.onclick = () => selecionar(el.dataset.id, true);
+    el.onkeydown = e => { if (e.key === "Enter") selecionar(el.dataset.id, true); };
+  });
+  editor();
+}
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
+function selecionar(id, zoom) {
+  selId = id; abrirAba("anotacoes"); listar(); desenharAnotacoes();
+  const f = anot.features.find(f => f.properties.id === id);
+  if (f && zoom) { const b = L.latLngBounds(coordsLL(f)); map.flyToBounds(b.pad(.6), {maxZoom: 21, duration: .5}); }
+}
+let confirmarExclusao = false;
+function editor() {
+  const box = $("#editor"), f = anot.features.find(f => f.properties.id === selId);
+  if (!f) { box.innerHTML = ""; return; }
+  const p = f.properties, pts = coordsLL(f), m = medir(p.tipo, pts), u = ll2utm(pts[0]);
+  box.innerHTML = `<div class="editor">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="aviso" style="margin:0">${TIPOS[p.tipo]}${p.exemplo ? " · exemplo" : ""}</span><span class="valor">${p.tipo === "nota" ? "" : esc(m.texto)}</span></div>
+    <label>Título<input type="text" id="edTitulo" value="${esc(p.titulo)}"></label>
+    <div class="lin2"><label>Disciplina<select id="edDisc">${Object.keys(DISC).map(d => `<option ${d === p.disciplina ? "selected" : ""}>${d}</option>`).join("")}</select></label>
+    <label>Situação<select id="edStatus"><option value="aberta" ${p.status === "aberta" ? "selected" : ""}>Aberta</option><option value="resolvida" ${p.status === "resolvida" ? "selected" : ""}>Resolvida</option></select></label></div>
+    <label>Comentário técnico<textarea id="edTexto">${esc(p.texto)}</textarea></label>
+    <div class="coord">${fmtUTM(u)}${pts.length > 1 ? ` (1º vértice de ${pts.length - (p.tipo === "area" ? 1 : 0)})` : ""} · ${p.autor ? esc(p.autor) + " · " : ""}${new Date(p.criado).toLocaleString("pt-BR")}</div>
+    <div class="btns"><button class="btn" id="edCopiar">Copiar coordenadas</button><button class="btn perigo" id="edExcluir">Excluir</button></div></div>`;
+  const up = () => { p.titulo = $("#edTitulo").value; p.disciplina = $("#edDisc").value; p.status = $("#edStatus").value; p.texto = $("#edTexto").value; salvar(); };
+  $("#edTitulo").oninput = () => { up(); const t = document.querySelector(`.item[data-id="${p.id}"] .t`); if (t) t.textContent = p.titulo; };
+  $("#edTexto").oninput = up;
+  $("#edDisc").onchange = $("#edStatus").onchange = () => { up(); listar(); desenharAnotacoes(); };
+  $("#edCopiar").onclick = () => copiar(pts.map(ll => ll2utm(ll).map(v => v.toFixed(3)).join(";")).join("\n"), $("#edCopiar"));
+  confirmarExclusao = false;
+  $("#edExcluir").onclick = e => {
+    if (!confirmarExclusao) { confirmarExclusao = true; e.target.textContent = "Confirmar exclusão"; return; }
+    anot.features = anot.features.filter(x => x !== f); selId = null; salvar(); listar(); desenharAnotacoes();
+  };
+}
+function copiar(txt, btn) {
+  const ok = () => { const t = btn.textContent; btn.textContent = "Copiado"; setTimeout(() => btn.textContent = t, 1400); };
+  navigator.clipboard?.writeText(txt).then(ok).catch(() => {});
+}
+function novaAnotacao(tipo, pts) {
+  const n = anot.features.filter(f => f.properties.tipo === tipo).length + 1;
+  const ll = pts.map(p => [+p.lng.toFixed(9), +p.lat.toFixed(9)]);
+  const geom = tipo === "nota" || tipo === "ponto" ? {type: "Point", coordinates: ll[0]}
+    : tipo === "area" ? {type: "Polygon", coordinates: [[...ll, ll[0]]]} : {type: "LineString", coordinates: ll};
+  const id = "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const f = {type: "Feature", geometry: geom, properties: {id, tipo, titulo: `${TIPOS[tipo]} ${n}`, texto: "",
+    disciplina: $("#fDisc").value || "Geral", status: "aberta", autor: $("#autor").value || "", criado: new Date().toISOString()}};
+  f.properties.valor = medir(tipo, coordsLL(f)).valor;
+  anot.features.push(f); salvar(); selecionar(id, false); desenharAnotacoes();
+  setTimeout(() => { const t = $("#edTitulo"); if (t) { t.focus(); t.select(); } }, 30);
+}
+$("#fDisc").innerHTML += Object.keys(DISC).map(d => `<option>${d}</option>`).join("");
+$("#fDisc").onchange = $("#fStatus").onchange = listar;
+
+/* exportar / importar */
+function dialogo(titulo, txt, nomeArq, mime) {
+  $("#dlgTit").textContent = titulo; $("#dlgTxt").value = txt; $("#dlgMsg").textContent = "";
+  const b = $("#dlgBaixar"); b.hidden = window.self !== window.top;   // download só funciona fora de visualizadores embutidos
+  b.onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], {type: mime})); a.download = nomeArq; a.click(); };
+  $("#dlgCopiar").onclick = () => navigator.clipboard?.writeText(txt).then(() => $("#dlgMsg").textContent = "Copiado.")
+    .catch(() => { $("#dlgTxt").select(); $("#dlgMsg").textContent = "Texto selecionado: use Ctrl+C."; });
+  $("#dlg").showModal();
+}
+$("#dlgFechar").onclick = () => $("#dlg").close();
+$("#expGeo").onclick = () => dialogo("GeoJSON das anotações (WGS84)", JSON.stringify(anot, null, 1), D.id + "-anotacoes.geojson", "application/geo+json");
+$("#expCsv").onclick = () => {
+  const lin = [["id", "tipo", "titulo", "disciplina", "status", "valor", "unidade", "E", "N", "autor", "criado", "texto"].join(";")];
+  const un = {distancia: "m", area: "m2", angulo: "graus", ponto: "", nota: ""};
+  for (const f of anot.features) {
+    const p = f.properties, pts = coordsLL(f), m = medir(p.tipo, pts), [E, N] = ll2utm(pts[0]);
+    lin.push([p.id, p.tipo, p.titulo, p.disciplina, p.status, m.valor == null ? "" : fmt(m.valor, 3).replace(/\./g, ""), un[p.tipo],
+      fmt(E, 3).replace(/\./g, ""), fmt(N, 3).replace(/\./g, ""), p.autor, p.criado, (p.texto || "").replace(/\s+/g, " ")]
+      .map(v => /[;"]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : v).join(";"));
+  }
+  dialogo("CSV das anotações (pandas: sep=';', decimal=',')", lin.join("\n"), D.id + "-anotacoes.csv", "text/csv");
+};
+$("#impArq").onchange = async e => {
+  const arq = e.target.files[0]; if (!arq) return;
+  try {
+    const fc = JSON.parse(await arq.text()), ids = new Set(anot.features.map(f => f.properties.id));
+    for (const f of fc.features || []) { f.properties ||= {}; if (!f.properties.id || ids.has(f.properties.id)) f.properties.id = "i" + Math.random().toString(36).slice(2, 9);
+      f.properties.tipo ||= f.geometry.type === "Point" ? "nota" : f.geometry.type === "Polygon" ? "area" : "distancia";
+      f.properties.disciplina ||= "Geral"; f.properties.status ||= "aberta"; f.properties.criado ||= new Date().toISOString(); anot.features.push(f); }
+    salvar(); listar(); desenharAnotacoes();
+  } catch (x) { dialogo("Não foi possível importar", "O arquivo não é um GeoJSON válido: " + x.message, "", "text/plain"); }
+  e.target.value = "";
+};
+
+/* ---------- ferramentas ---------- */
+const FERR = [["navegar", "Navegar"], ["distancia", "Distância"], ["area", "Área"], ["angulo", "Ângulo"], ["ponto", "Coordenada"], ["nota", "Nota"], ["-"], ["swipe", "Comparar"], ["enquadrar", "Enquadrar"]];
+const DICAS = {distancia: "Clique nos vértices · duplo clique ou Enter conclui", area: "Clique nos vértices · duplo clique ou Enter fecha o polígono",
+  angulo: "Clique: ponto A, vértice, ponto B", ponto: "Clique para ler a coordenada", nota: "Clique onde quer a nota técnica"};
+$("#ferramentas").innerHTML = FERR.map(([id, r]) => id === "-" ? "<hr>" :
+  `<button id="b-${id}" aria-pressed="${id === "navegar"}" title="${r}">${icone(id)}<span class="rot">${r}</span></button>`).join("");
+let ferramenta = "navegar", pts = [], temp = L.layerGroup().addTo(map);
+function usar(t) {
+  if (t === "enquadrar") return enquadrar();
+  if (t === "swipe") return alternarSwipe();
+  ferramenta = t; pts = []; temp.clearLayers();
+  FERR.forEach(([id]) => { const b = $("#b-" + id); if (b && id !== "swipe") b.setAttribute("aria-pressed", id === t); });
+  t === "navegar" ? map.doubleClickZoom.enable() : map.doubleClickZoom.disable();
+  map.getContainer().style.cursor = t === "navegar" ? "" : "crosshair";
+  atualizarDica();
+}
+FERR.forEach(([id]) => { const b = $("#b-" + id); if (b) b.onclick = () => usar(id); });
+function atualizarDica(vivo = "") {
+  const d = $("#dica");
+  if (ferramenta === "navegar") { d.hidden = true; return; }
+  const podeConcluir = (ferramenta === "distancia" && pts.length >= 2) || (ferramenta === "area" && pts.length >= 3);
+  d.hidden = false;
+  d.innerHTML = `<span>${DICAS[ferramenta]}</span><span class="vivo">${vivo}</span>${podeConcluir ? '<button id="dConcluir">Concluir</button>' : ""}<button id="dSair">Esc</button>`;
+  if (podeConcluir) $("#dConcluir").onclick = concluir;
+  $("#dSair").onclick = () => usar("navegar");
+}
+function desenharTemp(cursor) {
+  temp.clearLayers();
+  const p = cursor ? [...pts, cursor] : pts;
+  if (!p.length) return;
+  const cor = corDisc($("#fDisc").value || "Geral");
+  if (ferramenta === "area" && p.length > 2) L.polygon(p, {color: cor, weight: 2, fillOpacity: .15, dashArray: "5 4", interactive: false}).addTo(temp);
+  else L.polyline(p, {color: cor, weight: 2.5, dashArray: "5 4", interactive: false}).addTo(temp);
+  pts.forEach(q => L.circleMarker(q, {radius: 4, color: "#fff", weight: 2, fillColor: cor, fillOpacity: 1, interactive: false}).addTo(temp));
+  if (p.length > 1) atualizarDica(medir(ferramenta, p).texto);
+}
+function concluir() {
+  if (ferramenta === "distancia" && pts.length >= 2) novaAnotacao("distancia", pts);
+  else if (ferramenta === "area" && pts.length >= 3) novaAnotacao("area", pts);
+  else return;
+  pts = []; temp.clearLayers(); atualizarDica();
+}
+map.on("click", e => {
+  if (ferramenta === "navegar") {
+    const sob = camadasEm(e.latlng), u = ll2utm(e.latlng);
+    if (sob.length) L.popup({maxWidth: 280}).setLatLng(e.latlng).setContent(`<div class="pop">${sob.map(s => `<div><span class="disc" style="display:inline-block;background:${s.cor}"></span> <b>${esc(s.camada)}</b></div>`).join("")}<div class="aviso" style="margin:2px 0 0">${esc(sob[0].folha)}</div><div class="coord">${fmtUTM(u)}</div></div>`).openOn(map);
+    return;
+  }
+  const ult = pts.at(-1);
+  if (ult && map.latLngToContainerPoint(ult).distanceTo(e.containerPoint) < 4) return;   // clique duplo
+  pts.push(e.latlng);
+  if (ferramenta === "ponto" || ferramenta === "nota") { novaAnotacao(ferramenta, pts); pts = []; temp.clearLayers(); return; }
+  if (ferramenta === "angulo" && pts.length === 3) { novaAnotacao("angulo", pts); pts = []; temp.clearLayers(); atualizarDica(); return; }
+  desenharTemp(); atualizarDica(pts.length > 1 ? medir(ferramenta, pts).texto : "");
+});
+map.on("dblclick", () => { if (ferramenta !== "navegar") concluir(); });
+let rafMove = 0;
+map.on("mousemove", e => {
+  if (rafMove) return;
+  rafMove = requestAnimationFrame(() => {
+    rafMove = 0;
+    const [E, N] = ll2utm(e.latlng);
+    $("#sE").textContent = fmt(E); $("#sN").textContent = fmt(N);
+    $("#sLL").textContent = `${e.latlng.lat.toFixed(6)}°  ${e.latlng.lng.toFixed(6)}°`;
+    const sob = ferramenta === "navegar" ? camadasEm(e.latlng) : [];
+    $("#sSob").textContent = sob.length ? "Sob o cursor: " + sob.map(s => s.camada).join(", ") : "";
+    if (pts.length) desenharTemp(e.latlng);
+  });
+});
+document.addEventListener("keydown", e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  if (e.key === "Escape") usar("navegar");
+  else if (e.key === "Enter") concluir();
+  else if (e.key === "Backspace" && pts.length) { pts.pop(); desenharTemp(); }
+});
+
+/* ---------- comparação (cortina) ---------- */
+let swipeOn = false, swipeX = 0;
+function alternarSwipe() {
+  swipeOn = !swipeOn; $("#b-swipe").setAttribute("aria-pressed", swipeOn);
+  $("#swipe").hidden = $("#swipeModo").hidden = !swipeOn;
+  swipeX = map.getSize().x / 2; aplicarClip();
+}
+function aplicarClip() {
+  const modo = $("#swipeModo").value, alvo = map.getPane(modo), outro = map.getPane(modo === "drone" ? "projeto" : "drone");
+  outro.style.clip = "";
+  $("#swEsq").textContent = modo === "drone" ? "Drone" : "Com projeto";
+  $("#swDir").textContent = modo === "drone" ? "Satélite" : "Sem projeto";
+  if (!swipeOn) { alvo.style.clip = ""; return; }
+  $("#swipe").style.left = swipeX + "px";
+  const nw = map.containerPointToLayerPoint([0, 0]), se = map.containerPointToLayerPoint(map.getSize()), cx = map.containerPointToLayerPoint([swipeX, 0]).x;
+  alvo.style.clip = `rect(${nw.y}px, ${cx}px, ${se.y}px, ${nw.x}px)`;
+}
+$("#swipeModo").onchange = aplicarClip;
+map.on("move zoom resize zoomend", aplicarClip);
+$("#swAlca").addEventListener("pointerdown", e => {
+  e.preventDefault(); const r = map.getContainer().getBoundingClientRect(), alca = e.target.closest(".alca");
+  alca.setPointerCapture(e.pointerId);
+  const mv = ev => { swipeX = Math.min(Math.max(ev.clientX - r.left, 0), r.width); aplicarClip(); };
+  const up = () => { alca.removeEventListener("pointermove", mv); alca.removeEventListener("pointerup", up); };
+  alca.addEventListener("pointermove", mv); alca.addEventListener("pointerup", up);
+});
+
+/* ---------- abas e informações ---------- */
+function abrirAba(a) {
+  document.querySelectorAll(".abas button").forEach(b => b.setAttribute("aria-selected", b.dataset.aba === a));
+  ["camadas", "anotacoes", "info"].forEach(x => $("#aba-" + x).hidden = x !== a);
+}
+document.querySelectorAll(".abas button").forEach(b => b.onclick = () => abrirAba(b.dataset.aba));
+$("#aba-info").innerHTML = `<h2>Levantamento e georreferenciamento</h2>
+  <table class="info">${(D.info || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
+  <h2>Como as medidas são calculadas</h2>
+  <p>Distâncias e áreas são calculadas no plano ${esc(D.crs.nome)}, o mesmo das pranchas. Para a distância no terreno (topográfica), divida pelo fator k = ${D.crs.k.toFixed(5)}.</p>
+  <h2>Atalhos</h2>
+  <table class="info"><tr><td><kbd>Enter</kbd> / duplo clique</td><td>Conclui distância ou área</td></tr>
+  <tr><td><kbd>Backspace</kbd></td><td>Desfaz o último vértice</td></tr><tr><td><kbd>Esc</kbd></td><td>Volta a navegar</td></tr>
+  <tr><td>Clique numa linha do projeto</td><td>Mostra a camada e a coordenada</td></tr></table>`;
+
+montarPainel();
+listar(); desenharAnotacoes();
+D.folhas.forEach((f, fi) => prepararFolha(f).then(() => ligarFolha(fi)).catch(() => { $("#carr-" + fi).textContent = "erro ao carregar"; }));
+</script>

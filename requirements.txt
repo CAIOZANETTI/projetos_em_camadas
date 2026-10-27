@@ -1,0 +1,9 @@
+numpy>=1.26
+opencv-python-headless>=4.9
+pillow>=10
+pyproj>=3.6
+pytest>=8
+# opcionais
+# pymupdf    # PDF -> raster/vetor (AGPL)
+# ezdxf      # DXF -> camadas vetoriais (Fase 1)
+# pandas     # inventário e quantitativos
