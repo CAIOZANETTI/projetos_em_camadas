@@ -200,13 +200,13 @@ def verificar_escopo_valores(c: dict) -> None:
     page.fill("#eBusca", "")
     page.select_option("#eSit", "")
     page.wait_for_timeout(300)
-    txt = page.inner_text("#eTot")
+    txt = page.text_content("#eTot")
     passo(c, "escopo: totais do orçamento vêm do Python (sem filtro)", "Totais do orçamento" in txt and brl(T["valor_q1"]) in txt, brl(T["valor_q1"]))
     n_alerta = js(c, "document.querySelectorAll('#eTabelas tr[data-alerta]').length")
     passo(c, "escopo: itens com alerta destacados", n_alerta == T["com_alerta"] and js(c, "!!document.querySelector('.esc-alerta')"), f"{n_alerta} de {T['com_alerta']}")
     page.fill("#eBusca", "tubo")
     page.wait_for_timeout(400)
-    txt = page.inner_text("#eTot")
+    txt = page.text_content("#eTot")
     passo(c, "escopo: com busca o rótulo vira 'Σ das linhas visíveis'", "Σ das linhas visíveis" in txt and "Totais do orçamento" not in txt)
     foto(c, "03b_escopo_busca")
     page.fill("#eBusca", "")
@@ -391,6 +391,9 @@ def verificar_v3_intervencao(c: dict) -> None:
     if not c["info"]["interv"]:
         return
     page.click("#t-camadas")
+    js(c, "__viz.map.closePopup()")   # popups abertos pelas seções anteriores cobririam os cliques no mapa
+    page.click("#b-enquadrar")
+    page.wait_for_timeout(500)
     desenhar_recorte(c)
     page.click('#intTipos button:has-text("Supressão vegetal (desmatamento)")')
     page.wait_for_timeout(300)
@@ -404,6 +407,7 @@ def verificar_v3_intervencao(c: dict) -> None:
     js(c, "document.querySelector('#intLista').scrollIntoView({block: 'center'})")
     page.wait_for_timeout(300)
     foto(c, "09_recorte_intervencao")
+    page.click("#b-navegar")
 
 
 def verificar_v3_estacas_mapa(c: dict) -> None:
@@ -432,7 +436,7 @@ def verificar_v3_estacas_3d(c: dict) -> None:
         return
     page.click("#b-3d")
     page.wait_for_function("window.__viz.v3 && window.__viz.v3.estacas", timeout=30000)
-    page.click("#v3Topo")
+    page.click("#v3Topo")   # de cima os cilindros aparecem como círculos: bom para contar pixels
     js(c, "document.querySelector('.painel3d').open = false")
     page.wait_for_timeout(800)
     com = js(c, JS_PIXELS_3D)
@@ -441,7 +445,8 @@ def verificar_v3_estacas_3d(c: dict) -> None:
     js(c, "(() => { __viz.v3.estacas.visible = true; })()")
     passo(c, "estacas no 3D (cilindros desenham pixels)", com > sem + 50, f"{com} px com, {sem} px sem")
     passo(c, "3D tem uma instância por estaca", js(c, "__viz.v3.estacas.count === __viz.ESTACAS.length"))
-    page.wait_for_timeout(300)
+    page.click("#v3Reset")   # vista oblíqua: mostra o comprimento das estacas
+    page.wait_for_timeout(500)
     foto(c, "11_estacas_3d")
     page.click("#v3Voltar")
 
@@ -450,12 +455,14 @@ def verificar_v3_marcos(c: dict) -> None:
     page = c["page"]
     if not js(c, "!!__viz.camadasMapa.marcos"):
         return
+    js(c, "__viz.map.closePopup()")
     page.evaluate("() => { __viz.map.fitBounds(__viz.camadasMapa.marcos.layer.getBounds().pad(.1), {animate: false}); }")
     page.wait_for_timeout(600)
     destr = js(c, "__viz.camadasMapa.marcos.layer.getLayers().filter(m => m.getPopup().getContent().includes('DESTRUÍDO')).length")
     passo(c, "marcos geodésicos: triângulos no mapa", js(c, "document.querySelectorAll('.marco-pin').length") >= 20)
     passo(c, "marcos destruídos em vermelho (conferência com a situação)", js(c, "document.querySelectorAll('.marco-pin.destruido').length") == destr, f"{destr} destruído(s)")
-    page.locator(".marco-pin").first.click()
+    # furos e marcos podem coincidir no zoom geral: abre o popup pela API em vez de clicar no ícone
+    page.evaluate("() => __viz.camadasMapa.marcos.layer.getLayers()[0].openPopup()")
     page.wait_for_selector(".leaflet-popup-content", timeout=3000)
     txt = page.inner_text(".leaflet-popup-content")
     passo(c, "marco: popup com nome, rede, situação e distância à obra", all(k in txt for k in ("Situação", "Distância à obra", "Classificação")), txt.splitlines()[0])
@@ -471,6 +478,9 @@ def ir_ao_dia(c: dict, dia: int) -> None:
 
 def verificar_v3_4d_abrir(c: dict) -> None:
     page = c["page"]
+    js(c, "__viz.map.closePopup()")
+    page.click("#b-enquadrar")
+    page.wait_for_timeout(500)
     page.click("#b-4d")
     page.wait_for_function(JS_TODAS_PRONTAS, timeout=180000)
     passo(c, "4D: barra da linha do tempo aberta", js(c, "!document.querySelector('#bar4d').hidden"))

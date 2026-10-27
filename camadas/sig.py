@@ -187,6 +187,23 @@ def ler_kmz(caminho: str | Path) -> list[dict]:
     return marcos
 
 
+def _campos_marco(atributos: dict) -> dict:
+    """Campos normalizados entre redes (as chaves variam: SITUAÇÃO ÚLTIMA VISITA × SITUACAO, MUNICÍPIO × MUNICIPIO)."""
+    import unicodedata
+
+    def chave(k):
+        return unicodedata.normalize("NFKD", k).encode("ascii", "ignore").decode().upper()
+    por_chave = {chave(k): v for k, v in atributos.items()}
+
+    def primeiro(*prefixos):
+        return next((v for k, v in por_chave.items() for p in prefixos if k.startswith(p) and v), None)
+    situacao = primeiro("SITUACAO")
+    return {"classificacao": primeiro("CLASSIFICACAO DESCRICAO", "DESCRICAO CLASSIFICACAO", "CLASSIFICACAO", "TEMA"),
+            "situacao": situacao, "destruido": bool(situacao and "DESTRU" in chave(situacao)),
+            "municipio": primeiro("MUNICIPIO"), "ultima_visita": primeiro("DATA ULTIMA VISITA", "VISITA"),
+            "altitude_m": primeiro("ALTGEOM")}
+
+
 def marcos_proximos(pasta: str | Path, lon: float, lat: float, raio_m: float, epsg: int) -> dict:
     """FeatureCollection dos marcos de todas as redes da pasta num raio do ponto, com distância (m, no plano UTM)
     e a rede de origem; da RBMC entra sempre a estação mais próxima (base para GNSS), mesmo fora do raio."""
@@ -208,6 +225,6 @@ def marcos_proximos(pasta: str | Path, lon: float, lat: float, raio_m: float, ep
             m = marcos[i]
             feats.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": [m["lon"], m["lat"]]},
                           "properties": {"nome": m["nome"], "rede": rede, "distancia_m": round(float(distancia[i]), 1),
-                                         **m["atributos"]}})
+                                         **_campos_marco(m["atributos"]), **m["atributos"]}})
     feats.sort(key=lambda f: f["properties"]["distancia_m"])
     return {"type": "FeatureCollection", "features": feats}

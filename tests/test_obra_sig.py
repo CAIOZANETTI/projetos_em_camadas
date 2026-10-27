@@ -124,3 +124,10 @@ def test_constantes_tecnicas_tem_fonte(modulo):
     citadas = json.dumps(meta["bibliografia"] + meta.get("premissas", []), ensure_ascii=False)
     assert all(c in citadas for c in constantes), constantes
     assert set(meta["funcoes"]) <= set(dir(mod))
+
+
+def test_marco_destruido_normalizado():
+    campos = sig._campos_marco({"DENOMINAÇÃO": "RN07A", "CLASSIFICAÇÃO": "RN", "SITUAÇÃO ÚLTIMA VISITA": "DESTRUIDO",
+                                "MUNICÍPIO": "FOZ DO IGUACU", "DATA ÚLTIMA VISITA": "01/02/2020"})
+    assert campos["destruido"] and campos["municipio"] == "FOZ DO IGUACU" and campos["ultima_visita"] == "01/02/2020"
+    assert sig._campos_marco({"SITUACAO": "BOM", "TEMA": "GPS"})["destruido"] is False

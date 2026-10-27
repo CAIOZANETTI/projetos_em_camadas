@@ -273,6 +273,8 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
 .marco-pin{width:0;height:0;margin:2px 1px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:15px solid #0ea5e9;filter:drop-shadow(0 1px 2px rgb(0 0 0 / .55))}
 .marco-pin.destruido{border-bottom-color:#dc2626}
 .destruido-t{color:#dc2626;font-weight:700}
+/* medindo ou desenhando: marcadores e polígonos não roubam o clique (senão o vértice se perde num popup) */
+#mapa.desenhando .leaflet-marker-pane *,#mapa.desenhando .leaflet-overlay-pane .leaflet-interactive{pointer-events:none!important}
 @keyframes pulso{50%{opacity:.3}}
 .pulso{animation:pulso 1s ease-in-out infinite}
 .int-resumo{width:calc(100% - 26px);margin:4px 0 0 26px;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
@@ -316,11 +318,14 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
 .g4-b.e2{fill:var(--acento)}.g4-b.e3{fill:var(--ok)}
 .g4-g{stroke:var(--linha);stroke-width:1;vector-effect:non-scaling-stroke}
 .g4-a{stroke:var(--tinta);stroke-width:1.5;vector-effect:non-scaling-stroke}
-#b4Curva svg{width:100%;height:auto;display:block}
+#b4Curva svg{width:100%;height:auto;display:block;max-height:230px}
+#bar4d.sem-graf .b4-graf,#bar4d.sem-graf .b4-fonte{display:none}
+#mapaWrap.com4d .barra{max-height:calc(100% - var(--h4d,0px) - 20px);overflow:auto}
 .b4-fonte{font-size:11px;color:var(--mut);margin:8px 0 0}
 @media (max-width:760px){
   .b4-graf{grid-template-columns:1fr}
-  #bar4d{max-height:70%;padding-inline:10px}
+  #bar4d{position:fixed;max-height:48vh;padding-inline:10px}
+  .b4-cab .data{flex:1 0 100%}
 }
 
 @media (max-width:760px){
@@ -335,7 +340,7 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
   .barra{flex-direction:row;flex-wrap:wrap;max-width:calc(100% - 20px)}
   .barra .rot{display:none}
   .barra hr{border-top:0;border-left:1px solid var(--linha);margin:2px 3px}
-  #dica{top:auto;bottom:34px;max-width:calc(100% - 20px)}
+  #dica{top:auto;bottom:34px;left:10px;right:10px;transform:none;max-width:none}
   #status .sob{margin-left:0}
   #swipeModo{top:auto;bottom:70px}
 }
@@ -461,8 +466,9 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
             <button class="btn" id="b4Play" aria-pressed="false">&#9654; Play</button>
             <select id="b4Vel" aria-label="Velocidade"><option value="15">15 dias/s</option><option value="45" selected>45 dias/s</option><option value="120">120 dias/s</option></select>
             <label>Data da OS <input type="date" id="b4Os" aria-label="Data da OS (só muda o rótulo)"></label>
+            <button class="btn" id="b4Graf" aria-pressed="true" title="Mostrar ou esconder o Gantt e a curva S">Gráficos</button>
             <button class="btn" id="b4Fechar">Fechar 4D</button></div>
-          <p class="b4-aviso" id="b4Aviso" hidden>Data da OS hipotética: as datas são só referência. Troque no campo acima (muda apenas o rótulo).</p>
+          <p class="b4-aviso" id="b4Aviso" hidden>Data da OS hipotética: as datas são só referência (o campo muda apenas o rótulo).</p>
         </div>
         <div class="b4-linha"><input type="range" id="b4Dia" min="0" max="720" step="1" value="0" aria-label="Dia do cronograma"><div class="b4-marcos" id="b4Marcos"></div></div>
         <div class="b4-info"><span class="pc">Planejado <b id="b4Pct"></b></span><div class="b4-exec" id="b4Exec" aria-live="polite"></div></div>
@@ -568,9 +574,9 @@ const LARANJA = "#ff7a00", COR3_LARANJA = [1, .478, 0];
 const GR_COR = {"Civil": "--civil", "Hidráulica": "--hidro", "Mecânica": "--mec", "Elétrica e automação": "--eletrica", "Geral": "--geral"};
 const F4 = {on: false, dia: 0, max: 0, play: false, fase: 0, int: new Map(), os: CRONO?.data_os || null, salvo: null, raf: 0, itens: null, tm: 0};
 const ESTACAS = [];   // {id, ll, E, N, d, comp, estr, cor, marker, f4}
-const PALETA_ESTR = ["#7c3aed", "#0284c7", "#ea580c", "#15803d", "#be185d", "#ca8a04", "#0f766e", "#6366f1"], nomesEstr = [];
+const PALETA_ESTR = ["#7c3aed", "#0284c7", "#15803d", "#be185d", "#0f766e", "#6366f1", "#84cc16", "#64748b"], nomesEstr = [];   // sem laranja na paleta: é a cor do 4D
 const corEstr = e => { if (!nomesEstr.includes(e)) nomesEstr.push(e); return PALETA_ESTR[nomesEstr.indexOf(e) % PALETA_ESTR.length]; };
-const semMarcas = t => String(t).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const OPCOES_POPUP = {autoPanPaddingTopLeft: window.innerWidth > 760 ? [150, 10] : [10, 70], autoPanPaddingBottomRight: [10, 40]};   // não deixa o popup sob a barra de ferramentas
 const tabelaProps = (p, linhas) => `<table class="info">${linhas.map(([k, rot, f]) =>
   `<tr><td>${rot}</td><td>${p[k] == null || p[k] === "" ? "—" : esc(f ? f(p[k]) : p[k])}</td></tr>`).join("")}</table>`;
 
@@ -582,7 +588,7 @@ function criarEstacas(v) {
     const e = {id: p.id, ll, E: parseFloat(p.E), N: parseFloat(p.N), d: p.diametro_cm || 40, comp: p.comprimento_m, estr: p.estrutura, f4: 0, cor: corEstr(p.estrutura)};
     e.marker = L.circleMarker(ll, {pane: "overlayPane", radius: 3, color: "#fff", weight: 1, fillColor: e.cor, fillOpacity: .9})
       .bindPopup(`<div class="pop"><b>Estaca ${esc(p.id)}</b>${tabelaProps(p, [["diametro_cm", "Diâmetro", x => fmt(x, 0) + " cm"],
-        ["comprimento_m", "Comprimento", x => fmt(x, 1) + " m"], ["estrutura", "Estrutura"], ["cota_arrasamento", "Cota de arrasamento"], ["desenho_origem", "Desenho"]])}</div>`);
+        ["comprimento_m", "Comprimento", x => fmt(x, 1) + " m"], ["estrutura", "Estrutura"], ["cota_arrasamento", "Cota de arrasamento"], ["desenho_origem", "Desenho"]])}</div>`, OPCOES_POPUP);
     ESTACAS.push(e); g.addLayer(e.marker);
   }
   const ajustar = () => {
@@ -598,14 +604,14 @@ function criarEstacas(v) {
 function criarMarcos(v) {
   const g = L.featureGroup();
   for (const f of v.geojson.features) {
-    const p = f.properties, [lng, lat] = f.geometry.coordinates, sit = p.SITUACAO || p["SITUAÇÃO"] || "";
-    const destr = /destru/i.test(semMarcas(sit)), kc = Object.keys(p).find(k => /^classifica/i.test(semMarcas(k)));
-    const linhas = [["Classificação", kc ? esc(p[kc] ?? "—") : "—"], ["Situação", destr ? `<span class="destruido-t">DESTRUÍDO</span>` : esc(sit || "não informada")],
-      ["Distância à obra", p.distancia_m == null ? "—" : fmt(p.distancia_m, 1) + " m"], ["Município", esc(p.MUNICIPIO || "—")], ["Última visita", esc(p.VISITA || "—")],
-      ["Altura geométrica", p.ALTGEOM ? esc(p.ALTGEOM) + " m" : "—"]];
-    L.marker([lat, lng], {title: p.nome, keyboard: true, icon: L.divIcon({className: "", html: `<div class="marco-pin${destr ? " destruido" : ""}"></div>`, iconSize: [20, 20], iconAnchor: [10, 16]})})
+    // campos normalizados no Python (sig._campos_marco): situacao, destruido, classificacao, municipio, ultima_visita
+    const p = f.properties, [lng, lat] = f.geometry.coordinates, sit = p.situacao || "", destr = !!p.destruido;
+    const linhas = [["Classificação", esc(p.classificacao || "—")], ["Situação", destr ? `<span class="destruido-t">DESTRUÍDO</span>` : esc(sit || "não informada")],
+      ["Distância à obra", p.distancia_m == null ? "—" : fmt(p.distancia_m, 1) + " m"], ["Município", esc(p.municipio || "—")], ["Última visita", esc(p.ultima_visita || "—")],
+      ["Altura geométrica", p.altitude_m ? esc(p.altitude_m) + " m" : "—"]];
+    L.marker([lat, lng], {title: p.nome, keyboard: true, zIndexOffset: 500, icon: L.divIcon({className: "", html: `<div class="marco-pin${destr ? " destruido" : ""}"></div>`, iconSize: [20, 20], iconAnchor: [10, 16]})})
       .bindPopup(`<div class="pop"><b>${esc(p.nome)}</b> <span class="nota-l">${esc(p.rede || "")}</span><table class="info">${linhas.map(([k, x]) => `<tr><td>${k}</td><td>${x}</td></tr>`).join("")}</table>
-        ${destr ? '<div class="nota-l destruido-t">Marco destruído: não usar como referência.</div>' : ""}</div>`)
+        ${destr ? '<div class="nota-l destruido-t">Marco destruído: não usar como referência.</div>' : ""}</div>`, OPCOES_POPUP)
       .bindTooltip(esc(p.nome), {direction: "top", className: "rotulo", offset: [0, -14]}).addTo(g);
   }
   return g;
@@ -1992,7 +1998,7 @@ function v3Cameras() {
 }
 
 /* estacas: cilindros verticais do terreno (p10 de z) para baixo, com o comprimento de projeto; cor por estrutura.
-   O raio nunca fica menor que 1/500 da extensão da nuvem, para aparecer na vista geral. */
+   O raio nunca fica menor que 1/200 da extensão da nuvem, para aparecer na vista geral. */
 function v3Estacas() {
   const cb = $("#v3Est"); cb.disabled = !ESTACAS.length;
   if (!ESTACAS.length) return;
@@ -2004,7 +2010,7 @@ function v3Estacas() {
 }
 function v3EstacasEstado() {
   const im = V3.estacas; if (!im) return;
-  const [E0, N0] = D.modelo3d.origem, rmin = V3.extensao / 500, m = new THREE.Matrix4(), q = new THREE.Quaternion(), cor = new THREE.Color();
+  const [E0, N0] = D.modelo3d.origem, rmin = V3.extensao / 200, m = new THREE.Matrix4(), q = new THREE.Quaternion(), cor = new THREE.Color();
   ESTACAS.forEach((e, i) => {
     const r = Math.max(e.d / 200, rmin), h = e.comp || 1, ocu = e.f4 === 1;
     m.compose(new THREE.Vector3(e.E - E0, e.N - N0, V3.zg - h / 2), q, ocu ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(r, r, h));
@@ -2102,6 +2108,7 @@ function v3DesenharMedida() {
    v3 · 4D: linha do tempo do cronograma. O Python entrega atividades, elementos e curva S prontos;
    aqui só se compara o dia com início/fim de cada atividade (oculto / em execução / concluído) e se interpola o % da curva S.
    ==================================================================== */
+const CS = {W: 460, H: 190, ml: 34, mr: 12, mt: 12, mb: 26};   // geometria do SVG da curva S
 const somaEst = (o, s) => o === 2 || s === 2 ? 2 : o === 3 || s === 3 ? 3 : s;
 function preparar4D() {
   if (F4.itens) return;
@@ -2171,7 +2178,7 @@ function dataDia(d) {
   return isNaN(t) ? "—" : new Date(t + d * 864e5).toLocaleDateString("pt-BR", {timeZone: "UTC"});
 }
 function svgCurvaS() {
-  const c = CRONO.curva_s, W = 340, H = 190, ml = 34, mr = 12, mt = 12, mb = 26, M = F4.max;
+  const c = CRONO.curva_s, W = CS.W, H = CS.H, ml = CS.ml, mr = CS.mr, mt = CS.mt, mb = CS.mb, M = F4.max;
   const X = d => ml + d / M * (W - ml - mr), Y = p => mt + (1 - p / 100) * (H - mt - mb);
   const txt = "font:9.5px 'IBM Plex Mono',monospace;fill:var(--mut)";
   let g = [0, 25, 50, 75, 100].map(p => `<line x1="${ml}" x2="${W - mr}" y1="${Y(p)}" y2="${Y(p)}" style="stroke:var(--linha)"/><text x="${ml - 4}" y="${Y(p) + 3}" text-anchor="end" style="${txt}">${p}%</text>`).join("");
@@ -2207,9 +2214,9 @@ function definirDia4D(d, forcar = false) {
   $("#b4Exec").innerHTML = exec.length ? exec.map(a => `<span title="dias ${a.inicio_dia}–${a.fim_dia}"><b>${esc(a.id)}</b> ${esc(a.nome)}</span>`).join("") : `<span class="nada">Nenhuma atividade em execução neste dia.</span>`;
   document.querySelectorAll("#b4Gantt rect[data-a]").forEach(r => { const a = CRONO.atividades.find(x => x.id === r.dataset.a); r.setAttribute("class", "g4-b e" + (d < a.inicio_dia ? 1 : d <= a.fim_dia ? 2 : 3)); });
   const ag = $("#g4Agora"); ag.setAttribute("x1", d / M * 720); ag.setAttribute("x2", d / M * 720);
-  const W = 340, ml = 34, mr = 12, mt = 12, H = 190, mb = 26, x = ml + d / M * (W - ml - mr), y = mt + (1 - p / 100) * (H - mt - mb);
+  const {W, ml, mr, mt, H, mb} = CS, x = ml + d / M * (W - ml - mr), y = mt + (1 - p / 100) * (H - mt - mb);
   $("#csDia").setAttribute("x1", x); $("#csDia").setAttribute("x2", x); $("#csPt").setAttribute("cx", x); $("#csPt").setAttribute("cy", y);
-  const tx = $("#csTx"); tx.textContent = fmt(p, 1) + " %"; tx.setAttribute("x", d > M * .6 ? x - 7 : x + 7); tx.setAttribute("y", Math.max(y + 14, 24)); tx.setAttribute("text-anchor", d > M * .6 ? "end" : "start");
+  const tx = $("#csTx"); tx.textContent = fmt(p, 1) + " %"; tx.setAttribute("x", d > M * .6 ? x - 7 : x + 7); tx.setAttribute("y", y > 120 ? y - 9 : y + 15); tx.setAttribute("text-anchor", d > M * .6 ? "end" : "start");
   aplicarEstado4D(estadoDia(d));
 }
 function tocar4D(on) {
@@ -2257,11 +2264,15 @@ function sair4D() {
 const alternar4D = () => F4.on ? sair4D() : entrar4D();
 if (CRONO) {
   $("#b4Fechar").onclick = sair4D;
+  $("#b4Graf").onclick = e => { const so = $("#bar4d").classList.toggle("sem-graf"); e.currentTarget.setAttribute("aria-pressed", !so); };
   $("#b4Play").onclick = () => tocar4D(!F4.play);
   $("#b4Dia").oninput = e => { tocar4D(false); definirDia4D(+e.target.value); };
   $("#b4Os").onchange = e => { if (e.target.value) { F4.os = e.target.value; definirDia4D(F4.dia, true); } };   // só muda o rótulo da data
   $("#b4Marcos").onclick = e => { const b = e.target.closest("button[data-dia]"); if (b) { tocar4D(false); definirDia4D(+b.dataset.dia); } };
-  new ResizeObserver(() => $("#mapaWrap").style.setProperty("--h4d", $("#bar4d").hidden ? "0px" : $("#bar4d").offsetHeight + "px")).observe($("#bar4d"));
+  new ResizeObserver(() => {   // quanto da base do mapa a barra cobre (no celular ela é fixa na tela)
+    const b = $("#bar4d").getBoundingClientRect(), m = $("#mapaWrap").getBoundingClientRect();
+    $("#mapaWrap").style.setProperty("--h4d", ($("#bar4d").hidden ? 0 : Math.max(0, m.bottom - b.top)) + "px");
+  }).observe($("#bar4d"));
 }
 
 /* ====================================================================
@@ -2564,7 +2575,7 @@ $("#impArq").onchange = async e => {
 const FERR = [["navegar", "Navegar"], ["distancia", "Distância"], ["area", "Área"], ...(INTERV.length ? [["recorte", "Recortar"]] : []), ["angulo", "Ângulo"], ["ponto", "Coordenada"], ["nota", "Nota"], ["-"], ["swipe", "Comparar"],
   ...(CRONO ? [["4d", "4D"]] : []), ...(D.modelo3d ? [["3d", "3D"]] : []), ["enquadrar", "Enquadrar"]];
 const DICAS = {distancia: "Clique nos vértices · duplo clique ou Enter conclui", area: "Clique nos vértices · duplo clique ou Enter fecha o polígono",
-  angulo: "Clique: ponto A, vértice, ponto B", recorte: "Clique nos vértices · Enter fecha o polígono e pede o tipo de intervenção", ponto: "Clique para ler a coordenada", nota: "Clique onde quer a nota técnica"};
+  angulo: "Clique: ponto A, vértice, ponto B", recorte: "Clique nos vértices · Enter fecha e pede o tipo", ponto: "Clique para ler a coordenada", nota: "Clique onde quer a nota técnica"};
 $("#ferramentas").innerHTML = FERR.map(([id, r]) => id === "-" ? "<hr>" :
   `<button id="b-${id}" aria-pressed="${id === "navegar"}" title="${r}">${icone(id)}<span class="rot">${r}</span></button>`).join("");
 let ferramenta = "navegar", pts = [], temp = L.layerGroup().addTo(map);
@@ -2578,6 +2589,7 @@ function usar(t) {
   FERR.forEach(([id]) => { const b = $("#b-" + id); if (b && id !== "swipe" && id !== "3d" && id !== "4d") b.setAttribute("aria-pressed", id === t); });
   t === "navegar" ? map.doubleClickZoom.enable() : map.doubleClickZoom.disable();
   map.getContainer().style.cursor = t === "navegar" ? "" : "crosshair";
+  map.getContainer().classList.toggle("desenhando", t !== "navegar");
   atualizarDica();
 }
 FERR.forEach(([id]) => { const b = $("#b-" + id); if (b) b.onclick = () => usar(id); });
@@ -2641,7 +2653,7 @@ map.on("mousemove", e => {
 document.addEventListener("keydown", e => {
   if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
   if (e.key === "Escape") usar("navegar");
-  else if (e.key === "Enter") concluir();
+  else if (e.key === "Enter") { e.preventDefault(); concluir(); }   // sem isto o keypress cai no botão do diálogo que acabou de abrir
   else if (e.key === "Backspace" && pts.length) { pts.pop(); desenharTemp(); }
 });
 
