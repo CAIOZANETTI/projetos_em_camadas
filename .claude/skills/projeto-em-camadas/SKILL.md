@@ -25,3 +25,5 @@ Referência completa: `scripts/exemplo_irati.py` e `docs/PLANO.md`.
 6. **Testar no Chromium** (playwright já instalado): sem erros no console, folha alinhada à foto num zoom alto, medição de distância concluída com Enter, layout de 400 px em modo escuro.
 
 Disciplinas e cores: Civil (laranja), Hidromecânica (azul), Elétrica (amarelo), Geral (verde-azulado). Para mudar, edite `DISC` no template e as variáveis `--civil/--hidro/--eletrica/--geral`.
+
+> Fluxo novo (v2): `python -m camadas.obra <obra.json>` com pranchas **vetoriais** por layer CAD, etapas, escopo, sondagens e 3D — veja a skill `obra-em-camadas` e `docs/VISUALIZADOR_V2.md`. Este roteiro raster (v1) continua válido para PDFs escaneados.

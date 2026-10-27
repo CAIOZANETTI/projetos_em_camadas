@@ -148,7 +148,8 @@ class Mosaico:
             a, b = self.fotos[i], self.fotos[j]
             # pula pares que, pelo GPS, nem se sobrepõem
             ca, cb = geo.aplicar(a.prior, a.centro)[0], geo.aplicar(b.prior, b.centro)[0]
-            diag = np.hypot(*a.img.shape[:2]) * a.prior[0, 0]
+            # escala do prior = sqrt|det| (prior[0,0] = s·cos(rumo) zera/inverte com rumo ≈ 90°)
+            diag = np.hypot(*a.img.shape[:2]) * np.sqrt(abs(np.linalg.det(a.prior[:2, :2])))
             if np.linalg.norm(ca - cb) > diag:
                 continue
             m = matcher.knnMatch(a.desc, b.desc, k=2)
@@ -388,8 +389,12 @@ def main(argv=None):
     ap.add_argument("--tipo", choices=["similaridade", "afim"], default="similaridade")
     ap.add_argument("--sigma-gps", type=float, default=1.5, help="incerteza do GPS do drone (m)")
     ap.add_argument("--epsg", type=int, help="EPSG de saída (padrão: SIRGAS 2000 / UTM da zona)")
+    ap.add_argument("--min-inliers", type=int, default=15, help="pontos mínimos para aceitar um par")
+    ap.add_argument("--tol-gps", type=float, default=8.0,
+                    help="desvio máximo (m) entre o par casado e o GPS; aumente com GPS ruim/voo rápido")
     a = ap.parse_args(argv)
-    Mosaico(a.pasta, a.lado, a.tipo, sigma_gps_m=a.sigma_gps).executar(a.saida, a.res, a.epsg)
+    Mosaico(a.pasta, a.lado, a.tipo, min_inliers=a.min_inliers, sigma_gps_m=a.sigma_gps,
+            tol_gps_m=a.tol_gps).executar(a.saida, a.res, a.epsg)
 
 
 if __name__ == "__main__":

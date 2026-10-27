@@ -21,3 +21,5 @@ description: Monta um mosaico georreferenciado (SIRGAS 2000 / UTM) a partir de f
    - `--sigma-gps` para GPS melhor ou pior.
 
 Limitações: não é ortofoto (há paralaxe de árvores e telhados) e a posição absoluta depende do GPS (~1 m). Para precisão centimétrica é preciso usar pontos de controle em campo ou OpenDroneMap.
+
+> Se houver fotos oblíquas ou prédios altos, prefira a ortofoto verdadeira do SfM (skill `modelo-3d-drone`). O mosaico 2D fica como plano B.

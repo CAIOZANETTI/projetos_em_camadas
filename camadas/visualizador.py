@@ -13,8 +13,28 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   "vetores": [{"id", "nome", "grupo", "geojson", "estilo", "visivel"}],
   "pendentes": {"Hidromecânica": ["..."], ...},   # itens ainda não extraídos (aparecem desabilitados)
   "anotacoes": GeoJSON FeatureCollection inicial (exemplos),
-  "info": [[rótulo, valor], ...]
+  "info": [[rótulo, valor], ...],
+
+  # --- visualizador v2 (todas opcionais; veja docs/VISUALIZADOR_V2.md) ---
+  "pranchas": [{"id", "nome", "disciplina", "pdf", "largura", "altura",        # folha em pt, y para baixo
+                "layers": [{"nome", "n", "classe", "cor"}], "estilos": [{"s", "f", "w"}],
+                "coords": base64(gzip(Int16LE)), "partes": base64(gzip(Uint32LE)),   # vetor da folha inteira
+                "n_partes", "n_pontos", "textos": [{"t", "x", "y", "a", "h", "cor"}],
+                "M": [a,b,c,d,e,f] pt->UTM | null, "escala_m_pt", "clip_mapa": [x0,y0,x1,y1] | null,
+                "georef": {"ok", "motivo", "residuo_mediano_m", "frac_05m"}}],
+  "etapas": [{"id": "1ª etapa", "cor": "#rrggbb"}],            # ids usados em layers[].classe e vetores[].etapa
+  "escopo": {"itens": [{"tabela", "nome_tabela", "item", "codigo", "descricao", "un",
+                        "q1", "q2", "etapa", "material", "local", "preco"}],
+             "desenhos_por_tabela": {"01": "código do desenho (nome do PDF sem extensão)"}, "fonte": "..."},
+  "sondagens": [{"id", "tipo", "E", "N", "lon", "lat", "cota_boca", "profundidade_m", "na_m",
+                 "nspt": [[prof_m, golpes]], "camadas": [{"de", "ate", "descricao", "classe"}], "fonte"}],
+  "modelo3d": {"origem": [E0, N0, 0], "n", "pos_cm_b64": Int32LE xyz em cm, "rgb_b64": Uint8 rgb,
+               "cameras": [{"nome", "centro", "eixo", "topo", "tipo", "focal_px", "largura", "altura", ...}]},
+  "fotos": {"DJI_0249.JPG": data URL webp},   # aberta ao clicar nas câmeras (vetor "cameras", properties.foto)
 }
+
+`gerar(..., leaflet="inline")` embute Leaflet e three.js r128 (+ OrbitControls); com "cdn" ambos vêm de CDN.
+O three.js só entra no HTML quando há `modelo3d` (sem ele o botão 3D nem aparece).
 """
 from __future__ import annotations
 
@@ -29,6 +49,14 @@ from . import geo
 
 TEMPLATES = Path(__file__).parent / "templates"
 LEAFLET_CDN = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+THREE_CDN = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+ORBIT_CDN = "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
+
+
+def _json_seguro(dados: dict) -> str:
+    """JSON compacto para embutir num <script>: escapa '</' e U+2028/9 para não encerrar o script."""
+    return (json.dumps(dados, ensure_ascii=False, separators=(",", ":"))
+            .replace("</", "<\\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
 
 
 def data_url(img: np.ndarray, fmt: str = "webp", qualidade: int = 80) -> str:
@@ -70,8 +98,9 @@ def crs_info(epsg: int, extensao_utm, altitude_m: float = 0.0) -> dict:
 
 
 def gerar(dados: dict, saida: str | Path, leaflet: str = "inline", documento: bool = True) -> Path:
-    """leaflet='inline' embute a biblioteca (funciona offline); 'cdn' carrega do cdnjs.
-    documento=False grava só o conteúdo, sem <!doctype>/<html>/<head> (para publicar como Artifact)."""
+    """leaflet='inline' embute as bibliotecas (Leaflet e, se houver `modelo3d`, three.js + OrbitControls:
+    funciona offline); 'cdn' carrega do cdnjs/jsDelivr. documento=False grava só o conteúdo, sem
+    <!doctype>/<html>/<head> (para publicar como Artifact)."""
     html = (TEMPLATES / "visualizador.html").read_text(encoding="utf-8")
     css = (TEMPLATES / "vendor" / "leaflet.css").read_text(encoding="utf-8")
     if leaflet == "inline":
@@ -79,11 +108,20 @@ def gerar(dados: dict, saida: str | Path, leaflet: str = "inline", documento: bo
         tag = f"<script>{js}</script>"
     else:
         tag = f'<script src="{LEAFLET_CDN}"></script>'
+    # three.js só é necessário para o modo 3D (nuvem de pontos do SfM)
+    if not dados.get("modelo3d"):
+        tag3 = ""
+    elif leaflet == "inline":
+        tag3 = "".join(f"<script>{(TEMPLATES / 'vendor' / nome).read_text(encoding='utf-8')}</script>"
+                       for nome in ("three.min.js", "OrbitControls.js"))
+    else:
+        tag3 = f'<script src="{THREE_CDN}"></script><script src="{ORBIT_CDN}"></script>'
     titulo = dados.get("titulo_curto") or dados["titulo"]
     html = (html.replace("/*__LEAFLET_CSS__*/", css)
                 .replace("<!--__LEAFLET_JS__-->", tag)
+                .replace("<!--__THREE_JS__-->", tag3)
                 .replace("__TITULO__", titulo)
-                .replace("/*__DADOS__*/null", json.dumps(dados, ensure_ascii=False, separators=(",", ":"))))
+                .replace("/*__DADOS__*/null", _json_seguro(dados)))
     if documento:
         html = ('<!doctype html>\n<html lang="pt-BR"><head><meta charset="utf-8">'
                 '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
