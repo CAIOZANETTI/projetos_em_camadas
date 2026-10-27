@@ -18,14 +18,32 @@ satélite (opcional, online) ─────────────────
 | `camadas/folha.py` | PDF → raster → camadas por cor do CAD; extração vetorial por layer PDF |
 | `camadas/geo.py` | Ajustes similaridade/afim/homografia, resíduos, UTM SIRGAS 2000, world file |
 | `camadas/visualizador.py` | Gera o HTML único a partir de um dicionário de dados |
+| `camadas/sfm.py` | 3D com pycolmap (CPU): poses, nadir × oblíqua, nuvem densa, **ortofoto verdadeira** + MDS |
+| `camadas/pdf_cad.py` | PDF vetorial → traços por **layer CAD** e cor, textos, regras de etapa, pacote vetorial p/ HTML |
+| `camadas/georef_prancha.py` | Georreferencia prancha: pontos de controle + ICP, prancha irmã, busca global |
+| `camadas/obra.py` | Pipeline completo a partir de um `obra.json` (cache por etapa) |
+| `camadas/orcamento_sanepar.py` | Orçamento Sanepar (xlsx) → escopo com quantidade por etapa |
 | `camadas/templates/` | Template do visualizador + Leaflet 1.9.4 embutido |
 | `scripts/exemplo_irati.py` | Exemplo completo: EEB 10 Alto Recalque (SAA Irati/PR) |
+| `exemplos/foz/obra.json` | Obra completa: ETA Vila C, SAA Foz do Iguaçu (etapas, sondagens, 3D) |
 | `exemplos/irati/` | Resultado do exemplo: mosaico georreferenciado e visualizador |
 | `docs/PLANO.md` | Plano de implementação, fases e perguntas em aberto |
+| `docs/PLANO_FOZ.md` | Plano e resultados da obra de Foz (achados, divisão Haiku/Sonnet/Opus, pendências) |
+| `docs/VISUALIZADOR_V2.md` | Contrato de dados do HTML v2 (pranchas vetoriais, etapas, escopo, 3D) |
 | `docs/PESQUISA_REPOSITORIOS.md` | Projetos semelhantes e lições aprendidas |
 | `.claude/skills/` | Skills para o Claude repetir o processo em novos projetos |
 
-## Uso rápido
+## Uso rápido — obra completa
+
+```bash
+pip install -r requirements.txt pycolmap pymupdf
+python -m camadas.obra exemplos/foz/obra.json        # SfM + ortofoto + pranchas + escopo + HTML
+python scripts/testar_visualizador.py saida/foz/visualizador.html
+```
+Para uma obra nova, peça ao Claude: *"faça o mesmo para a obra X"* — a skill `obra-em-camadas`
+conduz o processo (Haiku baixa, Sonnet lê documentos, Opus georreferencia e integra).
+
+## Uso rápido — peças avulsas
 
 ```bash
 pip install -r requirements.txt

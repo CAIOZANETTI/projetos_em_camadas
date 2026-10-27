@@ -1,0 +1,342 @@
+{
+ "id": "foz-vilac",
+ "titulo": "ETA Vila C — SAA Foz do Iguaçu (LE 211/2026)",
+ "titulo_curto": "ETA Vila C · Foz",
+ "subtitulo": "Sanepar · drone 21/09/2026 · projeto em camadas por etapa",
+ "fotos": "dados/foz/foto_drone",
+ "saida": "saida/foz",
+ "sfm": {
+  "denso": true,
+  "orto_res": 0.04
+ },
+ "res_html": 0.06,
+ "max_pontos_3d": 300000,
+ "etapas": [
+  {
+   "id": "1ª etapa",
+   "cor": "#0b6fde"
+  },
+  {
+   "id": "2ª etapa",
+   "cor": "#a855a1"
+  },
+  {
+   "id": "3ª etapa (futura)",
+   "cor": "#ef4444"
+  },
+  {
+   "id": "Existente a reestruturar",
+   "cor": "#5cb85c"
+  },
+  {
+   "id": "Existente a manter",
+   "cor": "#f59e0b"
+  }
+ ],
+ "pranchas": [
+  {
+   "id": "f004",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES-R5.pdf",
+   "nome": "Folha 04 · Layout de processo (etapas)",
+   "disciplina": "Hidráulica",
+   "clip": [
+    0,
+    0,
+    1735,
+    1684
+   ],
+   "regras": "etapa_sanepar",
+   "manchas_etapa": true,
+   "pontos_controle": {
+    "pt": [
+     [
+      1400,
+      680
+     ],
+     [
+      1600,
+      680
+     ],
+     [
+      1400,
+      880
+     ]
+    ],
+    "utm": [
+     [
+      745786.5,
+      7182892.8
+     ],
+     [
+      745786.5,
+      7182873.8
+     ],
+     [
+      745767.5,
+      7182892.8
+     ]
+    ],
+    "obs": "centro do prédio Filtros mód. 2 medido na ortofoto (34×23 m ↔ 360×240 pt); escala inicial 0,095 m/pt; refinado por ICP"
+   }
+  },
+  {
+   "id": "f008",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/008-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYGERAGUAPO-R2.pdf",
+   "nome": "Folha 08 · Rede de água potável",
+   "disciplina": "Hidráulica",
+   "irma": "f004"
+  },
+  {
+   "id": "f006",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/006-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYDRENAG-R2.pdf",
+   "nome": "Folha 06 · Layout de drenagem",
+   "disciplina": "Hidráulica",
+   "irma": "f004"
+  },
+  {
+   "id": "f043",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/043-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYPRODQUIMECOL-R2.pdf",
+   "nome": "Folha 43 · Produtos químicos e coletas",
+   "disciplina": "Hidráulica",
+   "irma": "f004"
+  },
+  {
+   "id": "f010",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/010-SAA-0017-7471-PBHI-DE-0001ETAVILACINTERLIGAÇOES-R3.pdf",
+   "nome": "Folha 10 · Interligações",
+   "disciplina": "Hidráulica",
+   "irma": "f004"
+  },
+  {
+   "id": "urb",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/006-SAA-0017-7471-PARQ-DE-0001ETAVILACURBANIZACAO-R0.pdf",
+   "nome": "Urbanização",
+   "disciplina": "Arquitetura",
+   "irma": "f004"
+  },
+  {
+   "id": "ge01",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/001-SAA-0017-8820-PBGE-DE-0000ETA01GEOPLANTA1-R1.pdf",
+   "nome": "Geotecnia · planta de sondagens",
+   "disciplina": "Geotecnia",
+   "M_absoluta": [
+    [
+     1.327575936055933e-07,
+     -0.0706924336833963,
+     745858.7238979698
+    ],
+    [
+     -0.07065370429558408,
+     -4.9929294706916025e-05,
+     7183023.487836087
+    ]
+   ]
+  },
+  {
+   "id": "fu1",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/003-SAA-0017-8820-PBGE-DE-0000ETA01FUNDACAO1-R2.pdf",
+   "nome": "Fundação 1",
+   "disciplina": "Fundação",
+   "M_absoluta": [
+    [
+     6.637879680279665e-08,
+     -0.03534621684169815,
+     745842.9444326473
+    ],
+    [
+     -0.03532685214779204,
+     -2.4964647353458013e-05,
+     7182972.509095511
+    ]
+   ],
+   "obs_georef": "afim de '003 FUNDACAO1' sobre a GEOPLANTA1 (escala 2:1), referência = sondagens topográficas"
+  },
+  {
+   "id": "fu2",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/004-SAA-0017-8820-PBGE-DE-0000ETA01FUNDACAO2-R2.pdf",
+   "nome": "Fundação 2",
+   "disciplina": "Fundação",
+   "M_absoluta": [
+    [
+     6.637879680279665e-08,
+     -0.03534621684169815,
+     745781.2288161278
+    ],
+    [
+     -0.03532685214779204,
+     -2.4964647353458013e-05,
+     7182972.365373643
+    ]
+   ],
+   "obs_georef": "afim de '004 FUNDACAO2' sobre a GEOPLANTA1 (escala 2:1), referência = sondagens topográficas"
+  },
+  {
+   "id": "fu3",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/005-SAA-0017-8820-PBGE-DE-0000ETA01FUNDACAO3-R2.pdf",
+   "nome": "Fundação 3",
+   "disciplina": "Fundação",
+   "M_absoluta": [
+    [
+     6.637879680279665e-08,
+     -0.03534621684169815,
+     745829.2689722097
+    ],
+    [
+     -0.03532685214779204,
+     -2.4964647353458013e-05,
+     7182887.787087033
+    ]
+   ],
+   "obs_georef": "afim de '005 FUNDACAO3 (desenho esquerdo: ACTIFLO600/filtros/RECALD)' sobre a GEOPLANTA1 (escala 2:1), referência = sondagens topográficas; só o desenho esquerdo (o direito tem outra afim)",
+   "clip": [
+    0,
+    0,
+    1685,
+    2384
+   ]
+  },
+  {
+   "id": "es1",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/006-SAA-0017-8820-PBGE-DE-0000ETA01ESCAVACAO1-R2.pdf",
+   "nome": "Escavação 1",
+   "disciplina": "Geotecnia",
+   "M_absoluta": [
+    [
+     6.637879680279665e-08,
+     -0.03534621684169815,
+     745852.2619884027
+    ],
+    [
+     -0.03532685214779204,
+     -2.4964647353458013e-05,
+     7182977.822609113
+    ]
+   ],
+   "obs_georef": "afim de '006 ESCAVACAO1' sobre a GEOPLANTA1 (escala 2:1), referência = sondagens topográficas"
+  },
+  {
+   "id": "es2",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/007-SAA-0017-8820-PBGE-DE-0000ETA01ESCAVACAO2-R2.pdf",
+   "nome": "Escavação 2",
+   "disciplina": "Geotecnia",
+   "M_absoluta": [
+    [
+     6.637879680279665e-08,
+     -0.03534621684169815,
+     745789.1435418756
+    ],
+    [
+     -0.03532685214779204,
+     -2.4964647353458013e-05,
+     7182977.878357503
+    ]
+   ],
+   "obs_georef": "afim de '007 ESCAVACAO2' sobre a GEOPLANTA1 (escala 2:1), referência = sondagens topográficas"
+  },
+  {
+   "id": "es3",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/008-SAA-0017-8820-PBGE-DE-0000ETA01ESCAVACAO3-R2.pdf",
+   "nome": "Escavação 3",
+   "disciplina": "Geotecnia",
+   "M_absoluta": [
+    [
+     6.637879680279665e-08,
+     -0.03534621684169815,
+     745828.2670201734
+    ],
+    [
+     -0.03532685214779204,
+     -2.4964647353458013e-05,
+     7182890.239580119
+    ]
+   ],
+   "obs_georef": "afim de '008 ESCAVACAO3 (desenho esquerdo)' sobre a GEOPLANTA1 (escala 2:1), referência = sondagens topográficas; só o desenho esquerdo (o direito tem outra afim)",
+   "clip": [
+    0,
+    0,
+    1984,
+    2384
+   ]
+  },
+  {
+   "id": "ct1",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/011-SAA-0017-8820-PBGE-DE-0000ETA01CONTENCAO1-R1.pdf",
+   "nome": "Contenção 1",
+   "disciplina": "Geotecnia",
+   "irma": "f004"
+  },
+  {
+   "id": "ct2",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/012-SAA-0017-8820-PBGE-DE-0000ETA01CONTENCAO2-R1.pdf",
+   "nome": "Contenção 2",
+   "disciplina": "Geotecnia",
+   "irma": "f004"
+  },
+  {
+   "id": "ct3",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/013-SAA-0017-8820-PBGE-DE-0000ETA01CONTENCAO3-R1.pdf",
+   "nome": "Contenção 3",
+   "disciplina": "Geotecnia",
+   "irma": "f004"
+  },
+  {
+   "id": "el_im",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/5. PBEA/PBEA/PEÇAS GRAFICAS/CADERNO 04/002-SAA-0017-8764-PBEA-DE-01ETAVILACPLANTIM-R2.pdf",
+   "nome": "Elétrica · implantação",
+   "disciplina": "Elétrica",
+   "irma": "f004"
+  },
+  {
+   "id": "el_at",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/5. PBEA/PBEA/PEÇAS GRAFICAS/CADERNO 03/021-SAA-0017-8764-PBEA-DE-01ETAVILACPLATERRA-R0.pdf",
+   "nome": "Elétrica · aterramento / terraplenagem",
+   "disciplina": "Elétrica",
+   "irma": "f004"
+  },
+  {
+   "id": "el_fo",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/5. PBEA/PBEA/PEÇAS GRAFICAS/CADERNO 04/012-SAA-0017-8764-PBEA-DE-01ETAVILACPLFORCA-R0.pdf",
+   "nome": "Elétrica · força",
+   "disciplina": "Elétrica",
+   "irma": "f004"
+  },
+  {
+   "id": "el_co",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/5. PBEA/PBEA/PEÇAS GRAFICAS/CADERNO 04/013-SAA-0017-8764-PBEA-DE-01ETAVILACPLCOMAN-R0.pdf",
+   "nome": "Elétrica · comando",
+   "disciplina": "Elétrica",
+   "irma": "f004"
+  }
+ ],
+ "escopo": {
+  "relacao_csv": "dados/foz/orcamento/relacao_materiais_etapas.csv",
+  "itens_csv": "dados/foz/orcamento/escopo_itens.csv",
+  "fonte": "211 - SAA Foz do Iguaçú.xlsx — abas MATS E EQUIP e Relação de Materiais (oculta)"
+ },
+ "sondagens": "dados/foz/geotec/sondagens.json",
+ "pendentes": {
+  "Estrutura": [
+   "Formas e armaduras dos módulos ACTIFLO 360/600 (PDFs > 5 MB, baixar manualmente)"
+  ],
+  "Adutoras (Unidade 2)": [
+   "AAT06, AAT02 e adutora Vila C — fora da área do voo; pranchas têm coordenadas UTM impressas"
+  ]
+ },
+ "artifact": true,
+ "controle_absoluto": {
+  "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/001-SAA-0017-8820-PBGE-DE-0000ETA01GEOPLANTA1-R1.pdf",
+  "afim_pt_utm": [
+   [
+    1.327575936055933e-07,
+    -0.0706924336833963,
+    745858.7238979698
+   ],
+   [
+    -0.07065370429558408,
+    -4.9929294706916025e-05,
+    7183023.487836087
+   ]
+  ],
+  "fonte": "16 sondagens SP-01..SP-16 (relatório Geoazimute 2022, SIRGAS 2000) locadas na GEOPLANTA1; rms 0,1 m"
+ }
+}
