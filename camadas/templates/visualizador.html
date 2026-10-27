@@ -42,8 +42,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .chip{font:500 11px/1 var(--f-dado);padding:5px 7px;border:1px solid var(--linha);border-radius:3px;color:var(--mut);white-space:nowrap}
 main{flex:1;display:flex;min-height:0}
 aside{width:330px;flex:none;display:flex;flex-direction:column;background:var(--painel);border-right:1px solid var(--linha);min-height:0}
-.abas{display:flex;border-bottom:1px solid var(--linha);padding-inline:8px}
-.abas button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:10px 4px 8px;cursor:pointer;color:var(--mut);font-weight:500}
+.abas{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--linha);padding-inline:8px}
+.abas button{flex:1 0 auto;background:none;border:0;border-bottom:2px solid transparent;padding:10px 8px 8px;cursor:pointer;color:var(--mut);font-weight:500;white-space:nowrap}
 .abas button[aria-selected="true"]{color:var(--tinta);border-bottom-color:var(--acento)}
 .badge{display:inline-block;min-width:18px;padding:1px 5px;border-radius:9px;background:var(--realce);font:500 11px/16px var(--f-dado);text-align:center}
 .aba{flex:1;overflow:auto;padding:4px 16px 24px}
@@ -141,7 +141,122 @@ dialog::backdrop{background:rgb(0 0 0 / .4)}
 dialog textarea{height:260px;font:11.5px var(--f-dado)}
 .cab-dlg{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .cab-dlg h3{margin:0;font:600 15px var(--f-titulo)}
+
+/* ---------- v2: pranchas vetoriais, escopo, sondagens, 3D ---------- */
+aside{transition:width .15s}
+aside.larga{width:min(560px,46vw)}
+.btn.mini{padding:2px 7px;font-size:11.5px}
+.btn:disabled{opacity:.5;cursor:default}
+.sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--linha);flex:none;vertical-align:-1px}
+.nota-l{color:var(--mut);font-size:11.5px}
+.pr-ger{font-size:11.5px;color:var(--mut);margin:8px 0 2px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.pr-l{border-bottom:1px solid var(--linha)}
+.pr-l .linhaC{border:0}
+.badge-g{font:500 10.5px/1 var(--f-dado);padding:3px 5px;border-radius:3px;border:1px solid currentColor;white-space:nowrap}
+.badge-g.ok{color:var(--ok)}.badge-g.med{color:var(--aberta)}.badge-g.nao{color:var(--mut);border-style:dashed}
+.pr-cfg>summary{cursor:pointer;color:var(--mut);font-size:12px;padding:2px 0 6px 26px;list-style:none}
+.pr-cfg>summary::-webkit-details-marker{display:none}
+.pr-cfg>summary::before{content:"+ "}.pr-cfg[open]>summary::before{content:"– "}
+.pr-cfg .ajuste{padding-left:26px}
+.pr-cfg .btns,.pr-cfg .aviso{margin-left:26px}
+.pr-cfg .arv{margin:6px 0 10px 26px}
+.arv-busca{margin:4px 0}
+.gl-d{border-top:1px solid var(--linha)}
+.gl-d>summary{display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 0;list-style:none;min-height:28px}
+.gl-d>summary::-webkit-details-marker{display:none}
+.gl-d>summary::before{content:"";width:5px;height:5px;border-right:1.5px solid var(--mut);border-bottom:1.5px solid var(--mut);transform:rotate(-45deg);flex:none;transition:transform .15s}
+.gl-d[open]>summary::before{transform:rotate(45deg)}
+.gl-d .gn{font-weight:500;min-width:0;overflow-wrap:anywhere}
+.gl-d .nota{color:var(--mut);font-size:11px;margin-left:auto;white-space:nowrap}
+.ly{display:grid;grid-template-columns:18px 12px 1fr auto;gap:6px;align-items:center;padding:2px 0 2px 16px;cursor:pointer;min-height:24px}
+.ly .ln{overflow-wrap:anywhere;font-size:12px}
+.ly .nota{color:var(--mut);font:11px var(--f-dado)}
+.ly.filtrado{opacity:.45}
+.ly[hidden]{display:none}
+
+/* chips de etapa e escopo */
+.chips-e{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.chip-e{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid var(--linha);border-radius:14px;background:var(--painel);cursor:pointer;font-size:12px}
+.chip-e:hover{border-color:var(--mut)}
+.chip-e[aria-pressed="true"]{background:var(--tinta);color:var(--painel);border-color:var(--tinta)}
+.chip-e .n{font:11px var(--f-dado);opacity:.75}
+.tot{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 12px;border:1px solid var(--linha);border-radius:6px;background:var(--papel);margin:6px 0 10px;font-variant-numeric:tabular-nums}
+.tot b{font:500 13px var(--f-dado);text-align:right}
+.tot .sep{grid-column:1/-1;border-top:1px solid var(--linha);margin:3px 0}
+.esc-g{border-top:1px solid var(--linha)}
+.esc-g>summary{display:flex;gap:8px;align-items:baseline;padding:8px 0 6px;cursor:pointer;list-style:none}
+.esc-g>summary::-webkit-details-marker{display:none}
+.esc-g>summary::before{content:"";width:5px;height:5px;border-right:1.5px solid var(--mut);border-bottom:1.5px solid var(--mut);transform:rotate(-45deg);flex:none;align-self:center;transition:transform .15s}
+.esc-g[open]>summary::before{transform:rotate(45deg)}
+.esc-g .gt{font:600 12.5px var(--f-titulo);min-width:0;overflow-wrap:anywhere}
+.esc-g .gs{margin-left:auto;font:11px var(--f-dado);color:var(--mut);white-space:nowrap}
+.esc-tab{overflow-x:auto;margin-bottom:6px}
+table.esc{width:100%;min-width:420px;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+table.esc th{font:600 10.5px var(--f-ui);color:var(--mut);text-align:right;padding:3px 6px;border-bottom:1px solid var(--linha);white-space:nowrap}
+table.esc th:first-child{text-align:left}
+table.esc td{padding:5px 6px;border-bottom:1px solid var(--linha);vertical-align:top;text-align:right}
+table.esc td.d{text-align:left}
+table.esc td.d .cod{display:block;color:var(--mut);font:10.5px var(--f-dado);margin-top:1px;overflow-wrap:anywhere}
+table.esc td.u{text-align:center;color:var(--mut)}
+table.esc td.q.ativa{font-weight:600}
+table.esc tr[data-sit="escopo"]{box-shadow:inset 3px 0 0 var(--ok)}
+table.esc tr[data-sit="fora"]{box-shadow:inset 3px 0 0 var(--mut);opacity:.6}
+table.esc tr[data-sit="verificar"]{box-shadow:inset 3px 0 0 var(--aberta)}
+table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-size:11.5px}
+
+/* visualizador da folha inteira (aba Pranchas) */
+#folha,#vista3d{position:absolute;inset:0;z-index:850;background:var(--papel);display:flex;flex-direction:column}
+.fbarra{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 10px;background:var(--painel);border-bottom:1px solid var(--linha)}
+.fbarra strong{font:600 13px var(--f-titulo);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 120px}
+.fbarra .btn{padding:4px 9px}
+#fPalco{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;cursor:grab;background:var(--realce);outline-offset:-2px}
+#fPalco.mover{cursor:grabbing}
+#fPalco.mira{cursor:crosshair}
+#fPalco canvas{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
+#fCarga{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--realce) 85%,transparent);font:500 13px var(--f-ui);color:var(--tinta);text-align:center;padding:16px}
+.frodape{padding:5px 12px;background:var(--painel);border-top:1px solid var(--linha);font:11.5px var(--f-dado);color:var(--mut);display:flex;gap:14px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.frodape b{color:var(--tinta);font-weight:500}
+.res-l{display:flex;flex-direction:column;max-height:240px;overflow:auto;border:1px solid var(--linha);border-radius:4px;margin-top:6px}
+.res-l button{display:flex;justify-content:space-between;gap:8px;text-align:left;background:none;border:0;border-bottom:1px solid var(--linha);padding:6px 8px;cursor:pointer}
+.res-l button:hover,.res-l button[aria-current="true"]{background:var(--realce)}
+.res-l button[aria-current="true"]{box-shadow:inset 3px 0 0 var(--acento)}
+.res-l .nota-l{font:11px var(--f-dado);white-space:nowrap}
+.card-id{padding:10px 12px;border:1px solid var(--linha);border-radius:6px;background:var(--papel);display:grid;gap:3px;margin-top:6px}
+.card-id b{font-weight:600}
+.pl-lista button{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--linha);padding:8px 4px;cursor:pointer}
+.pl-lista button:hover{background:var(--realce)}
+.pl-lista .nm{flex:1;min-width:0}
+
+/* sondagens */
+.snd-pop{min-width:290px}
+.snd-pop svg{display:block;width:100%;height:auto;margin-top:6px}
+.snd-pop table{border-collapse:collapse;width:100%;margin-top:6px;font-size:11.5px}
+.snd-pop td{padding:2px 4px 2px 0;vertical-align:top}
+.snd-pin{width:20px;height:20px;border-radius:3px;transform:rotate(45deg);background:var(--acento);border:2px solid #fff;box-shadow:0 1px 4px rgb(0 0 0 / .5)}
+
+/* diálogos de foto/informação */
+#dlgFoto,#dlgInfo{width:min(920px,calc(100% - 24px))}
+#dlgFoto figure{margin:0}
+#dlgFoto img{display:block;max-width:100%;max-height:68vh;margin:0 auto;object-fit:contain;background:var(--realce)}
+#dlgFoto figcaption{margin-top:8px;color:var(--mut);font-size:12px}
+
+/* 3D */
+#vista3d{background:#101412}
+#c3d{flex:1;min-height:0;width:100%;display:block;touch-action:none;outline-offset:-2px}
+.painel3d{position:absolute;top:50px;left:10px;z-index:3;width:228px;max-width:calc(100% - 20px);background:color-mix(in srgb,var(--painel) 94%,transparent);border:1px solid var(--linha);border-radius:6px;box-shadow:var(--sombra);font-size:12px}
+.painel3d>summary{padding:7px 10px;font-weight:600;cursor:pointer}
+.painel3d .corpo{padding:0 10px 10px;display:grid;gap:7px}
+.painel3d label{display:grid;gap:3px;color:var(--mut)}
+.painel3d .lin{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.painel3d .lin label{display:flex;align-items:center;gap:5px;color:var(--tinta)}
+#r3d{font:500 12px var(--f-dado);color:var(--tinta)}
+#msg3d{position:absolute;inset:50px 16px auto;z-index:2;color:#e4e8e5;text-align:center;font-size:13px}
+.barra3d{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 10px;background:var(--painel);border-bottom:1px solid var(--linha)}
+.barra3d strong{font:600 13px var(--f-titulo);flex:1 1 120px}
+
 @media (max-width:760px){
+  aside.larga{width:auto}
+  .painel3d{top:46px;width:210px}
   .chips{display:none}
   .topo h1{font-size:14px}
   main{flex-direction:column}
@@ -165,6 +280,7 @@ dialog textarea{height:260px;font:11.5px var(--f-dado)}
   <symbol id="i-ponto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="currentColor"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5" stroke="currentColor" stroke-width="1.6"/></symbol>
   <symbol id="i-nota" viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9 10h6M9 7.5h6M9 12.5h3" stroke="currentColor" stroke-width="1.5"/></symbol>
   <symbol id="i-swipe" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v20" stroke="currentColor" stroke-width="1.8"/><path d="M3 4h9v16H3z" fill="currentColor" fill-opacity=".25"/></symbol>
+  <symbol id="i-3d" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
   <symbol id="i-enquadrar" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
 </svg>
 
@@ -176,11 +292,37 @@ dialog textarea{height:260px;font:11.5px var(--f-dado)}
   <main>
     <aside>
       <nav class="abas" role="tablist">
-        <button role="tab" id="t-camadas" aria-selected="true" data-aba="camadas">Camadas</button>
-        <button role="tab" id="t-anotacoes" aria-selected="false" data-aba="anotacoes">Anotações <span class="badge" id="nAnot">0</span></button>
-        <button role="tab" id="t-info" aria-selected="false" data-aba="info">Projeto</button>
+        <button role="tab" id="t-camadas" aria-selected="true" aria-controls="aba-camadas" data-aba="camadas">Camadas</button>
+        <button role="tab" id="t-pranchas" aria-selected="false" aria-controls="aba-pranchas" data-aba="pranchas" hidden>Pranchas</button>
+        <button role="tab" id="t-escopo" aria-selected="false" aria-controls="aba-escopo" data-aba="escopo" hidden>Etapas &amp; escopo</button>
+        <button role="tab" id="t-anotacoes" aria-selected="false" aria-controls="aba-anotacoes" data-aba="anotacoes">Anotações <span class="badge" id="nAnot">0</span></button>
+        <button role="tab" id="t-info" aria-selected="false" aria-controls="aba-info" data-aba="info">Projeto</button>
       </nav>
       <div class="aba" id="aba-camadas"></div>
+      <div class="aba" id="aba-pranchas" hidden>
+        <h2>Prancha</h2>
+        <label class="sr" for="pSel" style="display:none">Prancha</label>
+        <select id="pSel" aria-label="Escolher prancha"></select>
+        <div id="pLista" class="pl-lista"></div>
+        <div id="pCorpo" hidden>
+          <p class="aviso" id="pInfo" style="margin-left:0"></p>
+          <h2>Ferramenta</h2>
+          <div class="btns" role="group" aria-label="Ferramenta da folha">
+            <button class="btn on" id="pFIdent" aria-pressed="true">Identificar</button>
+            <button class="btn" id="pFMedir" aria-pressed="false">Medir</button>
+            <button class="btn" id="pLimpar">Limpar</button>
+          </div>
+          <div id="pMed" class="card-id" hidden></div>
+          <div id="pIdent" aria-live="polite"></div>
+          <h2>Buscar texto na folha</h2>
+          <input type="search" id="pBusca" placeholder="Ex.: bomba, DN 300, cota…" aria-label="Buscar texto na folha" autocomplete="off">
+          <div id="pRes" aria-live="polite"></div>
+          <h2>Layers CAD</h2>
+          <label class="linhaC" style="grid-template-columns:18px 1fr"><input type="checkbox" id="pTextos" checked><span>Mostrar textos</span></label>
+          <div id="pArv"></div>
+        </div>
+      </div>
+      <div class="aba" id="aba-escopo" hidden></div>
       <div class="aba" id="aba-anotacoes" hidden>
         <h2>Autor</h2>
         <input type="text" id="autor" placeholder="Seu nome (fica nas anotações que você criar)">
@@ -211,6 +353,36 @@ dialog textarea{height:260px;font:11.5px var(--f-dado)}
         <option value="drone">Drone × satélite</option>
         <option value="projeto">Com projeto × sem projeto</option>
       </select>
+      <section id="folha" hidden aria-label="Folha inteira da prancha">
+        <div class="fbarra">
+          <button class="btn" id="fVoltar" title="Voltar ao mapa">&larr; Mapa</button>
+          <strong id="fTit"></strong>
+          <button class="btn" id="fMenos" aria-label="Diminuir zoom">&minus;</button>
+          <button class="btn" id="fMais" aria-label="Aumentar zoom">+</button>
+          <button class="btn" id="fAjustar">Enquadrar</button>
+          <button class="btn" id="fGirar" title="Girar a folha 90°">Girar</button>
+        </div>
+        <div id="fPalco" tabindex="0" role="application" aria-label="Folha da prancha. Setas movem, mais e menos aproximam, zero enquadra.">
+          <canvas id="fCv"></canvas><canvas id="fOv"></canvas>
+          <div id="fCarga" hidden>Carregando o vetor da prancha…</div>
+        </div>
+        <div class="frodape" id="fRod"><span id="fPos">&nbsp;</span></div>
+      </section>
+      <section id="vista3d" hidden aria-label="Modelo 3D">
+        <div class="barra3d"><button class="btn" id="v3Voltar">&larr; Mapa</button><strong id="v3Tit">Modelo 3D</strong></div>
+        <canvas id="c3d" tabindex="0" aria-label="Nuvem de pontos 3D. Arraste para girar, role para aproximar."></canvas>
+        <p id="msg3d" hidden></p>
+        <details class="painel3d" open>
+          <summary>Controles 3D</summary>
+          <div class="corpo">
+            <label>Cor dos pontos<select id="v3Cor"><option value="foto">Cores da foto</option><option value="altura">Por altura</option></select></label>
+            <label>Tamanho do ponto <input type="range" id="v3Tam" min="1" max="8" step=".5" value="2"></label>
+            <div class="lin"><label><input type="checkbox" id="v3Cam" checked> Câmeras</label><label><input type="checkbox" id="v3Pr" checked> Pranchas</label></div>
+            <div class="lin"><button class="btn mini" id="v3Medir" aria-pressed="false">Medir</button><button class="btn mini" id="v3Topo">Vista de cima</button><button class="btn mini" id="v3Reset">Enquadrar</button></div>
+            <div id="r3d" aria-live="polite">Clique numa câmera para ver a foto.</div>
+          </div>
+        </details>
+      </section>
       <div id="status"><span>E <b id="sE">—</b></span><span>N <b id="sN">—</b></span><span id="sLL"></span><span class="sob" id="sSob"></span></div>
     </div>
   </main>
@@ -222,7 +394,18 @@ dialog textarea{height:260px;font:11.5px var(--f-dado)}
   <div class="btns" style="margin-top:8px"><button class="btn prim" id="dlgCopiar">Copiar</button><button class="btn" id="dlgBaixar" hidden>Baixar arquivo</button><span class="aviso" id="dlgMsg" style="margin:auto 0"></span></div>
 </dialog>
 
+<dialog id="dlgFoto" aria-labelledby="fotoTit">
+  <div class="cab-dlg"><h3 id="fotoTit">Foto do drone</h3><button class="btn" id="fotoFechar">Fechar</button></div>
+  <figure><img id="fotoImg" alt=""><figcaption id="fotoLeg"></figcaption></figure>
+  <div class="btns" style="margin-top:8px"><button class="btn" id="fotoAnt">&larr; Anterior</button><button class="btn" id="fotoProx">Próxima &rarr;</button></div>
+</dialog>
+<dialog id="dlgInfo" aria-labelledby="infoTit">
+  <div class="cab-dlg"><h3 id="infoTit"></h3><button class="btn" id="infoFechar">Fechar</button></div>
+  <div id="infoCorpo"></div>
+</dialog>
+
 <!--__LEAFLET_JS__-->
+<!--__THREE_JS__-->
 <script>
 "use strict";
 const D = /*__DADOS__*/null;
@@ -234,6 +417,7 @@ const A = D.crs.ll2utm, B = D.crs.utm2ll;
 const ll2utm = ll => [A[0] * ll.lng + A[1] * ll.lat + A[2], A[3] * ll.lng + A[4] * ll.lat + A[5]];
 const utm2ll = (E, N) => L.latLng(B[3] * E + B[4] * N + B[5], B[0] * E + B[1] * N + B[2]);
 const fmtUTM = ([E, N]) => `E ${fmt(E)}  N ${fmt(N)}`;
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
 
 $("#titulo").textContent = D.titulo;
 $("#subtitulo").textContent = D.subtitulo;
@@ -244,7 +428,7 @@ const map = L.map("mapa", {zoomControl: false, maxZoom: 24, zoomSnap: .25, wheel
 map.attributionControl.setPrefix(false);
 L.control.zoom({position: "bottomright"}).addTo(map);
 L.control.scale({imperial: false, position: "bottomleft", maxWidth: 140}).addTo(map);
-for (const [nome, z] of [["drone", 250], ["projeto", 350]]) {
+for (const [nome, z] of [["drone", 250], ["projeto", 350], ["pranchas", 420]]) {
   const p = map.createPane(nome); p.style.zIndex = z; p.classList.add("sem-clique");
 }
 
@@ -281,10 +465,26 @@ for (const b of D.bases) {
   camadasMapa[b.id] = {layer: lay, nome: b.nome, grupo: b.grupo, img, base: b};
   if (b.visivel) lay.addTo(map);
 }
+const COR_CAM = {nadir: "#f5c518", obliqua: "#f97316"};   // mesmas cores das pirâmides do 3D
 for (const v of D.vetores) {
-  const lay = L.geoJSON(v.geojson, {style: () => v.estilo, pane: "overlayPane",
-    onEachFeature: (f, l) => l.bindPopup(`<div class="pop">${Object.entries(f.properties || {}).map(([k, x]) => `<div><b>${k}</b>: ${x}</div>`).join("")}</div>`)});
-  camadasMapa[v.id] = {layer: lay, nome: v.nome, grupo: v.grupo};
+  const fotos = !!(v.fotos && D.fotos);   // vetor "cameras": clique abre a foto do drone num diálogo
+  const geo = L.geoJSON(v.geojson, {pane: "overlayPane",
+    style: f => fotos ? {...v.estilo, color: COR_CAM[f.properties.tipo] || v.estilo.color, weight: 3} : v.estilo,
+    onEachFeature: (f, l) => {
+      const p = f.properties || {};
+      if (fotos && p.foto) l.on("click", ev => { L.DomEvent.stopPropagation(ev); abrirFoto(p.foto); });
+      else l.bindPopup(`<div class="pop">${Object.entries(p).map(([k, x]) => `<div><b>${esc(k)}</b>: ${esc(x)}</div>`).join("")}</div>`);
+    }});
+  let lay = geo;
+  if (fotos) {   // marca a posição da câmera (alvo de clique maior que a linha de visada)
+    const marcas = v.geojson.features.filter(f => f.properties?.foto).map(f => {
+      const [lng, lat] = f.geometry.coordinates[0];
+      return L.circleMarker([lat, lng], {pane: "overlayPane", radius: 7, color: "#fff", weight: 2, fillOpacity: 1,
+        fillColor: COR_CAM[f.properties.tipo] || "#f5c518"}).on("click", ev => { L.DomEvent.stopPropagation(ev); abrirFoto(f.properties.foto); });
+    });
+    lay = L.featureGroup([geo, ...marcas]);
+  }
+  camadasMapa[v.id] = {layer: lay, nome: v.nome, grupo: v.grupo, etapa: v.etapa, on: !!v.visivel};
   if (v.visivel) lay.addTo(map);
 }
 const enquadrar = () => { const b = Object.values(camadasMapa).find(c => c.base); if (b) map.fitBounds(b.layer.bounds(), {padding: [20, 20]}); };
@@ -372,7 +572,7 @@ function montarPainel() {
   for (const [g, itens] of Object.entries(grupos)) {
     h += `<details class="grupo" open><summary>${g}</summary>`;
     for (const [id, c] of itens) {
-      h += linhaCamada(id, c.nome, map.hasLayer(c.layer));
+      h += linhaCamada(id, c.nome, map.hasLayer(c.layer), c.etapa ? `<span class="sw" style="background:${ETAPA_COR[c.etapa] || "var(--mut)"}"></span>` : "");
       if (id === "satelite") h += `<p class="aviso erro" id="aviso-sat" ${satErro ? "" : "hidden"}>Satélite indisponível aqui: precisa de internet e é bloqueado em visualizadores restritos. Abra o HTML localmente.</p>`;
       if (c.base) h += `<div class="ajuste"><span>Opacidade</span><input type="range" id="op-${id}" min="0" max="100" value="100">
         <span>Brilho</span><input type="range" id="br-${id}" min="30" max="140" value="100">
@@ -397,11 +597,13 @@ function montarPainel() {
       h += `<div class="pend"><input type="checkbox" disabled aria-label="${p}"><span>${p}</span><span class="tag">a extrair</span></div>`;
     h += `</details>`;
   }
+  h += htmlPranchasCamadas() + htmlSondagensCamadas();
   h += `<details class="grupo" open><summary>Anotações</summary>${linhaCamada("anot", "Medições e notas", true)}${linhaCamada("rotulos", "Rótulos com valores", true)}</details>`;
   abaC.innerHTML = h;
+  ligarPranchasCamadas(); ligarSondagensCamadas();
 
   for (const [id, c] of Object.entries(camadasMapa)) {
-    $("#v-" + id).onchange = e => e.target.checked ? c.layer.addTo(map) : map.removeLayer(c.layer);
+    $("#v-" + id).onchange = e => { c.on = e.target.checked; sincCamada(c); };
     if (c.base) {
       const up = () => { c.img.style.opacity = $("#op-" + id).value / 100;
         c.img.style.filter = `brightness(${$("#br-" + id).value / 100}) saturate(${$("#sa-" + id).value / 100})`; };
@@ -513,7 +715,6 @@ function listar() {
   });
   editor();
 }
-const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
 function selecionar(id, zoom) {
   selId = id; abrirAba("anotacoes"); listar(); desenharAnotacoes();
   const f = anot.features.find(f => f.properties.id === id);
@@ -563,10 +764,10 @@ $("#fDisc").innerHTML += Object.keys(DISC).map(d => `<option>${d}</option>`).joi
 $("#fDisc").onchange = $("#fStatus").onchange = listar;
 
 /* exportar / importar */
-function dialogo(titulo, txt, nomeArq, mime) {
+function dialogo(titulo, txt, nomeArq, mime, bom = false) {
   $("#dlgTit").textContent = titulo; $("#dlgTxt").value = txt; $("#dlgMsg").textContent = "";
   const b = $("#dlgBaixar"); b.hidden = window.self !== window.top;   // download só funciona fora de visualizadores embutidos
-  b.onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], {type: mime})); a.download = nomeArq; a.click(); };
+  b.onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([(bom ? "\ufeff" : "") + txt], {type: mime})); a.download = nomeArq; a.click(); };
   $("#dlgCopiar").onclick = () => navigator.clipboard?.writeText(txt).then(() => $("#dlgMsg").textContent = "Copiado.")
     .catch(() => { $("#dlgTxt").select(); $("#dlgMsg").textContent = "Texto selecionado: use Ctrl+C."; });
   $("#dlg").showModal();
@@ -597,7 +798,8 @@ $("#impArq").onchange = async e => {
 };
 
 /* ---------- ferramentas ---------- */
-const FERR = [["navegar", "Navegar"], ["distancia", "Distância"], ["area", "Área"], ["angulo", "Ângulo"], ["ponto", "Coordenada"], ["nota", "Nota"], ["-"], ["swipe", "Comparar"], ["enquadrar", "Enquadrar"]];
+const FERR = [["navegar", "Navegar"], ["distancia", "Distância"], ["area", "Área"], ["angulo", "Ângulo"], ["ponto", "Coordenada"], ["nota", "Nota"], ["-"], ["swipe", "Comparar"],
+  ...(D.modelo3d ? [["3d", "3D"]] : []), ["enquadrar", "Enquadrar"]];
 const DICAS = {distancia: "Clique nos vértices · duplo clique ou Enter conclui", area: "Clique nos vértices · duplo clique ou Enter fecha o polígono",
   angulo: "Clique: ponto A, vértice, ponto B", ponto: "Clique para ler a coordenada", nota: "Clique onde quer a nota técnica"};
 $("#ferramentas").innerHTML = FERR.map(([id, r]) => id === "-" ? "<hr>" :
@@ -606,8 +808,9 @@ let ferramenta = "navegar", pts = [], temp = L.layerGroup().addTo(map);
 function usar(t) {
   if (t === "enquadrar") return enquadrar();
   if (t === "swipe") return alternarSwipe();
-  ferramenta = t; pts = []; temp.clearLayers();
-  FERR.forEach(([id]) => { const b = $("#b-" + id); if (b && id !== "swipe") b.setAttribute("aria-pressed", id === t); });
+  if (t === "3d") return abrir3D();
+  ferramenta = t; pts = []; temp.clearLayers(); mostrarSnap(null);
+  FERR.forEach(([id]) => { const b = $("#b-" + id); if (b && id !== "swipe" && id !== "3d") b.setAttribute("aria-pressed", id === t); });
   t === "navegar" ? map.doubleClickZoom.enable() : map.doubleClickZoom.disable();
   map.getContainer().style.cursor = t === "navegar" ? "" : "crosshair";
   atualizarDica();
@@ -640,13 +843,15 @@ function concluir() {
 }
 map.on("click", e => {
   if (ferramenta === "navegar") {
-    const sob = camadasEm(e.latlng), u = ll2utm(e.latlng);
-    if (sob.length) L.popup({maxWidth: 280}).setLatLng(e.latlng).setContent(`<div class="pop">${sob.map(s => `<div><span class="disc" style="display:inline-block;background:${s.cor}"></span> <b>${esc(s.camada)}</b></div>`).join("")}<div class="aviso" style="margin:2px 0 0">${esc(sob[0].folha)}</div><div class="coord">${fmtUTM(u)}</div></div>`).openOn(map);
+    const sob = camadasEm(e.latlng), u = ll2utm(e.latlng), idv = identificarPranchas(e.latlng);
+    if (sob.length || idv.length) L.popup({maxWidth: 300}).setLatLng(e.latlng).setContent(`<div class="pop">${idv.map(h => h.html).join("")}${sob.map(s => `<div><span class="disc" style="display:inline-block;background:${s.cor}"></span> <b>${esc(s.camada)}</b></div>`).join("")}${sob.length ? `<div class="aviso" style="margin:2px 0 0">${esc(sob[0].folha)}</div>` : ""}<div class="coord">${fmtUTM(u)}</div></div>`).openOn(map);
+    destacarIdentificados(idv);
     return;
   }
+  const alvo = snapMapa(e.latlng)?.ll || e.latlng;   // grudar nos vértices das pranchas visíveis
   const ult = pts.at(-1);
-  if (ult && map.latLngToContainerPoint(ult).distanceTo(e.containerPoint) < 4) return;   // clique duplo
-  pts.push(e.latlng);
+  if (ult && map.latLngToContainerPoint(ult).distanceTo(map.latLngToContainerPoint(alvo)) < 4) return;   // clique duplo
+  pts.push(alvo);
   if (ferramenta === "ponto" || ferramenta === "nota") { novaAnotacao(ferramenta, pts); pts = []; temp.clearLayers(); return; }
   if (ferramenta === "angulo" && pts.length === 3) { novaAnotacao("angulo", pts); pts = []; temp.clearLayers(); atualizarDica(); return; }
   desenharTemp(); atualizarDica(pts.length > 1 ? medir(ferramenta, pts).texto : "");
@@ -662,7 +867,9 @@ map.on("mousemove", e => {
     $("#sLL").textContent = `${e.latlng.lat.toFixed(6)}°  ${e.latlng.lng.toFixed(6)}°`;
     const sob = ferramenta === "navegar" ? camadasEm(e.latlng) : [];
     $("#sSob").textContent = sob.length ? "Sob o cursor: " + sob.map(s => s.camada).join(", ") : "";
-    if (pts.length) desenharTemp(e.latlng);
+    const sn = ferramenta !== "navegar" ? snapMapa(e.latlng) : null;
+    mostrarSnap(sn);
+    if (pts.length) desenharTemp(sn ? sn.ll : e.latlng);
   });
 });
 document.addEventListener("keydown", e => {
@@ -680,14 +887,15 @@ function alternarSwipe() {
   swipeX = map.getSize().x / 2; aplicarClip();
 }
 function aplicarClip() {
-  const modo = $("#swipeModo").value, alvo = map.getPane(modo), outro = map.getPane(modo === "drone" ? "projeto" : "drone");
-  outro.style.clip = "";
+  const modo = $("#swipeModo").value, alvo = map.getPane(modo), outro = map.getPane(modo === "drone" ? "projeto" : "drone"), pv = map.getPane("pranchas");
+  outro.style.clip = ""; pv.style.clip = "";
   $("#swEsq").textContent = modo === "drone" ? "Drone" : "Com projeto";
   $("#swDir").textContent = modo === "drone" ? "Satélite" : "Sem projeto";
   if (!swipeOn) { alvo.style.clip = ""; return; }
   $("#swipe").style.left = swipeX + "px";
   const nw = map.containerPointToLayerPoint([0, 0]), se = map.containerPointToLayerPoint(map.getSize()), cx = map.containerPointToLayerPoint([swipeX, 0]).x;
   alvo.style.clip = `rect(${nw.y}px, ${cx}px, ${se.y}px, ${nw.x}px)`;
+  if (modo === "projeto") pv.style.clip = alvo.style.clip;   // as pranchas vetoriais também são "projeto"
 }
 $("#swipeModo").onchange = aplicarClip;
 map.on("move zoom resize zoomend", aplicarClip);
@@ -702,7 +910,10 @@ $("#swAlca").addEventListener("pointerdown", e => {
 /* ---------- abas e informações ---------- */
 function abrirAba(a) {
   document.querySelectorAll(".abas button").forEach(b => b.setAttribute("aria-selected", b.dataset.aba === a));
-  ["camadas", "anotacoes", "info"].forEach(x => $("#aba-" + x).hidden = x !== a);
+  ["camadas", "pranchas", "escopo", "anotacoes", "info"].forEach(x => $("#aba-" + x).hidden = x !== a);
+  document.querySelector("aside").classList.toggle("larga", a === "escopo");   // a tabela de escopo precisa de largura
+  // a folha inteira só aparece enquanto a aba Pranchas está aberta; as outras abas voltam ao mapa
+  if (a === "pranchas" && FV.P) mostrarVista("folha"); else if (vista === "folha") mostrarVista("mapa");
 }
 document.querySelectorAll(".abas button").forEach(b => b.onclick = () => abrirAba(b.dataset.aba));
 $("#aba-info").innerHTML = `<h2>Levantamento e georreferenciamento</h2>
@@ -712,7 +923,9 @@ $("#aba-info").innerHTML = `<h2>Levantamento e georreferenciamento</h2>
   <h2>Atalhos</h2>
   <table class="info"><tr><td><kbd>Enter</kbd> / duplo clique</td><td>Conclui distância ou área</td></tr>
   <tr><td><kbd>Backspace</kbd></td><td>Desfaz o último vértice</td></tr><tr><td><kbd>Esc</kbd></td><td>Volta a navegar</td></tr>
-  <tr><td>Clique numa linha do projeto</td><td>Mostra a camada e a coordenada</td></tr></table>`;
+  <tr><td>Clique numa linha do projeto</td><td>Mostra a camada e a coordenada</td></tr>
+  <tr><td>Clique num traço de prancha</td><td>Identifica prancha, layer, comprimento e área</td></tr>
+  <tr><td>Medindo</td><td>Os pontos grudam nos vértices das pranchas visíveis (8 px)</td></tr></table>`;
 
 montarPainel();
 listar(); desenharAnotacoes();
