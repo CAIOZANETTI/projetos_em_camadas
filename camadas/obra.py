@@ -96,6 +96,26 @@ def _aplicar_deslocamento(out: Path, desloc: np.ndarray) -> None:
                           {k: v for k, v in meta.items() if k not in ("epsg", "canto_sup_esq", "res_m_px")})
 
 
+def etapa_controle_vertical(cfg: dict, out: Path, desloc: np.ndarray, epsg: int) -> dict | None:
+    """Plano z_nuvem -> cota pelas cotas de boca das sondagens (`controle_vertical` no obra.json)."""
+    c = cfg.get("controle_vertical")
+    if not c:
+        return None
+    pontos = {}
+    for f in sondagens(cfg, epsg):
+        if f.get("E") and f.get("N") and f.get(c.get("campo_cota", "cota_boca")) is not None:
+            chave = f["id"].rstrip("A") if c.get("juntar_variantes_A", True) else f["id"]
+            pontos.setdefault(chave, {"id": chave, "E": f["E"], "N": f["N"], "cota": f[c.get("campo_cota", "cota_boca")]})
+    xyz = np.load(out / "sfm" / "nuvem.npz")["xyz"] - [desloc[0], desloc[1], 0.0]
+    ajuste = sfm.ajustar_vertical(xyz, list(pontos.values()))
+    ajuste["fonte"] = c.get("fonte", "")
+    (out / "sfm" / "ajuste_vertical.json").write_text(json.dumps(ajuste, indent=1, ensure_ascii=False))
+    if ajuste["ok"]:
+        _log(f"Controle vertical: {ajuste['modelo']} em {ajuste['usados']} pontos, validação cruzada "
+             f"{ajuste['rms_validacao_cruzada_m']:.2f} m; descartados {ajuste['descartados']}, sem nuvem {ajuste['sem_nuvem']}")
+    return ajuste if ajuste["ok"] else None
+
+
 # 2 ---------------------------------------------------------------------------
 def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
     """Georreferencia cada prancha (cache em pranchas/<id>.json)."""
@@ -290,10 +310,17 @@ def etapa_escopo(cfg: dict) -> dict | None:
 
 
 # 4 ---------------------------------------------------------------------------
-def modelo3d(out: Path, rel: dict, max_pontos: int, desloc=(0.0, 0.0)) -> dict:
+def modelo3d(out: Path, rel: dict, max_pontos: int, desloc=(0.0, 0.0), vertical: dict | None = None) -> dict:
+    """Nuvem e câmeras no referencial absoluto; com controle vertical, z em cota."""
     d = np.load(out / "sfm" / "nuvem.npz")
     xyz = d["xyz"] - [desloc[0], desloc[1], 0.0]
-    return sfm.pacote_visualizador(xyz, d["rgb"], rel["cameras"], max_pontos=max_pontos)
+    cams = rel["cameras"]
+    if vertical:
+        xyz = sfm.aplicar_vertical(xyz, vertical)
+        cams = [{**c, "centro": sfm.aplicar_vertical(np.array([c["centro"]], float), vertical)[0].tolist()} for c in cams]
+    pacote = sfm.pacote_visualizador(xyz, d["rgb"], cams, max_pontos=max_pontos)
+    pacote["referencia_z"] = "cota (m), plano ajustado às sondagens" if vertical else "altura sobre a decolagem (m)"
+    return pacote
 
 
 def fotos_obliquas(cfg: dict, rel: dict, lado: int = 1400) -> dict:
@@ -460,6 +487,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     rel = etapa_sfm(cfg, out, "sfm" in refazer)
     epsg = rel["epsg"]
     desloc = etapa_controle_absoluto(cfg, out, "sfm" in refazer)   # remedir exige ortofoto nova
+    vertical = etapa_controle_vertical(cfg, out, desloc, epsg)
     for c in rel["cameras"]:                          # câmeras no referencial absoluto
         c["centro"] = [c["centro"][0] - desloc[0], c["centro"][1] - desloc[1], c["centro"][2]]
     orto = json.loads((out / "sfm" / "ortofoto.json").read_text())
@@ -469,6 +497,8 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     lista, vetores, pendentes = [], [], {}
     for p in pranchas:
         lista.append(prancha_vetorial(p, [e0, n0, e1, n1]))
+        if lista[-1]["M"] is not None:
+            lista[-1]["quantitativos"] = pdf_cad.quantitativos(lista[-1])
         if p.get("M") is None:
             pendentes.setdefault(p.get("disciplina", "Geral"), []).append(
                 f"{p['nome']} — sem georreferência ({p.get('motivo', '')}); veja na aba Pranchas")
@@ -495,6 +525,18 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         if v:
             vetores.append(v)
     escopo = etapa_escopo(cfg)
+    furos = sondagens(cfg, epsg)
+    if vertical:                                      # boca do furo × terreno da nuvem já em cota, por furo
+        por_id = {l["id"]: l for l in vertical["pontos"]}
+        for s in furos:
+            l = por_id.get(s["id"]) or por_id.get(s["id"].rstrip("A"))
+            if l:
+                terreno = (None if l["z_nuvem"] is None else
+                           float(sfm.aplicar_vertical(np.array([[l["E"], l["N"], l["z_nuvem"]]]), vertical)[0, 2]))
+                s["controle_vertical"] = {
+                    "situacao": "sem nuvem" if terreno is None else "descartado" if l.get("descartado") else "usado",
+                    "terreno_m": None if terreno is None else round(terreno, 2),
+                    "diferenca_m": None if terreno is None else round(l["cota"] - terreno, 2)}
     n_obl = sum(c["tipo"] == "obliqua" for c in rel["cameras"])
     dados = {
         "id": cfg["id"], "titulo": cfg["titulo"], "titulo_curto": cfg.get("titulo_curto", cfg["titulo"]),
@@ -508,8 +550,9 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "intervencoes": json.loads((pdf_cad.CONCEITOS / "intervencoes.json").read_text(encoding="utf-8"))["intervencoes"],
         "cronograma": None,
         "escopo": escopo,
-        "sondagens": sondagens(cfg, epsg),
-        "modelo3d": modelo3d(out, rel, cfg.get("max_pontos_3d", 300_000), desloc),
+        "sondagens": furos,
+        "modelo3d": modelo3d(out, rel, cfg.get("max_pontos_3d", 300_000), desloc, vertical),
+        "vertical": vertical,
         "fotos": fotos_obliquas(cfg, rel),
         "anotacoes": {"type": "FeatureCollection", "features": []},
         "info": [
@@ -522,7 +565,11 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
                 " — sem pontos de controle em campo")],
             ["Ortofoto", f"verdadeira (MDS da nuvem), {orto['res_m_px'] * 100:.0f} cm/px; embutida a "
                          f"{res_html * 100:.0f} cm/px"],
-            ["Nuvem 3D", f"{rel['n_pontos']:,} pontos (Z = altura sobre a decolagem)".replace(",", ".")],
+            ["Nuvem 3D", f"{rel['n_pontos']:,} pontos".replace(",", ".") + (
+                " (Z em cota)" if vertical else " (Z = altura sobre a decolagem)")],
+            *([["Cotas", f"plano ajustado a {vertical['usados']} furos SPT ({vertical['fonte']}); validação cruzada "
+                         f"{vertical['rms_validacao_cruzada_m']:.2f} m; descartados (copa/edificação) "
+                         f"{', '.join(vertical['descartados']) or '—'}"]] if vertical else []),
             *[[f"Prancha {f['id']}", f"{f['georef']['motivo']}; resíduo "
                                      f"{(f['georef']['residuo_mediano_m'] or 0) * 100:.0f} cm"]
               for f in lista if f["M"] is not None],
@@ -544,7 +591,10 @@ def etapa_sig(out: Path, dados: dict, pranchas: list, epsg: int) -> None:
     from . import sig
     pasta = out / "sig"
     sig.geotiff(out / "sfm" / "ortofoto.jpg", pasta / "ortofoto.tif")
-    sig.geotiff(out / "sfm" / "ortofoto_mds.png", pasta / "mds.tif", mds=True)
+    vertical = dados.get("vertical")
+    sig.geotiff(out / "sfm" / "ortofoto_mds.png", pasta / "mds.tif", mds=True, correcao_z=(
+        lambda E, N: sfm.aplicar_vertical(np.c_[E.ravel(), N.ravel(), np.zeros(E.size)], vertical)[:, 2].reshape(E.shape))
+        if vertical else None)
     for p, pv in zip(pranchas, dados["pranchas"]):
         if p.get("M") is not None:
             sig.pontos_qgis(np.asarray(p["M"]), pv["clip_mapa"], pasta / "pontos" / f"{p['id']}.points", epsg)

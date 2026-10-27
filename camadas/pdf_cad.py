@@ -384,3 +384,47 @@ def desempacotar(pacotes: list[np.ndarray], n: int) -> list[np.ndarray]:
     for p in pacotes:
         m += [p[..., 2], p[..., 1], p[..., 0]]
     return m[:n]
+
+
+def decodificar_pacote(pacote: dict) -> tuple[np.ndarray, np.ndarray]:
+    """Inverso de `pacote_vetorial`: (pontos em pt (N×2), partes (P×4): n_pontos, layer, estilo, flags)."""
+    import base64
+    import gzip
+    deltas = np.frombuffer(gzip.decompress(base64.b64decode(pacote["coords"])), "<i4").reshape(-1, 2)
+    partes = np.frombuffer(gzip.decompress(base64.b64decode(pacote["partes"])), "<u4").reshape(-1, 4)
+    return np.cumsum(deltas.astype(np.int64), axis=0) / 10, partes
+
+
+def quantitativos(pacote: dict) -> list[dict]:
+    """Comprimento de traço (m) e área preenchida (m²) por layer CAD dentro de `clip_mapa`, pela afim pt -> UTM.
+
+    É medida do desenho, não do objeto: tubulação em linha dupla conta duas vezes, hachura e texto em curvas ficam
+    de fora (só a contagem). Serve para conferir ordem de grandeza contra o orçamento, não para substituí-lo.
+    """
+    pontos_pt, partes = decodificar_pacote(pacote)
+    afim = np.asarray(pacote["M"], float).reshape(2, 3)
+    utm = pontos_pt @ afim[:, :2].T + afim[:, 2]
+    n_pontos = partes[:, 0].astype(np.int64)
+    inicio = np.r_[0, np.cumsum(n_pontos)[:-1]]
+    x0, y0, x1, y1 = pacote["clip_mapa"] or (0, 0, pacote["largura"], pacote["altura"])
+    dentro = ((np.maximum.reduceat(pontos_pt[:, 0], inicio) >= x0) & (np.minimum.reduceat(pontos_pt[:, 0], inicio) <= x1)
+              & (np.maximum.reduceat(pontos_pt[:, 1], inicio) >= y0) & (np.minimum.reduceat(pontos_pt[:, 1], inicio) <= y1))
+    segmento = np.r_[np.hypot(*np.diff(utm, axis=0).T), 0.0]
+    segmento[np.cumsum(n_pontos) - 1] = 0.0                      # sem o salto entre o fim de uma parte e a próxima
+    comprimento = np.add.reduceat(segmento, inicio)
+    cruzado = utm[:, 0] * np.roll(utm[:, 1], -1) - np.roll(utm[:, 0], -1) * utm[:, 1]
+    fim = np.cumsum(n_pontos) - 1
+    cruzado[fim] = utm[fim, 0] * utm[inicio, 1] - utm[inicio, 0] * utm[fim, 1]   # fecha cada anel no próprio início
+    area = np.abs(np.add.reduceat(cruzado, inicio)) / 2
+    preenchido = (partes[:, 3] & 2) > 0
+    linhas = []
+    for indice, layer in enumerate(pacote["layers"]):
+        sel = dentro & (partes[:, 1] == indice)
+        if not sel.any():
+            continue
+        ignorado = bool(re.search(r"HACHURA|TEXTO|TXT|CARIMBO|LOGO", layer["nome"], re.I))
+        linhas.append({"layer": layer["nome"], "grupo": layer.get("grupo"), "subgrupo": layer.get("subgrupo"),
+                       "classe": layer.get("classe"), "n_partes": int(sel.sum()),
+                       "comprimento_m": None if ignorado else round(float(comprimento[sel & ~preenchido].sum()), 2),
+                       "area_m2": None if ignorado else round(float(area[sel & preenchido].sum()), 2)})
+    return sorted(linhas, key=lambda l: -(l["comprimento_m"] or 0))

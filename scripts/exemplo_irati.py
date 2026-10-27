@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import base64
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -23,9 +22,8 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from camadas import geo, visualizador  # noqa: E402
-from camadas.mosaico import Mosaico  # noqa: E402
-from camadas.georef_prancha import registrar_imagem  # noqa: E402
+from camadas import geo, mosaico, visualizador
+from camadas.georef_prancha import registrar_imagem
 
 
 def ler_conceito(caminho: Path) -> dict:
@@ -58,9 +56,8 @@ def main():
 
     # 1. mosaico ------------------------------------------------------
     mos_path = out / "mosaico.jpg"
-    mosaico = Mosaico(a.fotos)
-    rel = mosaico.executar(mos_path, res=0.04)
-    epsg = mosaico.epsg
+    rel = mosaico.executar(a.fotos, mos_path, res=0.04)
+    epsg = rel["epsg"]
     mos = cv2.imread(str(mos_path))
     e0, n0, e1, n1 = rel["saida"]["extensao_utm"]
     res = rel["saida"]["res_m_px"]
@@ -169,13 +166,13 @@ def main():
         "anotacoes": {"type": "FeatureCollection", "features": anot},
         "info": [
             ["Sistema", f"{crs['nome']} (EPSG:{epsg})"],
-            ["Mosaico", f"{len(rel['fotos'])} fotos DJI {rel['fotos'][0]['modelo']}, altura ≈ "
-                        f"{np.median([f['alt_rel'] for f in rel['fotos']]):.0f} m"],
+            ["Mosaico", (f"{len(rel['fotos'])} fotos DJI {rel['fotos'][0]['modelo']}, altura ≈ "
+                        f"{np.median([f['alt_rel'] for f in rel['fotos']]):.0f} m")],
             ["GSD original", f"{aj.get('gsd_ajustado_m', 0) * 100:.1f} cm/px (embutido a {a.res_html * 100:.0f} cm/px)"],
             ["Costura entre fotos", f"mediana {aj.get('residuo_costura_m', {}).get('mediana', 0) * 100:.0f} cm"],
             ["Posição absoluta", f"GPS do drone, RMSE {aj.get('rmse_gps_m', 0):.1f} m (sem pontos de controle)"],
-            ["Folha 04/21", f"registrada no mosaico por {r['inliers']} pontos, resíduo "
-                            f"{r['residuo_px'] * res * 100:.0f} cm (herda o ajuste de 5 pontos do conceito, ≤ 0,5 m)"],
+            ["Folha 04/21", (f"registrada no mosaico por {r['inliers']} pontos, resíduo "
+                            f"{r['residuo_px'] * res * 100:.0f} cm (herda o ajuste de 5 pontos do conceito, ≤ 0,5 m)")],
             ["Fator de escala", f"k = {crs['k']:.5f} (projeção {crs['k_proj']:.5f} × altitude {crs['k_alt']:.5f})"],
         ],
     }

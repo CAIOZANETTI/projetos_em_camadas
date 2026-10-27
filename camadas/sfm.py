@@ -508,12 +508,68 @@ if __name__ == "__main__":
     main()
 
 
+def ajustar_vertical(xyz: np.ndarray, pontos: list[dict], raio_m: float = 2.0, min_pontos: int = 30) -> dict:
+    """Plano de correção z_nuvem -> cota a partir de pontos com cota conhecida no terreno (ex.: boca de sondagem).
+
+    Terreno no ponto = percentil 10 da nuvem num raio de 2 m (até 5 m se faltar ponto): descarta telhado e copa.
+    Ponto sob copa ou edificação dá diferença absurda e sai pela regra robusta (|resíduo| > max(3·MAD, 1,5 m) contra
+    a mediana). Com 6 ou mais pontos válidos ajusta cota = z + a + b·(E − E0) + c·(N − N0) — o SfM georreferenciado
+    pelo GPS do drone fica inclinado —; com menos, só o offset. A validação cruzada (deixa-um-fora) mede a qualidade.
+    `pontos`: [{"id", "E", "N", "cota"}] no mesmo referencial horizontal da nuvem.
+    """
+    linhas = []
+    for p in pontos:
+        dist = np.hypot(xyz[:, 0] - p["E"], xyz[:, 1] - p["N"])
+        for raio in (raio_m, raio_m * 1.5, raio_m * 2.5):
+            perto = dist < raio
+            if perto.sum() >= min_pontos:
+                break
+        z = float(np.percentile(xyz[perto, 2], 10)) if perto.sum() >= min_pontos else None
+        linhas.append({**p, "z_nuvem": z, "n_pontos": int(perto.sum()), "raio_m": raio})
+    validos = [l for l in linhas if l["z_nuvem"] is not None]
+    if not validos:
+        return {"ok": False, "motivo": "nenhum ponto com nuvem em volta", "pontos": linhas}
+    diferenca = np.array([l["cota"] - l["z_nuvem"] for l in validos])
+    mediana = np.median(diferenca)
+    limite = max(3 * 1.4826 * np.median(np.abs(diferenca - mediana)), 1.5)
+    for l, d in zip(validos, diferenca):
+        l["descartado"] = bool(abs(d - mediana) > limite)
+    usados = [l for l in validos if not l["descartado"]]
+    centro = np.mean([[l["E"], l["N"]] for l in usados], axis=0)
+    matriz = np.array([[1.0, l["E"] - centro[0], l["N"] - centro[1]] for l in usados])
+    alvo = np.array([l["cota"] - l["z_nuvem"] for l in usados])
+    colunas = 3 if len(usados) >= 6 else 1
+    coef = np.zeros(3)
+    coef[:colunas] = np.linalg.lstsq(matriz[:, :colunas], alvo, rcond=None)[0]
+    erros_cruzados = []
+    for i in range(len(usados)):
+        resto = np.arange(len(usados)) != i
+        ci = np.linalg.lstsq(matriz[resto, :colunas], alvo[resto], rcond=None)[0]
+        erros_cruzados.append(alvo[i] - matriz[i, :colunas] @ ci)
+    for l in usados:
+        l["residuo_m"] = round(float(l["cota"] - l["z_nuvem"] - coef @ [1, l["E"] - centro[0], l["N"] - centro[1]]), 3)
+    return {"ok": True, "modelo": "plano" if colunas == 3 else "offset", "offset_m": float(coef[0]),
+            "inclinacao_e": float(coef[1]), "inclinacao_n": float(coef[2]), "centro": centro.tolist(),
+            "rms_validacao_cruzada_m": float(np.sqrt(np.mean(np.square(erros_cruzados)))),
+            "usados": len(usados), "descartados": [l["id"] for l in validos if l["descartado"]],
+            "sem_nuvem": [l["id"] for l in linhas if l["z_nuvem"] is None], "pontos": linhas}
+
+
+def aplicar_vertical(xyz: np.ndarray, ajuste: dict) -> np.ndarray:
+    """z da nuvem -> cota pelo plano de `ajustar_vertical` (x, y no mesmo referencial do ajuste)."""
+    e0, n0 = ajuste["centro"]
+    cota = xyz.copy()
+    cota[:, 2] += ajuste["offset_m"] + ajuste["inclinacao_e"] * (xyz[:, 0] - e0) + ajuste["inclinacao_n"] * (xyz[:, 1] - n0)
+    return cota
+
+
 def metadados() -> dict:
     """Rastreabilidade: de onde vem cada método e constante deste módulo (regra 9 do estilo)."""
     return {
         "modulo": "sfm",
         "descricao": "3D por SfM (COLMAP), estéreo SGBM, georreferência por similaridade 3D, MDS e ortofoto verdadeira",
-        "funcoes": ["reconstruir", "georreferenciar", "cameras", "densificar", "filtrar", "mds", "ortofoto", "executar"],
+        "funcoes": ["reconstruir", "georreferenciar", "cameras", "densificar", "filtrar", "mds", "ortofoto", "executar",
+                    "ajustar_vertical", "aplicar_vertical"],
         "bibliografia": [
             {"obra": "Schönberger & Frahm — Structure-from-Motion Revisited (COLMAP)", "ano": 2016, "editora": "CVPR",
              "aplicacao": {"reconstruir": ["OPENCV (modelo de câmera)", "max_lado", "max_pontos"]}},
@@ -529,6 +585,9 @@ def metadados() -> dict:
              "fonte": "medido em Foz: nadirais a 3–4°, oblíquas a 41–42° da vertical; 20° separa com folga"},
             {"aplicacao": {"densificar": ["tol_m=1,0"], "pares_estereo": ["base_min=0,08", "base_max=1,0", "ang_max=50"]},
              "fonte": "calibrado em Foz (pares validados com desvio de 3–14 cm contra o SfM)"},
+            {"aplicacao": {"ajustar_vertical": ["raio_m=2,0", "min_pontos=30", "percentil 10", "max(3·MAD, 1,5 m)"]},
+             "fonte": "calibrado em Foz: 12 de 16 furos SPT usados, 3 sob copa/edificação descartados, 1 sem nuvem; "
+                      "plano com validação cruzada de 0,23 m contra 0,59 m do offset constante"},
             {"aplicacao": {"mds": ["fechar_telhado_m=2,0", "fechar_m=20"]},
              "fonte": "calibrado em Foz: corrigiu o prédio administrativo torto (buracos de telhado preenchidos como chão)"},
         ],

@@ -107,3 +107,13 @@ def test_sondagens_aceita_formato_meta_furos(tmp_path):
                                                      "epsg_inferido": 31981}]}))
     f = obra.sondagens({"sondagens": str(arq)}, 31981)
     assert f[0]["id"] == "SP-01" and -54.6 < f[0]["lon"] < -54.5 and -25.5 < f[0]["lat"] < -25.4
+
+
+def test_quantitativos_por_layer_em_metros(pdf_com_layers):
+    pac = pdf_cad.pacote_vetorial(pdf_com_layers, simplificar_pt=0)
+    pac["M"] = [0.1, 0, 1000.0, 0, -0.1, 2000.0]          # 0,1 m por pt
+    pac["clip_mapa"] = None
+    pac["layers"] = [{**l, "grupo": "Civil", "subgrupo": "Estrutura"} for l in pac["layers"]]
+    q = {l["layer"]: l for l in pdf_cad.quantitativos(pac)}
+    assert q["EXISTENTES"]["comprimento_m"] == pytest.approx(30.0, abs=0.01)     # 300 pt
+    assert q["_PROJETADOS"]["area_m2"] == pytest.approx(10.0 * 6.0, abs=0.01)    # 100 × 60 pt

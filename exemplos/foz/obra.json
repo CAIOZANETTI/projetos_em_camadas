@@ -688,5 +688,10 @@
   "pasta": "referencias/sanepar",
   "raio_m": 3000
  },
- "sig": true
+ "sig": true,
+ "controle_vertical": {
+  "fonte": "cota de boca dos furos SPT, relatório Geoazimute 2022 (SIRGAS 2000; datum vertical não declarado no relatório)",
+  "campo_cota": "cota_boca",
+  "juntar_variantes_A": true
+ }
 }

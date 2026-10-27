@@ -2,7 +2,7 @@
 
     saida/<obra>/sig/
         ortofoto.tif        RGB, SIRGAS 2000 / UTM, com overviews (abre rápido no QGIS)
-        mds.tif             float32, altura sobre a decolagem (m), nodata = -9999
+        mds.tif             float32, cota (m) quando há controle vertical, senão altura sobre a decolagem; nodata -9999
         obra.gpkg           camadas: etapas, supressao, sondagens, estacas, cameras e uma
                             camada de linhas por prancha (com layer CAD, grupo e subgrupo)
         pontos/<id>.points  pontos de controle no formato do Georreferenciador do QGIS
@@ -20,8 +20,10 @@ import cv2
 import numpy as np
 
 
-def geotiff(jpg_ou_png: str | Path, saida: str | Path, mds: bool = False) -> Path:
-    """Converte imagem + .json de georreferência (camadas.geo.salvar_georef) em GeoTIFF."""
+def geotiff(jpg_ou_png: str | Path, saida: str | Path, mds: bool = False, correcao_z=None) -> Path:
+    """Converte imagem + .json de georreferência (camadas.geo.salvar_georef) em GeoTIFF.
+    `correcao_z(E, N)` (opcional, só no MDS) devolve o que somar em cada célula — ex.: o plano que leva a altura sobre
+    a decolagem para cota (`sfm.ajustar_vertical`)."""
     import rasterio
     from rasterio.enums import Resampling
     from rasterio.transform import Affine
@@ -31,6 +33,9 @@ def geotiff(jpg_ou_png: str | Path, saida: str | Path, mds: bool = False) -> Pat
     res = meta["res_m_px"]
     if mds:
         a = cv2.imread(str(src), cv2.IMREAD_UNCHANGED).astype(np.float32) / 100 + meta["z_min_m"]
+        if correcao_z is not None:
+            linhas, colunas = np.indices(a.shape, dtype=np.float32)
+            a += correcao_z(e0 + (colunas + 0.5) * res, n1 - (linhas + 0.5) * res).astype(np.float32)
         bandas, dtype, nodata = a[None], "float32", -9999.0
     else:
         img = cv2.imread(str(src), cv2.IMREAD_COLOR)[..., ::-1]
@@ -75,13 +80,10 @@ def _geometrias_da_prancha(prancha: dict):
     Reaproveita o que o pacote já tem (sem reler o PDF): deltas Int32 -> pontos em pt -> UTM pela afim; só as partes
     que tocam `clip_mapa`; hachuras e texto ficam de fora (estão no HTML). Construção vetorizada do shapely 2.
     """
-    import base64
-    import gzip
     import re
     import shapely
-    deltas = np.frombuffer(gzip.decompress(base64.b64decode(prancha["coords"])), "<i4").reshape(-1, 2)
-    partes = np.frombuffer(gzip.decompress(base64.b64decode(prancha["partes"])), "<u4").reshape(-1, 4)
-    pontos_pt = np.cumsum(deltas.astype(np.int64), axis=0) / 10
+    from .pdf_cad import decodificar_pacote
+    pontos_pt, partes = decodificar_pacote(prancha)
     afim = np.asarray(prancha["M"], float).reshape(2, 3)
     utm = pontos_pt @ afim[:, :2].T + afim[:, 2]
     n_pontos, layer, flags = partes[:, 0].astype(np.int64), partes[:, 1], partes[:, 3]
