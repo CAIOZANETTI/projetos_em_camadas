@@ -35,6 +35,8 @@ de cada furo; furos em copa/edificação caem pela rejeição robusta (|d − me
 plano z → cota com ≥ 6 furos, senão só deslocamento. Critério: validação cruzada (deixa-um-fora) ≤ 0,5 m.
 `sfm.aplicar_vertical` leva nuvem, câmeras e MDS (GeoTIFF) para cota; o popup de cada sondagem mostra boca − terreno.
 Foz: plano em 12 furos, validação cruzada 0,23 m (a constante dava 0,59 m); descartados SP-03, SP-07, SP-16.
+Com o 3D em cota, `obra.sondagens_3d` põe o perfil de cada furo no 3D (camadas confirmadas na cor do solo, o resto em
+cinza, NA em azul) — sem controle vertical ele não entra, porque a nuvem não estaria em cota.
 
 ## Prédio torto na ortofoto
 Sinal de MDS sem dados no telhado (buraco preenchido com a cota do chão ⇒ paralaxe). Verifique a

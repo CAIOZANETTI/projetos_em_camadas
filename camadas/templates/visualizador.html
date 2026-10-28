@@ -456,7 +456,7 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
           <div class="corpo">
             <label>Cor dos pontos<select id="v3Cor"><option value="foto">Cores da foto</option><option value="altura">Por altura</option></select></label>
             <label>Tamanho do ponto <input type="range" id="v3Tam" min="1" max="8" step=".5" value="2"></label>
-            <div class="lin"><label><input type="checkbox" id="v3Cam" checked> Câmeras</label><label><input type="checkbox" id="v3Pr" checked> Pranchas</label><label><input type="checkbox" id="v3Est" checked> Estacas</label></div>
+            <div class="lin"><label><input type="checkbox" id="v3Cam" checked> Câmeras</label><label><input type="checkbox" id="v3Pr" checked> Pranchas</label><label><input type="checkbox" id="v3Est" checked> Estacas</label><label><input type="checkbox" id="v3Snd" checked> Sondagens</label></div>
           </div>
         </details>
       </section>
@@ -1652,6 +1652,17 @@ function pranchaDaTabela(tab) {
   return PR.find(p => semRev(p.d.pdf) === c) || null;
 }
 
+/* tubo principal de cada prancha: contrato × eixo medido no desenho (calculado no Python, escopo.tubo_x_desenho) */
+const TUBO_DES = D.escopo?.tubo_x_desenho || [];
+function htmlTuboDesenho() {
+  if (!TUBO_DES.length) return "";
+  return `<details class="pr-quant" style="margin:8px 0"><summary>Tubo: contrato × desenho (${TUBO_DES.length} pranchas)</summary>
+    <div style="overflow:auto"><table class="esc" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:62px"><col style="width:62px"><col style="width:62px"></colgroup>
+    <thead><tr><th>Prancha · tabela</th><th>Contrato</th><th>Desenho</th><th>Dif.</th></tr></thead><tbody>` +
+    TUBO_DES.map(t => `<tr><td class="d" style="overflow-wrap:anywhere">${esc(t.nome)}<span class="cod">tabela ${t.tabelas.map(esc).join(", ")} · ${esc(t.codigo)} · ${esc(t.descricao)}</span></td>` +
+      `<td>${fmt(t.contrato_m, 1)}</td><td>${t.desenho_m == null ? "—" : fmt(t.desenho_m, 1)}</td><td style="white-space:nowrap">${t.diferenca_pct == null ? "—" : (t.diferenca_pct > 0 ? "+" : "") + fmt(t.diferenca_pct, 1) + " %"}</td></tr>`).join("") +
+    `</tbody></table></div><p class="mut" style="font-size:11px;margin:4px 0 0">Contrato e desenho em metros. Desenho = eixo do tubo na janela da planta georreferenciada; inclui o trecho desenhado além da linha de corte (sobreposição com a folha vizinha).</p></details>`;
+}
 function montarEscopo() {
   const aba = $("#aba-escopo"), temEsc = ESC.length > 0;
   // áreas projetadas por etapa (manchas do mapa)
@@ -1668,6 +1679,7 @@ function montarEscopo() {
     <div class="filtros" style="margin-top:8px"><select id="eSit" aria-label="Situação do item"><option value="">Todas as situações</option><option value="escopo">No escopo</option><option value="fora">Fora do escopo</option><option value="verificar">Verificar</option><option value="nada">Sem marcação</option></select>
       <div class="btns" style="justify-content:flex-end"><button class="btn" id="eCsv">Exportar CSV</button></div></div>
     <div class="tot" id="eTot" aria-live="polite"></div>
+    ${htmlTuboDesenho()}
     <div id="eTabelas"></div>
     <p class="aviso" style="margin-left:0">Fonte: ${esc(D.escopo.fonte || "orçamento")}${D.escopo.fonte_cadastro ? "; especificação: " + esc(D.escopo.fonte_cadastro) : ""}. Sem preço: só o escopo do contrato. As marcações de situação ficam salvas neste navegador; “Fora do escopo” sai das contagens.</p>` : ""}`;
   aba.querySelector("#eChips").onclick = e => { const b = e.target.closest("button[data-etapa]"); if (b) definirEtapa(b.dataset.etapa || null); };
@@ -1719,6 +1731,7 @@ function renderEscopo() {
     return `<details class="esc-g" data-t="${esc(tab)}" ${abrirTodos || abertos.has(tab) ? "open" : ""}>
       <summary><span class="gt">Tabela ${esc(tab)} · ${esc(itens[0].nome_tabela)}</span><span class="gs">${itens.length} ${itens.length === 1 ? "item" : "itens"}${nAl ? ` · ⚠ ${nAl}` : ""}</span></summary>
       ${pr ? `<div class="btns" style="margin-bottom:6px"><button class="btn mini" data-desenho="${pr.id}">Abrir desenho: ${esc(pr.d.nome)}</button></div>` : ""}
+      ${(() => { const t = TUBO_DES.find(l => l.tabelas.includes(tab)); return t ? `<p class="nota-l" style="margin:0 0 6px">Tubo principal (${esc(t.codigo)}): contrato ${fmt(t.contrato_m, 1)} m × desenho ${t.desenho_m == null ? "—" : fmt(t.desenho_m, 1) + " m"}${t.diferenca_pct == null ? "" : ` (${t.diferenca_pct > 0 ? "+" : ""}${fmt(t.diferenca_pct, 1)} %)`}</p>` : ""; })()}
       <div class="esc-tab"><table class="esc"><thead><tr><th>Descrição</th><th>Un</th><th>Q 1ª</th><th>Q 2ª</th></tr></thead><tbody>
       ${itens.map(it => { const k = chaveItem(it); return `<tr data-sit="${sit[k] || ""}" ${it.alerta ? 'data-alerta="1"' : ""}>
         <td class="d">${esc(it.item)} · ${esc(descItem(it))}${it.alerta ? `<span class="esc-alerta">⚠ ${esc(it.alerta)}</span>` : ""}<span class="cod">${esc(it.codigo)}${it.local ? " · " + esc(it.local) : ""}${it.material ? " · " + esc(it.material) : ""}${it.etapa ? " · " + esc(it.etapa) : ""}</span>${it.cadastro ? `<span class="cod">Cadastro Sanepar: ${esc(cadItem(it.cadastro))}</span>` : ""}
@@ -1944,7 +1957,7 @@ function iniciar3D() {
   geo.setAttribute("color", new THREE.BufferAttribute(V3.rgb, 3, true));
   V3.mat = new THREE.PointsMaterial({size: +$("#v3Tam").value, sizeAttenuation: false, vertexColors: true});
   V3.pontos = new THREE.Points(geo, V3.mat); scene.add(V3.pontos);
-  v3Cameras(); v3Estacas();
+  v3Cameras(); v3Estacas(); v3Sondagens();
 
   // controles
   $("#v3Tam").oninput = e => { V3.mat.size = +e.target.value; pedir3D(); };
@@ -1952,6 +1965,7 @@ function iniciar3D() {
   $("#v3Cam").onchange = e => { V3.camGrupo.visible = e.target.checked; pedir3D(); };
   $("#v3Pr").onchange = () => { V3.sig = ""; v3Pranchas(); };
   $("#v3Est").onchange = e => { if (V3.estacas) V3.estacas.visible = e.target.checked; pedir3D(); };
+  $("#v3Snd").onchange = e => { if (V3.sond) V3.sond.visible = e.target.checked; pedir3D(); };
   $("#v3Topo").onclick = () => { const d = V3.extVista * 1.1, c = V3.centroVista; camera.position.set(c.x, c.y - d * .001, c.z + d); ctl.target.copy(c); ctl.update(); pedir3D(); };
   $("#v3Reset").onclick = () => { v3Enquadrar(); pedir3D(); };
   $("#v3Medir").onclick = () => v3Medir(!V3.medindo);
@@ -2025,6 +2039,28 @@ function v3EstacasEstado() {
     im.setMatrixAt(i, m); im.setColorAt(i, cor.set(e.f4 === 2 ? LARANJA : e.cor));
   });
   im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; pedir3D();
+}
+
+/* sondagens: perfil de cada furo em cota (segmentos, NA e fundo vêm prontos do Python, em modelo3d.sondagens).
+   Camada com limite confirmado tem a cor do solo; o trecho sem limite confirmado fica cinza. NA = disco azul. */
+function v3Sondagens() {
+  const SN = D.modelo3d.sondagens || [], cb = $("#v3Snd"); cb.disabled = !SN.length;
+  if (!SN.length) return;
+  const g = new THREE.CylinderGeometry(1, 1, 1, 12, 1, false); g.rotateX(Math.PI / 2);
+  const segs = SN.flatMap(s => s.segmentos.map(sg => ({s, sg}))), na = SN.filter(s => s.z_na != null);
+  const im = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({depthTest: false}), segs.length + na.length);
+  im.renderOrder = 6; im.frustumCulled = false;
+  const r = Math.max(0.5, V3.extensao / 250), m = new THREE.Matrix4(), q = new THREE.Quaternion(), cor = new THREE.Color();
+  segs.forEach(({s, sg}, i) => {
+    const h = Math.max(sg.z_topo - sg.z_base, 0.05);
+    m.compose(new THREE.Vector3(s.x, s.y, (sg.z_topo + sg.z_base) / 2), q, new THREE.Vector3(r, r, h));
+    im.setMatrixAt(i, m); im.setColorAt(i, cor.set(sg.confirmado ? corSolo(sg.classe, sg.descricao).replace(/hsl\((\d+) (\d+)% (\d+)%\)/, "hsl($1, $2%, $3%)") : "#9aa0a6"));
+  });
+  na.forEach((s, k) => {
+    m.compose(new THREE.Vector3(s.x, s.y, s.z_na), q, new THREE.Vector3(r * 1.8, r * 1.8, 0.08));
+    im.setMatrixAt(segs.length + k, m); im.setColorAt(segs.length + k, cor.set("#1e88e5"));
+  });
+  im.visible = cb.checked; V3.sond = im; V3.scene.add(im); pedir3D();
 }
 
 /* pranchas georreferenciadas visíveis no mapa, como linhas no nível do terreno */

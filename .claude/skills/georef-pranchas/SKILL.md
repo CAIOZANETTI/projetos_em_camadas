@@ -31,8 +31,14 @@ use-as como pontos de controle exatos.
    resíduo. O recorte do mapa vira a janela da malha — serve para adutoras fora do voo.
    Foz: 15 folhas (AAT00/01/02/06, urbanização, drenagem) com resíduo de mm a 29 cm; os marcos E/N impressos na
    AAT00-01 caíram a 0,20 e 0,23 m. **Rótulo errado no próprio desenho existe**: na AAT00-05 o 744200 aparece em
-   duas linhas a 200 m uma da outra e na AAT00-06 as linhas a 200 m dizem 743600 e 744000. Com 3 linhas não há
-   sobra para saber qual está errada — a folha fica pendente com o motivo.
+   duas linhas a 200 m uma da outra e na AAT00-06 as linhas a 200 m dizem 743600 e 744000. Com 3 linhas a malha
+   sozinha não sabe qual está errada; com a escala declarada sobram poucas afins (sentido do eixo × rótulo certo),
+   e a folha vizinha decide: `"continuidade": {"vizinha": "aat00_04", "layer": "SJMH_ADUTORA_TUBO"}` no obra.json
+   (`hipoteses_malha` + `escolher_por_continuidade`). Vence a hipótese em que o tubo **coincide** com o da vizinha
+   na área que as duas janelas têm em comum (metros com par a ≤ 1,5 m, nos dois sentidos; ≥ 10 m e ≥ 3× a 2ª).
+   Não use "menor sobreposição": cada folha desenha uma cauda de tamanho diferente além da emenda (21 m a ~190 m em
+   Foz) e esse critério escolheu errado na AAT00-06. Confira a escolha em imagem (tubos das folhas em cores).
+   Lotes e quadras não servem de testemunha aqui: as janelas de folhas vizinhas quase não se sobrepõem.
    **Croqui de localização engana o CAD × CAD**: ele é o mesmo em todas as folhas e casa consigo mesmo (a folha
    "herda" a afim da vizinha). Use `clip` na janela da planta antes de registrar folhas de uma mesma série.
 1. **Afim absoluta** — se algum elemento da prancha tem coordenada topográfica (furos de
