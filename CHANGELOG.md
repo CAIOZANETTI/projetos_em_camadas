@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.9.0 — 2026-10-28 · Foz, rodada 9: forma completa, fichas em lote e diagnóstico em código
+- **Forma completa** (`prancha.rotulos`, `prancha.pilares`): rótulos sob hachura lidos numa 2ª passada sobre o
+  recorte redesenhado sem a hachura (`desenho_sem_hachura`) → 41/41 blocos rotulados (antes 34); pilares como
+  manchas cheias quadradas dentro dos blocos → 12 pilares (P1–P12, 0,41 m), no mapa (`blocos_forma`) e na ficha.
+- **Fichas em lote** (`prancha.lote`, `ficha_leve`): toda prancha de desenho no disco ganha ficha (identidade,
+  vistas, escalas, tabelas, balões, objetos por classe); onde há balões, a completa (relação de materiais × balões
+  × contrato). Foz: 144 PDFs, 0 erro; 36 folhas com balões (2 685), 538 itens de relação lidos em 26 delas, 443 (82 %) com código no contrato, 1 864 balões (69 %) ligados a item. Aba Projeto: linha "Ficha" por item e filtro "Com balões". Em paralelo (um processo
+  por núcleo); tesseract numa thread.
+- **Relação de materiais mais robusta**: cabeçalho separado do corpo por linha dupla (`_empilhar`), quantidade por
+  etapa (`q1`, `q2`, colunas "1ª/2ª ETAPA" pela ordem), número do balão no próprio layer do círculo e escolha
+  automática do layer do número (f010 41/41 sem configurar; folha 053: 0 → 97/105).
+- **Escala do título 50× mais rápida**: OCR só dos glifos SHX da faixa, redesenhados no branco (2 s por folha).
+- **Encaixe de vista de detalhe** (`registrar_vista`): rotações de 90°, correlação e nota F1, só com pico claro
+  (≥ 15 % sobre o 2º); balões de vista encaixada no mapa (`pecas_baloes`). A f010 continua sem coordenada: nenhuma
+  referência tem o desenho das interligações (1º e 2º a 1–2 %).
+- **`camadas/diagnostico.py`** (pedido do Caio: o que a IA fazia em script avulso vira código): layers em volta de
+  um ponto UTM, inventário de layers × classe, recorte da folha, sobreposição prancha × referência × ortofoto,
+  afinação do OCR; linha de comando `python -m camadas.diagnostico`.
+- Cache das fichas versionado (`prancha.VERSAO`).
+
 ## 0.8.0 — 2026-10-28 · Foz, rodada 8: a prancha lida em camadas de entendimento (pilotos)
 - **Classe de elemento por layer** (`conceitos/elementos.json`, `pdf_cad.elemento_do_layer`): 40 classes (tubo,
   válvula, conexão, bloco, estaca, pilar, viga, parede, meio-fio, calçada…) com os serviços que geram; 99,6 % dos

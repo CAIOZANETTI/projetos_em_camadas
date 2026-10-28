@@ -497,6 +497,15 @@ def verificar_projeto(c: dict) -> None:
         n = js(c, "document.querySelectorAll('#invLista .inv-i').length")
         passo(c, "inventário: filtro por plantas", n == js(c, "__viz.D.inventario.totais.planta"), f"{n} plantas")
         page.select_option("#invTipo", "")
+        page.select_option("#invSit", "baloes")
+        page.wait_for_timeout(200)
+        r = js(c, """() => ({lista: document.querySelectorAll('#invLista .inv-i').length,
+          esperado: __viz.D.inventario.itens.filter(i => i.ficha && i.ficha.baloes).length,
+          fichas: __viz.D.inventario.itens.filter(i => i.ficha).length,
+          disco: __viz.D.inventario.itens.filter(i => i.situacao.startsWith('no disco')).length})""")
+        passo(c, "inventário: fichas em lote só de arquivo no disco; filtro 'com balões'",
+              0 < r["fichas"] <= r["disco"] and r["lista"] == r["esperado"] > 0, str(r))
+        page.select_option("#invSit", "")
     if js(c, "!!__viz.D.escavacao"):
         r = js(c, """() => ({linhas: document.querySelectorAll('#escTab tbody tr').length, cavas: __viz.D.escavacao.cavas.length,
           total: document.querySelector('#escTab tbody tr:last-child td:nth-child(2)').textContent,
@@ -518,6 +527,10 @@ def verificar_projeto(c: dict) -> None:
                   mapa: e ? !!__viz.camadasMapa.blocos_forma : true}; }""")
         passo(c, "fichas: uma por prancha piloto, em camadas de entendimento", r["fichas"] == r["n"] and r["camadas"], str(r))
         passo(c, "fichas: balões todos ligados a item; estacas todas encaixadas; blocos no mapa", r["baloes"] and r["est"] and r["mapa"], str(r))
+        r = js(c, """() => { const F = __viz.D.fichas, l = __viz.camadasMapa.blocos_forma;
+          return {pilares: F.reduce((s, f) => s + (f.pilares || []).length, 0),
+                  mapa: l ? l.layer.getLayers().filter(x => x.feature.properties.tipo === 'Pilar (forma)').length : 0}; }""")
+        passo(c, "fichas: pilares da forma no mapa", r["pilares"] == r["mapa"], str(r))
     foto(c, "16_projeto")
     page.click("#t-camadas")
     page.wait_for_timeout(300)

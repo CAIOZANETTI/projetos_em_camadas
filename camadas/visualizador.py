@@ -54,6 +54,8 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   "fichas": [{id, nome, piloto, identidade, vistas, itens, baloes, blocos, niveis, encaixe, elementos, servicos}],
   "elementos": {"tubo": {"nome", "grupo"}, ...},    # pranchas[].layers[].elemento aponta para cá
   # modelo3d.solidos: [{id, xy, z0, z1}] — blocos da forma extrudados; vetor "blocos_forma" no mapa
+  # --- rodada 9 (opcionais) ---
+  # fichas[].pilares, fichas[].vistas[].encaixe; vetor "pecas_baloes"; inventario.itens[].ficha (lote)
 }
 
 `gerar(..., leaflet="inline")` embute Leaflet e three.js r128 (+ OrbitControls); com "cdn" ambos vêm de CDN.

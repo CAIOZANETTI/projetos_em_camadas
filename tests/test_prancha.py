@@ -31,7 +31,8 @@ def test_itens_da_relacao_de_materiais():
               ["", "S/N", "91596", "ARRUELA", "06", "pç"], ["", "texto solto", "", "", "", ""]]
     it = prancha.itens_da_tabela(linhas)
     assert [i["n"] for i in it] == ["01", "05", "S/N"]                 # "OS" lido no lugar de "05"
-    assert it[0] == {"n": "01", "codigo": "306106", "descricao": "TUBO FD DN600", "qtde": "01", "un": "pç", "bloco": "BLOCO A"}
+    assert it[0] == {"n": "01", "codigo": "306106", "descricao": "TUBO FD DN600", "qtde": "01", "q1": None, "q2": None, "un": "pç",
+                     "bloco": "BLOCO A"}
     cad = {"306106": {"descricao": "TUBO FD K9 DN 600"}}
     contrato = [{"codigo": "306106", "tabela": "16", "item": "01", "q1": 1.0, "q2": 0.0, "un": "pç"}]
     c = prancha.conferir_itens(it, cad, contrato)
@@ -105,3 +106,83 @@ def test_tabela_desenhada_lida_por_ocr():
     assert len(g) == 1 and g[0]["caixa"][0] == pytest.approx(50, abs=3)
     it = prancha.itens_da_tabela(prancha.celulas(pg, g[0]["caixa"]))
     assert [(i["n"], i["codigo"]) for i in it] == [("01", "306106"), ("02", "307847"), ("S/N", "91596")]
+
+
+def _planta_sintetica(rng):
+    """Planta irregular (paredes, tubos) em pt: várias peças retas de tamanhos distintos — sem simetria."""
+    linhas = [np.array([[0, 0], [300, 0], [300, 120], [180, 120], [180, 200], [0, 200], [0, 0]], float),
+              np.array([[40, 30], [40, 170]], float), np.array([[90, 60], [260, 60]], float),
+              np.array([[220, 150], [280, 150], [280, 190]], float)]
+    linhas += [np.array([p, p + rng.uniform(-30, 30, 2)]) for p in rng.uniform(10, 290, (25, 2)) * [1, 0.65]]
+    return linhas
+
+
+def test_encaixe_de_vista_com_escala_propria():
+    rng = np.random.default_rng(3)
+    vista = _planta_sintetica(rng)
+    s = 0.3528e-3 * 100
+    A = s * np.array([[0.0, -1.0], [-1.0, 0.0]])                  # vista girada 90° na folha (y do PDF desce)
+    ref = [q @ A.T + [745100.0, 7182900.0] for q in vista]
+    ref += [p + np.array([[0, 0], [6, 0]]) for p in rng.uniform([745085, 7182885], [745115, 7182915], (40, 2))]   # vizinhança
+    r = prancha.registrar_vista(vista, 100, ref)
+    assert r["ok"], r["motivo"]
+    assert np.allclose(geo_aplicar(r["M"], vista[0]), ref[0], atol=0.25)
+    longe = [q + [500.0, 0] for q in ref[len(vista):]]             # referência sem o desenho da vista
+    assert not prancha.registrar_vista(vista, 100, longe)["ok"]
+
+
+def test_desenho_sem_hachura_mantem_o_texto():
+    hach = [{"layer": "5", "partes": [np.array([[x, 0.0], [x + 40, 40]]) for x in range(0, 100, 6)], "preenchimento": None}]
+    letra = [{"layer": "5", "partes": [np.array([[50, 15.0], [50, 25], [54, 25]])], "preenchimento": None}]
+    img = prancha.desenho_sem_hachura(hach + letra, (0, 0, 140, 40), 4)
+    assert (img[60:100, 198:202] < 128).any()                      # o traço curto (letra) ficou
+    assert (img < 128).sum() < 400                                 # a hachura saiu
+
+
+def test_pilares_na_folha():
+    pymupdf = pytest.importorskip("pymupdf")
+    from shapely.geometry import box
+    doc = pymupdf.open()
+    pg = doc.new_page(width=400, height=300)
+    for x0 in (50, 220):
+        pg.draw_rect(pymupdf.Rect(x0, 50, x0 + 110, 160))          # bloco
+    pg.draw_rect(pymupdf.Rect(93.6, 93.6, 116.4, 116.4), fill=(0, 0, 0))   # pilar 40 cm a 1:50 (22,7 pt) no 1º bloco
+    pg.draw_rect(pymupdf.Rect(300, 220, 360, 280), fill=(0, 0, 0))         # mancha grande fora dos blocos
+    p = prancha.pilares(pg, [box(50, 50, 160, 160), box(220, 50, 330, 160)], 50)
+    assert len(p) == 1 and p[0]["bloco"] == 0 and p[0]["lado_m"] == pytest.approx(0.40, abs=0.03)
+
+
+def test_resumo_do_lote():
+    f = {"identidade": {"obra": "localizada"}, "vistas": 3, "escalas": [100], "tabelas": 1, "baloes": 12,
+         "objetos": ["tubo", "valvula"], "tracos": 1000, "genericos": 600, "completa": {"itens": 5}}
+    r = prancha.resumo_lote(f)
+    assert r["objetos"] == ["Tubulação", "Válvula / registro / ventosa / descarga"] and r["genericos_pct"] == 60
+    assert prancha.resumo_lote({"erro": "x"}) == {"erro": "x"} and prancha.resumo_lote(None) is None
+
+
+def test_cabecalho_separado_e_quantidade_por_etapa():
+    """Folha 009 de Foz: o cabeçalho é uma grade à parte (linha dupla) e a quantidade vem em 1ª e 2ª etapa."""
+    g = prancha._empilhar([{"caixa": [1866, 136, 2345, 180], "linhas": 2}, {"caixa": [1867, 190, 2345, 693], "linhas": 40},
+                           {"caixa": [100, 100, 400, 300], "linhas": 5}])
+    assert [t["caixa"] for t in g] == [[100, 100, 400, 300], [1866, 136, 2345, 693]] and g[1]["linhas"] == 42
+    linhas = [["INTERLIGAÇÕES / ADUTORA ÁGUA BRUTA"], ["Nº", "ESPECIF/ COD SAM", "DESCRIÇÃO", "4a ETAPA", "2a ETAPA", "UN"],
+              ["02", "306859", "TUBO FD K-9 PP (6,8M) DN1000", "00", "1,00", "m"]]
+    it = prancha.itens_da_tabela(linhas)
+    assert it == [{"n": "02", "codigo": "306859", "descricao": "TUBO FD K-9 PP (6,8M) DN1000", "qtde": "1ª 00 · 2ª 1,00",
+                   "q1": "00", "q2": "1,00", "un": "m", "bloco": "INTERLIGAÇÕES / ADUTORA ÁGUA BRUTA"}]
+
+
+def test_layer_do_numero_do_balao(monkeypatch):
+    """Sem `layer_numero`, vale o layer com mais traços dentro dos círculos — o do próprio balão incluído (folha
+    053 de Foz) — e o desenho que cruza o balão fica de fora."""
+    monkeypatch.setattr(prancha, "ler_numero", lambda dentro, validos=None: str(len(dentro)))
+    a = np.linspace(0, 2 * np.pi, 17)
+    circulo = np.c_[50 + 5 * np.cos(a), 50 + 5 * np.sin(a)]
+    digito = [np.array([[49.0, 48.0], [49.0, 52.0]]), np.array([[51.0, 48.0], [51.0, 52.0]])]
+    tubo = np.array([[30.0, 49.0], [70.0, 49.0]])                      # desenho atrás do balão: longo, fica de fora
+    tracos = [{"layer": "BALAO", "partes": [circulo, *digito, np.array([[55.0, 50.0], [80.0, 60.0]])]},
+              {"layer": "TUBO", "partes": [tubo, np.array([[90.0, 90.0], [91.0, 91.0]])]}]
+    b = prancha.baloes(tracos, "BALAO")
+    assert len(b) == 1 and b[0]["n"] == "2" and b[0]["ponta_pt"] == [80.0, 60.0]
+    texto = {"layer": "TEXTO", "partes": [np.array([[48.0, 49.0], [48.5, 51.0]]) for _ in range(3)]}
+    assert prancha.baloes([*tracos, texto], "BALAO")[0]["n"] == "3"
