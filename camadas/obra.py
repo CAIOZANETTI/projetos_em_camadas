@@ -146,6 +146,8 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
         elif p.get("malha"):
             # malha de coordenadas impressa no próprio desenho: exata, não depende da ortofoto
             r = georef_prancha.registrar_malha(tr, p["malha"], escala=p.get("escala"), log=_log)
+            if not r["ok"] and p.get("continuidade"):
+                r = _malha_por_continuidade(p, tr, feitas, r["motivo"])
             ok, motivo = r["ok"], r["motivo"]
         elif pc:
             M0 = georef_prancha.matriz_inicial(pc["pt"], pc["utm"])
@@ -171,6 +173,25 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
         _log(f"Prancha {p['id']}: {'OK' if ok else 'PENDENTE'} ({motivo})")
         feitas[p["id"]] = {**p, **info, "M": r["M"] if (r is not None and ok) else None}
     return list(feitas.values())
+
+
+def _malha_por_continuidade(p: dict, tr: list, feitas: dict, motivo_malha: str) -> dict:
+    """Malha que não fecha (rótulo errado no próprio desenho): afins discretas com a escala declarada, decididas
+    pela continuidade de um layer (o tubo) com a folha vizinha já georreferenciada (`continuidade` no obra.json)."""
+    c = p["continuidade"]
+    viz = feitas.get(c["vizinha"], {})
+    if viz.get("M") is None:
+        return {"M": None, "ok": False, "motivo": f"{motivo_malha}; vizinha {c['vizinha']} sem georreferência"}
+    from shapely import Polygon
+    jv = viz.get("clip") or viz.get("janela_pt")
+    Mv = np.asarray(viz["M"])
+    g_viz = georef_prancha.geometria_do_layer(pdf_cad.extrair(viz["pdf"], clip=viz.get("clip")), c["layer"], jv, Mv)
+    janela_viz = Polygon(geo.aplicar(Mv, [[jv[0], jv[1]], [jv[2], jv[1]], [jv[2], jv[3]], [jv[0], jv[3]]]))
+    r = georef_prancha.escolher_por_continuidade(georef_prancha.hipoteses_malha(tr, p["malha"], p["escala"]),
+                                                 georef_prancha.geometria_do_layer(tr, c["layer"], p["clip"]), p["clip"],
+                                                 g_viz, janela_viz)
+    _log(f"  continuidade com {c['vizinha']}: {r['motivo']}")
+    return {**r, "motivo": f"{r['motivo']} — a malha sozinha: {motivo_malha}"}
 
 
 def referencia_cad(base: dict, pasta: Path, filtro: str, res: float = 0.10) -> Path:
@@ -330,6 +351,44 @@ def etapa_escopo(cfg: dict) -> dict | None:
             if cat else None}
 
 
+def tubo_contrato_x_desenho(escopo: dict, pranchas: list, cfg: dict) -> list[dict]:
+    """Tubo principal de cada prancha: quantidade no contrato × eixo medido no desenho georreferenciado.
+
+    A tabela do escopo aponta o desenho (`desenhos_por_tabela`); a prancha declara o layer do tubo (`layer_tubo` no
+    obra.json). Tubo principal = código de família "tubo" em metros (cadastro Sanepar) com a maior quantidade
+    (1ª + 2ª etapa) nas tabelas daquela prancha. A medida inclui o tubo desenhado além da linha de corte.
+    Grava em cada item comparado `desenho` = {prancha, medido_m, diferenca_pct}.
+    """
+    import unicodedata
+
+    def chave(nome):
+        nome = re.sub(r"-R\d+(?=$|_)", "", re.sub(r"\.pdf$", "", str(nome), flags=re.IGNORECASE))
+        return re.sub(r"[^a-z0-9]", "", unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode().lower())
+
+    layer_tubo = {q["id"]: q["layer_tubo"] for q in cfg.get("pranchas", []) if q.get("layer_tubo")}
+    por_desenho = {chave(P["pdf"]): P for P in pranchas if P["id"] in layer_tubo and P.get("M") is not None}
+    grupos = {}
+    for it in escopo["itens"]:
+        P = por_desenho.get(chave(escopo["desenhos_por_tabela"].get(it["tabela"], "")))
+        c = it.get("cadastro") or {}
+        if P and c.get("familia") == "tubo" and str(c.get("unidade_medida", "")).upper() == "M":
+            grupos.setdefault(P["id"], {}).setdefault(it["codigo"], []).append(it)
+    linhas = []
+    for pid, por_codigo in grupos.items():
+        P = next(q for q in pranchas if q["id"] == pid)
+        medido = next((l.get("eixo_faixa_m") or l.get("comprimento_m") for l in P.get("quantitativos", [])
+                       if l["layer"] == layer_tubo[pid]), None)
+        codigo, itens = max(por_codigo.items(), key=lambda kv: sum(i["q1"] + i["q2"] for i in kv[1]))
+        contrato = sum(i["q1"] + i["q2"] for i in itens)
+        dif = round((medido / contrato - 1) * 100, 1) if medido and contrato else None
+        for i in itens:
+            i["desenho"] = {"prancha": pid, "medido_m": medido, "diferenca_pct": dif}
+        linhas.append({"prancha": pid, "nome": P["nome"], "tabelas": sorted({i["tabela"] for i in itens}),
+                       "codigo": codigo, "descricao": itens[0]["descricao"], "contrato_m": round(contrato, 2),
+                       "desenho_m": medido, "diferenca_pct": dif})
+    return sorted(linhas, key=lambda l: l["prancha"])
+
+
 # 4 ---------------------------------------------------------------------------
 def modelo3d(out: Path, rel: dict, max_pontos: int, desloc=(0.0, 0.0), vertical: dict | None = None) -> dict:
     """Nuvem e câmeras no referencial absoluto; com controle vertical, z em cota."""
@@ -381,6 +440,34 @@ def sondagens(cfg: dict, epsg: int) -> list:
             lon, lat = geo.para_lonlat(f["E"], f["N"], f.get("epsg") or f.get("epsg_inferido") or epsg)
             f["lon"], f["lat"] = round(float(lon), 8), round(float(lat), 8)
     return furos
+
+
+def sondagens_3d(furos: list, origem) -> list[dict]:
+    """Perfil de cada furo para o 3D, em cota (z = cota de boca − profundidade), relativo à origem do modelo.
+
+    Só camadas com limite confirmado viram segmento próprio; o resto do furo vai num segmento "não confirmado"
+    com as descrições, sem inventar fronteira entre camadas.
+    """
+    saida = []
+    for s in furos:
+        if s.get("E") is None or s.get("cota_boca") is None or not s.get("profundidade_m"):
+            continue
+        z0, prof, topo, seg = float(s["cota_boca"]), float(s["profundidade_m"]), 0.0, []
+        for c in s.get("camadas", []):
+            if c.get("de") is None or c.get("ate") is None:
+                break
+            seg.append({"z_topo": round(z0 - c["de"], 2), "z_base": round(z0 - c["ate"], 2), "classe": c.get("classe"),
+                        "descricao": c.get("descricao"), "confirmado": True})
+            topo = c["ate"]
+        if topo < prof:
+            resto = [c.get("descricao") for c in s.get("camadas", []) if c.get("de") is None or c.get("ate") is None]
+            seg.append({"z_topo": round(z0 - topo, 2), "z_base": round(z0 - prof, 2), "classe": None,
+                        "descricao": "; ".join(filter(None, resto)) or "sem descrição", "confirmado": False})
+        saida.append({"id": s["id"], "x": round(s["E"] - origem[0], 2), "y": round(s["N"] - origem[1], 2),
+                      "z_boca": z0, "z_fundo": round(z0 - prof, 2),
+                      "z_na": round(z0 - s["na_m"], 2) if s.get("na_m") is not None else None,
+                      "impenetravel": bool(s.get("impenetravel")), "segmentos": seg})
+    return saida
 
 
 def estacas(cfg: dict, epsg: int) -> dict | None:
@@ -546,6 +633,8 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         if v:
             vetores.append(v)
     escopo = etapa_escopo(cfg)
+    if escopo:
+        escopo["tubo_x_desenho"] = tubo_contrato_x_desenho(escopo, lista, cfg)
     furos = sondagens(cfg, epsg)
     if vertical:                                      # boca do furo × terreno da nuvem já em cota, por furo
         por_id = {l["id"]: l for l in vertical["pontos"]}
@@ -596,6 +685,8 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
               for f in lista if f["M"] is not None],
         ],
     }
+    if vertical:                                      # perfil dos furos no 3D só com a nuvem em cota
+        dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
     dados["cronograma"] = cronograma_4d(cfg, dados)
     (out / "dados.json").write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")))
     if cfg.get("sig", True):

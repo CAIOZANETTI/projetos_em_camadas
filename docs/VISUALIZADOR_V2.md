@@ -42,7 +42,9 @@ Decodificar com `DecompressionStream('gzip')`, de forma assíncrona e só quando
 `{tabela, nome_tabela, item, codigo, descricao, un, q1, q2, etapa, material, local, alerta, cadastro}`,
 onde `q1`/`q2` são as quantidades da 1ª/2ª etapa e `cadastro` é a especificação do cadastro de materiais Sanepar
 (descrição, unidade, norma, situação, família, DN, PN, marcas homologadas) ou null. **Sem preço**: o escopo é o
-do contrato; `por_tabela` e `totais` são contagens (decisão de 28/10/2026).
+do contrato; `por_tabela` e `totais` são contagens (decisão de 28/10/2026). `tubo_x_desenho` (rodada 6): por
+prancha, o tubo principal das tabelas que apontam para ela, `{prancha, nome, tabelas, codigo, descricao, contrato_m,
+desenho_m, diferenca_pct}`; o item comparado ganha `desenho = {prancha, medido_m, diferenca_pct}`.
 
 ### `sondagens[]`
 `{id, tipo, E, N, lon, lat, cota_boca, profundidade_m, na_m, nspt: [[prof_m, golpes]], camadas: [{de, ate, descricao, classe}], fonte}`.

@@ -298,116 +298,134 @@
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/001-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF01-R0.pdf",
    "nome": "Adutora AAT00 · planta e perfil 01/06",
    "malha": "ADUTORA_GRADE_PLANTA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "SJMH_ADUTORA_TUBO"
   },
   {
    "id": "aat00_02",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/002-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF02-R0.pdf",
    "nome": "Adutora AAT00 · planta e perfil 02/06",
    "malha": "ADUTORA_GRADE_PLANTA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "SJMH_ADUTORA_TUBO"
   },
   {
    "id": "aat00_03",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/003-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF03-R0.pdf",
    "nome": "Adutora AAT00 · planta e perfil 03/06",
    "malha": "ADUTORA_GRADE_PLANTA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "SJMH_ADUTORA_TUBO"
   },
   {
    "id": "aat00_04",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/004-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF04-R0.pdf",
    "nome": "Adutora AAT00 · planta e perfil 04/06",
    "malha": "ADUTORA_GRADE_PLANTA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "SJMH_ADUTORA_TUBO"
   },
   {
    "id": "aat00_05",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/005-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF05-R0.pdf",
    "nome": "Adutora AAT00 · planta e perfil 05/06",
-   "irma": "aat00_04",
-   "res_irma": 0.25,
-   "layers_irma": "QUADRAS|LOTES|DIVISAS|PROPRIEDADES",
-   "layers_referencia": "QUADRAS|LOTES|DIVISAS|PROPRIEDADES",
    "clip": [
     1082,
     81,
     1683,
     1609
    ],
-   "obs_georef": "rótulos da malha incoerentes no desenho (05: 744200 em duas linhas; 06: 743600 e 744000 a 200 m) e a planta quase não se sobrepõe à da folha anterior; com o croqui fora do clip o CAD × CAD é rejeitado. Pendente: confirmar a malha com o projetista ou marcar pontos"
+   "obs_georef": "malha com rótulo errado no desenho: a linha rotulada 744200 em y≈1213 pt é E 744000 (a de y≈646 pt é 744200). Afim escolhida entre 4 hipóteses (escala 1:1000) pela coincidência do tubo com a AAT00-04 (rodada 6)",
+   "malha": "ADUTORA_GRADE_PLANTA",
+   "escala": 1000,
+   "continuidade": {
+    "vizinha": "aat00_04",
+    "layer": "SJMH_ADUTORA_TUBO"
+   },
+   "layer_tubo": "SJMH_ADUTORA_TUBO"
   },
   {
    "id": "aat00_06",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/006-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF06-R0.pdf",
    "nome": "Adutora AAT00 · planta e perfil 06/06",
-   "irma": "aat00_05",
-   "res_irma": 0.25,
-   "layers_irma": "QUADRAS|LOTES|DIVISAS|PROPRIEDADES",
-   "layers_referencia": "QUADRAS|LOTES|DIVISAS|PROPRIEDADES",
    "clip": [
     1082,
     81,
     1683,
     1609
    ],
-   "obs_georef": "rótulos da malha incoerentes no desenho (05: 744200 em duas linhas; 06: 743600 e 744000 a 200 m) e a planta quase não se sobrepõe à da folha anterior; com o croqui fora do clip o CAD × CAD é rejeitado. Pendente: confirmar a malha com o projetista ou marcar pontos"
+   "obs_georef": "malha com rótulo errado no desenho: a linha rotulada 744000 em y≈637 pt é E 743800 (a de y≈1204 pt é 743600). Afim escolhida entre 4 hipóteses (escala 1:1000) pela coincidência do tubo com a AAT00-05: 170 m coincidentes × 3 m na 2ª (rodada 6)",
+   "malha": "ADUTORA_GRADE_PLANTA",
+   "escala": 1000,
+   "continuidade": {
+    "vizinha": "aat00_05",
+    "layer": "SJMH_ADUTORA_TUBO"
+   },
+   "layer_tubo": "SJMH_ADUTORA_TUBO"
   },
   {
    "id": "aat01",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT 02 - VILA A/001-SAA-0000-0000-PBEN-DE-0000AAT01PLANTAPERF01-R0_SÓ_INTERLIGACAO.pdf",
    "nome": "Adutora AAT01 · planta e perfil (interligação)",
    "malha": "ADUTORA_GRADE_PLANTA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "SJMH_ADUTORA_TUBO"
   },
   {
    "id": "aat02",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT 02 - VILA A/001-SAA-0000-0000-PBEN-DE-0000AAT02PLANTAPERF01-R1.pdf",
    "nome": "Adutora AAT02 · planta e perfil",
    "malha": "ADUTORA_GRADE_PLANTA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "SJMH_ADUTORA_TUBO"
   },
   {
    "id": "aat06_09",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/009-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
    "nome": "Adutora AAT06 · planta e perfil 009/019",
    "malha": "MALHA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "_PERFIL_"
   },
   {
    "id": "aat06_10",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/010-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
    "nome": "Adutora AAT06 · planta e perfil 010/019",
    "malha": "MALHA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "_PERFIL_"
   },
   {
    "id": "aat06_11",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/011-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
    "nome": "Adutora AAT06 · planta e perfil 011/019",
    "malha": "MALHA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "_PERFIL_"
   },
   {
    "id": "aat06_12",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/012-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
    "nome": "Adutora AAT06 · planta e perfil 012/019",
    "malha": "MALHA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "_PERFIL_"
   },
   {
    "id": "aat06_13",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/013-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
    "nome": "Adutora AAT06 · planta e perfil 013/019",
    "malha": "MALHA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "_PERFIL_"
   },
   {
    "id": "aat06_14",
    "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/014-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
    "nome": "Adutora AAT06 · planta e perfil 014/019",
    "malha": "MALHA",
-   "escala": 1000
+   "escala": 1000,
+   "layer_tubo": "_PERFIL_"
   }
  ],
  "escopo": {

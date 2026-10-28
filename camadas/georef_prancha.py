@@ -478,6 +478,23 @@ def _obs_da_malha(malha: dict, ler, modo: str) -> list:
             for p in (l["p0"], l["p1"])]
 
 
+def _resumo_malha(malha: dict, obs: list, modo: str) -> tuple[list, list]:
+    """Janela da planta (pt) e resíduo por linha. Com a malha só na moldura, a janela é a moldura (as linhas longas
+    do layer), não a caixa dos centros dos rótulos, que cortaria a ponta do desenho."""
+    pts = np.array([o["p"] for o in obs])
+    janela = [*pts.min(0).tolist(), *pts.max(0).tolist()]
+    if modo == "rótulos" and malha["linhas"]:
+        q = np.array([p for l in malha["linhas"] for p in (l["p0"], l["p1"])])
+        moldura = [*q.min(0).tolist(), *q.max(0).tolist()]
+        if moldura[0] <= janela[0] and moldura[1] <= janela[1] and moldura[2] >= janela[2] and moldura[3] >= janela[3]:
+            janela = moldura
+    linhas = {}
+    for o in obs:
+        linhas.setdefault(o["chave"], {"eixo": o["eixo"], "valor": o["valor"], "residuo_m": 0.0})
+        linhas[o["chave"]]["residuo_m"] = round(max(linhas[o["chave"]]["residuo_m"], o["residuo_m"]), 4)
+    return janela, list(linhas.values())
+
+
 def registrar_malha(tracos, padrao_layer: str, escala: float | None = None, max_residuo_m: float = 0.5,
                     log=print) -> dict:
     """Prancha com malha de coordenadas impressa -> pt -> UTM, sem ortofoto nem prancha irmã.
@@ -526,15 +543,114 @@ def registrar_malha(tracos, padrao_layer: str, escala: float | None = None, max_
     log(f"  malha ({modo}): E {r['eixos']['E']}, N {r['eixos']['N']}, resíduo máx {res_max:.3f} m, "
         f"escala {esc:.4f} m/pt (1:{esc / 0.0254 * 72:.0f}); descartadas {r['descartadas'] or '—'} -> "
         f"{'OK' if ok else 'rejeitada'}")
-    pts = np.array([o["p"] for o in r["obs"]])
-    linhas = {}
-    for o in r["obs"]:
-        linhas.setdefault(o["chave"], {"eixo": o["eixo"], "valor": o["valor"], "residuo_m": 0.0})
-        linhas[o["chave"]]["residuo_m"] = round(max(linhas[o["chave"]]["residuo_m"], o["residuo_m"]), 4)
-    return {"M": M if ok else None, "ok": ok, "motivo": motivo, "modo": modo, "linhas": list(linhas.values()),
+    janela, linhas = _resumo_malha(malha, r["obs"], modo)
+    return {"M": M if ok else None, "ok": ok, "motivo": motivo, "modo": modo, "linhas": linhas,
             "descartadas": r["descartadas"], "residuo_max_m": res_max, "incerteza_rotulo_m": round(incerteza, 2),
             "residuo_mediano_m": float(np.median([o["residuo_m"] for o in r["obs"]])), "frac_05m": None,
-            "escala_m_pt": esc, "rotacao_graus": rot, "janela_pt": [*pts.min(0).tolist(), *pts.max(0).tolist()]}
+            "escala_m_pt": esc, "rotacao_graus": rot, "janela_pt": janela}
+
+
+def hipoteses_malha(tracos, padrao_layer: str, escala: float) -> list[np.ndarray]:
+    """Malha que não fecha sozinha (rótulo repetido ou trocado no próprio desenho), com escala declarada.
+
+    Com a escala conhecida e as linhas alinhadas a N/E, sobram poucas afins: o sentido do eixo (2) × qual linha E
+    tem o rótulo certo × qual linha N tem o rótulo certo. Devolve todas, sem repetição; quem decide é uma
+    testemunha externa (`escolher_por_continuidade`).
+    """
+    malha = linhas_da_malha(tracos, padrao_layer)
+    lidos = {}
+
+    def ler(i, angulo):
+        if (i, round(angulo)) not in lidos:
+            lidos[(i, round(angulo))] = ler_rotulo(malha["rotulos"][i], angulo)
+        return lidos[(i, round(angulo))]
+
+    linhas = {}
+    for o in _obs_da_malha(malha, ler, "linhas"):
+        linhas.setdefault(o["chave"], []).append(o)
+    E = [v for v in linhas.values() if v[0]["eixo"] == "E"]
+    N = [v for v in linhas.values() if v[0]["eixo"] == "N"]
+    if not E or not N:
+        return []
+    s = escala * 0.0254 / 72                                     # m por pt (1 pt = 1/72 pol)
+    d = E[0][1]["p"] - E[0][0]["p"]
+    d = d / np.hypot(*d)                                         # direção das linhas de E constante na folha
+    hipoteses = []
+    for sinal in (1, -1):
+        a, b = s * sinal * -d[1], -s * sinal * d[0]              # gradiente de E = (a, −b) ⟂ d
+        for le in E:
+            for ln in N:
+                (xe, ye), (xn, yn) = le[0]["p"], ln[0]["p"]
+                M = np.array([[a, -b, le[0]["valor"] - a * xe + b * ye],
+                              [-b, -a, ln[0]["valor"] + b * xn + a * yn], [0, 0, 1]])
+                if not any(np.allclose(M, h, atol=0.01) for h in hipoteses):
+                    hipoteses.append(M)
+    return hipoteses
+
+
+def geometria_do_layer(tracos, padrao_layer: str, janela=None, M: np.ndarray | None = None):
+    """União (shapely) dos traços e faixas preenchidas de um layer dentro da `janela` (pt); em UTM se vier `M`."""
+    import re
+    from shapely import LineString, Polygon, affinity, union_all
+    x0, y0, x1, y1 = janela or (-np.inf, -np.inf, np.inf, np.inf)
+    geoms = []
+    for t in tracos:
+        if not re.fullmatch(padrao_layer, t["layer"]):
+            continue
+        for q in map(np.asarray, t["partes"]):
+            if len(q) < 2 or q[:, 0].min() < x0 - 5 or q[:, 0].max() > x1 + 5 or q[:, 1].min() < y0 - 5 or q[:, 1].max() > y1 + 5:
+                continue
+            geoms.append(Polygon(q).buffer(0) if t["preenchimento"] is not None and len(q) >= 3 else LineString(q))
+    g = union_all(geoms)
+    return g if M is None else affinity.affine_transform(g, [M[0, 0], M[0, 1], M[1, 0], M[1, 1], M[0, 2], M[1, 2]])
+
+
+def _coincidencia(a, b, janela_b, tol_m: float = 1.5) -> tuple[float, float]:
+    """(fração, comprimento em m) da parte de `a` dentro de `janela_b` que tem par a ≤ `tol_m` em `b`."""
+    import shapely
+    contorno = a.boundary if a.geom_type.endswith("Polygon") else a
+    pts = shapely.points(shapely.get_coordinates(shapely.segmentize(contorno, 1.0)))
+    dentro = pts[shapely.contains(janela_b, pts)]
+    if len(dentro) == 0:
+        return 0.0, 0.0
+    return float((shapely.distance(dentro, b) <= tol_m).mean()), len(dentro) / (2.0 if contorno is not a else 1.0)
+
+
+def escolher_por_continuidade(hipoteses: list, geom_pt, janela_pt, vizinha_utm, janela_vizinha_utm,
+                              max_dist_m: float = 2.0, min_coincide_m: float = 10.0, razao_min: float = 3.0) -> dict:
+    """Entre afins candidatas, a que faz a geometria da folha (ex.: o tubo) **coincidir** com a da folha vizinha
+    na área que as duas janelas têm em comum.
+
+    Cada folha desenha uma cauda além da linha de emenda, de tamanho variável (21 m da 04 para a 05, ~190 m da 05
+    para a 06 em Foz): menor sobreposição não serve de critério. Coincidência = metros do tubo de cada folha,
+    dentro da janela da outra, com par a ≤ 1,5 m no tubo da outra (vale o menor dos dois sentidos; a fração depende
+    do tamanho da janela, o comprimento não). Aceita se a melhor encosta (≤ `max_dist_m`), coincide em
+    ≥ `min_coincide_m` e em ≥ `razao_min` vezes a 2ª.
+    """
+    from shapely import Polygon, affinity
+    if not hipoteses or geom_pt.is_empty or vizinha_utm.is_empty:
+        return {"M": None, "ok": False, "motivo": "sem hipóteses ou sem geometria para comparar"}
+    x0, y0, x1, y1 = janela_pt
+    medidas = []
+    for M in hipoteses:
+        par = [M[0, 0], M[0, 1], M[1, 0], M[1, 1], M[0, 2], M[1, 2]]
+        u = affinity.affine_transform(geom_pt, par)
+        janela_u = affinity.affine_transform(Polygon([(x0, y0), (x1, y0), (x1, y1), (x0, y1)]), par)
+        fa, la = _coincidencia(u, vizinha_utm, janela_vizinha_utm)
+        fb, lb = _coincidencia(vizinha_utm, u, janela_u)
+        medidas.append({"distancia_m": round(float(u.distance(vizinha_utm)), 2), "comum_m": round(min(la, lb), 1),
+                        "coincide_m": round(min(fa * la, fb * lb), 1), "coincide": round(min(fa, fb), 3)})
+    nota = [m["coincide_m"] if m["distancia_m"] <= max_dist_m else 0.0 for m in medidas]
+    ordem = np.argsort(nota)[::-1]
+    melhor, segunda = nota[ordem[0]], (nota[ordem[1]] if len(nota) > 1 else 0.0)
+    ok = melhor >= min_coincide_m and melhor >= razao_min * segunda
+    texto = "; ".join(f"{m['distancia_m']:.1f} m, coincide {m['coincide_m']:.0f} m de {m['comum_m']:.0f} m" for m in medidas)
+    M = hipoteses[ordem[0]]
+    return {"M": M if ok else None, "ok": bool(ok),
+            "motivo": (f"malha com escala declarada + continuidade com a folha vizinha ({len(hipoteses)} hipóteses: "
+                       f"{texto})") if ok else f"continuidade ambígua ou sem coincidência ({texto})",
+            "hipoteses": medidas, "residuo_mediano_m": None, "frac_05m": None,
+            "escala_m_pt": float(np.hypot(*M[0, :2])), "rotacao_graus": float(np.degrees(np.arctan2(M[1, 0], M[0, 0])))}
 
 
 def aceitavel(r: dict, M_ref: np.ndarray | None = None, max_residuo_m: float = 0.6, min_frac: float = 0.45,
@@ -564,7 +680,8 @@ def metadados() -> dict:
         "descricao": "prancha CAD em PDF -> UTM: malha de coordenadas impressa (OCR), pontos de controle + ICP, "
                      "CAD × CAD por SIFT, busca global FFT",
         "funcoes": ["matriz_inicial", "registrar", "refinar", "registrar_cad", "registrar_imagem", "aceitavel",
-                    "linhas_da_malha", "ler_rotulo", "registrar_malha"],
+                    "linhas_da_malha", "ler_rotulo", "registrar_malha", "hipoteses_malha", "geometria_do_layer",
+                    "escolher_por_continuidade"],
         "bibliografia": [
             {"obra": "Lowe — Distinctive Image Features from Scale-Invariant Keypoints (SIFT)", "ano": 2004,
              "editora": "IJCV", "aplicacao": {"registrar_imagem": ["SIFT_create(nfeatures=12000)", "razão 0,75"]}},
@@ -587,6 +704,12 @@ def metadados() -> dict:
                            "linhas_da_malha": ["min_compr_pt=100", "max_glifo_pt=15", "vão ≤ 0,8 × lado do glifo"]},
              "fonte": "calibrado em Foz: 15 folhas com resíduo de 0 a 29 cm; marcos E/N da AAT00-01 a 0,20 e 0,23 m; "
                       "escala igual à da GEOPLANTA (sondagens) em 0,1 %"},
+            {"aplicacao": {"escolher_por_continuidade": ["max_dist_m=2", "min_coincide_m=10", "razao_min=3",
+                                                          "tol_m=1,5"]},
+             "fonte": "critério da rodada 6 (Foz), conferido em imagem: a vizinha decide entre afins discretas pela "
+                      "coincidência do tubo na área comum. O 1º critério (menor sobreposição) escolheu errado na "
+                      "AAT00-06 — a 05 desenha ~190 m de cauda além da emenda. A fração (76 % × 1 % na 06) depende "
+                      "da janela; vale o comprimento que coincide"},
             {"aplicacao": {"registrar": ["escala inicial medida na foto"]},
              "fonte": "lição de Foz (rodada 5): f004 iniciada com 0,095 m/pt ficou 7,9 % grande e o ICP não corrigiu "
                       "(trava de ±10 %; bordas da foto não discriminam: ~47 % dos traços a < 0,5 m de uma borda em "

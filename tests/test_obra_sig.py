@@ -192,3 +192,48 @@ def test_escopo_sem_preco_e_com_cadastro_sanepar(tmp_path):
     assert "unidade do cadastro Sanepar é M" in b["alerta"]                     # pç × M
     assert "sem código" in c["alerta"] and "data do Excel" in c["alerta"] and c["q1"] == 0
     assert e["totais"] == {"itens": 3, "itens_q1": 2, "itens_q2": 1, "com_alerta": 2, "no_cadastro": 2}
+
+
+def test_continuidade_escolhe_pela_coincidencia_na_area_comum():
+    """A folha 2 desenha um L; a folha 1 desenha a cauda do mesmo L além da emenda. Deslizar a folha 2 ao longo da
+    própria rua também encosta, mas a esquina deixa de coincidir."""
+    from shapely import LineString, Polygon
+    from camadas import georef_prancha
+    vizinha = LineString([(0, 0), (100, 0), (100, -40)])           # folha 1 em UTM: rua + cauda que dobra a esquina
+    janela_viz = Polygon([(-10, -60), (130, -60), (130, 20), (-10, 20)])
+    l_pt = LineString([(100, 0), (100, -40), (100, -200)])         # folha 2 em pt: começa na esquina e desce
+    janela_pt = (80, -220, 140, 10)
+    def M(ty):
+        return np.array([[1.0, 0, 0], [0, 1.0, ty], [0, 0, 1]])
+    hip = [M(0), M(-30), M(300)]                                   # certa, deslizada 30 m pela rua, longe
+    r = georef_prancha.escolher_por_continuidade(hip, l_pt, janela_pt, vizinha, janela_viz)
+    assert r["ok"] and r["M"][1, 2] == 0
+    assert r["hipoteses"][0]["coincide_m"] >= 3 * r["hipoteses"][1]["coincide_m"] and r["hipoteses"][2]["comum_m"] == 0
+    r = georef_prancha.escolher_por_continuidade([M(300)], l_pt, janela_pt, vizinha, janela_viz)
+    assert not r["ok"] and r["M"] is None
+
+
+def test_sondagens_3d_em_cota_sem_inventar_limite():
+    furos = [{"id": "SP-01", "E": 1010.0, "N": 2020.0, "cota_boca": 240.0, "profundidade_m": 13.5, "na_m": 9.0,
+              "impenetravel": True, "camadas": [{"de": 0.0, "ate": 0.45, "classe": "aterro", "descricao": "aterro"},
+                                                 {"de": None, "ate": None, "classe": "argila", "descricao": "argila mole"}]},
+             {"id": "SP-99", "E": None, "N": None, "cota_boca": 239.0, "profundidade_m": 5.0}]
+    s = obra.sondagens_3d(furos, [1000.0, 2000.0, 0.0])
+    assert len(s) == 1 and (s[0]["x"], s[0]["y"], s[0]["z_na"], s[0]["z_fundo"]) == (10.0, 20.0, 231.0, 226.5)
+    a, b = s[0]["segmentos"]
+    assert (a["z_topo"], a["z_base"], a["confirmado"]) == (240.0, 239.55, True)
+    assert (b["z_topo"], b["z_base"], b["confirmado"], b["descricao"]) == (239.55, 226.5, False, "argila mole")
+
+
+def test_tubo_contrato_x_desenho():
+    escopo = {"desenhos_por_tabela": {"94": "010-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1", "95": "outro-desenho"},
+              "itens": [{"tabela": "94", "codigo": "309244", "q1": 540.0, "q2": 0.0, "descricao": "TUBO PE DE 630",
+                         "cadastro": {"familia": "tubo", "unidade_medida": "M"}},
+                        {"tabela": "94", "codigo": "312059", "q1": 2.0, "q2": 0.0, "descricao": "CURVA",
+                         "cadastro": {"familia": "curva", "unidade_medida": "UN"}}]}
+    pranchas = [{"id": "aat06_10", "nome": "AAT06 10", "pdf": "010-SAA-0017-7471-PBHI-DE-AAT06PTPER-R2.pdf", "M": [1, 0, 0, 0, -1, 0],
+                 "quantitativos": [{"layer": "_PERFIL_", "eixo_faixa_m": 542.0, "comprimento_m": 3.0}]}]
+    linhas = obra.tubo_contrato_x_desenho(escopo, pranchas, {"pranchas": [{"id": "aat06_10", "layer_tubo": "_PERFIL_"}]})
+    assert linhas == [{"prancha": "aat06_10", "nome": "AAT06 10", "tabelas": ["94"], "codigo": "309244",
+                       "descricao": "TUBO PE DE 630", "contrato_m": 540.0, "desenho_m": 542.0, "diferenca_pct": 0.4}]
+    assert escopo["itens"][0]["desenho"]["diferenca_pct"] == 0.4 and "desenho" not in escopo["itens"][1]

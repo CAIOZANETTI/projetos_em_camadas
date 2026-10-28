@@ -302,6 +302,11 @@ def verificar_3d(c: dict) -> None:
     page.wait_for_timeout(800)
     n2 = js(c, JS_PIXELS_3D)
     passo(c, "3D: cor por altura redesenha", n2 > 1500, f"{n2} pixels")
+    sn = js(c, """() => { const S = __viz.D.modelo3d.sondagens || [], im = __viz.v3.sond;
+      return {n: S.length, inst: im ? im.count : 0, esperado: S.reduce((a, s) => a + s.segmentos.length + (s.z_na != null), 0),
+              topo: S.every(s => Math.abs(s.segmentos[0].z_topo - s.z_boca) < 0.01 && Math.abs(s.segmentos.at(-1).z_base - s.z_fundo) < 0.01)}; }""")
+    if sn["n"]:
+        passo(c, "3D: sondagens em cota (segmentos + NA)", sn["inst"] == sn["esperado"] and sn["topo"], f"{sn['n']} furos, {sn['inst']} peças")
     foto(c, "07_3d_painel")
     js(c, "document.querySelector('.painel3d').open = false")   # libera a nuvem para os cliques da medida
     clicar_camera_3d(c)
@@ -473,9 +478,13 @@ def verificar_v3_marcos(c: dict) -> None:
 
 
 def ir_ao_dia(c: dict, dia: int) -> None:
-    """Usa o próprio controle da linha do tempo (evento input do range)."""
+    """Usa o próprio controle da linha do tempo (evento input do range). Espera dois quadros com prazo largo: no
+    Chromium sem GPU (swiftshader), com o WebGL do 3D vivo e 34 canvases, o primeiro quadro do 4D já levou 42 s,
+    com a CPU ociosa — demora de composição do ambiente de teste, não do código (o mesmo passo também deu 0,6 s)."""
     js(c, "(d) => { const r = document.querySelector('#b4Dia'); r.value = d; r.dispatchEvent(new Event('input', {bubbles: true})); }", dia)
-    c["page"].wait_for_timeout(500)
+    c["page"].wait_for_function("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))",
+                                timeout=180000)
+    c["page"].wait_for_timeout(300)
 
 
 def verificar_v3_4d_abrir(c: dict) -> None:

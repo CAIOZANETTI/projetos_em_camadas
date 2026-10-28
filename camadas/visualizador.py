@@ -29,7 +29,9 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   "sondagens": [{"id", "tipo", "E", "N", "lon", "lat", "cota_boca", "profundidade_m", "na_m",
                  "nspt": [[prof_m, golpes]], "camadas": [{"de", "ate", "descricao", "classe"}], "fonte"}],
   "modelo3d": {"origem": [E0, N0, 0], "n", "pos_cm_b64": Int32LE xyz em cm, "rgb_b64": Uint8 rgb,
-               "cameras": [{"nome", "centro", "eixo", "topo", "tipo", "focal_px", "largura", "altura", ...}]},
+               "cameras": [{"nome", "centro", "eixo", "topo", "tipo", "focal_px", "largura", "altura", ...}],
+               "sondagens": [{"id", "x", "y", "z_boca", "z_fundo", "z_na", "segmentos": [{"z_topo", "z_base", "classe",
+                              "descricao", "confirmado"}]}]},   # só com controle vertical (z em cota)
   "fotos": {"DJI_0249.JPG": data URL webp},   # aberta ao clicar nas câmeras (vetor "cameras", properties.foto)
 
   # --- visualizador v3 (opcionais; veja a seção "v3" de docs/VISUALIZADOR_V2.md) ---
@@ -37,7 +39,8 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   "intervencoes": [{"id", "nome", "cor"}],     # tipos do recorte classificado
   "cronograma": {"data_os", "data_os_hipotese", "prazo_dias", "marcos", "atividades", "curva_s": {"dia", "planejado_pct"}},   # 4D
   # vetores especiais: "estacas" (flag estacas), "supressao" (resumo por etapa) e "marcos" (marcos geodésicos)
-  # escopo: por_tabela e totais são contagens (itens, 1ª/2ª etapa, alerta, no cadastro), calculadas no Python
+  # escopo: por_tabela e totais são contagens (itens, 1ª/2ª etapa, alerta, no cadastro), calculadas no Python;
+  #   tubo_x_desenho: [{prancha, nome, tabelas, codigo, descricao, contrato_m, desenho_m, diferenca_pct}]
 }
 
 `gerar(..., leaflet="inline")` embute Leaflet e three.js r128 (+ OrbitControls); com "cdn" ambos vêm de CDN.
