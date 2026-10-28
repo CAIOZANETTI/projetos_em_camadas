@@ -1,0 +1,122 @@
+{
+ "metadata": {
+  "fonte": "posição do tubo no desenho (divisas/meio-fio das plantas de adutora SJMH, quadras do cadastro municipal na AAT06), ortofoto do drone e urbanização da ETA (PARQ URBANIZAÇÃO R0); seções de vala por NBR 12266",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Cada metro de tubo ganha uma classe pela posição. Divisas: raios perpendiculares ao tubo contam as linhas de cada lado; ≥ 2 dos dois lados = pista (entre meios-fios); 1 de um lado com vão até `calcada_max_m` = calçada; 1 com vão maior = via sem meio-fio no desenho; 0 = fora da via. Meio-fio + alinhamento em layers separados (AAT01/02): linha mais próxima de cada lado; meio-fio dos dois lados = pista, meio-fio e alinhamento = calçada, sem meio-fio = fora da via. Quadras: entre quadras = rua; a até `calcada_quadra_m` do alinhamento = calçada, além = pista. ETA: demolição pela superfície existente (ortofoto), recomposição pela superfície final (hachuras da urbanização). O tipo do pavimento das adutoras não está no desenho: pista = pavimento (asfalto em área urbana, a confirmar no cadastro)."
+ },
+ "largura_vala": {
+  "folga_m": 0.6,
+  "minimo_m": 0.6,
+  "estado": "premissa",
+  "fonte": "b = DE + 0,60 m (0,30 m de cada lado para assentar e compactar), mínimo 0,60 m — NBR 12266; conferir no caderno de encargos Sanepar"
+ },
+ "recobrimento_m": {
+  "pista": 1.0,
+  "calcada": 0.6,
+  "outros": 0.6,
+  "estado": "premissa",
+  "fonte": "recobrimento mínimo sobre a geratriz superior: 1,0 m sob tráfego, 0,6 m em passeio/área livre (NBR 12266); o perfil longitudinal tem a cota real"
+ },
+ "berco_m": {
+  "valor": 0.1,
+  "estado": "premissa",
+  "fonte": "berço de areia/solo selecionado sob o tubo"
+ },
+ "sobrelargura_recorte_m": {
+  "valor": 0.15,
+  "estado": "premissa",
+  "fonte": "corte do pavimento 0,15 m além de cada borda da vala (recomposição em degrau)"
+ },
+ "calcada_max_m": {
+  "valor": 4.0,
+  "estado": "premissa",
+  "fonte": "vão alinhamento–meio-fio acima disso não é calçada"
+ },
+ "calcada_quadra_m": {
+  "valor": 3.0,
+  "estado": "premissa",
+  "fonte": "passeio usual em Foz do Iguaçu; sem meio-fio no cadastro, o resto da rua é pista"
+ },
+ "alcance_m": {
+  "valor": 25.0,
+  "estado": "premissa",
+  "fonte": "metade da largura de uma avenida; além disso a linha é de outra quadra"
+ },
+ "passo_m": {
+  "valor": 1.0,
+  "estado": "premissa",
+  "fonte": "amostragem ao longo do tubo"
+ },
+ "ortofoto": {
+  "exg_verde": 0.06,
+  "terra_s_min": 0.35,
+  "terra_v_max": 120,
+  "janela_m": 0.3,
+  "estado": "calibrar",
+  "fonte": "ExG > 0,06 = vegetação; solo exposto = saturado e escuro (vermelho de Foz); o resto é pavimentado (asfalto e concreto empoeirados se confundem na cor)"
+ },
+ "classes": {
+  "pista": {
+   "nome": "Pista (leito carroçável)",
+   "demolicao": "demolição de pavimento",
+   "recomposicao": "recomposição de pavimento",
+   "cor": "#dc2626",
+   "recobrimento": "pista"
+  },
+  "calcada": {
+   "nome": "Calçada (passeio)",
+   "demolicao": "demolição de calçada",
+   "recomposicao": "recomposição de calçada",
+   "cor": "#f59e0b",
+   "recobrimento": "calcada"
+  },
+  "via_sem_meio_fio": {
+   "nome": "Via sem meio-fio no desenho",
+   "demolicao": "demolição de pavimento (se houver)",
+   "recomposicao": "recomposição da via (tipo a confirmar)",
+   "cor": "#a855f7",
+   "recobrimento": "pista"
+  },
+  "fora_da_via": {
+   "nome": "Fora da via (lote/área livre)",
+   "demolicao": null,
+   "recomposicao": "recomposição de terreno/gramado",
+   "cor": "#16a34a",
+   "recobrimento": "outros"
+  },
+  "pavimentado": {
+   "nome": "Pavimentado existente (asfalto/concreto)",
+   "demolicao": "demolição de pavimento/piso",
+   "recomposicao": "recomposição de pavimento/piso",
+   "cor": "#475569",
+   "recobrimento": "pista"
+  },
+  "vegetacao": {
+   "nome": "Gramado / vegetação",
+   "demolicao": null,
+   "recomposicao": "replantio de grama",
+   "cor": "#22c55e",
+   "recobrimento": "outros"
+  },
+  "solo": {
+   "nome": "Solo exposto",
+   "demolicao": null,
+   "recomposicao": "regularização do terreno",
+   "cor": "#b45309",
+   "recobrimento": "outros"
+  },
+  "sem_ortofoto": {
+   "nome": "Fora da ortofoto",
+   "demolicao": null,
+   "recomposicao": null,
+   "cor": "#9ca3af",
+   "recobrimento": "outros"
+  }
+ },
+ "min_parte_m": {
+  "valor": 3.0,
+  "estado": "confirmado",
+  "fonte": "rede em traço simples: depois de juntar os traços contínuos, peça menor que 3 m é letra SHX ou seta no mesmo layer (f006 DN400: 346 m com corte em 3 m e em 5 m; as letras têm traços de 0,15 m)"
+ }
+}

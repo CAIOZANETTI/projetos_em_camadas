@@ -121,6 +121,11 @@ Chaves novas em `dados`. Tudo é calculado no Python; o front só seleciona e ex
 | `vetores[id=supressao]` | polígonos estimados `{tipo, categoria: supressao/limpeza, etapa, area_m2, altura_m, estimado: true}` + `resumo` por etapa |
 | `vetores[id=marcos]` | marcos geodésicos `{nome, rede, distancia_m, CLASSIFICAÇÃO, SITUAÇÃO…}` |
 | `intervencoes` | tipos de recorte `{id, nome, cor}` (`conceitos/intervencoes.json`) |
+| `inventario` (rodada 7) | `{fonte, totais{pdfs, no_disco, falhou, nao_tentado, planta, detalhe, documento, no_mapa, plantas_fora_do_mapa}, resumo[{grupo, subgrupo, total, planta, detalhe, documento, no_mapa, fora_do_disco}], itens[{arquivo, pasta_drive, situacao, tipo, grupo, subgrupo, formato, paginas, mb, no_mapa, carimbo{titulo, folha, escala, data, fonte}}]}` (`camadas/inventario.py`) |
+| `escavacao` (rodada 7) | `{cavas[{id, escavacao_m3, reaterro_m3, area_m2, base_m2, prof_media_m, prof_max_m, fundo_m[min,max], etapa, na_borda_do_levantamento}], total, modelo_m3, marcas{total, lidas, topo, sem_numero, fora_da_faixa, usadas}, bases_sem_marca, conferencia_crista{pontos, comprimento_m, mediana_m, p90_m, ate_1m}, parametros, fonte, premissas}` (`camadas/escavacao.py`) |
+| `vetores[id=escavacao]` | contorno de cada cava com as mesmas propriedades da tabela, `estimado: true` |
+| `valas` (rodada 7) | `{redes[{id, de_mm, fonte_de, criterio, extensao_m, quadro[{classe, nome, final, extensao_m, largura_m, profundidade_m, demolicao, demolicao_m2, recomposicao, recomposicao_m2, volume_vala_m3}]}], classes{id: {nome, cor}}, urbanizacao_m2, fonte, fora[], premissas}` (`camadas/valas.py`) |
+| `vetores[id=valas]` | trechos do tubo por classe `{rede, classe, tipo, cor, extensao_m, estimado}`; o front pinta cada trecho com `properties.cor` |
 | `cronograma` | `{fonte, data_os, data_os_hipotese, prazo_dias, marcos[{id,dia,descricao}], atividades[{id,nome,inicio_dia,fim_dia,uc,etapa,peso_pct,origem_peso,elementos:{layers:{prancha:[layers]}, vetores:[], estacas:[ids], intervencoes:[tipos]}, n_elementos}], curva_s:{dia[], planejado_pct[]}}` |
 
 ## Interface

@@ -477,6 +477,40 @@ def verificar_v3_marcos(c: dict) -> None:
     page.keyboard.press("Escape")
 
 
+def verificar_projeto(c: dict) -> None:
+    """Aba Projeto: inventário (soma = listagem), cavas (escavação e reaterro) e valas (uma tabela por rede)."""
+    page = c["page"]
+    if not js(c, "!!(__viz.D.inventario || __viz.D.escavacao || __viz.D.valas)"):
+        return
+    page.click("#t-info")
+    page.wait_for_timeout(300)
+    if js(c, "!!__viz.D.inventario"):
+        r = js(c, """() => { const I = __viz.D.inventario, s = I.resumo.reduce((a, l) => a + l.total, 0);
+          return {soma: s, pdfs: I.totais.pdfs, itens: I.itens.length, nota: document.querySelector('#invLista .nota-l').textContent}; }""")
+        passo(c, "inventário: soma do resumo = PDFs da listagem = itens", r["soma"] == r["pdfs"] == r["itens"], str(r))
+        page.select_option("#invTipo", "planta")
+        page.wait_for_timeout(200)
+        n = js(c, "document.querySelectorAll('#invLista .inv-i').length")
+        passo(c, "inventário: filtro por plantas", n == js(c, "__viz.D.inventario.totais.planta"), f"{n} plantas")
+        page.select_option("#invTipo", "")
+    if js(c, "!!__viz.D.escavacao"):
+        r = js(c, """() => ({linhas: document.querySelectorAll('#escTab tbody tr').length, cavas: __viz.D.escavacao.cavas.length,
+          total: document.querySelector('#escTab tbody tr:last-child td:nth-child(2)').textContent,
+          esperado: __viz.D.escavacao.total.escavacao_m3, mapa: !!__viz.camadasMapa.escavacao})""")
+        passo(c, "escavação: uma linha por cava + total", r["linhas"] == r["cavas"] + 1 and r["mapa"], str(r))
+        passo(c, "escavação: total exibido = total do Python",
+              float(r["total"].replace(".", "").replace(",", ".")) == round(r["esperado"]), r["total"])
+    if js(c, "!!__viz.D.valas"):
+        r = js(c, """() => { const V = __viz.D.valas, ok = V.redes.every(r => Math.abs(r.quadro.reduce((s, q) => s + q.extensao_m, 0) - r.extensao_m) < 1);
+          const l = __viz.camadasMapa.valas.layer.getLayers()[0];
+          return {redes: V.redes.length, h3: [...document.querySelectorAll('#aba-info h3')].length, ok, cor: l.options.color === l.feature.properties.cor}; }""")
+        passo(c, "valas: uma tabela por rede, extensão por classe soma a da rede", r["redes"] == r["h3"] and r["ok"], str(r))
+        passo(c, "valas: no mapa, cada trecho na cor da classe", r["cor"])
+    foto(c, "16_projeto")
+    page.click("#t-camadas")
+    page.wait_for_timeout(300)
+
+
 def ir_ao_dia(c: dict, dia: int) -> None:
     """Usa o próprio controle da linha do tempo (evento input do range). Espera dois quadros com prazo largo: no
     Chromium sem GPU (swiftshader), com o WebGL do 3D vivo e 34 canvases, o primeiro quadro do 4D já levou 42 s,
@@ -577,7 +611,7 @@ def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
     c = abrir_pagina(pw, html, cen, pasta, rel)
     for secao in (verificar_inicio, verificar_mapa, verificar_filtro_etapa, verificar_escopo_tabela, verificar_escopo_valores,
                   verificar_pranchas, verificar_sondagens_fotos, verificar_3d, verificar_v3_arvore, verificar_v3_intervencao,
-                  verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos):
+                  verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_projeto):
         secao(c)
     if c["info"]["crono"]:
         for secao in (verificar_v3_4d_abrir, verificar_v3_4d_dia100, verificar_v3_4d_3d, verificar_v3_4d_dias, verificar_v3_4d_play, verificar_v3_4d_sair):

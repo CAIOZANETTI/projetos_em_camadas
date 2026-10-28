@@ -24,7 +24,17 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from . import geo, georef_prancha, orcamento_sanepar, pdf_cad, sfm, visualizador
+from . import (
+    escavacao,
+    geo,
+    georef_prancha,
+    inventario,
+    orcamento_sanepar,
+    pdf_cad,
+    sfm,
+    valas,
+    visualizador,
+)
 
 REGRAS = {"etapa_sanepar": "etapas_sanepar"}     # nome no obra.json -> conceitos/<arquivo>.json
 
@@ -520,6 +530,15 @@ def vetor_supressao(cfg: dict, out: Path, pranchas: list) -> dict | None:
             "estilo": {"color": "#dc2626", "weight": 1, "fillOpacity": 0.35}}
 
 
+def vetor_escavacao(esc: dict | None) -> dict | None:
+    """Contorno das cavas calculadas (escavação e reaterro por cava) para o mapa."""
+    if not esc:
+        return None
+    return {"id": "escavacao", "nome": f"Escavação calculada ({len(esc['cavas'])} cavas)", "grupo": "Intervenções",
+            "subgrupo": "Movimento de terra", "visivel": False, "geojson": esc["geojson"],
+            "estilo": {"color": "#92400e", "weight": 2, "fillOpacity": 0.3}}
+
+
 def vetor_marcos(cfg: dict, epsg: int, centro_utm) -> dict | None:
     """Marcos geodésicos (Sanepar MRRN/RN, IBGE, municipal, RBMC) num raio da obra."""
     c = cfg.get("referencias_geodesicas")
@@ -628,13 +647,19 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
                     "subgrupo": "Drone",
                     "visivel": False, "geojson": vetores_cameras(rel, epsg), "fotos": True,
                     "estilo": {"color": "#f5c518", "weight": 2}})
-    for v in (estacas(cfg, epsg), vetor_supressao(cfg, out, pranchas),
+    esc = escavacao.etapa(cfg, pranchas, out, vertical, log=_log)     # cavas: escavação e reaterro
+    for v in (estacas(cfg, epsg), vetor_supressao(cfg, out, pranchas), vetor_escavacao(esc),
               vetor_marcos(cfg, epsg, ((e0 + e1) / 2, (n0 + n1) / 2))):
         if v:
             vetores.append(v)
     escopo = etapa_escopo(cfg)
     if escopo:
         escopo["tubo_x_desenho"] = tubo_contrato_x_desenho(escopo, lista, cfg)
+    vala = valas.etapa(cfg, pranchas, lista, escopo, out, epsg, log=_log)   # pista × calçada × lote em cada rede
+    if vala:
+        vetores.append({"id": "valas", "nome": "Valas: pista, calçada e lote (calculado)", "grupo": "Intervenções",
+                        "subgrupo": "Demolição e recomposição", "visivel": False, "geojson": vala["geojson"],
+                        "estilo": {"color": "#dc2626", "weight": 4, "opacity": 0.9}})
     furos = sondagens(cfg, epsg)
     if vertical:                                      # boca do furo × terreno da nuvem já em cota, por furo
         por_id = {l["id"]: l for l in vertical["pontos"]}
@@ -687,6 +712,11 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     }
     if vertical:                                      # perfil dos furos no 3D só com a nuvem em cota
         dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
+    for chave, pacote in (("escavacao", esc), ("valas", vala)):
+        if pacote:
+            dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}
+    if cfg.get("inventario"):                         # todos os PDFs da listagem do Drive, com o carimbo
+        dados["inventario"] = inventario.para_html(inventario.inventario(cfg, out / "inventario_cache.json", log=_log))
     dados["cronograma"] = cronograma_4d(cfg, dados)
     (out / "dados.json").write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")))
     if cfg.get("sig", True):

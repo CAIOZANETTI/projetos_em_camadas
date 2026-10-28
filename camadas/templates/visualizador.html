@@ -199,6 +199,9 @@ table.esc td{padding:5px 6px;border-bottom:1px solid var(--linha);vertical-align
 table.esc td.d{text-align:left}
 table.esc td.d .cod{display:block;color:var(--mut);font:10.5px var(--f-dado);margin-top:1px;overflow-wrap:anywhere}
 table.esc td.u{text-align:center;color:var(--mut)}
+table.esc.compacta th{white-space:normal;padding:3px 3px;vertical-align:bottom}
+table.esc.compacta td{padding:4px 3px}
+table.esc.compacta td.d .cod{font-family:var(--f-ui);overflow-wrap:normal;word-break:normal}
 table.esc tr[data-alerta]{background:color-mix(in srgb,var(--aberta) 14%,transparent)}
 .esc-alerta{display:block;color:var(--aberta);font-size:11px;font-weight:600;margin-top:2px}
 .tot .gt{font:600 11px var(--f-ui);letter-spacing:.04em;text-transform:uppercase}
@@ -620,7 +623,8 @@ function criarMarcos(v) {
 for (const v of D.vetores) {
   const fotos = !!(v.fotos && D.fotos);   // vetor "cameras": clique abre a foto do drone num diálogo
   const estilo = f => fotos ? {...v.estilo, color: COR_CAM[f.properties.tipo] || v.estilo.color, weight: 3}
-    : v.id === "supressao" ? {...v.estilo, color: INTERV_COR[f.properties.categoria] || v.estilo.color, fillColor: INTERV_COR[f.properties.categoria] || v.estilo.color} : v.estilo;
+    : v.id === "supressao" ? {...v.estilo, color: INTERV_COR[f.properties.categoria] || v.estilo.color, fillColor: INTERV_COR[f.properties.categoria] || v.estilo.color}
+    : f.properties?.cor ? {...v.estilo, color: f.properties.cor, fillColor: f.properties.cor} : v.estilo;   // cor da classe vinda do Python
   let lay;
   if (v.estacas) lay = criarEstacas(v);
   else if (v.id === "marcos") lay = criarMarcos(v);
@@ -1657,7 +1661,7 @@ const TUBO_DES = D.escopo?.tubo_x_desenho || [];
 function htmlTuboDesenho() {
   if (!TUBO_DES.length) return "";
   return `<details class="pr-quant" style="margin:8px 0"><summary>Tubo: contrato × desenho (${TUBO_DES.length} pranchas)</summary>
-    <div style="overflow:auto"><table class="esc" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:62px"><col style="width:62px"><col style="width:62px"></colgroup>
+    <div style="overflow:auto"><table class="esc compacta" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:62px"><col style="width:62px"><col style="width:62px"></colgroup>
     <thead><tr><th>Prancha · tabela</th><th>Contrato</th><th>Desenho</th><th>Dif.</th></tr></thead><tbody>` +
     TUBO_DES.map(t => `<tr><td class="d" style="overflow-wrap:anywhere">${esc(t.nome)}<span class="cod">tabela ${t.tabelas.map(esc).join(", ")} · ${esc(t.codigo)} · ${esc(t.descricao)}</span></td>` +
       `<td>${fmt(t.contrato_m, 1)}</td><td>${t.desenho_m == null ? "—" : fmt(t.desenho_m, 1)}</td><td style="white-space:nowrap">${t.diferenca_pct == null ? "—" : (t.diferenca_pct > 0 ? "+" : "") + fmt(t.diferenca_pct, 1) + " %"}</td></tr>`).join("") +
@@ -2740,7 +2744,66 @@ function abrirAba(a) {
   if (a === "pranchas" && FV.P) mostrarVista("folha"); else if (vista === "folha") mostrarVista("mapa");
 }
 document.querySelectorAll(".abas button").forEach(b => b.onclick = () => abrirAba(b.dataset.aba));
-$("#aba-info").innerHTML = `<h2>Levantamento e georreferenciamento</h2>
+/* inventário de projetos: tudo vem pronto do Python (camadas/inventario.py); aqui só a tabela e o filtro */
+function htmlInventario() {
+  const I = D.inventario; if (!I) return "";
+  const T = I.totais, n = v => fmt(v, 0);
+  const lin = I.resumo.map(l => `<tr><td class="d">${esc(l.grupo)}<span class="cod">${esc(l.subgrupo)}</span></td><td>${n(l.total)}</td><td>${n(l.planta)}</td><td>${n(l.detalhe)}</td><td>${n(l.documento)}</td><td>${n(l.no_mapa)}</td><td>${l.fora_do_disco ? `<b style="color:var(--aberta)">${n(l.fora_do_disco)}</b>` : "0"}</td></tr>`).join("");
+  return `<h2>Inventário de projetos</h2>
+  <p class="aviso" style="margin-left:0">Fonte: ${esc(I.fonte)}. ${n(T.pdfs)} PDFs: ${n(T.no_disco)} no disco, ${n(T.falhou)} falharam no download e ${n(T.nao_tentado)} não foram tentados. ${n(T.planta)} plantas (${n(T.no_mapa)} no mapa), ${n(T.detalhe)} detalhes (ficam só aqui) e ${n(T.documento)} documentos.</p>
+  <div style="overflow:auto"><table class="esc compacta" id="invResumo" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:38px"><col style="width:42px"><col style="width:44px"><col style="width:36px"><col style="width:36px"><col style="width:44px"></colgroup>
+  <thead><tr><th>Disciplina</th><th>Total</th><th>Planta</th><th>Detalhe</th><th>Doc.</th><th>Mapa</th><th>Fora do disco</th></tr></thead>
+  <tbody>${lin}<tr><td class="d"><b>Total</b></td><td><b>${n(T.pdfs)}</b></td><td><b>${n(T.planta)}</b></td><td><b>${n(T.detalhe)}</b></td><td><b>${n(T.documento)}</b></td><td><b>${n(T.no_mapa)}</b></td><td><b>${n(T.pdfs - T.no_disco)}</b></td></tr></tbody></table></div>
+  <div class="filtros" style="margin-top:8px"><input type="search" id="invBusca" placeholder="Buscar arquivo, título, disciplina…" aria-label="Buscar no inventário" autocomplete="off">
+    <select id="invTipo" aria-label="Tipo"><option value="">Todos os tipos</option><option value="planta">Plantas</option><option value="detalhe">Detalhes</option><option value="documento">Documentos</option></select>
+    <select id="invSit" aria-label="Situação"><option value="">Todas as situações</option><option value="disco">No disco</option><option value="fora">Fora do disco</option><option value="mapa">No mapa</option><option value="pmapa">Planta fora do mapa</option></select></div>
+  <div id="invLista" style="max-height:420px;overflow:auto;margin-top:6px"></div>`;
+}
+function listarInventario() {
+  const I = D.inventario, box = $("#invLista"); if (!I || !box) return;
+  const q = semAcento(($("#invBusca").value || "").trim()), t = $("#invTipo").value, f = $("#invSit").value;
+  const ok = i => (!t || i.tipo === t) && (!f || (f === "disco" ? i.situacao.startsWith("no disco") : f === "fora" ? !i.situacao.startsWith("no disco")
+    : f === "mapa" ? !!i.no_mapa : i.tipo === "planta" && !i.no_mapa)) &&
+    (!q || semAcento([i.arquivo, i.pasta_drive, i.grupo, i.subgrupo, i.carimbo.titulo].join(" ")).includes(q));
+  const L = I.itens.filter(ok);
+  box.innerHTML = `<p class="nota-l">${fmt(L.length, 0)} de ${fmt(I.itens.length, 0)}</p>` + L.map(i => `<div class="inv-i" style="border-bottom:1px solid var(--linha);padding:5px 0">
+    <div style="display:flex;gap:6px;align-items:baseline;justify-content:space-between"><b style="font-size:12px;overflow-wrap:anywhere">${esc(i.arquivo)}</b>${i.no_mapa ? `<button class="btn mini" data-inv="${esc(i.no_mapa)}">Abrir</button>` : ""}</div>
+    <div class="nota-l">${esc(i.tipo)} · ${esc(i.grupo)} › ${esc(i.subgrupo)} · ${esc(i.situacao)}${i.formato ? " · " + esc(i.formato) : ""}${i.paginas > 1 ? " · " + i.paginas + " pág." : ""}${i.mb ? " · " + fmt(i.mb, 1) + " MB" : ""}</div>
+    ${i.carimbo.titulo || i.carimbo.folha ? `<div class="nota-l">Carimbo: ${esc(i.carimbo.titulo || "—")}${i.carimbo.folha ? " · folha " + esc(i.carimbo.folha) : ""}${i.carimbo.escala ? " · " + esc(i.carimbo.escala) : ""}${i.carimbo.data ? " · " + esc(i.carimbo.data) : ""}</div>` : ""}</div>`).join("");
+}
+/* movimento de terra: cavas calculadas no Python (camadas/escavacao.py); aqui só a tabela */
+function htmlEscavacao() {
+  const X = D.escavacao; if (!X) return "";
+  const n = (v, d = 0) => v == null ? "—" : fmt(v, d), C = X.conferencia_crista, M = X.marcas, P = X.parametros;
+  const lin = X.cavas.map(c => `<tr><td class="d">${esc(c.id)}<span class="cod">${esc(c.etapa || "—")}${c.na_borda_do_levantamento ? " · borda do levantamento" : ""}</span></td><td>${n(c.escavacao_m3)}</td><td>${n(c.reaterro_m3)}</td><td>${n(c.area_m2)}</td><td>${n(c.prof_media_m, 1)}</td><td>${c.fundo_m ? n(c.fundo_m[0], 2) + (c.fundo_m[1] !== c.fundo_m[0] ? "–" + n(c.fundo_m[1], 2) : "") : "—"}</td></tr>`).join("");
+  const T = X.total;
+  return `<h2>Movimento de terra (calculado)</h2>
+  <p class="aviso" style="margin-left:0">Estimativa a partir das plantas de escavação e do MDS do drone em cota — não é quantidade do contrato. ${esc(X.fonte)}. Talude ${n(P.talude_h_v, 2)}H:1V, folga ${n(P.folga_m, 2)} m, grade de ${n(P.res_m, 2)} m.</p>
+  <div style="overflow:auto"><table class="esc compacta" id="escTab" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:58px"><col style="width:58px"><col style="width:52px"><col style="width:40px"><col style="width:84px"></colgroup>
+  <thead><tr><th>Cava</th><th>Escavação m³</th><th>Reaterro m³</th><th>Área m²</th><th>Prof. m</th><th>Fundo m</th></tr></thead>
+  <tbody>${lin}<tr><td class="d"><b>Total</b></td><td><b>${n(T.escavacao_m3)}</b></td><td><b>${n(T.reaterro_m3)}</b></td><td><b>${n(T.area_m2)}</b></td><td></td><td></td></tr></tbody></table></div>
+  <p class="nota-l">Marcas de nível: ${n(M.total)} na planta, ${n(M.lidas)} lidas por OCR (${n(M.topo)} de crista "TOPO"), ${n(M.usadas)} usadas como fundo, ${n(M.fora_da_faixa)} descartadas fora da faixa do terreno. Bases sem marca: ${n(X.bases_sem_marca)}. Edificações tratadas como parede: ${n(P.edificacao_m2)} m².</p>
+  <p class="nota-l">Conferência — crista desenhada × crista do modelo (só base, fundo, talude e terreno): ${C.pontos ? `mediana ${n(C.mediana_m, 2)} m, 90% até ${n(C.p90_m, 2)} m, ${n(C.ate_1m * 100)}% a ≤ 1 m em ${n(C.comprimento_m)} m de crista; o modelo sozinho daria ${n(X.modelo_m3)} m³` : esc(C.motivo)}.</p>
+  <p class="nota-l">${esc(X.premissas)}</p>`;
+}
+/* valas: classe da superfície e quadro calculados no Python (camadas/valas.py); aqui só a tabela */
+function htmlValas() {
+  const V = D.valas; if (!V) return "";
+  const n = (v, d = 0) => v == null ? "—" : fmt(v, d);
+  const redes = V.redes.map(r => {
+    const t = k => r.quadro.reduce((s, q) => s + q[k], 0);
+    const lin = r.quadro.map(q => `<tr><td class="d"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${esc(V.classes[q.classe].cor)};margin-right:4px"></span>${esc(q.nome)}${q.final ? `<span class="cod">final: ${esc(q.final)}</span>` : ""}<span class="cod">${esc(q.demolicao || "sem demolição")} · ${esc(q.recomposicao || "—")}</span></td><td>${n(q.extensao_m)}</td><td>${n(q.demolicao_m2)}</td><td>${n(q.recomposicao_m2)}</td><td>${n(q.volume_vala_m3)}</td></tr>`).join("");
+    return `<h3 style="margin:10px 0 2px">${esc(r.id)} · DE ${n(r.de_mm)} mm · ${n(r.extensao_m)} m</h3><p class="nota-l" style="margin:0">DE: ${esc(r.fonte_de)} · critério: ${esc(r.criterio)}</p>
+    <div style="overflow:auto"><table class="esc compacta" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:46px"><col style="width:58px"><col style="width:62px"><col style="width:50px"></colgroup>
+    <thead><tr><th>Superfície</th><th>Ext. m</th><th>Demolição m²</th><th>Recompos. m²</th><th>Vala m³</th></tr></thead>
+    <tbody>${lin}<tr><td class="d"><b>Total</b></td><td><b>${n(t("extensao_m"))}</b></td><td><b>${n(t("demolicao_m2"))}</b></td><td><b>${n(t("recomposicao_m2"))}</b></td><td><b>${n(t("volume_vala_m3"))}</b></td></tr></tbody></table></div>`;
+  }).join("");
+  return `<h2>Valas: pavimento, calçada e recomposição (calculado)</h2>
+  <p class="aviso" style="margin-left:0">Posição do tubo no desenho e superfície na ortofoto — não é cadastro de pavimento nem quantidade do contrato; conferir em campo. ${esc(V.fonte)}.</p>
+  ${redes}${V.fora.length ? `<p class="nota-l">Fora do cálculo: ${V.fora.map(esc).join("; ")}.</p>` : ""}
+  <p class="nota-l">${esc(V.premissas)}</p>`;
+}
+$("#aba-info").innerHTML = htmlInventario() + htmlEscavacao() + htmlValas() + `<h2>Levantamento e georreferenciamento</h2>
   <table class="info">${(D.info || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
   <h2>Como as medidas são calculadas</h2>
   <p>Distâncias e áreas são calculadas no plano ${esc(D.crs.nome)}, o mesmo das pranchas. Para a distância no terreno (topográfica), divida pelo fator k = ${D.crs.k.toFixed(5)}.</p>
@@ -2750,6 +2813,13 @@ $("#aba-info").innerHTML = `<h2>Levantamento e georreferenciamento</h2>
   <tr><td>Clique numa linha do projeto</td><td>Mostra a camada e a coordenada</td></tr>
   <tr><td>Clique num traço de prancha</td><td>Identifica prancha, layer, comprimento e área</td></tr>
   <tr><td>Medindo</td><td>Os pontos grudam nos vértices das pranchas visíveis (8 px)</td></tr></table>`;
+if (D.inventario) {
+  let tmInv = 0;
+  $("#invBusca").oninput = () => { clearTimeout(tmInv); tmInv = setTimeout(listarInventario, 150); };
+  $("#invTipo").onchange = $("#invSit").onchange = listarInventario;
+  $("#invLista").onclick = e => { const b = e.target.closest("button[data-inv]"); if (b) abrirFolha(b.dataset.inv); };
+  listarInventario();
+}
 
 montarPainel();
 iniciarV2();

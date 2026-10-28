@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0 — 2026-10-28 · Foz, rodada 7: inventário de projetos, movimento de terra e valas
+- **Inventário determinístico** (`camadas/inventario.py`): a listagem do Drive é a referência e cada PDF ganha uma
+  linha — situação (no disco / outra pasta / falhou / não tentado), formato da folha (A0–A4, estendido), código
+  Sanepar e o carimbo do canto inferior direito (texto do PDF, fonte ArialMT sem ToUnicode reparada, ou OCR).
+  Foz: 325 PDFs, 163 no disco, 22 falharam e 140 nunca foram tentados. Aba Projeto com resumo por disciplina e
+  lista filtrável.
+- **Planta × detalhe × documento** (`conceitos/tipos_prancha.json`): detalhe e documento ficam só na aba Projeto;
+  as 34 pranchas do mapa saem como planta e 17 plantas ainda fora do mapa ficam listadas.
+- **Escavação e reaterro** (`camadas/escavacao.py`, `conceitos/escavacao.json`): base das estruturas, cota de fundo
+  por OCR das marcas de nível, crista desenhada, talude 1,5H:1V, MDS em cota; edificações (filtro morfológico
+  progressivo + ExG) são parede. Foz: 8 cavas, 8 769 m³ de escavação e 5 558 m³ de reaterro (estimativa).
+- **Valas** (`camadas/valas.py`, `conceitos/valas.json`): cada metro de tubo em pista, calçada ou lote pela posição
+  no desenho (divisas, meio-fio × alinhamento, quadras) ou pela ortofoto (ETA), com a superfície final da
+  urbanização; demolição, recomposição e volume de vala por rede. Camada no mapa colorida por classe.
+- `supressao`: `terreno`, `mds_na_grade`, `rasterizar` e `poligonos` passam a públicos (reuso, sem duplicata);
+  `mascaras_vegetacao` devolve `valido`.
+- Teste de interface: aba Projeto (soma do inventário, filtro de plantas, cavas, valas e cor por classe).
+
 ## 0.6.0 — 2026-10-28 · Foz, rodada 6: adutoras completas, escopo × desenho e sondagens no 3D
 - Malha com rótulo errado no próprio desenho: `georef_prancha.hipoteses_malha` (afins discretas com a escala
   declarada) + `escolher_por_continuidade` (coincidência do tubo com a folha vizinha na área comum). AAT00-05 e -06

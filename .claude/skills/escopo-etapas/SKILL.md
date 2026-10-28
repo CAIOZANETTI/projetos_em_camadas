@@ -38,6 +38,9 @@ Para planilhas de outro cliente, delegue a um agente **Sonnet** a adaptação da
   principal de cada tabela (família tubo, em metros) é comparado com o eixo medido na prancha que a tabela aponta.
   Diferença positiva costuma ser a cauda desenhada além da linha de emenda (até ~170 m em Foz); leia o rótulo do
   próprio desenho antes de concluir (AAT06-09: desenho diz 460 m, contrato 440 m);
+- **serviço sem quantidade** (escavação, reaterro, bota-fora, recomposição de pavimento): o desenho dá a ordem de
+  grandeza — `camadas/escavacao.py` (cavas das plantas de escavação) e `camadas/valas.py` (demolição/recomposição e
+  volume de vala por rede). É estimativa com premissa declarada, nunca substitui a quantidade do contrato;
 - código fora do cadastro Sanepar, item sem código ou unidade diferente da cadastrada ⇒ alerta (`obra.etapa_escopo`).
   Em Foz: 702 de 882 itens no cadastro; tubo FD orçado em "pç" e cadastrado em "M" é o caso mais comum;
 - tabelas só da 2ª etapa não orçadas ⇒ fora do escopo (confirme com o TR);
