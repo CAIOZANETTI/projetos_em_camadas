@@ -31,6 +31,7 @@ from . import (
     inventario,
     orcamento_sanepar,
     pdf_cad,
+    prancha,
     sfm,
     valas,
     visualizador,
@@ -655,6 +656,9 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     escopo = etapa_escopo(cfg)
     if escopo:
         escopo["tubo_x_desenho"] = tubo_contrato_x_desenho(escopo, lista, cfg)
+    fichas = prancha.etapa(cfg, pranchas, escopo, out, log=_log)           # prancha lida em camadas (pilotos)
+    if fichas and prancha.vetor_blocos(fichas, epsg):
+        vetores.append(prancha.vetor_blocos(fichas, epsg))
     vala = valas.etapa(cfg, pranchas, lista, escopo, out, epsg, log=_log)   # pista × calçada × lote em cada rede
     if vala:
         vetores.append({"id": "valas", "nome": "Valas: pista, calçada e lote (calculado)", "grupo": "Intervenções",
@@ -683,6 +687,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "etapas": cfg.get("etapas", []),
         "grupos": pdf_cad.disciplinas()["grupos"],
         "intervencoes": json.loads((pdf_cad.CONCEITOS / "intervencoes.json").read_text(encoding="utf-8"))["intervencoes"],
+        "elementos": {c["id"]: {"nome": c["nome"], "grupo": c["grupo"]} for c in pdf_cad.elementos()["classes"]},
         "cronograma": None,
         "escopo": escopo,
         "sondagens": furos,
@@ -712,6 +717,10 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     }
     if vertical:                                      # perfil dos furos no 3D só com a nuvem em cota
         dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
+    if fichas:
+        dados["fichas"] = prancha.para_html(fichas)
+        if vertical:
+            dados["modelo3d"]["solidos"] = prancha.solidos_3d(fichas, np.asarray(dados["modelo3d"]["origem"]))
     for chave, pacote in (("escavacao", esc), ("valas", vala)):
         if pacote:
             dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}

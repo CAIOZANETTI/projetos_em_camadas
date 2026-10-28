@@ -88,3 +88,11 @@ feição por layer CAD (grupo/subgrupo nos atributos).
 - Plantas de detalhe têm outra escala: o critério de aceite as rejeita — marque pontos de controle.
 - Duas georreferências que "passam" na nota de bordas podem diferir 4 m dentro da foto. Confira contra uma
   testemunha independente (malha, GEOPLANTA, marcos E/N impressos), não contra a própria foto.
+
+## Folha de detalhe não é irmã do layout (rodada 8)
+Prancha "irmã" herda a escala da folha de referência. Folha de detalhe (interligações, cortes) desenha as plantas
+em outra escala (Foz f010: planta 1:100 sobre irmã 1:250 — ficou 2,5× grande no mapa). Antes de aceitar uma irmã,
+leia a escala no título da vista (`prancha.escala_do_titulo`) e compare com `prancha.escala_da_afim(M)`; se não
+bate, a prancha fica pendente. Confira também pela geometria: largura do tubo (par de linhas) ≈ DE na escala.
+Estrutura sem malha: encaixe os círculos das estacas nas estacas com E/N (`prancha.registrar_pontos`, RANSAC de
+similaridade com a escala da folha) — Foz: 104/104 a 9 mm.

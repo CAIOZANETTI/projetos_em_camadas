@@ -3,7 +3,7 @@
   "fonte": "Padrão de codificação Sanepar nos nomes de arquivo (SEQ-SAA-XXXX-XXXX-DISCIPLINA-TIPO-DESCRIÇÃO-Rn) e títulos de carimbo da LE 211/2026 (Foz do Iguaçu)",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "tipo de documento ≠ DE (desenho) => documento. Desenho: 'planta' se o código ou o título casam com `planta` (vai para o mapa georreferenciado); senão 'detalhe' (fica só em Projeto). A ordem importa: 'PLANTA E PERFIL' é planta. Conferido: as 34 pranchas do mapa de Foz saem como planta (rodada 7)."
+  "observacoes": "tipo de documento ≠ DE (desenho) => documento. Desenho: 'planta' se o código ou o título casam com `planta` (vai para o mapa georreferenciado); senão 'detalhe' (fica só em Projeto). A ordem importa: 'PLANTA E PERFIL' é planta. Conferido: as 34 pranchas do mapa de Foz saem como planta (rodada 7). `linear`: obra linear (adutora, rede, planta e perfil) × localizada (unidade da ETA) pelo nome do arquivo (rodada 8)."
  },
  "tipos_documento": {
   "DE": "desenho",
@@ -19,5 +19,6 @@
   "OR": "orçamento"
  },
  "planta": "PLANTA|LAY|IMPLANTA|SITUA[CÇ]|LOCA[CÇ]|GEOPLANTA|ESCAVA[CÇ]|FUNDA[CÇ]|CONTEN[CÇ]|URBANIZ|DRENAG|PTPER|PLFORCA|PLCOMAN|PLATERRA|PLANTIM|INTERLIGA[CÇ]",
- "detalhe": "DETALHE|DET\\d|CORTE|VISTA|SE[CÇ][AÃ]O|FLUXOGRAMA|DIAG|ESQUEMA|TOPOLOG|FUNCIO|ARMADURA|FORMA|PERFIL|COLAMOSTRA|CANALETA"
+ "detalhe": "DETALHE|DET\\d|CORTE|VISTA|SE[CÇ][AÃ]O|FLUXOGRAMA|DIAG|ESQUEMA|TOPOLOG|FUNCIO|ARMADURA|FORMA|PERFIL|COLAMOSTRA|CANALETA",
+ "linear": "AAT\\d|ADUT|PLANTAPERF|PTPER|PERFIL|REDE"
 }

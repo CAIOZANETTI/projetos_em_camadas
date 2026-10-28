@@ -262,9 +262,7 @@
    "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/010-SAA-0017-7471-PBHI-DE-0001ETAVILACINTERLIGAÇOES-R3.pdf",
    "nome": "Folha 10 · Interligações",
    "disciplina": "Hidráulica",
-   "irma": "f008",
-   "layers_irma": "^",
-   "layers_referencia": "^"
+   "obs_georef": "Pendente (rodada 8): a planta da folha está em 1:100 (título 'ESCALA 1:100'; tubo DN500 com 15 pt entre as linhas = 0,53 m), mas a afim herdada da f008 (layout 1:250) dava 0,0884 m/pt — 2,5× grande. O encaixe automático da vista contra a urbanização não teve pico claro; falta uma referência com o módulo novo."
   },
   {
    "id": "ct1",
@@ -908,5 +906,26 @@
   "fora": [
    "ETA água potável (folha 08): o layer CISM_53_AGUA POT só tem rótulos; o tubo está no layer genérico CISM_11_LINHA_TUBULAÇÃO 01, junto com as outras tubulações"
   ]
- }
+ },
+ "fichas": [
+  {
+   "id": "f010",
+   "nome": "Folha 10 · Interligações (piloto hidráulica)",
+   "piloto": "hidraulica",
+   "layer_balao": "CISM_18_BLOCO_LISTA_PEÇAS",
+   "tabelas": [
+    "16",
+    "17"
+   ],
+   "layer_numero": "CISM_24_TEXTO_IND_LISTA_PEÇAS"
+  },
+  {
+   "id": "mod01_forma",
+   "nome": "Módulo de filtros · locação e cargas (piloto estrutura)",
+   "piloto": "estrutura",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_FILTROS_NOVOS/001-SAA-0017-8820-PBES-DE-0000MOD01FORMA-R1.pdf",
+   "escala": 50,
+   "ancoras": "dados/foz/geotec/estacas.csv"
+  }
+ ]
 }

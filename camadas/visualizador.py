@@ -49,6 +49,11 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
                 "marcas", "conferencia_crista", "parametros", "premissas"},     # + vetor "escavacao"
   "valas": {"redes": [{id, de_mm, fonte_de, criterio, extensao_m, quadro: [{classe, nome, final, extensao_m,
             demolicao_m2, recomposicao_m2, volume_vala_m3, ...}]}], "classes", "fora", "premissas"},   # + vetor "valas"
+
+  # --- rodada 8 (opcionais) ---
+  "fichas": [{id, nome, piloto, identidade, vistas, itens, baloes, blocos, niveis, encaixe, elementos, servicos}],
+  "elementos": {"tubo": {"nome", "grupo"}, ...},    # pranchas[].layers[].elemento aponta para cá
+  # modelo3d.solidos: [{id, xy, z0, z1}] — blocos da forma extrudados; vetor "blocos_forma" no mapa
 }
 
 `gerar(..., leaflet="inline")` embute Leaflet e three.js r128 (+ OrbitControls); com "cdn" ambos vêm de CDN.
