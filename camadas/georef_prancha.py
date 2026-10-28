@@ -12,6 +12,9 @@ contornos de edificações e tanques existentes. Este módulo casa as linhas da 
      com pesos de Huber, várias iterações, em resolução crescente;
   3. relatório: resíduo mediano, fração de pontos a < 0,5 m de uma borda, escala.
 
+Quando a prancha traz malha de coordenadas impressa, `registrar_malha` dispensa a foto: lê os
+rótulos (OCR) e ajusta a afim às linhas da malha — é a georreferência do próprio CAD.
+
 Uso típico:
     tr = pdf_cad.extrair(pdf, clip=...)
     pts = pontos_de_traco(tr, filtro=lambda t: "EXISTENTES" in t["layer"])
@@ -24,6 +27,7 @@ Sem a rosa dos ventos, use faixa_rot=180 (busca completa, mais lenta).
 """
 from __future__ import annotations
 
+import itertools
 import json
 from pathlib import Path
 
@@ -326,6 +330,213 @@ def registrar_cad(tracos, referencia: str | Path, M_base: np.ndarray, padrao_lay
     return {"M": M if ok else None, "ok": ok, "motivo": "CAD×CAD (SIFT)" if ok else "; ".join(falhas), **d}
 
 
+def linhas_da_malha(tracos, padrao_layer: str, min_compr_pt: float = 100.0, max_glifo_pt: float = 15.0) -> dict:
+    """Linhas retas longas do layer de grade (segmentos colineares fundidos) e glifos curtos agrupados em rótulos.
+
+    Os rótulos da malha costumam vir em fonte SHX, isto é, desenhados como traço e não como texto do PDF.
+    Retorna {"linhas": [{"p0", "p1", "angulo"}], "rotulos": [{"centro", "angulo", "partes"}]} em pt e graus.
+    """
+    import re
+    partes = [np.asarray(q, float) for t in tracos if re.search(padrao_layer, t["layer"], re.IGNORECASE)
+              for q in t["partes"] if len(q) >= 2]
+    segmentos, glifos = [], []
+    for q in partes:
+        if np.ptp(q, axis=0).max() <= max_glifo_pt:
+            glifos.append(q)
+            continue
+        for a, b in itertools.pairwise(q):
+            if np.hypot(*(b - a)) >= min_compr_pt:
+                segmentos.append((a, b))
+    # colineares: mesmo ângulo (±0,5°) e mesma distância à origem (±1 pt) viram uma linha só
+    linhas = []
+    for a, b in segmentos:
+        ang = float(np.degrees(np.arctan2(*(b - a)[::-1])) % 180)
+        n = np.array([-np.sin(np.radians(ang)), np.cos(np.radians(ang))])
+        rho = float(n @ a)
+        for l in linhas:
+            if abs((l["angulo"] - ang + 90) % 180 - 90) < 0.5 and abs(l["rho"] - rho) < 1.0:
+                l["pontos"] += [a, b]
+                break
+        else:
+            linhas.append({"angulo": ang, "rho": rho, "pontos": [a, b]})
+    for l in linhas:
+        d = np.array([np.cos(np.radians(l["angulo"])), np.sin(np.radians(l["angulo"]))])
+        p = np.array(l.pop("pontos"))
+        s = p @ d
+        l["p0"], l["p1"] = p[s.argmin()], p[s.argmax()]
+    return {"linhas": linhas, "rotulos": _agrupar_glifos(glifos)}
+
+
+def _agrupar_glifos(glifos: list) -> list[dict]:
+    """Glifos vizinhos formam um rótulo: vão ≤ 0,8 × o maior lado do maior dos dois (o "1" é estreito e abre o
+    vão). A direção do texto é a componente principal dos pontos. Rótulo com menos de 3 glifos não é número."""
+    caixas = [np.r_[g.min(0), g.max(0)] for g in glifos]
+    lado = [max(c[2] - c[0], c[3] - c[1]) for c in caixas]
+    grupo = list(range(len(glifos)))
+
+    def raiz(i):
+        while grupo[i] != i:
+            grupo[i] = grupo[grupo[i]]
+            i = grupo[i]
+        return i
+
+    for i, j in itertools.combinations(range(len(caixas)), 2):
+        ci, cj, vao = caixas[i], caixas[j], 0.8 * max(lado[i], lado[j])
+        if ci[0] - vao <= cj[2] and cj[0] - vao <= ci[2] and ci[1] - vao <= cj[3] and cj[1] - vao <= ci[3]:
+            grupo[raiz(i)] = raiz(j)
+    rotulos = {}
+    for i, g in enumerate(glifos):
+        rotulos.setdefault(raiz(i), []).append(g)
+    saida = []
+    for gs in rotulos.values():
+        if len(gs) < 3:
+            continue
+        p = np.vstack(gs)
+        autoval, autovet = np.linalg.eigh(np.cov((p - p.mean(0)).T))
+        eixo = autovet[:, autoval.argmax()]                       # direção da linha de texto
+        saida.append({"centro": p.mean(0), "angulo": float(np.degrees(np.arctan2(eixo[1], eixo[0])) % 180),
+                      "partes": gs})
+    return saida
+
+
+def ler_rotulo(rotulo: dict, angulo: float, dpi: float = 600) -> str | None:
+    """OCR (tesseract) de um rótulo numérico desenhado em traço, girado para a horizontal pelo `angulo` da linha
+    que ele acompanha; tenta os dois sentidos de leitura."""
+    import pytesseract
+    k = dpi / 72
+    for giro in (angulo, angulo + 180):
+        c, s_ = np.cos(np.radians(-giro)), np.sin(np.radians(-giro))
+        partes = [(q - rotulo["centro"]) @ np.array([[c, s_], [-s_, c]]) for q in rotulo["partes"]]
+        p = np.vstack(partes)
+        x0, y0 = p.min(0)
+        x1, y1 = p.max(0)
+        img = np.full((int((y1 - y0) * k) + 41, int((x1 - x0) * k) + 41), 255, np.uint8)
+        for q in partes:
+            cv2.polylines(img, [np.int32((q - [x0, y0]) * k + 20)], False, 0, max(2, int(k / 2.5)), cv2.LINE_AA)
+        txt = pytesseract.image_to_string(img, config="--psm 7 -c tessedit_char_whitelist=0123456789").strip()
+        if 6 <= len(txt) <= 7 and txt.isdigit() and txt[0] != "0":     # UTM não começa com 0 (leitura de ponta-cabeça)
+            return txt
+    return None
+
+
+def _ajustar_malha(obs: list, max_residuo_m: float, min_valores: int) -> dict:
+    """Similaridade com reflexão sobre observações {"p" (pt), "eixo" "E"|"N", "valor", "chave"}:
+    E = a·x − b·y + c ; N = −b·x − a·y − d. Descarta a chave (linha ou rótulo) de maior resíduo enquanto passar de
+    `max_residuo_m`. Devolve {"M", "obs", "descartadas"} ou {"M": None, "motivo"}."""
+    obs, descartadas = list(obs), []
+    while True:
+        eixos = {e: sorted({o["valor"] for o in obs if o["eixo"] == e}) for e in ("E", "N")}
+        if not eixos["E"] or not eixos["N"] or len(eixos["E"]) + len(eixos["N"]) < min_valores:
+            return {"M": None, "motivo": f"malha insuficiente (E {eixos['E']}, N {eixos['N']}; "
+                    f"descartadas {descartadas or '—'})"}
+        A = [[o["p"][0], -o["p"][1], 1, 0] if o["eixo"] == "E" else [-o["p"][1], -o["p"][0], 0, -1] for o in obs]
+        a, b, c, d = np.linalg.lstsq(np.array(A), np.array([o["valor"] for o in obs]), rcond=None)[0]
+        M = np.array([[a, -b, c], [-b, -a, -d], [0, 0, 1]])
+        for o in obs:
+            o["residuo_m"] = abs(float(geo.aplicar(M, [o["p"]])[0, 0 if o["eixo"] == "E" else 1]) - o["valor"])
+        pior = max(obs, key=lambda o: o["residuo_m"])
+        if pior["residuo_m"] <= max_residuo_m:
+            return {"M": M, "obs": obs, "eixos": eixos, "descartadas": descartadas}
+        descartadas.append(f"{pior['eixo']} {pior['valor']:.0f}")          # leitura errada do OCR (ou do desenho)
+        obs = [o for o in obs if o["chave"] != pior["chave"]]
+
+
+def _eixo_por_familia(itens: list) -> list:
+    """[(angulo, textos, extra)] -> [(eixo, valor, extra)]: o eixo é o da família de paralelas (maioria: 7 dígitos =
+    N, 6 = E); leitura com dígito a mais ou a menos sai, e cada item fica com o valor mais votado."""
+    from collections import Counter
+    familias, saida = {}, []
+    for ang, textos, extra in itens:
+        familias.setdefault(round(ang) % 180, []).append((textos, extra))
+    for fam in familias.values():
+        tam = Counter(len(t) for textos, _ in fam for t in textos).most_common(1)[0][0]
+        for textos, extra in fam:
+            votos = Counter(t for t in textos if len(t) == tam)
+            if votos:
+                saida.append(("N" if tam == 7 else "E", float(votos.most_common(1)[0][0]), extra))
+    return saida
+
+
+def _obs_da_malha(malha: dict, ler, modo: str) -> list:
+    """Observações para `_ajustar_malha`. "linhas": cada linha com os rótulos alinhados (≤ 12 pt da reta, ±10°),
+    pelas duas pontas. "rótulos": cada rótulo lido, pelo centro."""
+    if modo == "rótulos":
+        itens = [(rt["angulo"], [ler(i, rt["angulo"])], (i, rt)) for i, rt in enumerate(malha["rotulos"])]
+        return [{"p": rt["centro"], "eixo": e, "valor": v, "chave": i}
+                for e, v, (i, rt) in _eixo_por_familia([x for x in itens if x[1][0]])]
+    itens = []
+    for l in malha["linhas"]:
+        d = np.array([np.cos(np.radians(l["angulo"])), np.sin(np.radians(l["angulo"]))])
+        n = np.array([-d[1], d[0]])
+        comp = (l["p1"] - l["p0"]) @ d
+        textos = [ler(i, l["angulo"]) for i, r in enumerate(malha["rotulos"])
+                  if abs((r["angulo"] - l["angulo"] + 90) % 180 - 90) < 10 and abs((r["centro"] - l["p0"]) @ n) < 12
+                  and -60 < (r["centro"] - l["p0"]) @ d < comp + 60]
+        if any(textos):
+            itens.append((l["angulo"], [t for t in textos if t], l))
+    return [{"p": p, "eixo": e, "valor": v, "chave": id(l)} for e, v, l in _eixo_por_familia(itens)
+            for p in (l["p0"], l["p1"])]
+
+
+def registrar_malha(tracos, padrao_layer: str, escala: float | None = None, max_residuo_m: float = 0.5,
+                    log=print) -> dict:
+    """Prancha com malha de coordenadas impressa -> pt -> UTM, sem ortofoto nem prancha irmã.
+
+    Linhas da malha: cada uma recebe os rótulos alinhados com ela (≤ 12 pt da reta), por voto, e entra pelas duas
+    pontas. Malha só na moldura (sem linhas): cada rótulo entra pelo centro, com incerteza de meia altura do texto.
+    O eixo vem da família de paralelas: 7 dígitos = N, 6 dígitos = E (UTM no Brasil). Sem `escala` (denominador
+    declarado, ex. 1000) exige 4 valores distintos, porque 3 fecham o ajuste sem sobra; com ela bastam 3 e a escala
+    medida tem de bater em ±0,5 %.
+    Retorna {"M" | None, "ok", "motivo", "linhas", "residuo_max_m", "escala_m_pt", "rotacao_graus", "janela_pt"}.
+    """
+    try:
+        import pytesseract  # noqa: F401
+    except ImportError:
+        return {"M": None, "ok": False, "motivo": "OCR indisponível (pip install pytesseract + tesseract-ocr)"}
+    malha = linhas_da_malha(tracos, padrao_layer)
+    lidos = {}
+
+    def ler(i, angulo):
+        chave = (i, round(angulo))
+        if chave not in lidos:
+            lidos[chave] = ler_rotulo(malha["rotulos"][i], angulo)
+        return lidos[chave]
+
+    for modo in ("linhas", "rótulos"):                   # malha só na moldura: o rótulo marca a coordenada
+        r = _ajustar_malha(_obs_da_malha(malha, ler, modo), max_residuo_m, 3 if escala else 4)
+        if r["M"] is not None:
+            break
+    incerteza = 0.0
+    if r["M"] is not None and modo == "rótulos":
+        alturas = [np.ptp(np.vstack(malha["rotulos"][o["chave"]]["partes"]) @ np.array(
+            [-np.sin(np.radians(malha["rotulos"][o["chave"]]["angulo"])),
+             np.cos(np.radians(malha["rotulos"][o["chave"]]["angulo"]))])) for o in r["obs"]]
+        incerteza = 0.5 * float(np.median(alturas)) * float(np.hypot(*r["M"][0, :2]))
+    if r["M"] is None:
+        return {"M": None, "ok": False, "motivo": f"{r['motivo']}; {len(malha['rotulos'])} rótulos, "
+                f"{len(malha['linhas'])} linhas"}
+    M = r["M"]
+    esc = float(np.hypot(*M[0, :2]))
+    rot = float(np.degrees(np.arctan2(M[1, 0], M[0, 0])))
+    res_max = max(o["residuo_m"] for o in r["obs"])
+    esc_decl = escala * 0.0254 / 72 if escala else None              # 1 pt = 1/72 pol
+    ok = esc_decl is None or abs(esc / esc_decl - 1) <= 0.005
+    motivo = (f"malha de coordenadas impressa ({modo}, OCR)" if ok else
+              f"escala medida 1:{esc / 0.0254 * 72:.0f} ≠ declarada 1:{escala:.0f}")
+    log(f"  malha ({modo}): E {r['eixos']['E']}, N {r['eixos']['N']}, resíduo máx {res_max:.3f} m, "
+        f"escala {esc:.4f} m/pt (1:{esc / 0.0254 * 72:.0f}); descartadas {r['descartadas'] or '—'} -> "
+        f"{'OK' if ok else 'rejeitada'}")
+    pts = np.array([o["p"] for o in r["obs"]])
+    linhas = {}
+    for o in r["obs"]:
+        linhas.setdefault(o["chave"], {"eixo": o["eixo"], "valor": o["valor"], "residuo_m": 0.0})
+        linhas[o["chave"]]["residuo_m"] = round(max(linhas[o["chave"]]["residuo_m"], o["residuo_m"]), 4)
+    return {"M": M if ok else None, "ok": ok, "motivo": motivo, "modo": modo, "linhas": list(linhas.values()),
+            "descartadas": r["descartadas"], "residuo_max_m": res_max, "incerteza_rotulo_m": round(incerteza, 2),
+            "residuo_mediano_m": float(np.median([o["residuo_m"] for o in r["obs"]])), "frac_05m": None,
+            "escala_m_pt": esc, "rotacao_graus": rot, "janela_pt": [*pts.min(0).tolist(), *pts.max(0).tolist()]}
+
+
 def aceitavel(r: dict, M_ref: np.ndarray | None = None, max_residuo_m: float = 0.6, min_frac: float = 0.45,
               tol_rot_graus: float = 5.0, tol_escala: float = 0.12) -> tuple[bool, str]:
     """Critérios para aceitar um registro automático; senão a prancha pede pontos de controle."""
@@ -350,8 +561,10 @@ def metadados() -> dict:
     """Rastreabilidade dos métodos e limiares de georreferência de prancha (regra 9 do estilo)."""
     return {
         "modulo": "georef_prancha",
-        "descricao": "prancha CAD em PDF -> UTM: pontos de controle + ICP, CAD × CAD por SIFT, busca global FFT",
-        "funcoes": ["matriz_inicial", "registrar", "refinar", "registrar_cad", "registrar_imagem", "aceitavel"],
+        "descricao": "prancha CAD em PDF -> UTM: malha de coordenadas impressa (OCR), pontos de controle + ICP, "
+                     "CAD × CAD por SIFT, busca global FFT",
+        "funcoes": ["matriz_inicial", "registrar", "refinar", "registrar_cad", "registrar_imagem", "aceitavel",
+                    "linhas_da_malha", "ler_rotulo", "registrar_malha"],
         "bibliografia": [
             {"obra": "Lowe — Distinctive Image Features from Scale-Invariant Keypoints (SIFT)", "ano": 2004,
              "editora": "IJCV", "aplicacao": {"registrar_imagem": ["SIFT_create(nfeatures=12000)", "razão 0,75"]}},
@@ -359,6 +572,8 @@ def metadados() -> dict:
              "aplicacao": {"registrar_imagem": ["ransacReprojThreshold=6 px"]}},
             {"obra": "Besl & McKay — A Method for Registration of 3-D Shapes (ICP)", "ano": 1992,
              "editora": "IEEE TPAMI", "aplicacao": {"refinar": ["corte_m", "huber_m=0,5", "max_var_escala=0,10"]}},
+            {"obra": "Smith — An Overview of the Tesseract OCR Engine", "ano": 2007, "editora": "ICDAR",
+             "aplicacao": {"ler_rotulo": ["--psm 7 (uma linha)", "só dígitos", "600 dpi"]}},
             {"obra": "QGIS — Georreferenciador (transformações e arquivo .points)", "versao": "3.x",
              "editora": "QGIS.org", "aplicacao": {"matriz_inicial": ["similaridade com reflexão (y da folha ↓)"]}},
         ],
@@ -367,8 +582,18 @@ def metadados() -> dict:
              "fonte": "calibrado em Foz: aceitas com 58–1491 correspondências e 3–10 cm; rejeitadas degeneradas (escala ≈ 0)"},
             {"aplicacao": {"aceitavel": ["max_residuo_m=0,6", "min_frac=0,45", "tol_rot_graus=5", "tol_escala=0,12"]},
              "fonte": "calibrado em Foz contra a ortofoto (prancha 004: 30 cm de resíduo mediano)"},
+            {"aplicacao": {"registrar_malha": ["max_residuo_m=0,5", "rótulo a ≤ 12 pt da linha", "7 dígitos = N",
+                                               "≥ 4 valores (3 com escala declarada, ±0,5 %)"],
+                           "linhas_da_malha": ["min_compr_pt=100", "max_glifo_pt=15", "vão ≤ 0,8 × lado do glifo"]},
+             "fonte": "calibrado em Foz: 15 folhas com resíduo de 0 a 29 cm; marcos E/N da AAT00-01 a 0,20 e 0,23 m; "
+                      "escala igual à da GEOPLANTA (sondagens) em 0,1 %"},
+            {"aplicacao": {"registrar": ["escala inicial medida na foto"]},
+             "fonte": "lição de Foz (rodada 5): f004 iniciada com 0,095 m/pt ficou 7,9 % grande e o ICP não corrigiu "
+                      "(trava de ±10 %; bordas da foto não discriminam: ~47 % dos traços a < 0,5 m de uma borda em "
+                      "qualquer das duas escalas). Prefira malha, coordenadas topográficas ou CAD × CAD sobre prancha "
+                      "absoluta"},
             {"aplicacao": {"mapa_bordas": ["min_compr_m=4", "sigma_m"]},
              "fonte": "bordas curtas = textura de grama/copa; média zero evita preferir escalas pequenas"},
         ],
-        "ultima_revisao": "2026-10-27",
+        "ultima_revisao": "2026-10-28",
     }

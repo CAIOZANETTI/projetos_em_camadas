@@ -61,5 +61,10 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
 - **Mantenha o vetor.** PDF de prancha tem layers CAD, textos e quantidades: nada de rasterizar
   para o HTML (`pdf_cad.pacote_vetorial`).
 - Coordenadas sempre em SIRGAS 2000 / UTM no Python; o navegador só converte para exibir.
-- Dados do cliente (orçamento com preços, PDFs, fotos) ficam em `dados/` (fora do git).
+- Dados do cliente (orçamento, PDFs, fotos) ficam em `dados/` (fora do git). **Sem preço**: o escopo é o do
+  contrato — nenhum valor unitário, total ou fornecedor sai do extrator nem vai para o HTML (decisão do Caio,
+  28/10/2026). A especificação vem de `referencias/sanepar/catalogo_materiais.jsonl.gz`.
+- Pranchas com malha de coordenadas impressa (adutoras, urbanização, drenagem) vão por `"malha"` no obra.json
+  (skill `georef-pranchas`, modo 0); enraíze as irmãs numa prancha absoluta ou com malha, nunca numa escala
+  medida na foto.
 - Relate lacunas explicitamente (ex.: "3ª etapa existe no desenho mas não no TR").

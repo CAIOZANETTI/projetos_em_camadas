@@ -1197,7 +1197,7 @@ const contarEsc = nos => {   // [ligados, total] dentro de um conjunto de subgru
   let n = 0, t = 0;
   for (const no of nos) {
     for (const id of no.vet) { t++; n += camadasMapa[id].on ? 1 : 0; }
-    for (const [P, idx] of no.pr) for (const i of idx) { t++; n += P.mapa.on && P.vis[i] ? 1 : 0; }
+    for (const [P, idx] of no.pr) if (P.M) for (const i of idx) { t++; n += P.mapa.on && P.vis[i] ? 1 : 0; }   // prancha sem georreferência não entra no mapa
   }
   return [n, t];
 };
@@ -1591,13 +1591,13 @@ function montarSelecaoPranchas() {
 }
 /* quantitativos por layer: calculados no Python (pdf_cad.quantitativos); aqui só a tabela */
 function htmlQuantitativos(q) {
-  const linhas = (q || []).filter(l => l.comprimento_m || l.area_m2);
+  const linhas = (q || []).filter(l => l.comprimento_m || l.area_m2 || l.eixo_faixa_m);
   if (!linhas.length) return "";
   return `<details class="pr-quant" style="margin-top:8px"><summary>Quantitativos do desenho (${linhas.length} layers)</summary>
     <div style="overflow:auto;max-height:280px"><table class="esc" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:68px"><col style="width:60px"></colgroup><thead><tr><th>Layer</th><th>m</th><th>m²</th></tr></thead><tbody>` +
     linhas.map(l => `<tr><td class="d" style="overflow-wrap:anywhere">${esc(l.layer)}<span class="cod">${esc([l.grupo, l.subgrupo].filter(Boolean).join(" › "))}${l.classe ? " · " + esc(l.classe) : ""}</span></td>` +
-      `<td>${l.comprimento_m ? fmt(l.comprimento_m, 1) : "—"}</td><td>${l.area_m2 ? fmt(l.area_m2, 1) : "—"}</td></tr>`).join("") +
-    `</tbody></table></div><p class="mut" style="font-size:11px;margin:4px 0 0">Medida do desenho dentro do recorte: linha dupla conta 2×; hachura e texto ficam de fora. Serve para conferir ordem de grandeza contra o orçamento.</p></details>`;
+      `<td>${l.comprimento_m ? fmt(l.comprimento_m, 1) : l.eixo_faixa_m ? fmt(l.eixo_faixa_m, 1) + "<br><span class='mut' style='font-size:10px'>eixo</span>" : "—"}</td><td>${l.area_m2 ? fmt(l.area_m2, 1) : "—"}</td></tr>`).join("") +
+    `</tbody></table></div><p class="mut" style="font-size:11px;margin:4px 0 0">Medida do desenho dentro do recorte: linha dupla conta 2×; hachura e texto ficam de fora; “eixo” = comprimento da faixa preenchida (polilinha com largura, como o tubo das adutoras). Serve para conferir ordem de grandeza contra o orçamento.</p></details>`;
 }
 function fecharFolha() {
   FV.P = null; $("#pCorpo").hidden = true; $("#pLista").hidden = false; $("#pSel").value = "";
@@ -1626,7 +1626,8 @@ async function abrirFolha(id) {
 }
 
 /* ====================================================================
-   v2 · Etapas & escopo: filtro de etapa (manchas, layers CAD, tabela), totais, situação por item e CSV
+   v2 · Etapas & escopo: filtro de etapa (manchas, layers CAD, tabela), contagens, situação por item e CSV.
+   Escopo do contrato sem preço: nenhum valor monetário é calculado nem exibido (decisão de 28/10/2026)
    ==================================================================== */
 const ESC = (D.escopo?.itens || []).map(it => ({...it, _bus: semAcento([it.tabela, it.nome_tabela, it.item, it.codigo, it.descricao, it.material, it.local, it.etapa].join(" "))}));
 const CHAVE_ESC = "camadas:escopo:" + D.id;
@@ -1637,11 +1638,10 @@ const chaveItem = it => `${it.tabela}|${it.item}|${it.codigo}`;
 const abertos = new Set();   // tabelas com o grupo aberto (sobrevive ao redesenho da lista)
 
 const casaItem = (it, id) => casaEtapa(it.etapa, id) || (!!id && !it.etapa && ((/^1ª/.test(id) && it.q1 > 0) || (/^2ª/.test(id) && it.q2 > 0)));
-/* valores vêm prontos do Python (valor_q1/valor_q2); aqui só se escolhe a coluna da etapa e se soma para exibir */
-const valorItem = (it, id) => /^1ª/.test(id || "") ? it.valor_q1 : /^2ª/.test(id || "") ? it.valor_q2
-  : it.valor_q1 == null && it.valor_q2 == null ? null : (it.valor_q1 || 0) + (it.valor_q2 || 0);
 const descItem = it => String(it.descricao || "").split("  ⚠")[0];   // o aviso fica no campo `alerta`
-const reais = v => v == null ? "—" : "R$ " + fmt(v, 2);
+/* especificação do cadastro de materiais Sanepar (vem pronta do Python) */
+const cadItem = c => c ? [c.descricao, c.unidade_medida, c.norma_eb, c.situacao, c.dn != null ? "DN " + c.dn : "", c.pn != null ? "PN " + c.pn : "",
+  c.qtd_marcas ? c.qtd_marcas + " marca(s) homologada(s)" : ""].filter(Boolean).join(" · ") : "";
 const qfmt = v => v == null || v === "" ? "—" : (v === 0 ? "0" : fmt(v, Math.abs(v) < 100 && v % 1 ? 2 : 0));
 const nz = s => semAcento(s).replace(/[^a-z0-9]/g, "");
 /* prancha que contém o desenho da tabela (código do PDF sem extensão; ignora revisão e acentos) */
@@ -1669,7 +1669,7 @@ function montarEscopo() {
       <div class="btns" style="justify-content:flex-end"><button class="btn" id="eCsv">Exportar CSV</button></div></div>
     <div class="tot" id="eTot" aria-live="polite"></div>
     <div id="eTabelas"></div>
-    <p class="aviso" style="margin-left:0">Fonte: ${esc(D.escopo.fonte || "orçamento")}. As marcações de situação ficam salvas neste navegador. “Fora do escopo” sai dos totais.</p>` : ""}`;
+    <p class="aviso" style="margin-left:0">Fonte: ${esc(D.escopo.fonte || "orçamento")}${D.escopo.fonte_cadastro ? "; especificação: " + esc(D.escopo.fonte_cadastro) : ""}. Sem preço: só o escopo do contrato. As marcações de situação ficam salvas neste navegador; “Fora do escopo” sai das contagens.</p>` : ""}`;
   aba.querySelector("#eChips").onclick = e => { const b = e.target.closest("button[data-etapa]"); if (b) definirEtapa(b.dataset.etapa || null); };
   if (!temEsc) return;
   let tm = 0;
@@ -1695,20 +1695,18 @@ function renderTotais(lista = listaEscopo()) {
   const T = D.escopo?.totais, fs = $("#eSit")?.value || "", q = ($("#eBusca")?.value || "").trim();
   const ativos = lista.filter(it => sit[chaveItem(it)] !== "fora");
   const marcados = lista.filter(i => sit[chaveItem(i)] === "escopo").length + " / " + lista.filter(i => sit[chaveItem(i)] === "verificar").length + " / " + lista.filter(i => sit[chaveItem(i)] === "fora").length;
-  // sem busca, etapa, situação nem item marcado "fora": valem os totais do orçamento calculados no Python; senão, a soma das linhas visíveis (apresentação)
+  // sem filtro nem item marcado "fora": valem as contagens do Python; senão, as das linhas visíveis
   const global = !!T && !q && !etapaSel && !fs && ativos.length === lista.length;
-  const soma = k => ativos.reduce((x, it) => x + (it[k] || 0), 0);
-  const v1 = global ? T.valor_q1 : soma("valor_q1"), v2 = global ? T.valor_q2 : soma("valor_q2");
-  const semPreco = global ? T.sem_preco : ativos.filter(it => it.valor_q1 == null && it.valor_q2 == null).length;
-  const comAlerta = global ? T.com_alerta : lista.filter(it => it.alerta).length;
-  $("#eTot").innerHTML = `<span class="gt">${global ? "Totais do orçamento" : "Σ das linhas visíveis"}</span><span class="nota-l">${global ? "do Python" : "soma dos valores prontos"}</span>
-    <span>Itens ${global ? "no orçamento" : "na lista"}</span><b>${fmt(global ? T.itens : lista.length, 0)}</b>
+  const n1 = global ? T.itens_q1 : ativos.filter(it => it.q1 > 0).length, n2 = global ? T.itens_q2 : ativos.filter(it => it.q2 > 0).length;
+  const comAlerta = global ? T.com_alerta : ativos.filter(it => it.alerta).length;
+  const noCad = global ? T.no_cadastro : ativos.filter(it => it.cadastro).length;
+  $("#eTot").innerHTML = `<span class="gt">${global ? "Escopo do contrato" : "Linhas visíveis"}</span><span class="nota-l">${global ? "contagens do Python" : "sem os marcados “fora”"}</span>
+    <span>Itens ${global ? "na relação" : "na lista"}</span><b>${fmt(global ? T.itens : ativos.length, 0)}</b>
+    <span>Com quantidade na 1ª etapa</span><b>${fmt(n1, 0)}</b><span>Com quantidade na 2ª etapa</span><b>${fmt(n2, 0)}</b>
     <span>No escopo / verificar / fora</span><b>${marcados}</b>
     <span class="sep"></span>
-    <span>Valor da 1ª etapa</span><b>${reais(v1)}</b><span>Valor da 2ª etapa</span><b>${reais(v2)}</b>
-    <span>Total (1ª + 2ª)</span><b>${reais((v1 || 0) + (v2 || 0))}</b>
-    ${semPreco || comAlerta ? `<span class="sep"></span>` : ""}${semPreco ? `<span>Itens sem preço (fora dos valores)</span><b>${semPreco}</b>` : ""}
-    ${comAlerta ? `<span>Itens com alerta (fora dos valores)</span><b>${comAlerta}</b>` : ""}`;
+    <span>No cadastro de materiais Sanepar</span><b>${fmt(noCad, 0)}</b>
+    ${comAlerta ? `<span>Itens com alerta</span><b>${fmt(comAlerta, 0)}</b>` : ""}`;
 }
 function renderEscopo() {
   const lista = listaEscopo(), q = ($("#eBusca")?.value || "").trim();
@@ -1717,29 +1715,27 @@ function renderEscopo() {
   const abrirTodos = !!q && grupos.size <= 12;
   const rot = etapaSel && /^[12]ª/.test(etapaSel) ? etapaSel[0] : null;
   $("#eTabelas").innerHTML = lista.length ? [...grupos].map(([tab, itens]) => {
-    const pr = pranchaDaTabela(tab), pt = D.escopo.por_tabela?.[tab], completa = pt && itens.length === pt.n && itens.every(it => sit[chaveItem(it)] !== "fora");
-    const sub = completa ? valorItem({valor_q1: pt.valor_q1, valor_q2: pt.valor_q2}, etapaSel)
-      : itens.filter(it => sit[chaveItem(it)] !== "fora").reduce((x, it) => x + (valorItem(it, etapaSel) || 0), 0);
+    const pr = pranchaDaTabela(tab), nAl = itens.filter(it => it.alerta).length;
     return `<details class="esc-g" data-t="${esc(tab)}" ${abrirTodos || abertos.has(tab) ? "open" : ""}>
-      <summary><span class="gt">Tabela ${esc(tab)} · ${esc(itens[0].nome_tabela)}</span><span class="gs">${itens.length} · ${reais(sub)}</span></summary>
+      <summary><span class="gt">Tabela ${esc(tab)} · ${esc(itens[0].nome_tabela)}</span><span class="gs">${itens.length} ${itens.length === 1 ? "item" : "itens"}${nAl ? ` · ⚠ ${nAl}` : ""}</span></summary>
       ${pr ? `<div class="btns" style="margin-bottom:6px"><button class="btn mini" data-desenho="${pr.id}">Abrir desenho: ${esc(pr.d.nome)}</button></div>` : ""}
-      <div class="esc-tab"><table class="esc"><thead><tr><th>Descrição</th><th>Un</th><th>Q 1ª</th><th>Q 2ª</th><th>Valor${rot ? " " + rot + "ª" : ""}</th></tr></thead><tbody>
-      ${itens.map(it => { const k = chaveItem(it), v = valorItem(it, etapaSel); return `<tr data-sit="${sit[k] || ""}" ${it.alerta ? 'data-alerta="1"' : ""}>
-        <td class="d">${esc(it.item)} · ${esc(descItem(it))}${it.alerta ? `<span class="esc-alerta">⚠ Alerta: ${esc(it.alerta)} (item fora dos valores)</span>` : ""}<span class="cod">${esc(it.codigo)}${it.local ? " · " + esc(it.local) : ""}${it.material ? " · " + esc(it.material) : ""}${it.etapa ? " · " + esc(it.etapa) : ""}</span>
+      <div class="esc-tab"><table class="esc"><thead><tr><th>Descrição</th><th>Un</th><th>Q 1ª</th><th>Q 2ª</th></tr></thead><tbody>
+      ${itens.map(it => { const k = chaveItem(it); return `<tr data-sit="${sit[k] || ""}" ${it.alerta ? 'data-alerta="1"' : ""}>
+        <td class="d">${esc(it.item)} · ${esc(descItem(it))}${it.alerta ? `<span class="esc-alerta">⚠ ${esc(it.alerta)}</span>` : ""}<span class="cod">${esc(it.codigo)}${it.local ? " · " + esc(it.local) : ""}${it.material ? " · " + esc(it.material) : ""}${it.etapa ? " · " + esc(it.etapa) : ""}</span>${it.cadastro ? `<span class="cod">Cadastro Sanepar: ${esc(cadItem(it.cadastro))}</span>` : ""}
           <select data-k="${esc(k)}" aria-label="Situação do item ${esc(it.item)} da tabela ${esc(tab)}"><option value="">Situação…</option>${Object.entries(SIT).map(([v2, n]) => `<option value="${v2}" ${sit[k] === v2 ? "selected" : ""}>${n}</option>`).join("")}</select></td>
-        <td class="u">${esc(it.un)}</td><td class="q ${rot === "1" ? "ativa" : ""}">${qfmt(it.q1)}</td><td class="q ${rot === "2" ? "ativa" : ""}">${qfmt(it.q2)}</td><td>${v == null ? "—" : fmt(v, 2)}</td></tr>`; }).join("")}
+        <td class="u">${esc(it.un)}</td><td class="q ${rot === "1" ? "ativa" : ""}">${qfmt(it.q1)}</td><td class="q ${rot === "2" ? "ativa" : ""}">${qfmt(it.q2)}</td></tr>`; }).join("")}
       </tbody></table></div></details>`;
   }).join("") : `<p class="vazio">Nenhum item com esses filtros.</p>`;
   renderTotais(lista);
 }
 function exportarEscopo() {
   const num = (v, d) => v == null || v === "" ? "" : fmt(v, d).replace(/\./g, "");
-  const cab = ["tabela", "nome_tabela", "item", "codigo", "descricao", "un", "q_1a_etapa", "q_2a_etapa", "etapa", "material", "local", "preco_unitario", "valor_1a_etapa", "valor_2a_etapa", "alerta", "situacao"];
+  const cab = ["tabela", "nome_tabela", "item", "codigo", "descricao", "un", "q_1a_etapa", "q_2a_etapa", "etapa", "material", "local", "cadastro_sanepar", "alerta", "situacao"];
   const lin = [cab.join(";")];
   for (const it of listaEscopo()) {
     const k = sit[chaveItem(it)];
-    lin.push([it.tabela, it.nome_tabela, it.item, it.codigo, descItem(it), it.un, num(it.q1, 3), num(it.q2, 3), it.etapa, it.material, it.local, num(it.preco, 2),
-      num(it.valor_q1, 2), num(it.valor_q2, 2), it.alerta || "", SIT[k] || ""]
+    lin.push([it.tabela, it.nome_tabela, it.item, it.codigo, descItem(it), it.un, num(it.q1, 3), num(it.q2, 3), it.etapa, it.material, it.local,
+      cadItem(it.cadastro), it.alerta || "", SIT[k] || ""]
       .map(v => /[;"\n]/.test(v ?? "") ? `"${String(v).replace(/"/g, '""')}"` : (v ?? "")).join(";"));
   }
   dialogo("CSV do escopo (filtro atual · sep=';', decimal=',')", lin.join("\n"), D.id + "-escopo.csv", "text/csv", true);

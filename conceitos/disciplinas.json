@@ -3,7 +3,7 @@
   "fonte": "Códigos de disciplina Sanepar nos nomes de arquivo (PBGE, PBES, PARQ, PBHI, PBME/PMEC, PBEA) e nomes de layer CAD das pranchas da LE 211/2026",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "prancha: regex no nome do arquivo + título; layer: regex no nome do layer; primeira que casa vence; layer sem casamento herda o grupo da prancha. Revisar com a equipe de orçamento. PLATERRA (PBEA) = planta de aterramento, não terraplenagem (corrigido 27/10/2026). 'REESTRUTURAR' não é estrutura: ESTRUT só sem 'RE' antes (27/10/2026)."
+  "observacoes": "prancha: regex no nome do arquivo + título; layer: regex no nome do layer; primeira que casa vence; layer sem casamento herda o grupo da prancha. Revisar com a equipe de orçamento. PLATERRA (PBEA) = planta de aterramento, não terraplenagem (corrigido 27/10/2026). 'REESTRUTURAR' não é estrutura: ESTRUT só sem 'RE' antes (27/10/2026). Adutoras (plantas e perfis AAT00/01/02/06) num subgrupo próprio, antes da regra geral de tubulações (28/10/2026)."
  },
  "grupos": {
   "Civil": [
@@ -17,6 +17,7 @@
   ],
   "Hidráulica": [
    "Tubulações e conexões",
+   "Adutoras",
    "Processo"
   ],
   "Mecânica": [
@@ -33,6 +34,11 @@
   ]
  },
  "prancha": [
+  {
+   "regex": "AAT\\d|ADUT|PLANTAPERF|PTPER",
+   "grupo": "Hidráulica",
+   "subgrupo": "Adutoras"
+  },
   {
    "regex": "ATERR|SPDA|PLATERRA",
    "grupo": "Elétrica e automação",

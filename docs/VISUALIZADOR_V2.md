@@ -38,9 +38,11 @@ Decodificar com `DecompressionStream('gzip')`, de forma assíncrona e só quando
 `layers[].classe` e `vetores[].geojson.features[].properties.etapa` usam esses ids.
 
 ### `escopo`
-`{itens[], desenhos_por_tabela{tabela: código do desenho}, fonte}`. Cada item:
-`{tabela, nome_tabela, item, codigo, descricao, un, q1, q2, etapa, material, local, preco}`,
-onde `q1`/`q2` são as quantidades da 1ª/2ª etapa e `preco` é o unitário (pode ser null).
+`{itens[], por_tabela, totais, desenhos_por_tabela{tabela: código do desenho}, fonte, fonte_cadastro}`. Cada item:
+`{tabela, nome_tabela, item, codigo, descricao, un, q1, q2, etapa, material, local, alerta, cadastro}`,
+onde `q1`/`q2` são as quantidades da 1ª/2ª etapa e `cadastro` é a especificação do cadastro de materiais Sanepar
+(descrição, unidade, norma, situação, família, DN, PN, marcas homologadas) ou null. **Sem preço**: o escopo é o
+do contrato; `por_tabela` e `totais` são contagens (decisão de 28/10/2026).
 
 ### `sondagens[]`
 `{id, tipo, E, N, lon, lat, cota_boca, profundidade_m, na_m, nspt: [[prof_m, golpes]], camadas: [{de, ate, descricao, classe}], fonte}`.

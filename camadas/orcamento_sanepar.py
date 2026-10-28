@@ -10,13 +10,19 @@ Lê as planilhas .xlsx LOCAIS (baixadas do Drive) e gera CSVs
 (sep=';', decimal=',', utf-8-sig):
 
   escopo_itens.csv             um item folha por linha (MATS E EQUIP + CUSTO CIVIL)
-  escopo_resumo.csv            totais por unidade_obra x disciplina
-  escopo_resumo_etapa.csv      totais por unidade_obra x etapa_indicada x disciplina
+  escopo_resumo.csv            nº de itens por unidade_obra x disciplina
+  escopo_resumo_etapa.csv      nº de itens por unidade_obra x etapa_indicada x disciplina
   relacao_materiais_etapas.csv aba oculta 'Relação de Materiais' (qtd 1ª / 2ª etapa)
-  cotacoes_itens.csv           itens das duas planilhas de cotação
+  cotacoes_itens.csv           itens das duas planilhas de cotação (sem preço)
+
+Escopo do contrato, sem preço: nenhuma coluna de valor (unitário, total, montagem,
+fornecedor) sai daqui — decisão do Caio (28/10/2026). A especificação vem do cadastro de
+materiais Sanepar (`referencias/sanepar/catalogo_materiais.jsonl.gz`, gerado por
+`gravar_catalogo` só com colunas de especificação).
 
 Uso:
     python -m camadas.orcamento_sanepar PASTA
+    python -m camadas.orcamento_sanepar --catalogo estudo_plan_orcamento.xlsx referencias/sanepar/catalogo_materiais.jsonl.gz
 
 PASTA (padrão: a pasta deste script) deve conter:
     principal.xlsx                  (211 - SAA Foz do Iguaçú.xlsx)
@@ -26,14 +32,14 @@ PASTA (padrão: a pasta deste script) deve conter:
                                      por ../reconstruir_pecas_especiais.py)
 
 Estrutura do orçamento principal (descoberta na análise):
-  * 'MATS E EQUIP'  -> lista de materiais/equipamentos com preço (cotações).
+  * 'MATS E EQUIP'  -> lista de materiais/equipamentos (as colunas de preço são ignoradas).
         cabeçalho na linha 6; blocos: ETA VILA C, ADUTORA AAT 06,
         ADUTORA AAT 02 VILA C, (XXX), ADUTORA AAT 02 VILA A, SISTEMA ACTIFLO
         (comportas/válvulas/juntas) e SISTEMA PNEUMÁTICO; dentro de cada bloco
         há "tabelas" numeradas (coluna F) ligadas a um desenho (coluna E).
   * 'CUSTO CIVIL'   -> serviços civis por Unidade > UC (unid. construtiva) >
         subgrupo. Quase todas as quantidades estão em branco (só urbanização
-        está quantificada); preços vêm de 'COMPOSIÇÕES' via VLOOKUP.
+        está quantificada).
   * 'Relação de Materiais' (OCULTA) -> mesmas tabelas, com 'Quantidade 1ª
         etapa' e 'Quantidade 2ª etapa' (única indicação explícita de etapa).
   * 'Medição e Faturamento' / 'Marcos Cont.' -> Unidades Construtivas (UC 1..8)
@@ -263,16 +269,6 @@ def extrair_mats(wb):
     C = lambda nome: cols[nome]
     c_item, c_cod, c_loc, c_mat = C("ITEM"), C("CÓDIGO USMA"), C("LOCAL"), C("MATERIAL")
     c_proj, c_tab, c_desc, c_un, c_q = C("PROJETO"), C("TABELA"), C("DESCRIÇÃO"), C("UNID."), C("QUANT.")
-    c_unit = C("UNITÁRIO C/ DESCONTO ADOTADO")
-    # (txt() já colapsa espaços duplos dos cabeçalhos; procura por prefixo)
-    def col_prefixo(pref):
-        for k, v in cols.items():
-            if k.replace("  ", " ").startswith(pref):
-                return v
-    c_tot = col_prefixo("TOTAL (R$) C/ DESCONTO")
-    c_totsd = col_prefixo("TOTAL (R$) SEM DESCONTO")
-    c_forn = col_prefixo("FORNECEDOR C/ PREÇO MÍNIMO")
-    c_mont = col_prefixo("MONTAGEM")
 
     linhas = []
     bloco = ""
@@ -306,26 +302,19 @@ def extrair_mats(wb):
         # ------ item folha ------
         desc = txt(ws.cell(r, c_desc).value)
         cat = txt(ws.cell(r, c_mat).value)
-        preco = num(ws.cell(r, c_unit).value)
-        total = num(ws.cell(r, c_tot).value)
-        total_sd = num(ws.cell(r, c_totsd).value)
-        mont = num(ws.cell(r, c_mont).value)
         if tabela:
             subgrupo = f"T{tabela} - {nome_tabela}"
         else:
             subgrupo = sub_extra
         dn, dn_tipo, dn2 = extrair_dn(desc)
-        sem_preco = (preco in (None, 0.0)) and (total in (None, 0.0))
         linhas.append({
             "aba": "MATS E EQUIP",
             "item": txt(ws.cell(r, c_item).value),
             "codigo": txt(ws.cell(r, c_cod).value),
-            "fonte": "SEM PREÇO (R$ 0,00)" if sem_preco else "Cotação fornecedores (MATS E EQUIP)",
+            "fonte": "Orçamento (MATS E EQUIP)",
             "descricao": desc,
             "unidade": txt(ws.cell(r, c_un).value),
             "quantidade": q,
-            "preco_unit": preco,
-            "total": total,
             "unidade_obra": unidade_do_bloco(bloco),
             "grupo": bloco,
             "subgrupo": subgrupo,
@@ -340,9 +329,6 @@ def extrair_mats(wb):
             "local": loc,
             "tabela": f if f not in ("-",) else "",
             "projeto_desenho": e or proj_hdr,
-            "total_sem_desconto": total_sd,
-            "montagem": mont,
-            "fornecedor": txt(ws.cell(r, c_forn).value),
             "etapa_fonte": "descrição do item" if etapa_da_descricao(desc) else "",
             "qtd_etapa1": None, "qtd_etapa2": None, "etapa_qtd_confere": "",
             "observacao": "",
@@ -433,7 +419,7 @@ def extrair_custo_civil(wb):
     # cabeçalhos sem código/quantidade que são marcadores de escopo (viram linha própria)
     marcador = re.compile(r"^(RECOMPOSI[ÇC][ÃA]O DE PAVIMENTO|BLOCOS? DE (APOIO|ANCORAGEM)|MEDIDORES? DE VAZ)", re.I)
     for r in range(hdr + 1, ws.max_row + 1):
-        a, b, c, d, e, f, g, h, i = [ws.cell(r, k).value for k in range(1, 10)]
+        a, b, c, d, e, _, _, h, i = [ws.cell(r, k).value for k in range(1, 10)]   # F e G = preço/total: ignorados
         a, b, c, d = txt(a), txt(b), txt(c), txt(d)
         if a.upper().startswith("UNIDADE"):
             unidade, grupo, subgrupo = a, "", ""
@@ -453,23 +439,18 @@ def extrair_custo_civil(wb):
         if not (b or c):
             continue
         q = num(e)
-        preco = num(f)
-        total = num(g)
         cod_up = b.upper()
-        if cod_up in ("PLANILHA", "EMPREITA", "DI"):
-            preco = None                        # F traz texto ('MAT E EQUIP', 'NO DI')
-            total = None
         desc = c
         dn, dn_tipo, dn2 = extrair_dn(desc)
         obs = txt(h)
         if cod_up in ("PLANILHA", "EMPREITA"):
-            obs = (obs + " | " if obs else "") + "valor global detalhado em outra aba (não somar aqui)"
+            obs = (obs + " | " if obs else "") + "item global detalhado em outra aba"
         sub_item = trecho if (not b and c) else subgrupo     # itens sem código: usa o trecho
         if marcador_scope:
             obs = (obs + " | " if obs else "") + "marcador de escopo: sem código, sem quantidade"
         out.append({
             "aba": "CUSTO CIVIL", "item": "", "codigo": b, "fonte": fonte_civil(b),
-            "descricao": desc, "unidade": d, "quantidade": q, "preco_unit": preco, "total": total,
+            "descricao": desc, "unidade": d, "quantidade": q,
             "unidade_obra": ("UNIDADE 1 - ETA Vila C" if "UNIDADE 1" in unidade.upper()
                              else "UNIDADE 2 - Adutora de água tratada (AAT06/anéis)"),
             "grupo": grupo, "subgrupo": sub_item,
@@ -477,7 +458,7 @@ def extrair_custo_civil(wb):
             "material": classificar_material("", desc) if re.search(r"FD|PVC|PEAD|CONCRETO|ASFALTO", desc.upper()) else "",
             "dn_mm": dn, "etapa_indicada": "",
             "dn_tipo": dn_tipo, "dn_mm_2": dn2, "categoria_planilha": "", "local": "", "tabela": "",
-            "projeto_desenho": proj, "total_sem_desconto": None, "montagem": None, "fornecedor": "",
+            "projeto_desenho": proj,
             "etapa_fonte": "", "qtd_etapa1": None, "qtd_etapa2": None, "etapa_qtd_confere": "",
             "observacao": obs + (" | quantidade em branco na planilha" if q is None and b and cod_up not in ("DI",) else ""),
             "linha_origem": r,
@@ -491,8 +472,8 @@ def extrair_custo_civil(wb):
 
 def extrair_cotacao(caminho, rotulo_arquivo):
     """Itens de uma planilha de cotação (layout ITEM, CÓDIGO USMA, LOCAL, MATERIAL,
-    PROJETO, TABELA, DESCRIÇÃO, UNID., QUANT.). Colunas de preço/fornecedor
-    (qualquer cabeçalho após QUANT.) são anexadas em 'fornecedor_ou_preco'."""
+    PROJETO, TABELA, DESCRIÇÃO, UNID., QUANT.). As colunas depois de QUANT. (preço e
+    fornecedor) ficam de fora."""
     wb = openpyxl.load_workbook(caminho, data_only=True)
     out = []
     for ws in wb.worksheets:
@@ -501,7 +482,6 @@ def extrair_cotacao(caminho, rotulo_arquivo):
         except ValueError:
             continue
         c_q = cols.get("QUANT.")
-        extras = {k: v for k, v in cols.items() if c_q and v > c_q}
         for r in range(hdr + 1, ws.max_row + 1):
             desc = txt(ws.cell(r, cols["DESCRIÇÃO"]).value)
             q = num(ws.cell(r, c_q).value)
@@ -509,8 +489,6 @@ def extrair_cotacao(caminho, rotulo_arquivo):
                 continue
             cat = txt(ws.cell(r, cols["MATERIAL"]).value)
             dn, dn_tipo, _ = extrair_dn(desc)
-            ex = "; ".join(f"{k}={txt(ws.cell(r, v).value)}" for k, v in extras.items()
-                           if ws.cell(r, v).value not in (None, ""))
             out.append({
                 "arquivo": rotulo_arquivo, "aba": ws.title,
                 "item": txt(ws.cell(r, cols["ITEM"]).value),
@@ -521,8 +499,7 @@ def extrair_cotacao(caminho, rotulo_arquivo):
                 "tabela": txt(ws.cell(r, cols["TABELA"]).value),
                 "descricao": desc, "unidade": txt(ws.cell(r, cols["UNID."]).value),
                 "quantidade": q, "material": classificar_material(cat, desc),
-                "dn_mm": dn, "dn_tipo": dn_tipo,
-                "fornecedor_ou_preco": ex, "linha_origem": r,
+                "dn_mm": dn, "dn_tipo": dn_tipo, "linha_origem": r,
             })
     return out
 
@@ -532,12 +509,11 @@ def extrair_cotacao(caminho, rotulo_arquivo):
 # --------------------------------------------------------------------------
 
 COLUNAS_ESCOPO = ["aba", "item", "codigo", "fonte", "descricao", "unidade", "quantidade",
-                  "preco_unit", "total", "unidade_obra", "grupo", "subgrupo", "disciplina",
+                  "unidade_obra", "grupo", "subgrupo", "disciplina",
                   "material", "dn_mm", "etapa_indicada",
                   # extras
                   "dn_tipo", "dn_mm_2", "categoria_planilha", "local", "tabela",
-                  "projeto_desenho", "total_sem_desconto", "montagem", "fornecedor",
-                  "etapa_fonte", "qtd_etapa1", "qtd_etapa2", "etapa_qtd_confere",
+                  "projeto_desenho", "etapa_fonte", "qtd_etapa1", "qtd_etapa2", "etapa_qtd_confere",
                   "observacao", "linha_origem"]
 
 
@@ -552,11 +528,8 @@ def gravar_csv(df, caminho):
 
 def resumir(df, chaves):
     g = df.groupby(chaves, dropna=False)
-    res = g.agg(n_itens=("descricao", "size"),
-                valor_total=("total", lambda s: round(s.fillna(0).sum(), 2)),
-                valor_montagem=("montagem", lambda s: round(s.fillna(0).sum(), 2)),
-                n_itens_sem_preco=("total", lambda s: int((s.fillna(0) == 0).sum()))).reset_index()
-    return res
+    return g.agg(n_itens=("descricao", "size"),
+                 n_sem_quantidade=("quantidade", lambda s: int(s.isna().sum()))).reset_index()
 
 
 def main(pasta):
@@ -572,7 +545,6 @@ def main(pasta):
     df = pd.DataFrame(mats + civil).reindex(columns=COLUNAS_ESCOPO)
     gravar_csv(df, os.path.join(pasta, "escopo_itens.csv"))
 
-    # resumos (não soma linhas lump-sum PLANILHA/EMPREITA: total é None)
     gravar_csv(resumir(df, ["unidade_obra", "disciplina"]), os.path.join(pasta, "escopo_resumo.csv"))
     df2 = df.copy()
     df2["etapa_indicada"] = df2["etapa_indicada"].replace("", "(sem indicação)")
@@ -591,6 +563,51 @@ def main(pasta):
     return df
 
 
+# --------------------------------------------------------------------------
+# Cadastro de materiais Sanepar (só especificação)
+# --------------------------------------------------------------------------
+
+COLUNAS_CATALOGO = ["seq_estoque", "classe", "descricao", "unidade_medida", "norma_eb", "ref_material",
+                    "embalagem", "situacao", "ind_projetista", "orgao_inspetor", "armazenamento", "qtd_marcas",
+                    "cod_marcas_homologadas", "marcas_homologadas", "coletado_em", "familia", "categoria",
+                    "subcategoria", "material_base", "dn", "pn", "diametro_pol", "tags"]
+
+
+def gravar_catalogo(xlsx, saida):
+    """Aba `sanepar_mat` do estudo de orçamento -> JSONL gzip só com colunas de especificação.
+
+    Preço, cotação e fornecedor (abas `*preços`, `pesquisa`, `*forn`) não são lidos: o
+    repositório guarda escopo, não valor, e as abas de fornecedor trazem contatos pessoais."""
+    import gzip
+    import json
+    wb = openpyxl.load_workbook(xlsx, read_only=True, data_only=True)
+    linhas = wb["sanepar_mat"].iter_rows(values_only=True)
+    cab = [txt(c) for c in next(linhas)]
+    idx = {c: cab.index(c) for c in COLUNAS_CATALOGO if c in cab}
+    n = 0
+    with gzip.open(saida, "wt", encoding="utf-8") as f:
+        for lin in linhas:
+            if lin[idx["seq_estoque"]] in (None, ""):
+                continue
+            reg = {c: lin[i] for c, i in idx.items() if lin[i] not in (None, "")}
+            reg["seq_estoque"] = str(int(float(reg["seq_estoque"])))
+            if "coletado_em" in reg:
+                reg["coletado_em"] = str(reg["coletado_em"])[:10]
+            f.write(json.dumps(reg, ensure_ascii=False, default=str) + "\n")
+            n += 1
+    return n
+
+
+def catalogo(caminho="referencias/sanepar/catalogo_materiais.jsonl.gz") -> dict:
+    """seq_estoque (texto) -> especificação do cadastro Sanepar."""
+    import gzip
+    import json
+    with gzip.open(caminho, "rt", encoding="utf-8") as f:
+        return {r["seq_estoque"]: r for r in map(json.loads, f)}
+
+
 if __name__ == "__main__":
-    pasta = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
-    main(pasta)
+    if len(sys.argv) > 1 and sys.argv[1] == "--catalogo":
+        print(f"{gravar_catalogo(sys.argv[2], sys.argv[3])} materiais gravados em {sys.argv[3]}")
+    else:
+        main(sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__)))

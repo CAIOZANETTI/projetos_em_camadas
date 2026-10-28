@@ -9,7 +9,7 @@ Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema
   * a prancha "f004" ligada desenhando no mapa e o clique/snap sobre os traços;
   * o filtro de etapa ("1ª etapa") escondendo layers e manchas;
   * a aba Pranchas numa prancha com textos ("fu1"): folha desenhada e busca de texto;
-  * a aba Etapas & escopo (situação por item salva, CSV, totais e alertas vindos do Python);
+  * a aba Etapas & escopo (situação por item salva, CSV, contagens, especificação e alertas vindos do Python, sem preço);
   * sondagens (popup com SVG), foto do drone e o 3D (canvas WebGL com pixels desenhados);
   * v3: árvore por disciplina, recorte classificado (intervenção), estacas no mapa e no 3D, marcos geodésicos
     e o 4D (linha do tempo, play, curva S);
@@ -90,11 +90,6 @@ def passo(c: dict, nome: str, condicao: bool, detalhe: str = "") -> bool:
     return c["rel"].passo(nome, condicao, detalhe)
 
 
-def brl(v: float) -> str:
-    """Formata como o navegador em pt-BR: milhar com ponto e decimal com vírgula."""
-    return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
 def abrir_pagina(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio):
     print(f"\n== {cen['nome']} ({cen['viewport']['width']}x{cen['viewport']['height']}, tema {cen['esquema']}) ==")
     # Chromium pré-instalado no ambiente (evita "playwright install" com versão diferente)
@@ -106,6 +101,7 @@ def abrir_pagina(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio):
     page = ctx.new_page()
     erros: list[str] = []
     page.on("pageerror", lambda e: erros.append(f"exceção: {e}"))
+    page.on("crash", lambda *_: print("  !! a aba caiu (crash do renderizador, em geral memória)", flush=True))
 
     def console(m):
         if m.type != "error":
@@ -160,12 +156,13 @@ def verificar_filtro_etapa(c: dict) -> None:
     if "1ª etapa" not in info["etapas"]:
         return
     page.click("#t-escopo")
-    antes = js(c, "__viz.PR.length ? __viz.PR[0].ef.reduce((a, b) => a + b, 0) : 0")
+    com_etapa = "__viz.PR.find(p => p.d.layers.some(l => l.classe))"     # a primeira prancha pode não ter etapa
+    antes = js(c, f"{com_etapa} ? {com_etapa}.ef.reduce((a, b) => a + b, 0) : 0")
     page.click('#eChips [data-etapa="1ª etapa"]')
     page.wait_for_timeout(500)
     passo(c, "chip '1ª etapa' ativo", js(c, "document.querySelector('#eChips [data-etapa=\"1ª etapa\"]').getAttribute('aria-pressed')") == "true")
     if info["pr"]:
-        depois = js(c, "__viz.PR[0].ef.reduce((a, b) => a + b, 0)")
+        depois = js(c, f"{com_etapa}.ef.reduce((a, b) => a + b, 0)")
         passo(c, "filtro esconde layers de outras etapas", depois < antes, f"{antes} -> {depois} layers visíveis")
     oculta = js(c, """() => { const c = Object.values(__viz.camadasMapa).find(c => c.etapa && c.etapa !== '1ª etapa'); return c ? !__viz.map.hasLayer(c.layer) : true; }""")
     passo(c, "filtro esconde manchas de outras etapas", bool(oculta))
@@ -192,7 +189,7 @@ def verificar_escopo_tabela(c: dict) -> None:
 
 
 def verificar_escopo_valores(c: dict) -> None:
-    """Totais, subtotais e alertas vêm prontos do Python; o front só exibe (Σ das linhas visíveis quando há busca)."""
+    """Contagens e alertas vêm prontos do Python; o front só exibe. Sem preço: nenhum R$ na aba."""
     T, page = c["info"]["totais"], c["page"]
     if not T:
         return
@@ -201,13 +198,18 @@ def verificar_escopo_valores(c: dict) -> None:
     page.select_option("#eSit", "")
     page.wait_for_timeout(300)
     txt = page.text_content("#eTot")
-    passo(c, "escopo: totais do orçamento vêm do Python (sem filtro)", "Totais do orçamento" in txt and brl(T["valor_q1"]) in txt, brl(T["valor_q1"]))
+    itens = f"{T['itens']:,}".replace(",", ".")
+    passo(c, "escopo: contagens do contrato vêm do Python (sem filtro)", "Escopo do contrato" in txt and itens in txt, itens)
+    aba = page.text_content("#aba-escopo")
+    passo(c, "escopo: nenhum preço ou valor em R$", "R$" not in aba and "Valor" not in aba)
+    n_cad = js(c, "[...document.querySelectorAll('#eTabelas .cod')].filter(e => e.textContent.startsWith('Cadastro Sanepar')).length")
+    passo(c, "escopo: especificação do cadastro Sanepar por item", n_cad == T["no_cadastro"], f"{n_cad} de {T['no_cadastro']}")
     n_alerta = js(c, "document.querySelectorAll('#eTabelas tr[data-alerta]').length")
     passo(c, "escopo: itens com alerta destacados", n_alerta == T["com_alerta"] and js(c, "!!document.querySelector('.esc-alerta')"), f"{n_alerta} de {T['com_alerta']}")
     page.fill("#eBusca", "tubo")
     page.wait_for_timeout(400)
     txt = page.text_content("#eTot")
-    passo(c, "escopo: com busca o rótulo vira 'Σ das linhas visíveis'", "Σ das linhas visíveis" in txt and "Totais do orçamento" not in txt)
+    passo(c, "escopo: com busca o rótulo vira 'Linhas visíveis'", "Linhas visíveis" in txt and "Escopo do contrato" not in txt)
     foto(c, "03b_escopo_busca")
     page.fill("#eBusca", "")
     page.click("#t-camadas")

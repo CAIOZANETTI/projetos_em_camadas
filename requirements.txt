@@ -9,3 +9,4 @@ openpyxl>=3.1
 # pycolmap>=4.0   # 3D/ortofoto (camadas.sfm), CPU
 # pymupdf>=1.24   # PDF vetorial (camadas.pdf_cad) — AGPL
 # ezdxf           # DXF -> camadas vetoriais
+# pytesseract     # malha de coordenadas impressa (georef_prancha.registrar_malha); exige `apt-get install tesseract-ocr`

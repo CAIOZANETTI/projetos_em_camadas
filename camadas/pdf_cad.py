@@ -400,7 +400,11 @@ def quantitativos(pacote: dict) -> list[dict]:
 
     É medida do desenho, não do objeto: tubulação em linha dupla conta duas vezes, hachura e texto em curvas ficam
     de fora (só a contagem). Serve para conferir ordem de grandeza contra o orçamento, não para substituí-lo.
+    Polilinha com largura (o tubo das plantas de adutora) chega do PDF como triângulos preenchidos: para ela,
+    `eixo_faixa_m` = metade do perímetro da união, quando ela é uma faixa: até 5 peças conectadas e largura < 5 % do
+    comprimento (edificações e blocos soltos ficam de fora).
     """
+    from shapely import Polygon, union_all
     pontos_pt, partes = decodificar_pacote(pacote)
     afim = np.asarray(pacote["M"], float).reshape(2, 3)
     utm = pontos_pt @ afim[:, :2].T + afim[:, 2]
@@ -422,9 +426,18 @@ def quantitativos(pacote: dict) -> list[dict]:
         sel = dentro & (partes[:, 1] == indice)
         if not sel.any():
             continue
-        ignorado = bool(re.search(r"HACHURA|TEXTO|TXT|CARIMBO|LOGO", layer["nome"], re.I))
+        ignorado = bool(re.search(r"HACHURA|TEXTO|TXT|CARIMBO|LOGO", layer["nome"], re.IGNORECASE))
+        eixo = None
+        cheias = np.flatnonzero(sel & preenchido & (n_pontos >= 3))
+        if not ignorado and 0 < len(cheias) <= 3000:
+            faixa = union_all([Polygon(utm[inicio[k]:inicio[k] + n_pontos[k]]).buffer(0) for k in cheias]).buffer(0.01)
+            meio_perimetro = faixa.length / 2
+            pecas = len(getattr(faixa, "geoms", [faixa]))
+            if pecas <= 5 and meio_perimetro > 0 and faixa.area / meio_perimetro < 0.05 * meio_perimetro:
+                eixo = round(float(meio_perimetro), 2)
         linhas.append({"layer": layer["nome"], "grupo": layer.get("grupo"), "subgrupo": layer.get("subgrupo"),
                        "classe": layer.get("classe"), "n_partes": int(sel.sum()),
                        "comprimento_m": None if ignorado else round(float(comprimento[sel & ~preenchido].sum()), 2),
-                       "area_m2": None if ignorado else round(float(area[sel & preenchido].sum()), 2)})
+                       "area_m2": None if ignorado else round(float(area[sel & preenchido].sum()), 2),
+                       "eixo_faixa_m": eixo})
     return sorted(linhas, key=lambda l: -(l["comprimento_m"] or 0))

@@ -17,13 +17,13 @@ satélite (opcional, online) ─────────────────
 | `camadas/visualizador.py` | Gera o HTML único a partir de um dicionário de dados |
 | `camadas/sfm.py` | 3D com pycolmap (CPU): poses, nadir × oblíqua, nuvem densa, **ortofoto verdadeira** + MDS |
 | `camadas/pdf_cad.py` | PDF vetorial → traços (dict) por **layer CAD** e cor, textos, classificação por etapa e por disciplina (`conceitos/`), pacote vetorial p/ HTML; separação por cor para PDF escaneado |
-| `camadas/georef_prancha.py` | Georreferencia prancha: pontos de controle + ICP, **CAD × CAD por SIFT** (pranchas irmãs), busca global; registro imagem↔imagem |
+| `camadas/georef_prancha.py` | Georreferencia prancha: **malha de coordenadas impressa (OCR)**, CAD × CAD por SIFT (pranchas irmãs), pontos de controle + ICP, busca global; registro imagem↔imagem |
 | `camadas/supressao.py` | Supressão vegetal estimada: ExG + altura do MDS na faixa de obra, por etapa |
 | `camadas/sig.py` | GeoTIFF, GeoPackage por layer CAD, `.points` do QGIS; leitor de KMZ das redes de referência (Sanepar, IBGE, RBMC) |
 | `conceitos/*.json` | Regras de domínio editáveis sem abrir código (etapas Sanepar, disciplinas, intervenções), com metadata e fonte |
-| `referencias/sanepar/` | Redes de referência cadastral Sanepar/IBGE/municipal (fev/2026), RBMC e formulários de topografia SIRGAS 2000 |
+| `referencias/sanepar/` | Redes de referência cadastral Sanepar/IBGE/municipal (fev/2026), RBMC, formulários de topografia SIRGAS 2000 e o cadastro de materiais Sanepar (`catalogo_materiais.jsonl.gz`, 40 mil materiais, só especificação) |
 | `camadas/obra.py` | Pipeline completo a partir de um `obra.json` (cache por etapa) |
-| `camadas/orcamento_sanepar.py` | Orçamento Sanepar (xlsx) → escopo com quantidade por etapa |
+| `camadas/orcamento_sanepar.py` | Orçamento Sanepar (xlsx) → escopo do contrato com quantidade por etapa, **sem preço**; leitor do cadastro de materiais |
 | `camadas/templates/` | Template do visualizador + Leaflet 1.9.4 embutido |
 | `scripts/exemplo_irati.py` | Exemplo completo: EEB 10 Alto Recalque (SAA Irati/PR) |
 | `exemplos/foz/obra.json` | Obra completa: ETA Vila C, SAA Foz do Iguaçu (etapas, sondagens, 3D) |
@@ -37,7 +37,7 @@ satélite (opcional, online) ─────────────────
 ## Uso rápido — obra completa
 
 ```bash
-pip install -r requirements.txt pycolmap pymupdf
+pip install -r requirements.txt pycolmap pymupdf pytesseract   # + apt-get install tesseract-ocr (malha de coordenadas)
 python -m camadas.obra exemplos/foz/obra.json        # SfM + ortofoto + pranchas + escopo + HTML
 python scripts/testar_visualizador.py saida/foz/visualizador.html
 python scripts/afericao.py --registrar     # régua do código (estilo-caio-python, regra 17)
