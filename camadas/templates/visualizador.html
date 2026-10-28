@@ -2782,19 +2782,20 @@ function htmlInventario() {
   <tbody>${lin}<tr><td class="d"><b>Total</b></td><td><b>${n(T.pdfs)}</b></td><td><b>${n(T.planta)}</b></td><td><b>${n(T.detalhe)}</b></td><td><b>${n(T.documento)}</b></td><td><b>${n(T.no_mapa)}</b></td><td><b>${n(T.pdfs - T.no_disco)}</b></td></tr></tbody></table></div>
   <div class="filtros" style="margin-top:8px"><input type="search" id="invBusca" placeholder="Buscar arquivo, título, disciplina…" aria-label="Buscar no inventário" autocomplete="off">
     <select id="invTipo" aria-label="Tipo"><option value="">Todos os tipos</option><option value="planta">Plantas</option><option value="detalhe">Detalhes</option><option value="documento">Documentos</option></select>
-    <select id="invSit" aria-label="Situação"><option value="">Todas as situações</option><option value="disco">No disco</option><option value="fora">Fora do disco</option><option value="mapa">No mapa</option><option value="pmapa">Planta fora do mapa</option></select></div>
+    <select id="invSit" aria-label="Situação"><option value="">Todas as situações</option><option value="disco">No disco</option><option value="fora">Fora do disco</option><option value="mapa">No mapa</option><option value="pmapa">Planta fora do mapa</option><option value="baloes">Com balões (relação de materiais)</option></select></div>
   <div id="invLista" style="max-height:420px;overflow:auto;margin-top:6px"></div>`;
 }
 function listarInventario() {
   const I = D.inventario, box = $("#invLista"); if (!I || !box) return;
   const q = semAcento(($("#invBusca").value || "").trim()), t = $("#invTipo").value, f = $("#invSit").value;
   const ok = i => (!t || i.tipo === t) && (!f || (f === "disco" ? i.situacao.startsWith("no disco") : f === "fora" ? !i.situacao.startsWith("no disco")
-    : f === "mapa" ? !!i.no_mapa : i.tipo === "planta" && !i.no_mapa)) &&
+    : f === "mapa" ? !!i.no_mapa : f === "baloes" ? !!(i.ficha && i.ficha.baloes) : i.tipo === "planta" && !i.no_mapa)) &&
     (!q || semAcento([i.arquivo, i.pasta_drive, i.grupo, i.subgrupo, i.carimbo.titulo].join(" ")).includes(q));
   const L = I.itens.filter(ok);
   box.innerHTML = `<p class="nota-l">${fmt(L.length, 0)} de ${fmt(I.itens.length, 0)}</p>` + L.map(i => `<div class="inv-i" style="border-bottom:1px solid var(--linha);padding:5px 0">
     <div style="display:flex;gap:6px;align-items:baseline;justify-content:space-between"><b style="font-size:12px;overflow-wrap:anywhere">${esc(i.arquivo)}</b>${i.no_mapa ? `<button class="btn mini" data-inv="${esc(i.no_mapa)}">Abrir</button>` : ""}</div>
     <div class="nota-l">${esc(i.tipo)} · ${esc(i.grupo)} › ${esc(i.subgrupo)} · ${esc(i.situacao)}${i.formato ? " · " + esc(i.formato) : ""}${i.paginas > 1 ? " · " + i.paginas + " pág." : ""}${i.mb ? " · " + fmt(i.mb, 1) + " MB" : ""}</div>
+    ${i.ficha && !i.ficha.erro ? `<div class="nota-l">Ficha: ${i.ficha.vistas} vista(s)${i.ficha.escalas.length ? " (" + i.ficha.escalas.map(e => "1:" + e).join(", ") + ")" : ""} · ${i.ficha.tabelas} tabela(s)${i.ficha.baloes ? " · " + i.ficha.baloes + " balões" : ""} · obra ${esc(i.ficha.obra)}${i.ficha.objetos.length ? " · " + i.ficha.objetos.map(esc).join(", ") : ""}${i.ficha.genericos_pct >= 50 ? " · " + i.ficha.genericos_pct + "% em layers genéricos" : ""}${i.ficha.completa ? (i.ficha.completa.itens ? ` · relação: ${i.ficha.completa.itens} itens, ${i.ficha.completa.baloes_com_item} balões ligados, ${i.ficha.completa.itens_no_contrato} no contrato` : " · balões sem relação de materiais lida na folha") : ""}</div>` : i.ficha && i.ficha.erro ? `<div class="nota-l">Ficha: não lida (${esc(i.ficha.erro)})</div>` : ""}
     ${i.carimbo.titulo || i.carimbo.folha ? `<div class="nota-l">Carimbo: ${esc(i.carimbo.titulo || "—")}${i.carimbo.folha ? " · folha " + esc(i.carimbo.folha) : ""}${i.carimbo.escala ? " · " + esc(i.carimbo.escala) : ""}${i.carimbo.data ? " · " + esc(i.carimbo.data) : ""}</div>` : ""}</div>`).join("");
 }
 /* movimento de terra: cavas calculadas no Python (camadas/escavacao.py); aqui só a tabela */
@@ -2850,7 +2851,7 @@ function htmlFichas() {
       ${itens ? `<li><b>Tabela da prancha</b>: ${n(f.itens.length)} itens; ${n(f.baloes.length)} balões no desenho, ${n(f.baloes.filter(b => b.item).length)} ligados a item; itens numerados sem balão: ${esc(f.itens_sem_balao.join(", ") || "nenhum")}
         <div style="overflow:auto;max-height:340px"><table class="esc compacta fichaTab" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col style="width:34px"><col><col style="width:62px"><col style="width:40px"></colgroup>
         <thead><tr><th>Nº</th><th>Item</th><th>Qtde</th><th>Balões</th></tr></thead><tbody>${itens}</tbody></table></div></li>` : ""}
-      ${f.piloto === "estrutura" ? `<li><b>Elementos pela geometria</b>: ${n(f.estacas)} estacas (layer "${esc(f.layer_estacas)}", círculos), ${n(f.blocos.length)} blocos (layer "${esc(f.layer_blocos)}", retângulos com estacas)</li>
+      ${f.piloto === "estrutura" ? `<li><b>Elementos pela geometria</b>: ${n(f.estacas)} estacas (layer "${esc(f.layer_estacas)}", círculos), ${n(f.blocos.length)} blocos (layer "${esc(f.layer_blocos)}", retângulos com estacas), ${n((f.pilares || []).length)} pilares (manchas cheias ${esc([...new Set((f.pilares || []).map(p => fmt(p.lado_m * 100, 0) + " cm"))].join(", "))} nos blocos ${esc((f.pilares || []).map(p => p.bloco || "?").join(", "))})</li>
         <li><b>Vínculo com o terreno</b>: estacas encaixadas nas estacas com E/N ${n(E.inliers)}/${n(E.total)}, resíduo mediano ${n(E.residuo_mediano_m * 100)} cm (máx. ${n(E.residuo_max_m * 100)} cm), escala 1:${n(E.escala)}; estruturas do cadastro de estacas: ${esc((E.estruturas || []).join(", "))}</li>
         <li><b>Níveis</b> (tabelas da folha): ${Object.entries(f.niveis).map(([k, v]) => `${k === "face_superior" ? "face superior" : "arrasamento"} para ${n(Object.keys(v).length)} rótulos`).join(" · ")}; ${n(f.blocos.filter(b => b.face_superior != null).length)} blocos com rótulo e nível
         <div style="overflow:auto;max-height:260px"><table class="esc compacta fichaTab" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:46px"><col style="width:64px"><col style="width:64px"></colgroup>

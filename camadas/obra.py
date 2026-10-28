@@ -657,8 +657,9 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     if escopo:
         escopo["tubo_x_desenho"] = tubo_contrato_x_desenho(escopo, lista, cfg)
     fichas = prancha.etapa(cfg, pranchas, escopo, out, log=_log)           # prancha lida em camadas (pilotos)
-    if fichas and prancha.vetor_blocos(fichas, epsg):
-        vetores.append(prancha.vetor_blocos(fichas, epsg))
+    for v in (prancha.vetor_blocos(fichas, epsg), prancha.vetor_pecas(fichas, epsg)) if fichas else ():
+        if v:
+            vetores.append(v)
     vala = valas.etapa(cfg, pranchas, lista, escopo, out, epsg, log=_log)   # pista × calçada × lote em cada rede
     if vala:
         vetores.append({"id": "valas", "nome": "Valas: pista, calçada e lote (calculado)", "grupo": "Intervenções",
@@ -726,6 +727,9 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
             dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}
     if cfg.get("inventario"):                         # todos os PDFs da listagem do Drive, com o carimbo
         dados["inventario"] = inventario.para_html(inventario.inventario(cfg, out / "inventario_cache.json", log=_log))
+        fl = prancha.lote(cfg, escopo, out, log=_log)                  # ficha leve de cada desenho no disco
+        for it in dados["inventario"]["itens"]:
+            it["ficha"] = prancha.resumo_lote(fl.get(it["arquivo"])) if it["situacao"].startswith("no disco") else None
     dados["cronograma"] = cronograma_4d(cfg, dados)
     (out / "dados.json").write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")))
     if cfg.get("sig", True):

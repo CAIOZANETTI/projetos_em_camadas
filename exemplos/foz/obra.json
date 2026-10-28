@@ -917,7 +917,8 @@
     "16",
     "17"
    ],
-   "layer_numero": "CISM_24_TEXTO_IND_LISTA_PEÇAS"
+   "layer_numero": "CISM_24_TEXTO_IND_LISTA_PEÇAS",
+   "referencia_vistas": "f004"
   },
   {
    "id": "mod01_forma",
