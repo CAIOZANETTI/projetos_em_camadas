@@ -71,6 +71,13 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
   (`tubo_x_desenho`) quando a prancha está ligada a uma tabela. Valide a hachura da urbanização pela área do item do
   contrato antes de usá-la (Foz: H01 2 780 m² × asfalto 2 704 m²).
 
+## Rodada 8 (prancha em camadas de entendimento)
+- **Fichas** (`camadas/prancha.py`, skill `ler-prancha`): `obra.json` `fichas: [...]` com piloto `hidraulica`
+  (balões → relação de materiais → contrato) ou `estrutura` (estacas e blocos pela geometria, encaixe nas estacas
+  com E/N, níveis → blocos em 3D). Aba Projeto mostra a ficha; o mapa ganha `blocos_forma` e o 3D os sólidos.
+- **Classe de elemento por layer** (`conceitos/elementos.json`): cada layer do pacote vetorial ganha `elemento`
+  (tubo, válvula, bloco…), exibido na árvore de layers e pesquisável no filtro.
+
 ## Regras que valem ouro
 - **Mantenha o vetor.** PDF de prancha tem layers CAD, textos e quantidades: nada de rasterizar
   para o HTML (`pdf_cad.pacote_vetorial`).

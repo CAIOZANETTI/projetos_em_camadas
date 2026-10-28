@@ -202,6 +202,9 @@ table.esc td.u{text-align:center;color:var(--mut)}
 table.esc.compacta th{white-space:normal;padding:3px 3px;vertical-align:bottom}
 table.esc.compacta td{padding:4px 3px}
 table.esc.compacta td.d .cod{font-family:var(--f-ui);overflow-wrap:normal;word-break:normal}
+.el-tag{display:inline-block;margin-left:6px;font-size:10px;color:var(--mut);border:1px solid var(--linha);border-radius:8px;padding:0 5px;white-space:nowrap}
+.chip-el{display:inline-block;border:1px solid var(--linha);border-radius:10px;padding:0 6px;margin:1px 0;font-size:11px;max-width:100%;overflow-wrap:anywhere}
+ol.camadas-ficha{padding-left:18px;margin:4px 0}ol.camadas-ficha>li{margin:4px 0}details.ficha{margin:6px 0;border-bottom:1px solid var(--linha);padding-bottom:6px}
 table.esc tr[data-alerta]{background:color-mix(in srgb,var(--aberta) 14%,transparent)}
 .esc-alerta{display:block;color:var(--aberta);font-size:11px;font-weight:600;margin-top:2px}
 .tot .gt{font:600 11px var(--f-ui);letter-spacing:.04em;text-transform:uppercase}
@@ -459,7 +462,7 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
           <div class="corpo">
             <label>Cor dos pontos<select id="v3Cor"><option value="foto">Cores da foto</option><option value="altura">Por altura</option></select></label>
             <label>Tamanho do ponto <input type="range" id="v3Tam" min="1" max="8" step=".5" value="2"></label>
-            <div class="lin"><label><input type="checkbox" id="v3Cam" checked> Câmeras</label><label><input type="checkbox" id="v3Pr" checked> Pranchas</label><label><input type="checkbox" id="v3Est" checked> Estacas</label><label><input type="checkbox" id="v3Snd" checked> Sondagens</label></div>
+            <div class="lin"><label><input type="checkbox" id="v3Cam" checked> Câmeras</label><label><input type="checkbox" id="v3Pr" checked> Pranchas</label><label><input type="checkbox" id="v3Est" checked> Estacas</label><label><input type="checkbox" id="v3Snd" checked> Sondagens</label><label><input type="checkbox" id="v3Blc" checked> Blocos</label></div>
           </div>
         </details>
       </section>
@@ -1085,6 +1088,7 @@ map.on("popupclose", () => destaqueId.clearLayers());
 
 /* ---- aba Camadas: lista de pranchas, ajustes e árvore de layers CAD ---- */
 const nomeClasse = k => k || "Sem classe";
+const EL_NOME = Object.fromEntries(Object.entries(D.elementos || {}).map(([k, v]) => [k, v.nome]));   // classe de elemento do layer
 function montarGrupos(P) {
   if (P.grupos) return P.grupos;
   const m = new Map();
@@ -1103,7 +1107,7 @@ function htmlArvore(P) {
       <span class="sw" style="background:${ETAPA_COR[g.classe] || "var(--mut)"}"></span><span class="gn">${esc(nomeClasse(g.classe))}</span>
       <span class="nota">${g.ids.length} · ${fmt(g.ids.reduce((s, i) => s + Ls[i].n, 0), 0)} traços</span>
       <button class="btn mini so" title="Mostrar só os layers desta classe">só</button></summary>
-      ${g.ids.map(i => `<label class="ly" data-i="${i}"><input type="checkbox" data-l="${i}"><span class="sw" style="background:${Ls[i].cor}"></span><span class="ln">${esc(Ls[i].nome || "(sem nome)")}</span><span class="nota">${fmt(Ls[i].n, 0)}</span></label>`).join("")}
+      ${g.ids.map(i => `<label class="ly" data-i="${i}"><input type="checkbox" data-l="${i}"><span class="sw" style="background:${Ls[i].cor}"></span><span class="ln">${esc(Ls[i].nome || "(sem nome)")}${Ls[i].elemento && EL_NOME[Ls[i].elemento] ? `<span class="el-tag">${esc(EL_NOME[Ls[i].elemento])}</span>` : ""}</span><span class="nota">${fmt(Ls[i].n, 0)}</span></label>`).join("")}
     </details>`).join("")}`;
 }
 function sincArvore(P, box) {
@@ -1213,7 +1217,7 @@ function htmlPranchaSub(P, idx, chave) {
     ${casa ? htmlCfgPrancha(P) : ""}
     <details class="pr-cfg pr-lay"><summary>Layers CAD deste subgrupo (${idx.length})</summary>
       <div class="btns"><button class="btn mini" data-so title="Mostrar só estes layers da prancha">só estes</button></div>
-      <div class="arv">${idx.slice().sort((a, b) => Ls[b].n - Ls[a].n).map(i => `<label class="ly"><input type="checkbox" data-d="${i}"><span class="sw" style="background:${Ls[i].cor}"></span><span class="ln">${esc(Ls[i].nome || "(sem nome)")}</span><span class="nota">${fmt(Ls[i].n, 0)}</span></label>`).join("")}</div>
+      <div class="arv">${idx.slice().sort((a, b) => Ls[b].n - Ls[a].n).map(i => `<label class="ly"><input type="checkbox" data-d="${i}"><span class="sw" style="background:${Ls[i].cor}"></span><span class="ln">${esc(Ls[i].nome || "(sem nome)")}${Ls[i].elemento && EL_NOME[Ls[i].elemento] ? `<span class="el-tag">${esc(EL_NOME[Ls[i].elemento])}</span>` : ""}</span><span class="nota">${fmt(Ls[i].n, 0)}</span></label>`).join("")}</div>
     </details></div>`;
 }
 function htmlArvoreDisc() {
@@ -1961,7 +1965,7 @@ function iniciar3D() {
   geo.setAttribute("color", new THREE.BufferAttribute(V3.rgb, 3, true));
   V3.mat = new THREE.PointsMaterial({size: +$("#v3Tam").value, sizeAttenuation: false, vertexColors: true});
   V3.pontos = new THREE.Points(geo, V3.mat); scene.add(V3.pontos);
-  v3Cameras(); v3Estacas(); v3Sondagens();
+  v3Cameras(); v3Estacas(); v3Sondagens(); v3Solidos();
 
   // controles
   $("#v3Tam").oninput = e => { V3.mat.size = +e.target.value; pedir3D(); };
@@ -1970,6 +1974,7 @@ function iniciar3D() {
   $("#v3Pr").onchange = () => { V3.sig = ""; v3Pranchas(); };
   $("#v3Est").onchange = e => { if (V3.estacas) V3.estacas.visible = e.target.checked; pedir3D(); };
   $("#v3Snd").onchange = e => { if (V3.sond) V3.sond.visible = e.target.checked; pedir3D(); };
+  $("#v3Blc").onchange = e => { if (V3.solidos) V3.solidos.visible = e.target.checked; pedir3D(); };
   $("#v3Topo").onclick = () => { const d = V3.extVista * 1.1, c = V3.centroVista; camera.position.set(c.x, c.y - d * .001, c.z + d); ctl.target.copy(c); ctl.update(); pedir3D(); };
   $("#v3Reset").onclick = () => { v3Enquadrar(); pedir3D(); };
   $("#v3Medir").onclick = () => v3Medir(!V3.medindo);
@@ -2065,6 +2070,27 @@ function v3Sondagens() {
     im.setMatrixAt(segs.length + k, m); im.setColorAt(segs.length + k, cor.set("#1e88e5"));
   });
   im.visible = cb.checked; V3.sond = im; V3.scene.add(im); pedir3D();
+}
+
+/* sólidos (blocos de fundação lidos na forma): contorno e cotas de base e topo vêm prontos do Python
+   (modelo3d.solidos); aqui só a extrusão, em cinza de concreto com as arestas escuras */
+function v3Solidos() {
+  const SO = D.modelo3d.solidos || [], cb = $("#v3Blc"); cb.disabled = !SO.length;
+  if (!SO.length) return;
+  // enterrados: desenhados através da nuvem (como as sondagens), senão o terreno os esconde
+  const g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({color: "#a8a29e", transparent: true, opacity: .85, depthTest: false}),
+    lin = new THREE.LineBasicMaterial({color: "#292524", depthTest: false});
+  g.renderOrder = 5;
+  for (const s of SO) {
+    const forma = new THREE.Shape(s.xy.map(([x, y]) => new THREE.Vector2(x, y)));
+    const geo = new THREE.ExtrudeGeometry(forma, {depth: Math.max(s.z1 - s.z0, .05), bevelEnabled: false});
+    geo.translate(0, 0, s.z0);
+    const malha = new THREE.Mesh(geo, mat); malha.userData = {solido: s};
+    const aresta = new THREE.LineSegments(new THREE.EdgesGeometry(geo), lin);
+    malha.renderOrder = aresta.renderOrder = 5;
+    g.add(malha, aresta);
+  }
+  g.visible = cb.checked; V3.solidos = g; V3.scene.add(g); pedir3D();
 }
 
 /* pranchas georreferenciadas visíveis no mapa, como linhas no nível do terreno */
@@ -2803,7 +2829,41 @@ function htmlValas() {
   ${redes}${V.fora.length ? `<p class="nota-l">Fora do cálculo: ${V.fora.map(esc).join("; ")}.</p>` : ""}
   <p class="nota-l">${esc(V.premissas)}</p>`;
 }
-$("#aba-info").innerHTML = htmlInventario() + htmlEscavacao() + htmlValas() + `<h2>Levantamento e georreferenciamento</h2>
+/* fichas de prancha (identidade → vistas → tabelas → elementos → vínculos → serviços), lidas no Python
+   (camadas/prancha.py); aqui só exibição */
+function htmlFichas() {
+  const F = D.fichas; if (!F || !F.length) return "";
+  const n = (v, d = 0) => v == null ? "—" : fmt(v, d), sim = v => v ? "✓" : "—";
+  const ficha = f => {
+    const I = f.identidade, el = f.elementos.map(e => `<span class="chip-el" title="${esc(e.layers.join(", "))}">${esc(e.nome)} <b>${n(e.tracos)}</b></span>`).join(" ");
+    const vistas = (f.vistas || []).map(v => `<li>${v.escala_titulo ? "1:" + v.escala_titulo : "escala não lida"} · ${v.georreferenciada ? "georreferenciada" : "não georreferenciada"}</li>`).join("");
+    const itens = (f.itens || []).map(i => {
+      const nb = (f.baloes || []).filter(b => b.item === i.n).length, c = i.contrato.map(k => `${esc(k.tabela)}·${esc(k.item)} (${n(k.q1, 1)}/${n(k.q2, 1)} ${esc(k.un)})`).join(", ");
+      return `<tr><td>${esc(i.n)}</td><td class="d">${esc(i.descricao)}<span class="cod">${esc(i.codigo || "sem código")} · cadastro ${sim(i.cadastro)} · contrato ${esc(c || "—")}</span></td><td>${esc(i.qtde)} ${esc(i.un)}</td><td>${i.n === "S/N" ? "—" : n(nb)}</td></tr>`;
+    }).join("");
+    const blocos = (f.blocos || []).map(b => `<tr><td class="d">${esc(b.rotulo || "sem rótulo")}</td><td>${n(b.estacas)}</td><td>${n(b.face_superior, 3)}</td><td>${n(b.arrasamento, 3)}</td></tr>`).join("");
+    const E = f.encaixe, serv = f.servicos.map(s => `<li><b>${esc(s.elemento)}</b>: ${s.servicos.map(esc).join("; ")}</li>`).join("");
+    return `<details class="ficha" open><summary><b>${esc(f.nome)}</b></summary>
+    <ol class="camadas-ficha">
+      <li><b>Identidade</b>: ${esc(I.arquivo)} · ${esc(I.grupo)} › ${esc(I.subgrupo)} · ${esc(I.tipo)} · ${esc(I.unidade || "—")} · obra ${esc(I.obra)}</li>
+      ${vistas ? `<li><b>Vistas</b>: ${f.vistas.length}<ul>${vistas}</ul></li>` : ""}
+      ${itens ? `<li><b>Tabela da prancha</b>: ${n(f.itens.length)} itens; ${n(f.baloes.length)} balões no desenho, ${n(f.baloes.filter(b => b.item).length)} ligados a item; itens numerados sem balão: ${esc(f.itens_sem_balao.join(", ") || "nenhum")}
+        <div style="overflow:auto;max-height:340px"><table class="esc compacta fichaTab" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col style="width:34px"><col><col style="width:62px"><col style="width:40px"></colgroup>
+        <thead><tr><th>Nº</th><th>Item</th><th>Qtde</th><th>Balões</th></tr></thead><tbody>${itens}</tbody></table></div></li>` : ""}
+      ${f.piloto === "estrutura" ? `<li><b>Elementos pela geometria</b>: ${n(f.estacas)} estacas (layer "${esc(f.layer_estacas)}", círculos), ${n(f.blocos.length)} blocos (layer "${esc(f.layer_blocos)}", retângulos com estacas)</li>
+        <li><b>Vínculo com o terreno</b>: estacas encaixadas nas estacas com E/N ${n(E.inliers)}/${n(E.total)}, resíduo mediano ${n(E.residuo_mediano_m * 100)} cm (máx. ${n(E.residuo_max_m * 100)} cm), escala 1:${n(E.escala)}; estruturas do cadastro de estacas: ${esc((E.estruturas || []).join(", "))}</li>
+        <li><b>Níveis</b> (tabelas da folha): ${Object.entries(f.niveis).map(([k, v]) => `${k === "face_superior" ? "face superior" : "arrasamento"} para ${n(Object.keys(v).length)} rótulos`).join(" · ")}; ${n(f.blocos.filter(b => b.face_superior != null).length)} blocos com rótulo e nível
+        <div style="overflow:auto;max-height:260px"><table class="esc compacta fichaTab" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:46px"><col style="width:64px"><col style="width:64px"></colgroup>
+        <thead><tr><th>Bloco</th><th>Estacas</th><th>Face sup. m</th><th>Arrasam. m</th></tr></thead><tbody>${blocos}</tbody></table></div></li>` : ""}
+      <li><b>Elementos pelo layer</b>: ${el}</li>
+      ${serv ? `<li><b>Serviços que os elementos geram</b><ul>${serv}</ul></li>` : ""}
+    </ol></details>`;
+  };
+  return `<h2>Fichas de prancha (pilotos)</h2>
+  <p class="aviso" style="margin-left:0">Cada prancha lida em camadas: identidade → vistas → tabelas → elementos (layer ou geometria) → vínculos → serviços. Classes de elemento em conceitos/elementos.json.</p>
+  ${F.map(ficha).join("")}`;
+}
+$("#aba-info").innerHTML = htmlInventario() + htmlFichas() + htmlEscavacao() + htmlValas() + `<h2>Levantamento e georreferenciamento</h2>
   <table class="info">${(D.info || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
   <h2>Como as medidas são calculadas</h2>
   <p>Distâncias e áreas são calculadas no plano ${esc(D.crs.nome)}, o mesmo das pranchas. Para a distância no terreno (topográfica), divida pelo fator k = ${D.crs.k.toFixed(5)}.</p>

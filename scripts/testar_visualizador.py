@@ -307,6 +307,10 @@ def verificar_3d(c: dict) -> None:
               topo: S.every(s => Math.abs(s.segmentos[0].z_topo - s.z_boca) < 0.01 && Math.abs(s.segmentos.at(-1).z_base - s.z_fundo) < 0.01)}; }""")
     if sn["n"]:
         passo(c, "3D: sondagens em cota (segmentos + NA)", sn["inst"] == sn["esperado"] and sn["topo"], f"{sn['n']} furos, {sn['inst']} peças")
+    so = js(c, """() => { const S = __viz.D.modelo3d.solidos || [], g = __viz.v3.solidos;
+      return {n: S.length, pecas: g ? g.children.length : 0, cota: S.every(s => s.z1 > s.z0 && s.z0 > 200)}; }""")
+    if so["n"]:
+        passo(c, "3D: blocos da forma extrudados entre arrasamento e face superior", so["pecas"] == 2 * so["n"] and so["cota"], str(so))
     foto(c, "07_3d_painel")
     js(c, "document.querySelector('.painel3d').open = false")   # libera a nuvem para os cliques da medida
     clicar_camera_3d(c)
@@ -480,7 +484,7 @@ def verificar_v3_marcos(c: dict) -> None:
 def verificar_projeto(c: dict) -> None:
     """Aba Projeto: inventário (soma = listagem), cavas (escavação e reaterro) e valas (uma tabela por rede)."""
     page = c["page"]
-    if not js(c, "!!(__viz.D.inventario || __viz.D.escavacao || __viz.D.valas)"):
+    if not js(c, "!!(__viz.D.inventario || __viz.D.escavacao || __viz.D.valas || __viz.D.fichas)"):
         return
     page.click("#t-info")
     page.wait_for_timeout(300)
@@ -506,6 +510,14 @@ def verificar_projeto(c: dict) -> None:
           return {redes: V.redes.length, h3: [...document.querySelectorAll('#aba-info h3')].length, ok, cor: l.options.color === l.feature.properties.cor}; }""")
         passo(c, "valas: uma tabela por rede, extensão por classe soma a da rede", r["redes"] == r["h3"] and r["ok"], str(r))
         passo(c, "valas: no mapa, cada trecho na cor da classe", r["cor"])
+    if js(c, "!!(__viz.D.fichas && __viz.D.fichas.length)"):
+        r = js(c, """() => { const F = __viz.D.fichas, h = F.find(f => f.piloto === 'hidraulica'), e = F.find(f => f.piloto === 'estrutura');
+          return {fichas: document.querySelectorAll('details.ficha').length, n: F.length,
+                  baloes: h ? h.baloes.every(b => b.item) : true, est: e ? e.encaixe.inliers === e.estacas : true,
+                  camadas: [...document.querySelectorAll('ol.camadas-ficha')].every(o => o.querySelectorAll(':scope > li').length >= 3),
+                  mapa: e ? !!__viz.camadasMapa.blocos_forma : true}; }""")
+        passo(c, "fichas: uma por prancha piloto, em camadas de entendimento", r["fichas"] == r["n"] and r["camadas"], str(r))
+        passo(c, "fichas: balões todos ligados a item; estacas todas encaixadas; blocos no mapa", r["baloes"] and r["est"] and r["mapa"], str(r))
     foto(c, "16_projeto")
     page.click("#t-camadas")
     page.wait_for_timeout(300)

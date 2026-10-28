@@ -181,6 +181,25 @@ def disciplina_do_layer(nome_layer: str, padrao: tuple[str, str]) -> tuple[str, 
     return padrao
 
 
+def elementos() -> dict:
+    """`conceitos/elementos.json`: classe de elemento por regex no nome do layer (com serviços e fonte)."""
+    return json.loads((CONCEITOS / "elementos.json").read_text(encoding="utf-8"))
+
+
+def _sem_acento(s: str) -> str:
+    import unicodedata
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().upper()
+
+
+def elemento_do_layer(nome_layer: str, classes: list | None = None) -> str | None:
+    """Id da classe de elemento (tubo, válvula, bloco, estaca…) pelo nome do layer; None se o nome não diz."""
+    alvo = _sem_acento(nome_layer).strip()
+    for c in classes or elementos()["classes"]:
+        if re.search(c["regex"], alvo):
+            return c["id"]
+    return None
+
+
 def rasterizar(tracos: list[dict], dpi: float = 50, tamanho_pt=None, espessura: int = 1,
                filtro=None, cor=255) -> tuple[np.ndarray, float]:
     """Desenha os traços (uint8, fundo 0). Retorna (imagem, px por pt)."""
@@ -291,7 +310,7 @@ def pacote_vetorial(caminho: str | Path, lista_regras: list[dict] | None = None,
     """Prancha inteira em vetor, compacta, para o visualizador (sem rasterizar nada).
 
     Retorna:
-      largura/altura (pt), layers [{nome, n, cor, classe}], estilos [{s, f, w}],
+      largura/altura (pt), layers [{nome, n, cor, classe, elemento}], estilos [{s, f, w}],
       geometria (gzip+base64):
         coords: Int32 com deltas de (x, y)·10 — 0,1 pt de precisão, encadeados entre partes
         partes: Uint32 [n_pontos, layer, estilo, flags] por subcaminho (flags: 1 fechado, 2 preenchido)
@@ -324,9 +343,11 @@ def pacote_vetorial(caminho: str | Path, lista_regras: list[dict] | None = None,
             partes.append((len(qi), li["i"], ei, flags))
     coords = np.vstack(coords).astype("<i4")      # Int32: saltos entre partes passam de 3276 pt
     lista_layers = sorted(layers.values(), key=lambda l: l["i"])
+    classes_el = elementos()["classes"]
     return {
         "largura": largura, "altura": altura,
         "layers": [{"nome": l["nome"], "n": l["n"], "classe": l["classe"],
+                    "elemento": elemento_do_layer(l["nome"], classes_el),
                     "cor": max(l["cores"], key=l["cores"].get)} for l in lista_layers],
         "estilos": [{"s": s, "f": f, "w": w} for (s, f, w) in estilos],
         "coords": _b64gz(coords), "partes": _b64gz(np.array(partes, "<u4")),

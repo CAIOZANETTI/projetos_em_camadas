@@ -1,0 +1,354 @@
+{
+ "metadata": {
+  "fonte": "nomes de layer CAD das 34 pranchas de Foz (LE 211/2026, 410 layers: padrões CISM_, SJMH_, SW_, SGC-, cadastro municipal 5xx/7xx) e da forma PBES (layers numerados por pena)",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Classe de elemento = o que o traço representa na obra (≠ etapa, ≠ disciplina). Regex no nome do layer, sem acento e em maiúsculas; a primeira que casa vence, por isso grafismo e marcadores vêm antes dos objetos (ex.: 'COTA ARMADURA' é cota, 'INDICAÇÃO DE BLOCO' é indicação). Layer numerado por pena ou genérico ('FINA', '0', 'PDF_…') não diz o que é: classe 'generico', a classificar pela geometria (estacas = círculos tracejados, blocos = retângulos que contêm estacas). `servicos` liga a classe aos serviços de obra que ela gera (rodada 8, pedido do Caio de 28/10/2026). Fica sem classe o que o nome não diz com segurança (ex.: GSE*, BD_ACE, _CE_, _EMP_): conferir com a projetista antes de entrar aqui."
+ },
+ "grupos": [
+  "Grafismo",
+  "Referência",
+  "Hidráulica",
+  "Estrutura",
+  "Civil",
+  "Elétrica",
+  "Genérico"
+ ],
+ "classes": [
+  {
+   "id": "carimbo",
+   "nome": "Carimbo / moldura",
+   "grupo": "Grafismo",
+   "regex": "CARIMBO|FORMATO|LOGO|C-FOLHA|VIEW ?PORT|VIEWPORT|PLANTA CHAVE|PADRAO"
+  },
+  {
+   "id": "texto",
+   "nome": "Texto",
+   "grupo": "Grafismo",
+   "regex": "TEXTO|TXT|^TEXTOF$|TX_|_TX|PDF_TEXT|FORNECEDOR"
+  },
+  {
+   "id": "cota",
+   "nome": "Cota / dimensão",
+   "grupo": "Grafismo",
+   "regex": "COTA|DIMENS|^COTAS$"
+  },
+  {
+   "id": "balao",
+   "nome": "Balão da lista de peças",
+   "grupo": "Grafismo",
+   "regex": "LISTA_PECAS|LISTA_MATERIAIS"
+  },
+  {
+   "id": "chamada",
+   "nome": "Linha de chamada / indicação",
+   "grupo": "Grafismo",
+   "regex": "CHAMADA|LEADER|INDICACAO|INDIC\\.|IND_|BLOCOS_IND|SETA|^\\.BLOCOS$"
+  },
+  {
+   "id": "hachura",
+   "nome": "Hachura",
+   "grupo": "Grafismo",
+   "regex": "HACHURA|^HATCH|SOLID FILLS"
+  },
+  {
+   "id": "eixo",
+   "nome": "Eixo / linha de centro",
+   "grupo": "Grafismo",
+   "regex": "EIXO|CENTER|SGC-EIXOS"
+  },
+  {
+   "id": "corte",
+   "nome": "Indicação de corte / seção",
+   "grupo": "Grafismo",
+   "regex": "SECCAO|SECAO(?! GEOLOG)|SECOES|^CORTES?$|_CORTES|IND_CORTES|^VISTA$"
+  },
+  {
+   "id": "malha",
+   "nome": "Malha de coordenadas / grade",
+   "grupo": "Grafismo",
+   "regex": "MALHA|GRADE|GRID|QUADRO_PERFIL|_TXT-PERFIL"
+  },
+  {
+   "id": "a_demolir",
+   "nome": "Existente a desativar / demolir",
+   "grupo": "Referência",
+   "regex": "DESATIVAR|REMANEJAR"
+  },
+  {
+   "id": "existente",
+   "nome": "Existente",
+   "grupo": "Referência",
+   "regex": "EXIST|UNIDADES EXISTENTES"
+  },
+  {
+   "id": "futuro",
+   "nome": "Futuro (outra etapa)",
+   "grupo": "Referência",
+   "regex": "FUTUR"
+  },
+  {
+   "id": "estaca",
+   "nome": "Estaca",
+   "grupo": "Estrutura",
+   "regex": "ESTACA|TOPO DA ESTACA",
+   "servicos": [
+    "estaca (perfuração e concretagem)",
+    "arrasamento"
+   ]
+  },
+  {
+   "id": "tirante",
+   "nome": "Tirante",
+   "grupo": "Estrutura",
+   "regex": "TIRANTE",
+   "servicos": [
+    "tirante (perfuração, injeção, protensão)"
+   ]
+  },
+  {
+   "id": "armadura",
+   "nome": "Armadura",
+   "grupo": "Estrutura",
+   "regex": "ARMADURA|ESTRIBO|TRANSPASSE|ARM\\.",
+   "servicos": [
+    "aço CA-50/CA-60 (corte, dobra, montagem)"
+   ]
+  },
+  {
+   "id": "bloco",
+   "nome": "Bloco / sapata / fundação",
+   "grupo": "Estrutura",
+   "regex": "BLOCO|SAPATA|^FUND|ELEM\\. FUNDACAO|CONTENCAO",
+   "servicos": [
+    "escavação",
+    "lastro",
+    "forma",
+    "concreto",
+    "aço",
+    "reaterro"
+   ]
+  },
+  {
+   "id": "pilar",
+   "nome": "Pilar",
+   "grupo": "Estrutura",
+   "regex": "PILAR|_PIL_",
+   "servicos": [
+    "forma",
+    "concreto",
+    "aço"
+   ]
+  },
+  {
+   "id": "viga",
+   "nome": "Viga",
+   "grupo": "Estrutura",
+   "regex": "VIGA",
+   "servicos": [
+    "forma",
+    "concreto",
+    "aço"
+   ]
+  },
+  {
+   "id": "parede",
+   "nome": "Parede / muro / alvenaria",
+   "grupo": "Estrutura",
+   "regex": "PAREDE|ALVENARIA|MURETA|^MURO?$|^MU$|_MURETA_",
+   "servicos": [
+    "forma",
+    "concreto ou alvenaria",
+    "aço"
+   ]
+  },
+  {
+   "id": "concreto",
+   "nome": "Concreto (contorno)",
+   "grupo": "Estrutura",
+   "regex": "CONCRETO|ESTRUTURA$|ESTRUTURAL|^_BASE_$|^_BLOCO_B_$",
+   "servicos": [
+    "forma",
+    "concreto",
+    "aço"
+   ]
+  },
+  {
+   "id": "esquadria",
+   "nome": "Esquadria / guarda-corpo / escada",
+   "grupo": "Estrutura",
+   "regex": "ESQUADRIA|GUARDA|GUAR_COR|_DEG_|ESCADA|CERAMICA",
+   "servicos": [
+    "fornecimento e instalação"
+   ]
+  },
+  {
+   "id": "valvula",
+   "nome": "Válvula / registro / ventosa / descarga",
+   "grupo": "Hidráulica",
+   "regex": "VALV|VENTOSA|DESCARGA|CX_REG|_REG\\b|REGISTRO",
+   "servicos": [
+    "fornecimento e montagem de válvula",
+    "caixa / abrigo de válvula"
+   ]
+  },
+  {
+   "id": "conexao",
+   "nome": "Conexão / flange / peça",
+   "grupo": "Hidráulica",
+   "regex": "CONEX|FLANGE|BOLSAS|LUVA|^TE\\d|^C90|PECA|PASSAR[_-]T|TR\\d+X\\d+|^RD\\d",
+   "servicos": [
+    "fornecimento e montagem de conexão"
+   ]
+  },
+  {
+   "id": "tubo",
+   "nome": "Tubulação",
+   "grupo": "Hidráulica",
+   "regex": "TUBUL|TUBO|ADUTORA$|_PERFIL_|^DN_|PVC|FOFO|DRENAGEM DN|AGUA (BRUTA|TRATADA|FILTRADA|DECANTADA|FLOCULADA|COAGULADA|POT)|_AGUA$|CAMINHAMENTO|CLORO|FLUOR|POLIMERO|COAGULANTE|CARVAO|CLARIFICADO",
+   "servicos": [
+    "escavação de vala",
+    "assentamento",
+    "reaterro de vala",
+    "demolição e recomposição de pavimento"
+   ]
+  },
+  {
+   "id": "caixa",
+   "nome": "Caixa / PV / poço / tampa",
+   "grupo": "Hidráulica",
+   "regex": "^PV|_PV|CX_|^_CX|CAIXA|POCO|TAMPA|TAMPAO|GRELHA|SANC_PV",
+   "servicos": [
+    "escavação",
+    "caixa em concreto/alvenaria",
+    "tampa"
+   ]
+  },
+  {
+   "id": "equipamento",
+   "nome": "Equipamento / bomba / comporta",
+   "grupo": "Hidráulica",
+   "regex": "EQUIP|BOMBA|COMPORTA|FILTRO|VERTEDOURO",
+   "servicos": [
+    "fornecimento e montagem de equipamento"
+   ]
+  },
+  {
+   "id": "escavacao",
+   "nome": "Escavação / talude",
+   "grupo": "Civil",
+   "regex": "ESCAVA|TALUDE|RETALUD|TERRENO ORIGINAL|CONFORMACAO",
+   "servicos": [
+    "escavação",
+    "reaterro",
+    "bota-fora"
+   ]
+  },
+  {
+   "id": "meio_fio",
+   "nome": "Meio-fio / via",
+   "grupo": "Civil",
+   "regex": "_MF|MEIO.?FIO|ADUTORA_VIAS|TOP_VIAS|C-ROAD",
+   "servicos": [
+    "guia / meio-fio"
+   ]
+  },
+  {
+   "id": "calcada",
+   "nome": "Calçada / passeio",
+   "grupo": "Civil",
+   "regex": "_CALC_|CALCADA|PASSEIO",
+   "servicos": [
+    "demolição e recomposição de calçada"
+   ]
+  },
+  {
+   "id": "pavimento",
+   "nome": "Pavimento",
+   "grupo": "Civil",
+   "regex": "PAVIM|ASFALT",
+   "servicos": [
+    "demolição e recomposição de pavimento"
+   ]
+  },
+  {
+   "id": "lote",
+   "nome": "Lote / quadra / divisa",
+   "grupo": "Civil",
+   "regex": "LOTE|QUADRA|DIVISA|PROPRIEDADE|INVAS|BAIRRO|LIMITE_PRACA",
+   "servicos": []
+  },
+  {
+   "id": "edificacao",
+   "nome": "Edificação (cadastro)",
+   "grupo": "Civil",
+   "regex": "EDIF",
+   "servicos": []
+  },
+  {
+   "id": "cerca",
+   "nome": "Cerca",
+   "grupo": "Civil",
+   "regex": "CERCA",
+   "servicos": [
+    "remoção e recomposição de cerca"
+   ]
+  },
+  {
+   "id": "vegetacao",
+   "nome": "Vegetação",
+   "grupo": "Civil",
+   "regex": "VEGET|ARVORE",
+   "servicos": [
+    "supressão / limpeza"
+   ]
+  },
+  {
+   "id": "hidrografia",
+   "nome": "Hidrografia",
+   "grupo": "Civil",
+   "regex": "HIDROGR",
+   "servicos": []
+  },
+  {
+   "id": "topografia",
+   "nome": "Topografia / sondagem / marcos",
+   "grupo": "Civil",
+   "regex": "CURVA|PONTOS|^RN$|MARCO|SONDAGEM|SPT|TERRENO|NODE|GEOLOG|SECG",
+   "servicos": []
+  },
+  {
+   "id": "interferencia",
+   "nome": "Interferência (rede existente)",
+   "grupo": "Civil",
+   "regex": "INTERFER",
+   "servicos": [
+    "cadastro / proteção de interferência"
+   ]
+  },
+  {
+   "id": "eletrica",
+   "nome": "Elétrica (circuito, painel, eletroduto)",
+   "grupo": "Elétrica",
+   "regex": "^SW_|ELETR|CIRCUITO|PAINEL|PTOLUZ|CONDUT|BARRAMENTO|CXAPASSAGEM|ENVCONC|INSTR|A_IM_",
+   "servicos": [
+    "eletroduto",
+    "cabos",
+    "painel"
+   ]
+  },
+  {
+   "id": "projetado",
+   "nome": "Projetado (genérico)",
+   "grupo": "Referência",
+   "regex": "PROJET|ELEMENTOS NOVOS|INSTALAR|ETAPA",
+   "servicos": []
+  },
+  {
+   "id": "generico",
+   "nome": "Genérico (pena / sem nome) — classificar pela geometria",
+   "grupo": "Genérico",
+   "regex": "^$|^\\d+$|^0$|FINA|MEDIA|GROSSA|PROJECAO|PDF_|LINEPRIMITIVE|^C$|^P$|DT GERAL|^DT |^PORT$|SANEPAR_TRACO|SW_LAYOUT|^CONTORNO$|DETALHE"
+  }
+ ]
+}

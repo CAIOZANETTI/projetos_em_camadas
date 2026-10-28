@@ -21,6 +21,7 @@ satélite (opcional, online) ─────────────────
 | `camadas/supressao.py` | Supressão vegetal estimada: ExG + altura do MDS na faixa de obra, por etapa |
 | `camadas/inventario.py` | Inventário determinístico de **todos** os PDFs da listagem do Drive: situação (no disco / falhou / não tentado), formato da folha, código Sanepar, carimbo (canto inferior direito; texto, fonte reparada ou OCR) e planta × detalhe × documento (`conceitos/tipos_prancha.json`) |
 | `camadas/escavacao.py` | Escavação e reaterro por cava: base das estruturas + cota de fundo (OCR das marcas de nível) + crista desenhada + talude + MDS em cota; edificações como parede (`conceitos/escavacao.json`) |
+| `camadas/prancha.py` | Ficha da prancha em camadas de entendimento: identidade, vistas e escala, tabelas por OCR (relação de materiais, níveis), elementos pelo layer (`conceitos/elementos.json`) ou pela geometria (estacas, blocos), balões → itens, estacas do desenho → E/N (RANSAC) e blocos em 3D (skill `ler-prancha`) |
 | `camadas/valas.py` | Valas das redes: pista × calçada × lote pela posição no desenho (divisas, meio-fio, quadras) ou superfície existente pela ortofoto; demolição, recomposição e volume de vala por rede (`conceitos/valas.json`) |
 | `camadas/sig.py` | GeoTIFF, GeoPackage por layer CAD, `.points` do QGIS; leitor de KMZ das redes de referência (Sanepar, IBGE, RBMC) |
 | `conceitos/*.json` | Regras de domínio editáveis sem abrir código (etapas Sanepar, disciplinas, intervenções), com metadata e fonte |

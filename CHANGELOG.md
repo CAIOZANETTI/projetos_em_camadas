@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0 — 2026-10-28 · Foz, rodada 8: a prancha lida em camadas de entendimento (pilotos)
+- **Classe de elemento por layer** (`conceitos/elementos.json`, `pdf_cad.elemento_do_layer`): 40 classes (tubo,
+  válvula, conexão, bloco, estaca, pilar, viga, parede, meio-fio, calçada…) com os serviços que geram; 99,6 % dos
+  traços de Foz classificados; cada layer do pacote vetorial ganha `elemento`, exibido e pesquisável na árvore.
+- **Ficha da prancha** (`camadas/prancha.py`, skill `ler-prancha`): identidade → vistas e escala → tabelas por OCR
+  → elementos (layer ou geometria) → vínculos → serviços. Piloto hidráulica (f010): 32 itens da relação de
+  materiais, 41/41 balões ligados a item, 30 itens no contrato. Piloto estrutura (forma do módulo de filtros):
+  104 estacas e 41 blocos pela geometria, encaixe nas estacas com E/N 104/104 a 9 mm (RANSAC), níveis das tabelas
+  → 34 blocos em 3D e camada `blocos_forma` no mapa.
+- **f010 sai do mapa**: a folha de detalhe herdava a escala 1:250 da irmã, mas a planta é 1:100 (2,5× grande desde
+  a rodada 5). Conferência escala do título × escala da afim.
+- OCR do SHX com a letra normalizada a 18 px (6/6 cotas; a 25 px, 0/6).
+
 ## 0.7.0 — 2026-10-28 · Foz, rodada 7: inventário de projetos, movimento de terra e valas
 - **Inventário determinístico** (`camadas/inventario.py`): a listagem do Drive é a referência e cada PDF ganha uma
   linha — situação (no disco / outra pasta / falhou / não tentado), formato da folha (A0–A4, estendido), código
