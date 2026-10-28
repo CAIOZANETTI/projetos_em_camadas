@@ -25,3 +25,12 @@ paginando `pageToken`; desça em cada `application/vnd.google-apps.folder`. Grav
 - confira `%PDF` / tamanho; registre `_baixados.csv`;
 - PDFs: `pdf_cad.layers_pdf` (tem layers?) e `get_text` (tem texto ou é curva?) — isso decide
   extração vetorial e busca de texto no visualizador.
+
+## Inventário determinístico (nada some)
+A listagem do conector (CSV acima, copiado para `dados/<obra>/projeto/_listagem_drive.csv`) é a referência. No
+`obra.json`: `"inventario": {"listagem", "baixados", "pasta", "fonte"}`; `camadas/inventario.py` dá a **cada PDF
+da listagem** uma linha com situação (no disco / mesmo nome em outra pasta / falhou no download / não tentado),
+formato da folha (A0–A4, estendido), código Sanepar, carimbo lido no canto inferior direito (texto, fonte ArialMT
+reparada ou OCR) e tipo planta × detalhe × documento (`conceitos/tipos_prancha.json`). Confira: nº de linhas =
+nº de PDFs da listagem e nenhum PDF do disco fora dela. Rode avulso com `python -m camadas.inventario
+exemplos/<obra>/obra.json`. Os "não tentados" e os que falharam são a lista de download pendente.

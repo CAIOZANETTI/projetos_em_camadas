@@ -57,6 +57,20 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
 - **Estilo do Caio** (skill `estilo-caio-python`): dict puro, pt-BR, YAGNI, cálculo no Python,
   `metadados()` com bibliografia, `python scripts/afericao.py --registrar` antes do PR.
 
+## Rodada 7 (inventário, movimento de terra e valas)
+- **Inventário** (`camadas/inventario.py`, aba Projeto): todos os PDFs da listagem do Drive com situação, carimbo e
+  planta × detalhe × documento; detalhe e documento ficam só na aba Projeto. Resumo por disciplina para conferir
+  com o levantamento real. Skill `drive-ingestao`.
+- **Escavação e reaterro** (`camadas/escavacao.py`): `obra.json` `escavacao: {pranchas, layer_base, layer_marca,
+  layer_crista, cores_etapa}`. Base = preenchimentos das estruturas; fundo = OCR das marcas de nível (cache em
+  `saida/<obra>/escavacao_cache.json`); crista desenhada recorta a cava; edificações do MDS são parede. Exige
+  controle vertical. Confira a crista do modelo × a desenhada e as cavas "na borda do levantamento".
+- **Valas** (`camadas/valas.py`): `obra.json` `valas: {redes[{id, pranchas, criterio, layer_*, de_mm?}],
+  urbanizacao}`. Critérios: `divisas` (contagem de linhas), `meio_fio` (meio-fio × alinhamento em layers
+  separados), `quadras` (cadastro municipal) e `ortofoto` (superfície existente pela cor). O DE vem do contrato
+  (`tubo_x_desenho`) quando a prancha está ligada a uma tabela. Valide a hachura da urbanização pela área do item do
+  contrato antes de usá-la (Foz: H01 2 780 m² × asfalto 2 704 m²).
+
 ## Regras que valem ouro
 - **Mantenha o vetor.** PDF de prancha tem layers CAD, textos e quantidades: nada de rasterizar
   para o HTML (`pdf_cad.pacote_vetorial`).

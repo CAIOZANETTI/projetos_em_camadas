@@ -19,6 +19,9 @@ satélite (opcional, online) ─────────────────
 | `camadas/pdf_cad.py` | PDF vetorial → traços (dict) por **layer CAD** e cor, textos, classificação por etapa e por disciplina (`conceitos/`), pacote vetorial p/ HTML; separação por cor para PDF escaneado |
 | `camadas/georef_prancha.py` | Georreferencia prancha: **malha de coordenadas impressa (OCR)**, CAD × CAD por SIFT (pranchas irmãs), pontos de controle + ICP, busca global; registro imagem↔imagem |
 | `camadas/supressao.py` | Supressão vegetal estimada: ExG + altura do MDS na faixa de obra, por etapa |
+| `camadas/inventario.py` | Inventário determinístico de **todos** os PDFs da listagem do Drive: situação (no disco / falhou / não tentado), formato da folha, código Sanepar, carimbo (canto inferior direito; texto, fonte reparada ou OCR) e planta × detalhe × documento (`conceitos/tipos_prancha.json`) |
+| `camadas/escavacao.py` | Escavação e reaterro por cava: base das estruturas + cota de fundo (OCR das marcas de nível) + crista desenhada + talude + MDS em cota; edificações como parede (`conceitos/escavacao.json`) |
+| `camadas/valas.py` | Valas das redes: pista × calçada × lote pela posição no desenho (divisas, meio-fio, quadras) ou superfície existente pela ortofoto; demolição, recomposição e volume de vala por rede (`conceitos/valas.json`) |
 | `camadas/sig.py` | GeoTIFF, GeoPackage por layer CAD, `.points` do QGIS; leitor de KMZ das redes de referência (Sanepar, IBGE, RBMC) |
 | `conceitos/*.json` | Regras de domínio editáveis sem abrir código (etapas Sanepar, disciplinas, intervenções), com metadata e fonte |
 | `referencias/sanepar/` | Redes de referência cadastral Sanepar/IBGE/municipal (fev/2026), RBMC, formulários de topografia SIRGAS 2000 e o cadastro de materiais Sanepar (`catalogo_materiais.jsonl.gz`, 40 mil materiais, só especificação) |

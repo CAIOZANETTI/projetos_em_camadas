@@ -41,6 +41,14 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   # vetores especiais: "estacas" (flag estacas), "supressao" (resumo por etapa) e "marcos" (marcos geodésicos)
   # escopo: por_tabela e totais são contagens (itens, 1ª/2ª etapa, alerta, no cadastro), calculadas no Python;
   #   tubo_x_desenho: [{prancha, nome, tabelas, codigo, descricao, contrato_m, desenho_m, diferenca_pct}]
+
+  # --- rodada 7 (opcionais; aba Projeto) ---
+  "inventario": {"fonte", "totais", "resumo": [{grupo, subgrupo, total, planta, detalhe, documento, no_mapa,
+                 fora_do_disco}], "itens": [{arquivo, situacao, tipo, grupo, subgrupo, no_mapa, carimbo, ...}]},
+  "escavacao": {"cavas": [{id, escavacao_m3, reaterro_m3, area_m2, prof_media_m, fundo_m, etapa, ...}], "total",
+                "marcas", "conferencia_crista", "parametros", "premissas"},     # + vetor "escavacao"
+  "valas": {"redes": [{id, de_mm, fonte_de, criterio, extensao_m, quadro: [{classe, nome, final, extensao_m,
+            demolicao_m2, recomposicao_m2, volume_vala_m3, ...}]}], "classes", "fora", "premissas"},   # + vetor "valas"
 }
 
 `gerar(..., leaflet="inline")` embute Leaflet e three.js r128 (+ OrbitControls); com "cdn" ambos vêm de CDN.

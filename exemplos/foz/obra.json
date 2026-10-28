@@ -801,5 +801,112 @@
   "fonte": "cota de boca dos furos SPT, relatório Geoazimute 2022 (SIRGAS 2000; datum vertical não declarado no relatório)",
   "campo_cota": "cota_boca",
   "juntar_variantes_A": true
+ },
+ "inventario": {
+  "listagem": "dados/foz/projeto/_listagem_drive.csv",
+  "baixados": "dados/foz/projeto/_baixados.csv",
+  "pasta": "dados/foz/projeto",
+  "fonte": "listagem recursiva do Drive '211 - SAA Foz do Iguaçu' pelo conector (skill drive-ingestao)"
+ },
+ "escavacao": {
+  "pranchas": [
+   "es1",
+   "es2",
+   "es3"
+  ],
+  "layer_base": "^_PROJETADOS$",
+  "layer_marca": "\\.COTA ESCAVA",
+  "layer_crista": "RETALUDAMENTO",
+  "cores_etapa": {
+   "1ª etapa": [
+    0.0,
+    0.75,
+    1.0
+   ],
+   "2ª etapa": [
+    0.66,
+    0.33,
+    0.63
+   ]
+  },
+  "fonte": "PBGE ESCAVAÇÃO 1/2/3 (folhas 06-08/14, R2): base = estruturas projetadas, fundo = marcas de nível (OCR), crista = RETALUDAMENTO"
+ },
+ "valas": {
+  "fonte": "posição do tubo nas plantas (SJMH_ADUTORA_DIVISAS na AAT00; meio-fio SJMH_ADUTORA_VIAS × alinhamento SJMH_ADUTORA_DIVISAS nas AAT01/02; 549_QUADRAS na AAT06), ortofoto do drone e urbanização da ETA (H01 = asfalto novo, 2 780 m² × 2 704 m² no contrato; o H05 marca o interior de estruturas, não piso — fica de fora)",
+  "urbanizacao": {
+   "prancha": "urb",
+   "camadas": {
+    "asfalto novo (H01)": "CISM_26_HACHURA H01"
+   }
+  },
+  "redes": [
+   {
+    "id": "AAT00",
+    "pranchas": [
+     "aat00_01",
+     "aat00_02",
+     "aat00_03",
+     "aat00_04",
+     "aat00_05",
+     "aat00_06"
+    ],
+    "criterio": "divisas",
+    "layer_limite": "SJMH_ADUTORA_DIVISAS"
+   },
+   {
+    "id": "AAT01",
+    "pranchas": [
+     "aat01"
+    ],
+    "criterio": "meio_fio",
+    "layer_meio_fio": "SJMH_ADUTORA_VIAS",
+    "layer_alinhamento": "SJMH_ADUTORA_DIVISAS"
+   },
+   {
+    "id": "AAT02",
+    "pranchas": [
+     "aat02"
+    ],
+    "criterio": "meio_fio",
+    "layer_meio_fio": "SJMH_ADUTORA_VIAS",
+    "layer_alinhamento": "SJMH_ADUTORA_DIVISAS"
+   },
+   {
+    "id": "AAT06",
+    "pranchas": [
+     "aat06_09",
+     "aat06_10",
+     "aat06_11",
+     "aat06_12",
+     "aat06_13",
+     "aat06_14"
+    ],
+    "criterio": "quadras",
+    "layer_limite": "549_QUADRAS"
+   },
+   {
+    "id": "ETA drenagem DN400",
+    "pranchas": [
+     "f006"
+    ],
+    "layer": "CISM_50_DRENAGEM DN400",
+    "criterio": "ortofoto",
+    "de_mm": 400,
+    "fonte_de": "nome do layer (DN400)"
+   },
+   {
+    "id": "ETA drenagem DN300",
+    "pranchas": [
+     "f006"
+    ],
+    "layer": "CISM_52_DRENAGEM DN300",
+    "criterio": "ortofoto",
+    "de_mm": 300,
+    "fonte_de": "nome do layer (DN300)"
+   }
+  ],
+  "fora": [
+   "ETA água potável (folha 08): o layer CISM_53_AGUA POT só tem rótulos; o tubo está no layer genérico CISM_11_LINHA_TUBULAÇÃO 01, junto com as outras tubulações"
+  ]
  }
 }

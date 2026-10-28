@@ -17,8 +17,8 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from shapely.geometry import LineString, Polygon, mapping, shape
 import shapely
+from shapely.geometry import LineString, Polygon, mapping, shape
 from shapely.ops import unary_union
 
 from . import geo
@@ -33,7 +33,7 @@ def _raster_orto(caminho: Path, res: float):
     return img, e0, n1, meta["epsg"]
 
 
-def _mds_na_grade(mds_png: Path, e0: float, n1: float, res: float, forma) -> np.ndarray:
+def mds_na_grade(mds_png: Path, e0: float, n1: float, res: float, forma) -> np.ndarray:
     meta = json.loads(mds_png.with_suffix(".json").read_text())
     z = cv2.imread(str(mds_png), cv2.IMREAD_UNCHANGED).astype(np.float32) / 100 + meta["z_min_m"]
     me0, mn1 = meta["canto_sup_esq"]
@@ -44,6 +44,13 @@ def _mds_na_grade(mds_png: Path, e0: float, n1: float, res: float, forma) -> np.
                           borderMode=cv2.BORDER_REPLICATE)
 
 
+def terreno(z: np.ndarray, res: float, terreno_m: float = 15.0) -> np.ndarray:
+    """Terreno sob prédios e copas: abertura morfológica do MDS (elemento de `terreno_m`) suavizada."""
+    k = max(3, int(terreno_m / res) | 1)
+    t = cv2.morphologyEx(z, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    return cv2.GaussianBlur(t, (0, 0), k / 4)
+
+
 def mascaras_vegetacao(ortofoto: str | Path, mds_png: str | Path, res: float = 0.25,
                        exg_min: float = 0.06, altura_min_m: float = 1.5, terreno_m: float = 15.0) -> dict:
     """Máscaras booleanas (grade da ortofoto reduzida a `res`): vegetação alta e rasteira."""
@@ -51,14 +58,11 @@ def mascaras_vegetacao(ortofoto: str | Path, mds_png: str | Path, res: float = 0
     b, g, r = [c.astype(np.float32) for c in cv2.split(img)]
     exg = (2 * g - r - b) / (r + g + b + 1)
     valido = img.min(axis=2) < 250
-    z = _mds_na_grade(Path(mds_png), e0, n1, res, img.shape[:2])
-    k = max(3, int(terreno_m / res) | 1)
-    terreno = cv2.morphologyEx(z, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
-    terreno = cv2.GaussianBlur(terreno, (0, 0), k / 4)
-    h = z - terreno
+    z = mds_na_grade(Path(mds_png), e0, n1, res, img.shape[:2])
+    h = z - terreno(z, res, terreno_m)
     veg = (exg > exg_min) & valido
     veg = cv2.morphologyEx(veg.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)).astype(bool)
-    return {"alta": veg & (h > altura_min_m), "rasteira": veg & (h <= altura_min_m), "altura": h,
+    return {"alta": veg & (h > altura_min_m), "rasteira": veg & (h <= altura_min_m), "altura": h, "valido": valido,
             "e0": e0, "n1": n1, "res": res, "epsg": epsg}
 
 
@@ -73,7 +77,7 @@ def faixa_de_obra(geoms_utm: list, faixa_m: float = 4.0, folga_unidades_m: float
     return unary_union(partes) if partes else None
 
 
-def _rasterizar(poly, e0, n1, res, forma) -> np.ndarray:
+def rasterizar(poly, e0, n1, res, forma) -> np.ndarray:
     from rasterio.features import rasterize
     from rasterio.transform import Affine
     if poly is None or poly.is_empty:
@@ -82,7 +86,7 @@ def _rasterizar(poly, e0, n1, res, forma) -> np.ndarray:
                      fill=0, dtype="uint8").astype(bool)
 
 
-def _poligonos(mascara: np.ndarray, e0, n1, res, min_area_m2: float, simplificar_m: float = 0.3) -> list:
+def poligonos(mascara: np.ndarray, e0, n1, res, min_area_m2: float, simplificar_m: float = 0.3) -> list:
     from rasterio.features import shapes
     from rasterio.transform import Affine
     out = []
@@ -104,12 +108,12 @@ def estimar(ortofoto, mds_png, geoms_por_etapa: dict[str, list], faixa_m: float 
     feats, resumo, ja = [], {}, np.zeros(forma, bool)
     for etapa, geoms in geoms_por_etapa.items():       # primeira etapa listada "fica" com a área
         faixa = faixa_de_obra(geoms, faixa_m, folga_unidades_m)
-        dentro = _rasterizar(faixa, e0, n1, res, forma) & ~ja
+        dentro = rasterizar(faixa, e0, n1, res, forma) & ~ja
         ja |= dentro
         for tipo, chave in (("Supressão vegetal (árvores/arbustos)", "alta"), ("Limpeza de vegetação rasteira", "rasteira")):
             alvo = m[chave] & dentro
-            for p in _poligonos(alvo, e0, n1, res, min_area_m2):
-                cel = _rasterizar(p, e0, n1, res, forma) & alvo
+            for p in poligonos(alvo, e0, n1, res, min_area_m2):
+                cel = rasterizar(p, e0, n1, res, forma) & alvo
                 hmed = float(np.median(m["altura"][cel])) if cel.any() else 0.0
                 feats.append({"type": "Feature", "geometry": mapping(shapely.transform(p, ll)),
                               "properties": {"tipo": tipo, "categoria": "supressao" if chave == "alta" else "limpeza",
@@ -145,13 +149,14 @@ def metadados() -> dict:
     return {
         "modulo": "supressao",
         "descricao": "supressão vegetal estimada: ExG + altura (MDS − terreno) na faixa de obra do projeto",
-        "funcoes": ["mascaras_vegetacao", "faixa_de_obra", "estimar", "geoms_utm_de_tracos"],
+        "funcoes": ["terreno", "mascaras_vegetacao", "faixa_de_obra", "estimar", "geoms_utm_de_tracos", "mds_na_grade",
+                    "rasterizar", "poligonos"],
         "bibliografia": [
             {"obra": "Woebbecke et al. — Color indices for weed identification under various soil, residue and "
                      "lighting conditions (ExG = 2G − R − B)", "ano": 1995, "editora": "Transactions of the ASAE",
              "aplicacao": {"mascaras_vegetacao": ["exg_min=0,06"]}},
             {"obra": "Soille — Morphological Image Analysis (abertura morfológica para o terreno)", "ano": 2003,
-             "editora": "Springer", "aplicacao": {"mascaras_vegetacao": ["terreno_m=15"]}},
+             "editora": "Springer", "aplicacao": {"terreno": ["terreno_m=15"]}},
         ],
         "premissas": [
             {"aplicacao": {"mascaras_vegetacao": ["altura_min_m=1,5"]},

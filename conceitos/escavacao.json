@@ -1,0 +1,15 @@
+{
+ "metadata": {
+  "fonte": "plantas de escavação PBGE ESCAVAÇÃO 1/2/3 (LE 211/2026, folhas 06-08/14): rótulos 'TALUDE 1,5H:1V' na maioria das cavas e 1,75H:1V nas de lodo; marcas de nível do layer .COTA ESCAVAÇÃO com a cota de fundo escrita ao lado",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "superfície da cava = fundo + max(0, d − folga) ÷ talude, d = distância à base da estrutura; escavação = Σ (terreno − superfície) onde o terreno está acima. Contenção por estacas (trechos AA–HH) faz parede vertical no lugar do talude: ali o volume sai maior que o real. Reaterro = escavação fora da projeção da estrutura (premissa: a estrutura ocupa a base do fundo ao terreno)."
+ },
+ "talude_h_v": {"valor": 1.5, "estado": "confirmado", "fonte": "rótulo 'TALUDE 1,5H:1V' das plantas de escavação; as cavas de lodo usam 1,75H:1V (ficam ~3 % menores)"},
+ "folga_m": {"valor": 0.5, "estado": "premissa", "fonte": "espaço de trabalho em volta da forma da fundação (prática usual 0,3–0,6 m); conferido pela crista calculada × crista desenhada (RETALUDAMENTO)"},
+ "terreno_m": {"valor": 15.0, "estado": "premissa", "fonte": "abertura morfológica do MDS (elemento de 15 m) para tirar prédios e copas, a mesma da supressão vegetal"},
+ "res_m": {"valor": 0.25, "estado": "premissa", "fonte": "resolução do MDS do drone"},
+ "marca_min_pt": {"valor": 8.0, "estado": "confirmado", "fonte": "símbolo de nível da planta tem ~9 pt; os da planta-chave (~2 pt) não têm cota legível e ficam de fora"},
+ "raio_cota_pt": {"valor": 30.0, "estado": "confirmado", "fonte": "o número fica encostado no símbolo (à direita, ou girado 90°); 'TOPO' ao lado do número é crista, não fundo"},
+ "raio_marca_m": {"valor": 3.0, "estado": "premissa", "fonte": "marca vale para a base que a contém ou está a até 3 m dela"}
+}
