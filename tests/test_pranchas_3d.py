@@ -117,3 +117,19 @@ def test_quantitativos_por_layer_em_metros(pdf_com_layers):
     q = {l["layer"]: l for l in pdf_cad.quantitativos(pac)}
     assert q["EXISTENTES"]["comprimento_m"] == pytest.approx(30.0, abs=0.01)     # 300 pt
     assert q["_PROJETADOS"]["area_m2"] == pytest.approx(10.0 * 6.0, abs=0.01)    # 100 × 60 pt
+
+
+def test_quantitativos_eixo_de_faixa_triangulada(tmp_path):
+    """Polilinha com largura chega como triângulos preenchidos: o eixo sai da união, não da soma dos perímetros."""
+    doc = pymupdf.open()
+    pg = doc.new_page(width=400, height=300)
+    tubo = doc.add_ocg("ADUTORA_TUBO")
+    for x in range(20, 380, 40):                      # faixa de 360 × 3 pt em 18 triângulos
+        pg.draw_polyline([(x, 100), (x + 40, 100), (x + 40, 103), (x, 100)], color=None, fill=(0.6, 0, 0.8), oc=tubo, closePath=True)
+        pg.draw_polyline([(x, 100), (x + 40, 103), (x, 103), (x, 100)], color=None, fill=(0.6, 0, 0.8), oc=tubo, closePath=True)
+    doc.save(tmp_path / "faixa.pdf")
+    pac = pdf_cad.pacote_vetorial(tmp_path / "faixa.pdf", simplificar_pt=0)
+    pac["M"], pac["clip_mapa"] = [0.1, 0, 0.0, 0, -0.1, 0.0], None
+    q = pdf_cad.quantitativos(pac)[0]
+    assert q["eixo_faixa_m"] == pytest.approx(36.0 + 0.3, abs=0.2)      # meio perímetro: comprimento + largura
+    assert q["area_m2"] == pytest.approx(36.0 * 0.3, rel=0.02)

@@ -40,9 +40,8 @@ e o texto convertido em curvas. As de geotecnia e elétrica têm texto real, pes
 - **Orçamento**: a aba oculta `Relação de Materiais` traz a quantidade da 1ª e da 2ª etapa por
   tabela (01…79+), e cada tabela está ligada a um desenho.
   - Linhas: 796 só na 1ª etapa, 48 só na 2ª (não orçadas) e 37 nas duas.
-  - Sem preço: 465 de 923 itens.
   - Sem etapa: 169 itens (ACTIFLO, válvulas, comportas, civil).
-  - Total estimado: U1 R$ 41,7 mi e U2 R$ 19,2 mi.
+  - Preço e valor ficam fora deste repositório: o trabalho é o escopo do contrato (decisão do Caio, 28/10/2026).
 - **Sondagens**: o relatório Geoazimute (2022) tem 16 SPT com **E/N em SIRGAS 2000 / UTM 21S** e
   cota de boca de 238–240 m.
   - NA entre 7,5 e 9 m.

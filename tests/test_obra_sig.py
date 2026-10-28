@@ -131,3 +131,64 @@ def test_marco_destruido_normalizado():
                                 "MUNICÍPIO": "FOZ DO IGUACU", "DATA ÚLTIMA VISITA": "01/02/2020"})
     assert campos["destruido"] and campos["municipio"] == "FOZ DO IGUACU" and campos["ultima_visita"] == "01/02/2020"
     assert sig._campos_marco({"SITUACAO": "BOM", "TEMA": "GPS"})["destruido"] is False
+
+
+def test_malha_recupera_afim_e_descarta_leitura_errada():
+    from camadas import georef_prancha
+    M = georef_prancha.matriz_inicial([[0, 0], [100, 0], [0, 100]],
+                                      [[745400.0, 7182800.0], [745435.278, 7182800.0], [745400.0, 7182764.722]])
+    Minv = np.linalg.inv(M)
+    obs = []
+    for chave, (eixo, valor) in enumerate([("E", 745400.0), ("E", 745600.0), ("N", 7182600.0), ("N", 7182800.0),
+                                            ("N", 7182400.0), ("E", 745800.0)]):
+        fixo = valor
+        for t in (-300.0, 300.0):                      # duas pontas de cada linha da malha
+            u = [fixo, 7182600.0 + t] if eixo == "E" else [745600.0 + t, fixo]
+            obs.append({"p": geo.aplicar(Minv, [u])[0], "eixo": eixo, "chave": chave,
+                        "valor": 745000.0 if chave == 5 else valor})          # a última foi lida errado
+    r = georef_prancha._ajustar_malha(obs, 0.5, 4)
+    assert r["descartadas"] == ["E 745000"]
+    assert np.allclose(r["M"], M, atol=1e-6)
+    assert georef_prancha._ajustar_malha(obs[:6], 0.5, 4)["M"] is None      # 3 valores fecham sem sobra
+
+
+def test_linhas_da_malha_funde_colineares_e_agrupa_glifos():
+    from camadas import georef_prancha
+    glifo = [np.array([[0.0, 0.0], [0.0, 6.0]]), np.array([[0.0, 0.0], [3.0, 0.0], [3.0, 6.0]])]
+    rotulo = [g + [100 + 4 * i, 50] for i in range(6) for g in glifo[i % 2:i % 2 + 1]]
+    tracos = [{"layer": "GRADE", "partes": [np.array([[0.0, 60.0], [300.0, 60.0]]), np.array([[320.0, 60.0], [600.0, 60.0]]),
+                                             np.array([[200.0, 0.0], [200.0, 500.0]])] + rotulo},
+              {"layer": "OUTRO", "partes": [np.array([[0.0, 0.0], [900.0, 0.0]])]}]
+    m = georef_prancha.linhas_da_malha(tracos, "GRADE")
+    horizontais = [l for l in m["linhas"] if l["angulo"] < 1]
+    assert len(m["linhas"]) == 2 and len(horizontais) == 1
+    assert np.allclose(horizontais[0]["p0"], [0, 60]) and np.allclose(horizontais[0]["p1"], [600, 60])
+    assert len(m["rotulos"]) == 1 and min(m["rotulos"][0]["angulo"], 180 - m["rotulos"][0]["angulo"]) < 5
+
+
+def test_escopo_sem_preco_e_com_cadastro_sanepar(tmp_path):
+    openpyxl = pytest.importorskip("openpyxl")
+    from camadas import orcamento_sanepar
+    wb = openpyxl.Workbook()
+    mat = wb.active
+    mat.title = "sanepar_mat"
+    mat.append(["seq_estoque", "descricao", "unidade_medida", "situacao", "familia", "dn", "preco_unitario"])
+    mat.append([301218, "TUBO POLIETILENO PE 100 PN 10 DE 315", "M", "1 - Licitável", "tubo", None, 99.9])
+    mat.append([134562, "TUBO FD K7 JE DN 1000", "M", "6 - Para Obra", "tubo", 1000, 5000])
+    wb.create_sheet("sanepar_preços").append(["seq_estoque", "preco_unitario"])
+    wb.save(tmp_path / "estudo.xlsx")
+    assert orcamento_sanepar.gravar_catalogo(tmp_path / "estudo.xlsx", tmp_path / "cat.jsonl.gz") == 2
+    cat = orcamento_sanepar.catalogo(tmp_path / "cat.jsonl.gz")
+    assert set(cat) == {"301218", "134562"} and "preco_unitario" not in cat["301218"]
+    cab = "tabela;nome_tabela;item;codigo;descricao;unidade;qtd_etapa1;qtd_etapa2;etapa;material_base;local\n"
+    (tmp_path / "rel.csv").write_text(cab + "01;ADUTORA;01;301218;TUBO PE DE 315;m;498,5;0;1ª etapa;pead;AAT\n"
+                                            "01;ADUTORA;02;134562;TUBO FD DN1000;pç;7;0;1ª etapa;fd;ETA\n"
+                                            "02;CIVIL;01;-;BLOCO DE APOIO;un;46054;3;;;ETA\n", encoding="utf-8")
+    e = obra.etapa_escopo({"escopo": {"relacao_csv": str(tmp_path / "rel.csv"), "catalogo": str(tmp_path / "cat.jsonl.gz")}})
+    texto = json.dumps(e, ensure_ascii=False)
+    assert "preco" not in texto and "valor" not in texto and "R$" not in texto
+    a, b, c = e["itens"]
+    assert a["alerta"] is None and a["cadastro"]["unidade_medida"] == "M"
+    assert "unidade do cadastro Sanepar é M" in b["alerta"]                     # pç × M
+    assert "sem código" in c["alerta"] and "data do Excel" in c["alerta"] and c["q1"] == 0
+    assert e["totais"] == {"itens": 3, "itens_q1": 2, "itens_q2": 1, "com_alerta": 2, "no_cadastro": 2}

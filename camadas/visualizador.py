@@ -24,7 +24,7 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
                 "georef": {"ok", "motivo", "residuo_mediano_m", "frac_05m"}}],
   "etapas": [{"id": "1ª etapa", "cor": "#rrggbb"}],            # ids usados em layers[].classe e vetores[].etapa
   "escopo": {"itens": [{"tabela", "nome_tabela", "item", "codigo", "descricao", "un",
-                        "q1", "q2", "etapa", "material", "local", "preco"}],
+                        "q1", "q2", "etapa", "material", "local", "alerta", "cadastro"}],   # sem preço
              "desenhos_por_tabela": {"01": "código do desenho (nome do PDF sem extensão)"}, "fonte": "..."},
   "sondagens": [{"id", "tipo", "E", "N", "lon", "lat", "cota_boca", "profundidade_m", "na_m",
                  "nspt": [[prof_m, golpes]], "camadas": [{"de", "ate", "descricao", "classe"}], "fonte"}],
@@ -37,7 +37,7 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   "intervencoes": [{"id", "nome", "cor"}],     # tipos do recorte classificado
   "cronograma": {"data_os", "data_os_hipotese", "prazo_dias", "marcos", "atividades", "curva_s": {"dia", "planejado_pct"}},   # 4D
   # vetores especiais: "estacas" (flag estacas), "supressao" (resumo por etapa) e "marcos" (marcos geodésicos)
-  # escopo ganha valor_q1/valor_q2/alerta por item, por_tabela e totais (calculados no Python)
+  # escopo: por_tabela e totais são contagens (itens, 1ª/2ª etapa, alerta, no cadastro), calculadas no Python
 }
 
 `gerar(..., leaflet="inline")` embute Leaflet e three.js r128 (+ OrbitControls); com "cdn" ambos vêm de CDN.

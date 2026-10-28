@@ -35,51 +35,6 @@
  ],
  "pranchas": [
   {
-   "id": "f004",
-   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES-R5.pdf",
-   "nome": "Folha 04 · Layout de processo (etapas)",
-   "disciplina": "Hidráulica",
-   "clip": [
-    0,
-    0,
-    1735,
-    1684
-   ],
-   "regras": "etapa_sanepar",
-   "manchas_etapa": true,
-   "pontos_controle": {
-    "pt": [
-     [
-      1400,
-      680
-     ],
-     [
-      1600,
-      680
-     ],
-     [
-      1400,
-      880
-     ]
-    ],
-    "utm": [
-     [
-      745786.5,
-      7182892.8
-     ],
-     [
-      745786.5,
-      7182873.8
-     ],
-     [
-      745767.5,
-      7182892.8
-     ]
-    ],
-    "obs": "centro do prédio Filtros mód. 2 medido na ortofoto (34×23 m ↔ 360×240 pt); escala inicial 0,095 m/pt; refinado por ICP"
-   }
-  },
-  {
    "id": "ge01",
    "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/001-SAA-0017-8820-PBGE-DE-0000ETA01GEOPLANTA1-R1.pdf",
    "nome": "Geotecnia · planta de sondagens",
@@ -96,6 +51,24 @@
      7183023.487836087
     ]
    ]
+  },
+  {
+   "id": "f004",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES-R5.pdf",
+   "nome": "Folha 04 · Layout de processo (etapas)",
+   "disciplina": "Hidráulica",
+   "clip": [
+    0,
+    0,
+    1735,
+    1684
+   ],
+   "regras": "etapa_sanepar",
+   "manchas_etapa": true,
+   "irma": "ge01",
+   "layers_irma": "EXIST",
+   "layers_referencia": "EXIST",
+   "obs_georef": "CAD × CAD sobre a GEOPLANTA (afim das 16 sondagens). Até a rodada 4 vinha de pontos de controle medidos na ortofoto com escala inicial 0,095 m/pt: 7,9 % grande, herdada pelas irmãs (rodada 5)."
   },
   {
    "id": "fu1",
@@ -235,7 +208,7 @@
    "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/006-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYDRENAG-R2.pdf",
    "nome": "Folha 06 · Layout de drenagem",
    "disciplina": "Hidráulica",
-   "irma": "f004"
+   "malha": "MALHA"
   },
   {
    "id": "f043",
@@ -249,7 +222,7 @@
    "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/006-SAA-0017-7471-PARQ-DE-0001ETAVILACURBANIZACAO-R0.pdf",
    "nome": "Urbanização",
    "disciplina": "Arquitetura",
-   "irma": "f004"
+   "malha": "MALHA"
   },
   {
    "id": "el_im",
@@ -319,12 +292,129 @@
    "irma": "es1",
    "layers_irma": "^",
    "layers_referencia": "^"
+  },
+  {
+   "id": "aat00_01",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/001-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF01-R0.pdf",
+   "nome": "Adutora AAT00 · planta e perfil 01/06",
+   "malha": "ADUTORA_GRADE_PLANTA",
+   "escala": 1000
+  },
+  {
+   "id": "aat00_02",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/002-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF02-R0.pdf",
+   "nome": "Adutora AAT00 · planta e perfil 02/06",
+   "malha": "ADUTORA_GRADE_PLANTA",
+   "escala": 1000
+  },
+  {
+   "id": "aat00_03",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/003-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF03-R0.pdf",
+   "nome": "Adutora AAT00 · planta e perfil 03/06",
+   "malha": "ADUTORA_GRADE_PLANTA",
+   "escala": 1000
+  },
+  {
+   "id": "aat00_04",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/004-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF04-R0.pdf",
+   "nome": "Adutora AAT00 · planta e perfil 04/06",
+   "malha": "ADUTORA_GRADE_PLANTA",
+   "escala": 1000
+  },
+  {
+   "id": "aat00_05",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/005-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF05-R0.pdf",
+   "nome": "Adutora AAT00 · planta e perfil 05/06",
+   "irma": "aat00_04",
+   "res_irma": 0.25,
+   "layers_irma": "QUADRAS|LOTES|DIVISAS|PROPRIEDADES",
+   "layers_referencia": "QUADRAS|LOTES|DIVISAS|PROPRIEDADES",
+   "clip": [
+    1082,
+    81,
+    1683,
+    1609
+   ],
+   "obs_georef": "rótulos da malha incoerentes no desenho (05: 744200 em duas linhas; 06: 743600 e 744000 a 200 m) e a planta quase não se sobrepõe à da folha anterior; com o croqui fora do clip o CAD × CAD é rejeitado. Pendente: confirmar a malha com o projetista ou marcar pontos"
+  },
+  {
+   "id": "aat00_06",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT - VILA C/006-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF06-R0.pdf",
+   "nome": "Adutora AAT00 · planta e perfil 06/06",
+   "irma": "aat00_05",
+   "res_irma": 0.25,
+   "layers_irma": "QUADRAS|LOTES|DIVISAS|PROPRIEDADES",
+   "layers_referencia": "QUADRAS|LOTES|DIVISAS|PROPRIEDADES",
+   "clip": [
+    1082,
+    81,
+    1683,
+    1609
+   ],
+   "obs_georef": "rótulos da malha incoerentes no desenho (05: 744200 em duas linhas; 06: 743600 e 744000 a 200 m) e a planta quase não se sobrepõe à da folha anterior; com o croqui fora do clip o CAD × CAD é rejeitado. Pendente: confirmar a malha com o projetista ou marcar pontos"
+  },
+  {
+   "id": "aat01",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT 02 - VILA A/001-SAA-0000-0000-PBEN-DE-0000AAT01PLANTAPERF01-R0_SÓ_INTERLIGACAO.pdf",
+   "nome": "Adutora AAT01 · planta e perfil (interligação)",
+   "malha": "ADUTORA_GRADE_PLANTA",
+   "escala": 1000
+  },
+  {
+   "id": "aat02",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/2. AAT02_AAT_VilaC/AAT 02 - VILA A/001-SAA-0000-0000-PBEN-DE-0000AAT02PLANTAPERF01-R1.pdf",
+   "nome": "Adutora AAT02 · planta e perfil",
+   "malha": "ADUTORA_GRADE_PLANTA",
+   "escala": 1000
+  },
+  {
+   "id": "aat06_09",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/009-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
+   "nome": "Adutora AAT06 · planta e perfil 009/019",
+   "malha": "MALHA",
+   "escala": 1000
+  },
+  {
+   "id": "aat06_10",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/010-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
+   "nome": "Adutora AAT06 · planta e perfil 010/019",
+   "malha": "MALHA",
+   "escala": 1000
+  },
+  {
+   "id": "aat06_11",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/011-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
+   "nome": "Adutora AAT06 · planta e perfil 011/019",
+   "malha": "MALHA",
+   "escala": 1000
+  },
+  {
+   "id": "aat06_12",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/012-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
+   "nome": "Adutora AAT06 · planta e perfil 012/019",
+   "malha": "MALHA",
+   "escala": 1000
+  },
+  {
+   "id": "aat06_13",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/013-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
+   "nome": "Adutora AAT06 · planta e perfil 013/019",
+   "malha": "MALHA",
+   "escala": 1000
+  },
+  {
+   "id": "aat06_14",
+   "pdf": "dados/foz/projeto/UNIDADE 02/ANEXO C/1. AAT06/PBHI/014-SAA-0017-7471-PBHI-DE-AAT06PTPER-R1.pdf",
+   "nome": "Adutora AAT06 · planta e perfil 014/019",
+   "malha": "MALHA",
+   "escala": 1000
   }
  ],
  "escopo": {
   "relacao_csv": "dados/foz/orcamento/relacao_materiais_etapas.csv",
   "itens_csv": "dados/foz/orcamento/escopo_itens.csv",
-  "fonte": "211 - SAA Foz do Iguaçú.xlsx — abas MATS E EQUIP e Relação de Materiais (oculta)"
+  "fonte": "211 - SAA Foz do Iguaçú.xlsx — abas MATS E EQUIP e Relação de Materiais (oculta)",
+  "catalogo": "referencias/sanepar/catalogo_materiais.jsonl.gz"
  },
  "sondagens": "dados/foz/geotec/sondagens.json",
  "pendentes": {

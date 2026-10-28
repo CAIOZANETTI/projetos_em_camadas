@@ -24,7 +24,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from . import geo, georef_prancha, pdf_cad, sfm, visualizador
+from . import geo, georef_prancha, orcamento_sanepar, pdf_cad, sfm, visualizador
 
 REGRAS = {"etapa_sanepar": "etapas_sanepar"}     # nome no obra.json -> conceitos/<arquivo>.json
 
@@ -143,6 +143,10 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
             r = {"M": np.vstack([np.asarray(p["M_absoluta"], float), [0, 0, 1]]), "residuo_mediano_m": None,
                  "frac_05m": None}
             ok, motivo = True, "afim absoluta (coordenadas topográficas)"
+        elif p.get("malha"):
+            # malha de coordenadas impressa no próprio desenho: exata, não depende da ortofoto
+            r = georef_prancha.registrar_malha(tr, p["malha"], escala=p.get("escala"), log=_log)
+            ok, motivo = r["ok"], r["motivo"]
         elif pc:
             M0 = georef_prancha.matriz_inicial(pc["pt"], pc["utm"])
             r = georef_prancha.registrar(pts, orto, M_inicial=M0, log=_log) if len(pts) > 200 else \
@@ -150,7 +154,7 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
             ok, motivo = True, "pontos de controle" + (" + ICP" if len(pts) > 200 else "")
         elif irma is not None:
             # referência = linhas de existentes da prancha irmã já georreferenciada (CAD × CAD)
-            ref = referencia_cad(feitas[p["irma"]], pasta, p.get("layers_irma", "EXIST"))
+            ref = referencia_cad(feitas[p["irma"]], pasta, p.get("layers_irma", "EXIST"), p.get("res_irma", 0.10))
             r = georef_prancha.registrar_cad(tr, ref, irma, p.get("layers_referencia", "EXIST"), log=_log)
             ok, motivo = r["ok"], f"automático sobre a prancha {p['irma']}: {r['motivo']}"
             if not ok and len(pts) > 200:                 # alternativa: ICP a partir da escala da irmã
@@ -173,7 +177,7 @@ def referencia_cad(base: dict, pasta: Path, filtro: str, res: float = 0.10) -> P
     """Raster georreferenciado (preto sobre branco) das linhas de referência de uma prancha
     já georreferenciada — serve de "ortofoto" para registrar as pranchas irmãs."""
     import hashlib
-    caminho = pasta / f"_ref_{base['id']}_{hashlib.md5(filtro.encode()).hexdigest()[:6]}.png"
+    caminho = pasta / f"_ref_{base['id']}_{hashlib.md5(f'{filtro}|{res}'.encode()).hexdigest()[:6]}.png"
     if caminho.exists():
         return caminho
     tr = pdf_cad.extrair(base["pdf"], clip=base.get("clip"))
@@ -195,9 +199,10 @@ def referencia_cad(base: dict, pasta: Path, filtro: str, res: float = 0.10) -> P
 def prancha_vetorial(p: dict, extensao_utm=None, margem_m: float = 25.0) -> dict:
     """Prancha inteira em vetor (layers CAD, estilos, textos) + matriz pt -> UTM se houver.
 
-    Grupo/subgrupo da prancha e de cada layer vêm de `camadas.disciplinas` (ou do
-    obra.json). Sem `clip` explícito, o recorte do mapa é a área do levantamento + margem
-    levada para o espaço da folha — carimbo e tabelas ficam só na aba Pranchas.
+    Grupo/subgrupo da prancha e de cada layer vêm de `conceitos/disciplinas.json` (ou do
+    obra.json). Recorte do mapa: `clip` explícito; senão a janela da malha de coordenadas
+    (planta das adutoras, fora do voo); senão a área do levantamento + margem levada para o
+    espaço da folha. Carimbo e tabelas ficam só na aba Pranchas.
     """
     pac = pdf_cad.pacote_vetorial(p["pdf"], _regras(p) if p.get("regras") in REGRAS else None)
     g, sg = pdf_cad.disciplina_da_prancha(Path(p["pdf"]).name, p["nome"])
@@ -205,7 +210,7 @@ def prancha_vetorial(p: dict, extensao_utm=None, margem_m: float = 25.0) -> dict
     for l in pac["layers"]:
         l["grupo"], l["subgrupo"] = pdf_cad.disciplina_do_layer(l["nome"], (g, sg))
     M = p.get("M")
-    clip = p.get("clip")
+    clip = p.get("clip") or p.get("janela_pt")
     if clip is None and M is not None and extensao_utm is not None:
         e0, n0, e1, n1 = extensao_utm
         cantos = np.array([[e0 - margem_m, n0 - margem_m], [e1 + margem_m, n0 - margem_m],
@@ -218,7 +223,7 @@ def prancha_vetorial(p: dict, extensao_utm=None, margem_m: float = 25.0) -> dict
             "pdf": Path(p["pdf"]).name, **pac,
             "M": np.asarray(M)[:2].ravel().tolist() if M is not None else None,
             "escala_m_pt": esc, "clip_mapa": clip,
-            "georef": {k: p.get(k) for k in ("ok", "motivo", "residuo_mediano_m", "frac_05m")}}
+            "georef": {k: p.get(k) for k in ("ok", "motivo", "residuo_mediano_m", "frac_05m", "residuo_max_m")}}
 
 
 def manchas_etapa(p: dict, epsg: int) -> list:
@@ -243,20 +248,27 @@ def manchas_etapa(p: dict, epsg: int) -> list:
 
 # 3 ---------------------------------------------------------------------------
 def etapa_escopo(cfg: dict) -> dict | None:
-    """Itens do orçamento com quantidades por etapa (CSV de camadas.orcamento_sanepar)."""
+    """Escopo do contrato por etapa, sem preço (decisão do Caio, 28/10/2026).
+
+    Itens da relação de materiais com quantidade da 1ª e da 2ª etapa, a especificação do cadastro de materiais
+    Sanepar pelo código (seq_estoque) e alertas: quantidade com cara de data do Excel, unidade diferente da do
+    orçamento ou do cadastro, item sem código, código fora do cadastro ou despadronizado.
+    """
     e = cfg.get("escopo")
-    if not e or not Path(e.get("relacao_csv", "")).exists():
+    if not e or not e.get("relacao_csv") or not Path(e["relacao_csv"]).exists():
         return None
     import pandas as pd
     rel = pd.read_csv(e["relacao_csv"], sep=";", decimal=",", encoding="utf-8-sig", dtype={"tabela": str, "item": str})
-    itens = None
-    if Path(e.get("itens_csv", "")).exists():
+    unidades, desenhos = {}, {}
+    if e.get("itens_csv") and Path(e["itens_csv"]).exists():          # Path("") = "." existe
         itens = pd.read_csv(e["itens_csv"], sep=";", decimal=",", encoding="utf-8-sig",
                             dtype={"tabela": str, "item": str, "codigo": str})
-    precos = {}
-    if itens is not None:
-        for t, it, cod, pr, un, q in itens[["tabela", "item", "codigo", "preco_unit", "unidade", "quantidade"]].itertuples(index=False):
-            precos.setdefault((str(t), str(it), str(cod)), (pr, str(un), q))
+        for t, it, cod, un, q in itens[["tabela", "item", "codigo", "unidade", "quantidade"]].itertuples(index=False):
+            unidades.setdefault((str(t), str(it), str(cod)), (str(un), q))
+        if "projeto_desenho" in itens:
+            for t, d in itens[["tabela", "projeto_desenho"]].dropna().drop_duplicates().itertuples(index=False):
+                desenhos.setdefault(t, d)
+    cat = orcamento_sanepar.catalogo(e["catalogo"]) if e.get("catalogo") and Path(e["catalogo"]).exists() else {}
 
     def qtd(v):
         """Quantidade numérica; serial de data do Excel (≈ 2009–2036) vira alerta."""
@@ -267,46 +279,55 @@ def etapa_escopo(cfg: dict) -> dict | None:
             return 0.0, f"quantidade na planilha parece data do Excel ({int(v)})"
         return v, None
 
+    def mesma_unidade(a, b):
+        sinonimos = {"pç": "un", "pc": "un", "peça": "un", "und": "un", "cj": "cj", "conj": "cj", "ml": "m"}
+        a, b = str(a).strip().lower(), str(b).strip().lower()
+        return sinonimos.get(a, a) == sinonimos.get(b, b)
+
     lin = []
     for r in rel.itertuples():
-        # tabela+item+código: o número do item repete entre blocos
-        pr, un_orc, q_orc = precos.get((str(r.tabela), str(r.item), str(r.codigo)), (None, None, None))
+        codigo = str(r.codigo).split(".")[0]
         q1, a1 = qtd(r.qtd_etapa1)
         q2, a2 = qtd(r.qtd_etapa2)
-        a3 = None
-        if un_orc and str(r.unidade).strip().lower() != un_orc.strip().lower():
-            a3 = f"unidade diverge do orçamento ({r.unidade} × {un_orc} {q_orc})"
-        alerta = a1 or a2 or a3
-        if alerta:
-            pr = None                                    # fora dos totais até alguém conferir
-        lin.append({"tabela": r.tabela, "nome_tabela": r.nome_tabela, "item": r.item, "codigo": str(r.codigo),
-                    "descricao": r.descricao + (f"  ⚠ {alerta}" if alerta else ""), "un": r.unidade,
-                    "q1": q1, "q2": q2, "alerta": alerta,
+        alertas = [a for a in (a1, a2) if a]
+        # tabela+item+código: o número do item repete entre blocos
+        un_orc, q_orc = unidades.get((str(r.tabela), str(r.item), codigo), (None, None))
+        if un_orc and not mesma_unidade(r.unidade, un_orc):
+            alertas.append(f"unidade diverge do orçamento ({r.unidade} × {un_orc} {q_orc})")
+        espec = cat.get(codigo)
+        if cat and not codigo.isdigit():
+            alertas.append("item sem código de material Sanepar")
+        elif cat and espec is None:
+            alertas.append(f"código {codigo} fora do cadastro de materiais Sanepar")
+        elif espec:
+            if espec.get("unidade_medida") and not mesma_unidade(r.unidade, espec["unidade_medida"]):
+                alertas.append(f"unidade do cadastro Sanepar é {espec['unidade_medida']} (relação: {r.unidade})")
+            if str(espec.get("situacao", "")).startswith("4"):          # 1/3 licitável, 6 para obra, 2 SCD: normais
+                alertas.append(f"situação no cadastro: {espec['situacao']}")
+        lin.append({"tabela": r.tabela, "nome_tabela": r.nome_tabela, "item": r.item, "codigo": codigo,
+                    "descricao": r.descricao, "un": r.unidade, "q1": q1, "q2": q2,
+                    "alerta": "; ".join(alertas) or None,
                     "etapa": r.etapa if isinstance(r.etapa, str) else "",
                     "material": r.material_base if isinstance(r.material_base, str) else "",
-                    "local": r.local, "preco": float(pr) if pr is not None and pd.notna(pr) else None})
-    # tabela -> desenho (para ligar item a prancha/camada no mapa)
-    desenhos = {}
-    if itens is not None and "projeto_desenho" in itens:
-        for t, d in itens[["tabela", "projeto_desenho"]].dropna().drop_duplicates().itertuples(index=False):
-            desenhos.setdefault(t, d)
-    for item in lin:                                    # valores em R$ por etapa (None sem preço ou com alerta)
-        item["valor_q1"] = round(item["q1"] * item["preco"], 2) if item["preco"] is not None else None
-        item["valor_q2"] = round(item["q2"] * item["preco"], 2) if item["preco"] is not None else None
+                    "local": r.local,
+                    "cadastro": {k: espec[k] for k in ("descricao", "unidade_medida", "norma_eb", "situacao", "familia",
+                                                       "material_base", "dn", "pn", "qtd_marcas", "marcas_homologadas")
+                                 if k in espec} if espec else None})
     por_tabela = {}
     for item in lin:
-        t = por_tabela.setdefault(item["tabela"], {"nome": item["nome_tabela"], "n": 0, "valor_q1": 0.0, "valor_q2": 0.0})
+        t = por_tabela.setdefault(item["tabela"], {"nome": item["nome_tabela"], "n": 0, "n_q1": 0, "n_q2": 0,
+                                                   "n_alerta": 0})
         t["n"] += 1
-        t["valor_q1"] += item["valor_q1"] or 0.0
-        t["valor_q2"] += item["valor_q2"] or 0.0
-    for t in por_tabela.values():
-        t["valor_q1"], t["valor_q2"] = round(t["valor_q1"], 2), round(t["valor_q2"], 2)
-    totais = {"valor_q1": round(sum(t["valor_q1"] for t in por_tabela.values()), 2),
-              "valor_q2": round(sum(t["valor_q2"] for t in por_tabela.values()), 2),
-              "itens": len(lin), "sem_preco": sum(i["preco"] is None for i in lin),
-              "com_alerta": sum(bool(i["alerta"]) for i in lin)}
-    return {"itens": lin, "por_tabela": por_tabela, "totais": totais,
-            "desenhos_por_tabela": desenhos, "fonte": e.get("fonte", "")}
+        t["n_q1"] += item["q1"] > 0
+        t["n_q2"] += item["q2"] > 0
+        t["n_alerta"] += bool(item["alerta"])
+    totais = {"itens": len(lin), "itens_q1": sum(i["q1"] > 0 for i in lin), "itens_q2": sum(i["q2"] > 0 for i in lin),
+              "com_alerta": sum(bool(i["alerta"]) for i in lin),
+              "no_cadastro": sum(i["cadastro"] is not None for i in lin)}
+    return {"itens": lin, "por_tabela": por_tabela, "totais": totais, "desenhos_por_tabela": desenhos,
+            "fonte": e.get("fonte", ""),
+            "fonte_cadastro": "cadastro de materiais Sanepar (sanepar_mat, coletado em 08/2026), só especificação"
+            if cat else None}
 
 
 # 4 ---------------------------------------------------------------------------
