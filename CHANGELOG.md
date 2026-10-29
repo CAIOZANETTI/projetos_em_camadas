@@ -4,6 +4,10 @@
 - **Nome do HTML com obra, versão e data** (`obra.nome_html`, `nome_html` no obra.json):
   `saida/foz/foz-vilac_camadas_v0.14.0_2026-10-29.html`; versão única do código em `camadas.VERSAO` (teste amarra ao
   CHANGELOG) e linha "Versão" no painel de informações.
+- **Nuvem 3D comprimida sem perda** (`sfm.pacote_visualizador`, Sonnet): Morton 3D + deltas zigzag + planos de bytes
+  + gzip 9 (`pos_cm_gz`, `rgb_gz`); 6,0 → 1,79 MB, mesmo conjunto de pontos e cores.
+- **GeoJSON do HTML a 7 casas decimais** (`visualizador.arredondar_geojson`, Haiku): ≈ 1 cm; vetores 1,48 → 1,01 MB.
+- Foz: HTML 26,4 → 21,7 MB.
 
 ## 0.13.0 — 2026-10-29 · Foz, rodada 13: pranchas mais leves e medição exata
 - **Simplificação correta das polilinhas** (`pdf_cad.simplificar_partes`, distância ao segmento): a antiga (cv2,
