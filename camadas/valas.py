@@ -249,7 +249,7 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
         return None
     peso = np.concatenate(peso)
     return {"id": r["id"], "de_mm": r["de_mm"], "fonte_de": r.get("fonte_de", ""), "criterio": r["criterio"],
-            "extensao_m": round(float(peso.sum()), 1), "pts": np.vstack(pts), "tang": np.vstack(tang),
+            "extensao_m": round(float(peso.sum()), 1), "pts": np.vstack(pts), "tang": np.vstack(tang), "peso": peso,
             "classes": classes, "quadro": quantificar(classes, peso, r["de_mm"] / 1000, finais if any(finais) else None)}
 
 
@@ -303,7 +303,7 @@ def para_html(redes: list[dict], c: dict, final: dict | None, epsg: int) -> dict
             ll = shapely.transform(g, lambda xy: np.column_stack(geo.para_lonlat(xy[:, 0], xy[:, 1], epsg)))
             feats.append({"type": "Feature", "geometry": mapping(ll),
                           "properties": {"rede": v["id"], "classe": cl, "tipo": REGRAS["classes"][cl]["nome"],
-                                         "cor": REGRAS["classes"][cl]["cor"], "extensao_m": round(float(sel.sum() * passo), 1),
+                                         "cor": REGRAS["classes"][cl]["cor"], "extensao_m": round(float(v["peso"][sel].sum()), 1),
                                          "estimado": True}})
     tabela = [{k: v[k] for k in ("id", "de_mm", "fonte_de", "criterio", "extensao_m", "quadro")} for v in redes]
     return {"redes": tabela, "classes": {k: {"nome": v["nome"], "cor": v["cor"]} for k, v in REGRAS["classes"].items()},

@@ -490,6 +490,8 @@ def rotulos(pagina, poligonos: list, padrao: str = r"PC?\d{1,2}", dpis=(130, 160
     contorno está mais perto (pares do mais próximo ao mais distante, cada um usado uma vez, até `max_pt`).
     2ª passada (com `tracos`): elemento ainda sem rótulo é relido num recorte redesenhado sem a hachura, em
     várias escalas; vale o candidato mais perto que ainda não foi usado."""
+    if not len(poligonos):                               # folha sem blocos (ETL01, reforma): nada a rotular
+        return []
     import pymupdf
     B = np.array([p.bounds for p in poligonos])
     x0, y0 = B[:, :2].min(0) - 60
@@ -520,6 +522,8 @@ def rotulos(pagina, poligonos: list, padrao: str = r"PC?\d{1,2}", dpis=(130, 160
 def pilares(pagina, blocos: list, escala: int, lado_m: float = 0.40, dpi: int = 144) -> list[dict]:
     """Pilares = manchas cheias quadradas com o lado do pilar (± 25 %) dentro de um bloco: a hachura sólida do
     pilar vem em traços, então a imagem (abertura morfológica tira linhas e letras) é o caminho."""
+    if not len(blocos):
+        return []
     k = dpi / 72
     b = (_imagem(pagina, dpi=dpi) < 100).astype(np.uint8)
     n, _, st, cen = cv2.connectedComponentsWithStats(cv2.morphologyEx(b, cv2.MORPH_OPEN, np.ones((9, 9), np.uint8)))

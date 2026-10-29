@@ -72,3 +72,15 @@ def test_superficie_pela_cor_da_ortofoto():
     orto = {"img": img, "e0": 0.0, "n1": 4.0, "res": 0.1}
     pts = np.array([[2.0, 2.0], [6.0, 2.0], [10.0, 2.0], [14.0, 2.0]])
     assert valas.classe_ortofoto(pts, orto) == ["vegetacao", "pavimentado", "solo", "sem_ortofoto"]
+
+
+def test_camada_do_mapa_soma_a_extensao_da_rede():
+    """Faixa amostrada dos dois lados (peso de meio passo): a extensão por superfície na camada do mapa soma a da
+    rede, não o dobro (AAT00 saía 6 518 m para 3 259 m)."""
+    faixa = [_traco("T", [(0, 9.8), (100, 9.8), (100, 10.2)], True), _traco("T", [(0, 9.8), (100, 10.2), (0, 10.2)], True)]
+    am = valas.amostras(faixa, "T", M)
+    cl = next(iter(valas.REGRAS["classes"]))
+    rede = {"id": "R", "de_mm": 300, "fonte_de": "", "criterio": "divisas", "extensao_m": round(float(am["peso"].sum()), 1),
+            "pts": am["pts"], "tang": am["tang"], "peso": am["peso"], "classes": [cl] * len(am["pts"]), "quadro": []}
+    h = valas.para_html([rede], {}, None, 31982)
+    assert sum(f["properties"]["extensao_m"] for f in h["geojson"]["features"]) == pytest.approx(rede["extensao_m"], abs=0.2)

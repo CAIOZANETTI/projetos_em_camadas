@@ -25,6 +25,7 @@ import cv2
 import numpy as np
 
 from . import (
+    construtivos,
     escavacao,
     geo,
     georef_prancha,
@@ -757,7 +758,8 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
 
 
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
-    """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas e inventário com a ficha em lote."""
+    """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas e inventário com a ficha em lote; e os
+    elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor."""
     if fichas:
         dados["fichas"] = prancha.para_html(fichas)
         if dados.get("vertical"):
@@ -770,6 +772,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         fl = prancha.lote(cfg, escopo, out, log=_log)                  # ficha leve de cada desenho no disco
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
+    dados["construtivos"] = construtivos.montar(dados, cfg)        # aba Obra: unidade > sistema > elemento
 
 
 # 5 ---------------------------------------------------------------------------
