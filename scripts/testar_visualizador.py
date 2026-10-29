@@ -13,6 +13,8 @@ Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema
   * sondagens (popup com SVG), foto do drone e o 3D (canvas WebGL com pixels desenhados);
   * v3: árvore por disciplina, recorte classificado (intervenção), estacas no mapa e no 3D, marcos geodésicos
     e o 4D (linha do tempo, play, curva S);
+  * aba Obra (só com `D.construtivos`): busca por rótulo/classe/sistema, árvore por unidade, clique que enquadra e destaca
+    um único elemento, ficha com atributos e trecho de rede como linha vetorial clicável;
   * sem rolagem horizontal da página no celular.
 Sai com código 1 se algum passo falhar. Capturas em PNG na pasta indicada (padrão: <pasta do html>/capturas).
 Requer apenas `playwright` (já com o Chromium instalado); não instala nada.
@@ -23,6 +25,7 @@ import argparse
 import os
 import sys
 import time
+import unicodedata
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -495,6 +498,162 @@ def verificar_area_obra(c: dict) -> None:
               limites: !s || !!s.layer.options.bounds, contorno: !!__viz.camadasMapa.area_obra}; }""")
     passo(c, "área da obra: ortofoto recortada nela, satélite só na extensão da obra", r["cabe"] and r["limites"] and r["contorno"], str(r))
 
+def sem_acento_maiusculo(txt: str) -> str:
+    return "".join(ch for ch in unicodedata.normalize("NFD", txt) if not unicodedata.combining(ch)).upper()
+
+
+JS_OBRA_ALVOS = """() => { const it = __viz.obra.itens, C = __viz.D.construtivos, geom = k => (C.classes[k] || {}).geometria;
+  const pilar = it.find(i => i.classe === 'pilar' && i.rotulo.toUpperCase() === 'P5') || it.find(i => i.classe === 'pilar') || it[0];
+  const ponto = it.find(i => geom(i.classe) === 'ponto'), linha = it.find(i => geom(i.classe) === 'linha'), cont = {};
+  it.forEach(i => { cont[i.classe] = (cont[i.classe] || 0) + 1; });
+  const maior = Object.entries(cont).sort((a, b) => b[1] - a[1])[0][0];
+  return {pilar: pilar.rotulo, classe: pilar.classe, ponto: ponto ? ponto.rotulo : null, maior: (C.classes[maior] || {}).nome || maior,
+    linha: linha ? linha.id : null, termoLinha: it.some(i => /AAT06/i.test(i.sisNome + ' ' + i.rotulo)) ? 'AAT06' : (linha ? linha.sisNome : null),
+    classeLinha: linha ? linha.classe : null}; }"""
+JS_OBRA_SELECAO = """() => { const o = __viz.obra, lay = o.camada.get(o.sel), it = o.itens.find(i => i.id === o.sel), C = __viz.D.construtivos;
+  const b = lay.getBounds ? lay.getBounds().pad(.02) : L.latLngBounds([lay.getLatLng(), lay.getLatLng()]).pad(.02), c = __viz.map.getCenter();
+  const num = ((it.f.properties.atributos || []).map(a => a[1]).find(v => typeof v === 'number' && !Number.isInteger(v)));
+  return {sel: o.sel, dentro: b.contains(c) || (!lay.getBounds && c.distanceTo(lay.getLatLng()) < .5), zoom: __viz.map.getZoom(), aneis: o.halo.getLayers().length,
+    ligada: __viz.map.hasLayer(__viz.camadasMapa.construtivos.layer), caixas: [document.querySelector('#obMapa').checked, document.querySelector('#v-construtivos').checked],
+    ficha: document.querySelector('#obFicha').textContent, popup: (document.querySelector('.leaflet-popup-content') || {}).textContent || '',
+    classe: C.classes[it.classe].nome, rotulo: it.rotulo, num: num == null ? null : num.toLocaleString('pt-BR', {maximumFractionDigits: 3}),
+    cores: [...o.camada.values()].every(l => { const k = C.classes[l.feature.properties.classe]; return !k || l.options[l.feature.geometry.type === 'Point' ? 'fillColor' : 'color'] === k.cor; })}; }"""
+
+
+def verificar_obra(c: dict) -> None:
+    """Aba Obra (só com `D.construtivos`): árvore por unidade, busca, clique que enquadra/destaca/abre a ficha e trecho de rede clicável."""
+    page = c["page"]
+    if not js(c, "!!(__viz.D.construtivos && __viz.obra)"):
+        return
+    js(c, "__viz.map.closePopup()")
+    page.click("#b-navegar")
+    passo(c, "obra: aba Obra visível; camada no grupo Obra, desligada até selecionar",
+          js(c, "!document.querySelector('#t-obra').hidden && __viz.camadasMapa.construtivos.grupo === 'Obra' && !__viz.map.hasLayer(__viz.camadasMapa.construtivos.layer)"))
+    page.click("#t-obra")
+    obra_arvore(c)
+    alvos = obra_busca(c)
+    obra_selecao(c, alvos)
+    obra_linha(c, alvos)
+    obra_fim(c, alvos)
+
+
+def obra_arvore(c: dict) -> None:
+    page = c["page"]
+    r = js(c, """() => { const C = __viz.D.construtivos, uns = [...document.querySelectorAll('#obArvore .ob-un')];
+      return {un: uns.length, esperado: C.arvore.length, obra: C.arvore.every((u, i) => uns[i].querySelector('summary').textContent.includes(u.obra)),
+        classes: C.arvore.every((u, i) => u.sistemas.every(s => uns[i].querySelectorAll('.ob-sis[data-sis="' + s.id + '"] .ob-cls').length === Object.keys(s.classes).length)),
+        sist: C.arvore.reduce((a, u) => a + u.sistemas.length, 0), sistDom: document.querySelectorAll('#obArvore .ob-sis').length}; }""")
+    passo(c, "obra: árvore com uma entrada por unidade, com o tipo de obra", r["un"] == r["esperado"] > 0 and r["obra"], f"{r['un']} unidade(s)")
+    passo(c, "obra: cada sistema traz suas classes com contagem", r["classes"] and r["sist"] == r["sistDom"], f"{r['sistDom']} sistemas")
+    alvo = js(c, """() => { const t = []; for (const u of __viz.D.construtivos.arvore) for (const s of u.sistemas) for (const [k, n] of Object.entries(s.classes)) t.push({sis: s.id, classe: k, n});
+      return t.find(x => x.classe === 'pilar') || t.find(x => x.n > 0 && x.n <= 300) || null; }""")
+    if alvo:
+        page.click(f'#obArvore .ob-sis[data-sis="{alvo["sis"]}"] > summary')
+        page.click(f'#obArvore .ob-cls[data-sis="{alvo["sis"]}"][data-classe="{alvo["classe"]}"]')
+        n = js(c, "(a) => document.querySelectorAll('#obArvore .ob-cls[data-sis=\"' + a.sis + '\"][data-classe=\"' + a.classe + '\"] + .ob-els [data-ob-id]').length", alvo)
+        passo(c, "obra: clicar numa classe lista os elementos dela", n == alvo["n"], f"{alvo['classe']}: {n} de {alvo['n']}")
+
+
+def obra_busca(c: dict) -> dict:
+    page = c["page"]
+    a = js(c, JS_OBRA_ALVOS)
+    page.fill("#obBusca", a["pilar"])
+    r = js(c, """(k) => { const b = [...document.querySelectorAll('#obRes [data-ob-id]')];
+      return {n: b.length, alvo: b.filter(x => x.dataset.classe === k).length, completos: b.every(x => ['.r', '.c', '.s'].every(s => x.querySelector(s).textContent.trim())),
+              arvore: document.querySelector('#obArvore').hidden}; }""", a["classe"])
+    passo(c, f"obra: busca '{a['pilar']}' acha o pilar, com rótulo, classe e sistema", r["alvo"] >= 1 and r["completos"] and r["arvore"], f"{r['alvo']} de {r['n']} resultado(s)")
+    if a["ponto"]:
+        page.fill("#obBusca", a["ponto"])
+        primeiro = js(c, "document.querySelector('#obRes [data-ob-id] .r').textContent")
+        passo(c, f"obra: busca pelo código '{a['ponto']}' põe o elemento em primeiro", primeiro == a["ponto"], primeiro)
+    if a["termoLinha"]:
+        page.fill("#obBusca", a["termoLinha"])
+        n = js(c, "(k) => [...document.querySelectorAll('#obRes [data-ob-id]')].filter(x => x.dataset.classe === k).length", a["classeLinha"])
+        passo(c, f"obra: busca '{a['termoLinha']}' acha os trechos da rede", n >= 1, f"{n} trecho(s)")
+    page.fill("#obBusca", a["maior"])
+    r = js(c, "(q) => ({total: __viz.obra.buscar(q).length, linhas: document.querySelectorAll('#obRes [data-ob-id]').length, nota: document.querySelector('#obRes .nota-l').textContent})", a["maior"])
+    passo(c, "obra: no máximo 50 resultados, com a contagem total", r["linhas"] == min(r["total"], 50) and (r["total"] <= 50 or f"{r['total']:,}".replace(",", ".") in r["nota"]), r["nota"])
+    iguais = js(c, "(q) => __viz.obra.buscar(q[0]).length === __viz.obra.buscar(q[1]).length", [a["maior"], sem_acento_maiusculo(a["maior"])])
+    passo(c, "obra: busca sem acento e sem maiúsculas dá o mesmo resultado", iguais and r["total"] > 0, f"'{a['maior']}' = '{sem_acento_maiusculo(a['maior'])}'")
+    return a
+
+
+def obra_selecao(c: dict, a: dict) -> None:
+    page = c["page"]
+    page.fill("#obBusca", a["pilar"])
+    page.locator(f'#obRes [data-ob-id][data-classe="{a["classe"]}"]').first.click()
+    page.wait_for_timeout(900)
+    r = js(c, JS_OBRA_SELECAO)
+    passo(c, "obra: clicar no resultado enquadra o elemento (centro do mapa dentro dos limites, zoom alto)", r["dentro"] and r["zoom"] >= 19, f"zoom {r['zoom']}")
+    passo(c, "obra: a camada Obra liga sozinha e as duas caixas ficam marcadas", r["ligada"] and all(r["caixas"]))
+    passo(c, "obra: elementos desenhados com a cor da classe", r["cores"])
+    f = r["ficha"]
+    passo(c, "obra: ficha com rótulo, classe, sistema, unidade, etapa, atributos e fonte",
+          all(t in f for t in (r["rotulo"], r["classe"], "Sistema", "Unidade", "Etapa", "Atributos", "Fonte")), f"{r['classe']} {r['rotulo']}")
+    passo(c, "obra: popup do mapa mostra a classe", r["classe"] in r["popup"])
+    passo(c, "obra: atributo decimal com vírgula (pt-BR)", r["num"] is None or ("," in r["num"] and r["num"] in f), str(r["num"]))
+    passo(c, "obra: elemento destacado (anel duplo) e item da lista marcado", r["aneis"] == 2 and js(c, "document.querySelectorAll('#obRes [aria-current=true]').length") == 1)
+    foto(c, "17_obra")
+    anterior = r["sel"]
+    outro = js(c, "(ant) => { const it = __viz.obra.itens, k = it.find(i => i.id === ant).classe; return it.find(i => i.id !== ant && i.classe === k) || null; }", anterior)
+    if outro:
+        page.fill("#obBusca", outro["rotulo"])
+        page.locator(f'#obRes [data-ob-id="{outro["id"]}"]').first.click()
+        page.wait_for_timeout(900)
+        r2 = js(c, """(ant) => { const o = __viz.obra, l = o.camada.get(ant), est = __viz.camadasMapa.construtivos.layer.options.style(l.feature);
+          return {sel: o.sel, volta: l.options.weight === est.weight && l.options.fillOpacity === est.fillOpacity, aneis: o.halo.getLayers().length,
+                  ficha: document.querySelector('#obFicha').textContent}; }""", anterior)
+        passo(c, "obra: só o elemento selecionado fica em destaque (o anterior volta ao estilo)",
+              r2["sel"] == outro["id"] and r2["volta"] and r2["aneis"] == 2 and outro["rotulo"] in r2["ficha"])
+
+
+def obra_linha(c: dict, a: dict) -> None:
+    """Trecho de rede: linha vetorial (L.Polyline) clicável de verdade, com clique do mouse sobre um vértice do traço."""
+    page = c["page"]
+    if not a["linha"]:
+        return
+    page.click('[data-ob-acao="limpar"]')
+    r = js(c, """(id) => { const l = __viz.obra.camada.get(id), m = __viz.map, it = __viz.obra.itens.find(i => i.id === id), k = __viz.D.construtivos.classes[it.classe];
+      m.fitBounds(l.getBounds(), {padding: [70, 70], maxZoom: 22, animate: false});
+      const cen = m.getSize().divideBy(2), p = l.getLatLngs().flat(Infinity).map(ll => m.latLngToContainerPoint(ll)).sort((x, y) => x.distanceTo(cen) - y.distanceTo(cen))[0];
+      const caixa = m.getContainer().getBoundingClientRect();
+      return {linha: l instanceof L.Polyline && !(l instanceof L.Polygon), interativa: l.options.interactive !== false, cor: l.options.color === k.cor, classe: k.nome,
+              rotulo: it.rotulo, x: caixa.left + p.x, y: caixa.top + p.y}; }""", a["linha"])
+    passo(c, "obra: trecho de rede é uma linha vetorial clicável, na cor da classe", r["linha"] and r["interativa"] and r["cor"], r["rotulo"])
+    page.mouse.click(r["x"], r["y"])
+    page.wait_for_timeout(500)
+    r2 = js(c, "() => { const o = __viz.obra, it = o.itens.find(i => i.id === o.sel); return {classe: it ? it.classe : null, ficha: document.querySelector('#obFicha').textContent, popup: !!document.querySelector('.leaflet-popup-content')}; }")
+    passo(c, "obra: clicar no trecho no mapa abre a mesma ficha", r2["classe"] == a["classeLinha"] and r["classe"] in r2["ficha"] and r2["popup"], r["rotulo"])
+    foto(c, "17b_obra_trecho")
+
+
+def obra_fim(c: dict, a: dict) -> None:
+    page = c["page"]
+    page.click('[data-ob-acao="limpar"]')
+    passo(c, "obra: 'Limpar seleção' tira o destaque e a ficha",
+          js(c, "__viz.obra.sel === null && __viz.obra.halo.getLayers().length === 0 && !document.querySelector('#obFicha').textContent.trim()"))
+    page.uncheck("#obMapa")
+    passo(c, "obra: desligar a camada na aba Obra tira os elementos do mapa e desmarca em Camadas",
+          js(c, "!__viz.map.hasLayer(__viz.camadasMapa.construtivos.layer) && !document.querySelector('#v-construtivos').checked"))
+    page.click("#t-camadas")
+    page.check("#v-construtivos")
+    page.click("#t-obra")
+    passo(c, "obra: ligar em Camadas liga a caixa da aba Obra (grupo Obra na árvore de camadas)",
+          js(c, "document.querySelector('#obMapa').checked && __viz.map.hasLayer(__viz.camadasMapa.construtivos.layer)"))
+    page.uncheck("#obMapa")
+    if c["info"]["tem3d"]:   # com o 3D por cima do mapa, selecionar volta ao mapa
+        page.click("#b-3d")
+        page.wait_for_function("window.__viz.v3 && window.__viz.v3.renderer", timeout=30000)
+        page.fill("#obBusca", a["pilar"])
+        page.locator(f'#obRes [data-ob-id][data-classe="{a["classe"]}"]').first.click()
+        page.wait_for_timeout(600)
+        passo(c, "obra: selecionar com o 3D aberto volta ao mapa", js(c, "document.querySelector('#vista3d').hidden && !!__viz.obra.sel"))
+        page.click('[data-ob-acao="limpar"]')
+        page.uncheck("#obMapa")
+    page.fill("#obBusca", "")
+    page.click("#t-camadas")
+    page.wait_for_timeout(300)
+
 
 def verificar_projeto(c: dict) -> None:
     """Aba Projeto: inventário (soma = listagem), cavas (escavação e reaterro) e valas (uma tabela por rede)."""
@@ -652,7 +811,7 @@ def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
     for secao in (verificar_inicio, verificar_mapa, verificar_filtro_etapa, verificar_escopo_tabela, verificar_escopo_valores,
                   verificar_pranchas, verificar_sondagens_fotos, verificar_3d, verificar_v3_arvore, verificar_v3_intervencao,
                   verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_area_obra,
-                  verificar_projeto):
+                  verificar_obra, verificar_projeto):
         secao(c)
     if c["info"]["crono"]:
         for secao in (verificar_v3_4d_abrir, verificar_v3_4d_dia100, verificar_v3_4d_3d, verificar_v3_4d_dias, verificar_v3_4d_play, verificar_v3_4d_sair):

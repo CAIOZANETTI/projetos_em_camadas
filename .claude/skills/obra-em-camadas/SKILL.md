@@ -47,6 +47,9 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
    na extensão da obra (voo + pranchas georreferenciadas). Foz: 67 % do voo, ortofoto 1,84 → 1,24 MB. O peso maior
    do HTML são as pranchas vetoriais (~12 MB de 26): vão inteiras (a aba Pranchas mostra a folha toda),
    simplificadas a 0,25 pt só para a tela e por coluna + gzip 9; os quantitativos usam a geometria exata.
+   **Aba Obra** (`camadas/construtivos.py`): o que já é vetor vira elemento construtivo pesquisável — unidades e
+   sistemas em `conceitos/unidades_construtivas.json` (sigla sem nome no projeto fica com o código, estado premissa);
+   rede = um trecho por folha, linha clicável com DN, extensão e contrato × desenho.
 8. **Conferência visual (Opus)** — sobreponha cada prancha aceita à ortofoto em zoom alto; marque
    no obra.json como pendente o que não convencer. Nunca aceite georreferência só pelo número.
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.15.0 — 2026-10-29 · Foz, rodada 15: o HTML navegável por elementos construtivos
+- **Elementos construtivos** (`camadas/construtivos.py`, `conceitos/unidades_construtivas.json`): Unidade 1 (ETA,
+  obra localizada) e Unidade 2 (adutoras, obra linear) → sistema (módulo de filtros, Actiflo 360/600, AAT06…) →
+  elemento, cada um vetor com atributos e fonte. Foz: 349 elementos — 256 estacas, 41 blocos, 12 pilares, 8 cavas,
+  16 estruturas e 16 trechos de rede.
+- **Redes como linhas consultáveis**: um trecho por folha, com DN/DE, extensão por superfície e contrato × desenho.
+- **Aba "Obra"**: busca ("P5", "pilar", "AAT06"), árvore unidade → sistema → classe, clique → enquadra, destaca e
+  abre a ficha; clique na linha da rede no mapa abre a mesma ficha.
+- Valas: a camada do mapa somava o dobro da extensão nas redes desenhadas como faixa (corrigido).
+- Forma sem blocos (ETL01, reforma) não quebra mais a leitura.
+- Modelo e aba feitos por dois agentes (Sonnet) em paralelo contra um contrato fixo; ligação, revisão e testes na
+  sessão principal.
+
 ## 0.14.0 — 2026-10-29 · Foz, rodada 14: HTML com nome e versão, nuvem e vetores mais leves
 - **Nome do HTML com obra, versão e data** (`obra.nome_html`, `nome_html` no obra.json):
   `saida/foz/foz-vilac_camadas_v0.14.0_2026-10-29.html`; versão única do código em `camadas.VERSAO` (teste amarra ao
