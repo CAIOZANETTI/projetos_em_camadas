@@ -28,7 +28,7 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
              "desenhos_por_tabela": {"01": "código do desenho (nome do PDF sem extensão)"}, "fonte": "..."},
   "sondagens": [{"id", "tipo", "E", "N", "lon", "lat", "cota_boca", "profundidade_m", "na_m",
                  "nspt": [[prof_m, golpes]], "camadas": [{"de", "ate", "descricao", "classe"}], "fonte"}],
-  "modelo3d": {"origem": [E0, N0, 0], "n", "pos_cm_b64": Int32LE xyz em cm, "rgb_b64": Uint8 rgb,
+  "modelo3d": {"origem": [E0, N0, 0], "n", "pos_cm_gz": xyz em cm (Int32), "rgb_gz": rgb (Uint8), gzip+base64, em Morton,
                "cameras": [{"nome", "centro", "eixo", "topo", "tipo", "focal_px", "largura", "altura", ...}],
                "sondagens": [{"id", "x", "y", "z_boca", "z_fundo", "z_na", "segmentos": [{"z_topo", "z_base", "classe",
                               "descricao", "confirmado"}]}]},   # só com controle vertical (z em cota)

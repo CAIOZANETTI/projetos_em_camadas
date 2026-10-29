@@ -30,6 +30,7 @@ import numpy as np
 
 from . import geo
 from .mosaico import ler_meta
+from .pdf_cad import _b64gz  # gzip 9 + base64, o mesmo das pranchas
 
 LIMITE_NADIR_GRAUS = 20.0     # eixo óptico a menos de 20° da vertical = foto nadiral
 
@@ -327,18 +328,53 @@ def salvar_ply(caminho: str | Path, xyz: np.ndarray, rgb: np.ndarray) -> None:
         f.write(a.tobytes())
 
 
+def _morton3(q: np.ndarray) -> np.ndarray:
+    """Código de Morton (bits de x, y, z intercalados) de inteiros >= 0 de até 21 bits: (n, 3) -> (n,) uint64."""
+    q = q.astype(np.uint64) & np.uint64(0x1FFFFF)
+    for desloc, mascara in ((32, 0x1F00000000FFFF), (16, 0x1F0000FF0000FF), (8, 0x100F00F00F00F00F),
+                            (4, 0x10C30C30C30C30C3), (2, 0x1249249249249249)):
+        q = (q | (q << np.uint64(desloc))) & np.uint64(mascara)
+    return q[:, 0] | (q[:, 1] << np.uint64(1)) | (q[:, 2] << np.uint64(2))
+
+
 def pacote_visualizador(xyz: np.ndarray, rgb: np.ndarray, cams: list[dict], origem=None,
                         max_pontos: int = 400_000) -> dict:
-    """JSON compacto: posições em cm inteiros relativas a uma origem (E0, N0, 0)."""
+    """JSON compacto: posições em cm inteiros relativas a uma origem (E0, N0, 0), sem perda.
+
+    Os pontos são reordenados pela curva de Morton 3D (a nuvem é um conjunto: nada no front
+    depende do índice) e cada coluna vira diferença para o ponto anterior, então os valores
+    ficam pequenos. Medido na nuvem de Foz (300 mil pontos, MB em base64; economiza 4,2 MB no HTML):
+
+        formato antigo (Int32 + Uint8 intercalados, sem gzip)      pos 4,80  rgb 1,20
+        gzip 9 do formato antigo                                   pos 2,66  rgb 1,11
+        colunas + gzip 9                                           pos 2,50  rgb 1,10
+        Morton + deltas int32 por coluna + gzip 9                  pos 1,39  rgb 1,05
+        Morton + deltas em zigzag, bytes separados + gzip 9        pos 1,01  rgb 0,77  (este)
+
+    Layout (cada plano tem `n` bytes, um após o outro, depois gzip 9 e base64):
+      pos_cm_gz: para k em (x, y, z): d = diff(pos[:, k]) (o primeiro vale o próprio valor), zz = (d << 1) ^ (d >> 31)
+                 em uint32 (zigzag) e os 4 bytes de zz do menos para o mais significativo -> 12 planos;
+                 decodifica-se com a soma acumulada de (zz >> 1) ^ -(zz & 1) em Int32.
+      rgb_gz:    3 planos de diferenças mod 256 para o ponto anterior, de g, r-g e b-g (as cores vizinhas
+                 se parecem e o canal verde carrega o brilho); decodifica-se com a soma acumulada mod 256,
+                 r = g + (r-g) e b = g + (b-g).
+    """
     if len(xyz) > max_pontos:
         sel = np.random.default_rng(0).choice(len(xyz), max_pontos, replace=False)
         xyz, rgb = xyz[sel], rgb[sel]
     o = np.array(origem if origem is not None else [np.floor(xyz[:, 0].mean()), np.floor(xyz[:, 1].mean()), 0.0])
-    rel = np.round((xyz - o) * 100).astype(np.int32)
-    import base64
+    rel = np.round((xyz - o) * 100).astype(np.int64)
+    q = rel - rel.min(0)
+    corte = max(0, int(q.max()).bit_length() - 21)       # o código tem 21 bits por eixo: nuvem enorme perde só resolução da ordem
+    ordem = np.argsort(_morton3(q >> corte), kind="stable")
+    rel, rgb = rel[ordem], rgb[ordem].astype(np.int64)
+    d = np.diff(rel, axis=0, prepend=0).astype(np.int32)
+    zz = ((d << 1) ^ (d >> 31)).astype(np.uint32)
+    pos = np.stack([(zz[:, k] >> (8 * j)) & 255 for k in range(3) for j in range(4)])
+    r, g, b = rgb.T
+    cor = np.diff(np.stack([g, r - g, b - g], 1), axis=0, prepend=0) & 255
     return {"origem": o.tolist(), "n": len(rel),
-            "pos_cm_b64": base64.b64encode(rel.astype("<i4").tobytes()).decode(),
-            "rgb_b64": base64.b64encode(rgb.astype(np.uint8).tobytes()).decode(),
+            "pos_cm_gz": _b64gz(pos.astype(np.uint8)), "rgb_gz": _b64gz(cor.T.astype(np.uint8)),
             "cameras": [{**c, "centro": (np.array(c["centro"]) - o).round(3).tolist()} for c in cams]}
 
 

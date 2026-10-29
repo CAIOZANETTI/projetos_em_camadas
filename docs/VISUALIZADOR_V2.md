@@ -51,9 +51,13 @@ desenho_m, diferenca_pct}`; o item comparado ganha `desenho = {prancha, medido_m
 Furos sem `lon/lat` aparecem só na lista.
 
 ### `modelo3d`
-`{origem: [E0, N0, 0], n, pos_cm_b64 (Int32LE xyz em cm relativos à origem; z = altura sobre a decolagem), rgb_b64 (Uint8 rgb), cameras[]}`;
+`{origem: [E0, N0, 0], n, pos_cm_gz (xyz em cm relativos à origem, Int32; z = altura sobre a decolagem), rgb_gz (Uint8 rgb), cameras[]}`;
 câmera: `{nome, centro [x,y,z] relativo, eixo [3], topo [3], angulo_vertical, tipo: "nadir"|"obliqua", focal_px, largura, altura}`.
-Esses dois campos não usam gzip.
+Os dois campos são base64 de gzip 9, sem perda (mesmos pontos e cores, precisão de 1 cm). Os pontos vêm ordenados pela curva de
+Morton 3D (a nuvem é um conjunto; o front não usa o índice original) e cada coluna é diferença para o ponto anterior:
+`pos_cm_gz` = 12 planos de `n` bytes (para x, y, z: os 4 bytes do zigzag da diferença, do menos ao mais significativo) e
+`rgb_gz` = 3 planos de `n` bytes (diferenças mod 256 de g, r−g, b−g). O layout completo e a medição estão em
+`camadas/sfm.py: pacote_visualizador`; o front decodifica em `decodificarNuvem` (assíncrono, com `gunzip`, ao abrir o 3D).
 
 ### `fotos`
 `{nome_da_foto: dataURL webp}`: fotos reduzidas (nadirais e oblíquas).
