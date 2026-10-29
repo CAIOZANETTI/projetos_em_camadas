@@ -139,7 +139,10 @@ def verificar_mapa(c: dict) -> None:
     ms = js(c, "__viz.PR.find(p => p.id === 'f004').ultimoDesenho.ms")
     passo(c, "redesenho do mapa rápido (< 400 ms)", ms < 400, f"{ms:.0f} ms")
     r = js(c, """() => {
-      const P = __viz.PR.find(p => p.id === 'f004'), k = P.lay.findIndex((li, i) => P.ef[li] && P.ini[i + 1] - P.ini[i] > 3);
+      // vértice de uma parte desenhada no mapa: layer ligado, > 3 pontos e dentro do recorte do mapa (clip_mapa)
+      const P = __viz.PR.find(p => p.id === 'f004'), c = P.d.clip_mapa || [-Infinity, -Infinity, Infinity, Infinity];
+      const k = P.lay.findIndex((li, i) => { const x = P.xy[2 * (P.ini[i] + 1)], y = P.xy[2 * (P.ini[i] + 1) + 1];
+        return P.ef[li] && P.ini[i + 1] - P.ini[i] > 3 && x >= c[0] && x <= c[2] && y >= c[1] && y <= c[3]; });
       const j = P.ini[k] + 1, x = P.xy[2 * j], y = P.xy[2 * j + 1], ll = __viz.pt2ll(P, x, y), m = __viz.map;
       const alvo = m.containerPointToLatLng(m.latLngToContainerPoint(ll).add([3, 2]));
       const sn = __viz.snapMapa(alvo), pa = m.latLngToContainerPoint(alvo);

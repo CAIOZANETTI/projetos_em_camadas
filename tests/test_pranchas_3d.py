@@ -1,6 +1,7 @@
 import base64
 import gzip
 import json
+from itertools import pairwise
 
 import cv2
 import numpy as np
@@ -40,16 +41,90 @@ def test_extrair_layers_no_espaco_exibido(pdf_com_layers):
 
 
 def test_pacote_vetorial_ida_e_volta(pdf_com_layers):
-    pac = pdf_cad.pacote_vetorial(pdf_com_layers, simplificar_pt=0)
+    pac = pdf_cad.pacote_vetorial(pdf_com_layers, tolerancia_pt=0)
     assert (pac["largura"], pac["altura"]) == (300, 400)
-    d = np.frombuffer(gzip.decompress(base64.b64decode(pac["coords"])), "<i4").reshape(-1, 2)
-    partes = np.frombuffer(gzip.decompress(base64.b64decode(pac["partes"])), "<u4").reshape(-1, 4)
-    pts = np.cumsum(d.astype(np.int64), axis=0) / 10
+    d = np.frombuffer(gzip.decompress(base64.b64decode(pac["coords"])), "<i4")
+    assert len(d) % 2 == 0                                    # por coluna: todos os dx, depois todos os dy
+    pts, partes = pdf_cad.decodificar_pacote(pac)
+    assert np.allclose(pts, np.cumsum(d.reshape(2, -1).T.astype(np.int64), axis=0) / 10)
     assert partes[:, 0].sum() == len(pts)
     tr = pdf_cad.extrair(pdf_com_layers)
     assert np.allclose(pts[: len(tr[0]["partes"][0])], np.round(tr[0]["partes"][0] * 10) / 10)
     assert [t["t"] for t in pac["textos"]] == ["TUBO PEAD DN 630"]
     assert {l["nome"] for l in pac["layers"]} >= {"EXISTENTES", "_PROJETADOS"}
+
+
+def _simplifica(p, tol):
+    return pdf_cad.simplificar_partes([p], tol)[0]
+
+
+def _desvio_max(original: np.ndarray, simples: np.ndarray) -> float:
+    """Maior distância de um ponto do original à poligonal simplificada (pt)."""
+    def distancia(p, a, b):
+        u = b - a
+        t = np.clip((p - a) @ u / max(u @ u, 1e-12), 0, 1)
+        return np.hypot(*(p - a - t * u))
+    return max(min(distancia(p, a, b) for a, b in pairwise(simples)) for p in original)
+
+
+def test_simplificar_partes_arco_vira_poucos_pontos():
+    t = np.linspace(0, np.pi / 2, 400)
+    arco = np.c_[500 * np.cos(t), 500 * np.sin(t)]                 # arco de 785 pt com 400 pontos
+    s = _simplifica(arco, 0.25)
+    assert 2 < len(s) < 60
+    assert np.allclose(s[0], arco[0]) and np.allclose(s[-1], arco[-1])
+    assert _desvio_max(arco, s) <= 0.25 + 1e-3                      # garantia do Douglas–Peucker
+    assert _simplifica(arco, 0) is arco               # 0 = sem simplificar
+
+
+def test_simplificar_partes_fechada_continua_fechada():
+    t = np.linspace(0, 2 * np.pi, 361)
+    circulo = np.c_[100 + 50 * np.cos(t), 100 + 50 * np.sin(t)]
+    circulo[-1] = circulo[0]
+    s = _simplifica(circulo, 0.25)
+    assert 3 < len(s) < 60 and np.array_equal(s[0], s[-1])
+    retangulo = np.array([[0, 0], [100, 0], [100, 50], [0, 50], [0, 0]], float)
+    assert np.array_equal(_simplifica(retangulo, 0.25), retangulo)   # mantém o último lado
+    minusculo = np.array([[0, 0], [0.1, 0], [0.1, 0.1], [0, 0.1], [0, 0]], float)  # menor que a tolerância
+    assert len(_simplifica(minusculo, 0.25)) >= 3
+
+
+def test_simplificar_partes_segmento_igual():
+    seg = np.array([[1.0, 2.0], [30.5, 7.25]])
+    assert np.array_equal(_simplifica(seg, 0.25), seg)
+    quase_reta = np.array([[0, 0], [50, 0.01], [100, 0]], float)
+    assert len(_simplifica(quase_reta, 0.25)) == 2
+    assert len(_simplifica(np.ones((3, 2)), 0.25)) == 2              # pontos todos iguais: nunca 1 ponto
+
+
+def test_simplificar_partes_em_lote_nao_corta_retraco_nem_apaga_ponto():
+    t = np.linspace(0, 2 * np.pi, 25)
+    ponto = np.c_[100 + 0.06 * np.cos(t), 200 + 0.06 * np.sin(t)]      # símbolo-ponto de 0,12 pt (25 pts)
+    ponto[-1] = ponto[0]
+    retraco = np.array([[0, 0], [5, 0], [3, 0]], float)                # avança até 5 e volta a 3 pela mesma reta
+    segmento = np.array([[1.0, 2.0], [9.0, 2.0]])
+    s = pdf_cad.simplificar_partes([retraco, ponto, segmento], 0.25)
+    assert np.array_equal(s[0], retraco)                               # a distância é ao segmento, não à reta
+    assert len(s[1]) == 4 and np.array_equal(s[1][0], s[1][-1])        # triângulo fechado, não 1 ponto
+    assert np.array_equal(s[2], segmento)
+
+
+def test_pacote_vetorial_tolerancia_reduz_pontos_e_mantem_fechamento(tmp_path):
+    doc = pymupdf.open()
+    pg = doc.new_page(width=400, height=300)
+    t = np.linspace(0, 2 * np.pi, 361)
+    anel = [pymupdf.Point(200 + 100 * np.cos(a), 150 + 100 * np.sin(a)) for a in t]
+    pg.draw_polyline(anel, color=(0, 0, 0), fill=(0.8, 0.8, 0.8), closePath=True)
+    pg.draw_line((10, 10), (390, 20), color=(0, 0, 0))
+    doc.save(tmp_path / "circulo.pdf")
+    inteiro, simples = (pdf_cad.pacote_vetorial(tmp_path / "circulo.pdf", tolerancia_pt=t) for t in (0, 0.25))
+    assert simples["n_pontos"] < inteiro["n_pontos"] / 2
+    assert simples["n_partes"] == inteiro["n_partes"]
+    pts, partes = pdf_cad.decodificar_pacote(simples)
+    assert partes[:, 3].tolist() == pdf_cad.decodificar_pacote(inteiro)[1][:, 3].tolist()   # flags iguais
+    anel = pts[: partes[0, 0]]
+    assert partes[0, 3] & 2 and np.array_equal(anel[0], anel[-1])
+    assert partes[1, 0] == 2
 
 
 def test_matriz_inicial_tem_reflexao():
@@ -110,7 +185,7 @@ def test_sondagens_aceita_formato_meta_furos(tmp_path):
 
 
 def test_quantitativos_por_layer_em_metros(pdf_com_layers):
-    pac = pdf_cad.pacote_vetorial(pdf_com_layers, simplificar_pt=0)
+    pac = pdf_cad.pacote_vetorial(pdf_com_layers, tolerancia_pt=0)
     pac["M"] = [0.1, 0, 1000.0, 0, -0.1, 2000.0]          # 0,1 m por pt
     pac["clip_mapa"] = None
     pac["layers"] = [{**l, "grupo": "Civil", "subgrupo": "Estrutura"} for l in pac["layers"]]
@@ -128,7 +203,7 @@ def test_quantitativos_eixo_de_faixa_triangulada(tmp_path):
         pg.draw_polyline([(x, 100), (x + 40, 100), (x + 40, 103), (x, 100)], color=None, fill=(0.6, 0, 0.8), oc=tubo, closePath=True)
         pg.draw_polyline([(x, 100), (x + 40, 103), (x, 103), (x, 100)], color=None, fill=(0.6, 0, 0.8), oc=tubo, closePath=True)
     doc.save(tmp_path / "faixa.pdf")
-    pac = pdf_cad.pacote_vetorial(tmp_path / "faixa.pdf", simplificar_pt=0)
+    pac = pdf_cad.pacote_vetorial(tmp_path / "faixa.pdf", tolerancia_pt=0)
     pac["M"], pac["clip_mapa"] = [0.1, 0, 0.0, 0, -0.1, 0.0], None
     q = pdf_cad.quantitativos(pac)[0]
     assert q["eixo_faixa_m"] == pytest.approx(36.0 + 0.3, abs=0.2)      # meio perímetro: comprimento + largura

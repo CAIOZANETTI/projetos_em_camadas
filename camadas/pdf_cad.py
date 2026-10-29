@@ -269,7 +269,7 @@ def _hex(c) -> str | None:
 def _b64gz(a: np.ndarray) -> str:
     import base64
     import gzip
-    return base64.b64encode(gzip.compress(np.ascontiguousarray(a).tobytes(), 6)).decode()
+    return base64.b64encode(gzip.compress(np.ascontiguousarray(a).tobytes(), 9)).decode()
 
 
 def _texto_legivel(t: str) -> bool:
@@ -304,26 +304,73 @@ def textos_pdf(caminho: str | Path, pagina: int = 0) -> list[dict]:
     return out
 
 
+def _triangulo_inscrito(p: np.ndarray) -> np.ndarray:
+    """Anel (primeiro = último) reduzido a 3 vértices bem afastados + o fechamento. Se os pontos são colineares
+    (ida e volta pela mesma reta) devolve o anel intacto; se são todos iguais, 2 pontos."""
+    a = p[:-1]
+    d = a - a[0]
+    i1 = int(np.argmax(np.hypot(*d.T)))
+    i2 = int(np.argmax(np.abs(d[i1, 0] * d[:, 1] - d[i1, 1] * d[:, 0])))
+    idx = sorted({0, i1, i2})
+    if len(idx) == 3:
+        return np.vstack([a[idx], a[:1]])
+    return p if i1 else p[[0, -1]]
+
+
+def simplificar_partes(partes: list[np.ndarray], tolerancia_pt: float) -> list[np.ndarray]:
+    """Douglas–Peucker (`shapely.simplify`, vetorizado) em todas as partes (N×2, pt) de uma vez.
+
+    Nenhum vértice removido fica a mais de `tolerancia_pt` da poligonal que o substitui — distância ao *segmento*:
+    o `cv2.approxPolyDP` mede à reta infinita e corta a ponta de um traço que avança e volta pela mesma reta
+    (letra SHX, prolongamento de linha), erro de até 1,2 pt na medição. Primeiro e último ponto são mantidos,
+    então parte fechada (primeiro = último) continua fechada. Anel que colapsaria a menos de 3 vértices (símbolo-ponto
+    de 0,12 pt da GEOPLANTA, que o `cv2` reduzia a 1 ponto e fazia sumir) vira o triângulo inscrito (ou fica intacto, se
+    colinear). Nunca devolve menos de 2 pontos. 0 = sem simplificar.
+    """
+    if tolerancia_pt <= 0 or not partes:
+        return partes
+    import shapely
+    n = np.fromiter((len(p) for p in partes), np.int64, len(partes))
+    pontos = np.vstack(partes)
+    linhas = shapely.linestrings(pontos, indices=np.repeat(np.arange(len(partes)), n))
+    xy, indice = shapely.get_coordinates(shapely.simplify(linhas, tolerancia_pt, preserve_topology=False),
+                                         return_index=True)
+    m = np.bincount(indice, minlength=len(partes))
+    saida = np.split(xy, np.cumsum(m)[:-1])
+    inicio = np.cumsum(n) - n
+    anel = (n > 3) & (pontos[inicio] == pontos[inicio + n - 1]).all(1)
+    for i in np.flatnonzero((anel & (m < 4)) | (m < 2)):
+        saida[i] = _triangulo_inscrito(partes[i]) if anel[i] else partes[i][[0, -1]]
+    return saida
+
+
 def pacote_vetorial(caminho: str | Path, lista_regras: list[dict] | None = None, pagina: int = 0,
-                    simplificar_pt: float = 0.25) -> dict:
+                    tolerancia_pt: float = 0.25, tracos: list | None = None) -> dict:
     """Prancha inteira em vetor, compacta, para o visualizador (sem rasterizar nada).
+
+    `tolerancia_pt`: Douglas–Peucker em pt da folha antes da quantização (`simplificar_partes`); 0 = sem simplificar.
+    É só para a tela: medição (`quantitativos`) usa o pacote exato (0). Padrão 0,25 pt (0,09 mm no papel; nenhum
+    vértice fica mais longe que isso do traço desenhado): nas 34 pranchas de Foz tira 52 % dos pontos (17,66 M ->
+    8,49 M; coords 21,1 -> 12,8 MB); 0,1 pt tira 46 % (14,5 MB). `tracos`: os de `extrair`, se já extraídos (o
+    build empacota duas vezes — tela e medição — com uma extração só).
 
     Retorna:
       largura/altura (pt), layers [{nome, n, cor, classe, elemento}], estilos [{s, f, w}],
       geometria (gzip+base64):
-        coords: Int32 com deltas de (x, y)·10 — 0,1 pt de precisão, encadeados entre partes
-        partes: Uint32 [n_pontos, layer, estilo, flags] por subcaminho (flags: 1 fechado, 2 preenchido)
+        coords: Int32 com deltas de (x, y)·10 — 0,1 pt de precisão, encadeados entre partes; por coluna (todos os
+                dx, depois todos os dy) e gzip 9: Foz 12,8 -> 10,6 MB contra (dx, dy) intercalados e gzip 6
+        partes: Uint32 [n_pontos, layer, estilo, flags] por subcaminho (flags: 1 fechado, 2 preenchido), também por
+                coluna (todos os n_pontos, depois os layers, …)
       textos: spans de texto com posição (pt), ângulo e altura.
     """
     import pymupdf
     with pymupdf.open(caminho) as doc:
         r = doc[pagina].rect
         largura, altura = float(r.width), float(r.height)
-    tr = extrair(caminho, pagina)
+    tr = extrair(caminho, pagina) if tracos is None else tracos
     layers, estilos = {}, {}
     cls = classificar(tr, lista_regras) if lista_regras else [None] * len(tr)
-    coords, partes = [], []
-    ult = np.zeros(2, np.int32)
+    por_traco = []                                 # (layer, estilo, flags, n_partes) de cada traço
     for t, c in zip(tr, cls):
         li = layers.setdefault(t["layer"], {"i": len(layers), "nome": t["layer"], "n": 0, "cores": {}, "classe": c})
         li["n"] += 1
@@ -332,15 +379,12 @@ def pacote_vetorial(caminho: str | Path, lista_regras: list[dict] | None = None,
         chave = (_hex(t["cor"]), _hex(t["preenchimento"]), round(t["largura"], 2))
         ei = estilos.setdefault(chave, len(estilos))
         flags = (1 if t["fechado"] else 0) | (2 if t["preenchimento"] is not None else 0)
-        for p in t["partes"]:
-            q = p if simplificar_pt <= 0 or len(p) < 3 else \
-                cv2.approxPolyDP(p.astype(np.float32).reshape(-1, 1, 2), simplificar_pt, False).reshape(-1, 2)
-            qi = np.round(q * 10).astype(np.int32)
-            d = np.diff(np.vstack([ult, qi]), axis=0)
-            ult = qi[-1]
-            coords.append(d)
-            partes.append((len(qi), li["i"], ei, flags))
-    coords = np.vstack(coords).astype("<i4")      # Int32: saltos entre partes passam de 3276 pt
+        por_traco.append((li["i"], ei, flags, len(t["partes"])))
+    simples = simplificar_partes([p for t in tr for p in t["partes"]], tolerancia_pt)
+    qi = np.round(np.vstack(simples) * 10).astype(np.int32)
+    coords = np.diff(np.vstack([np.zeros((1, 2), np.int32), qi]), axis=0).astype("<i4")  # Int32: saltos > 3276 pt
+    meta = np.array(por_traco, np.int64).reshape(-1, 4)
+    partes = np.c_[np.fromiter(map(len, simples), np.int64, len(simples)), np.repeat(meta[:, :3], meta[:, 3], axis=0)]
     lista_layers = sorted(layers.values(), key=lambda l: l["i"])
     classes_el = elementos()["classes"]
     return {
@@ -349,7 +393,7 @@ def pacote_vetorial(caminho: str | Path, lista_regras: list[dict] | None = None,
                     "elemento": elemento_do_layer(l["nome"], classes_el),
                     "cor": max(l["cores"], key=l["cores"].get)} for l in lista_layers],
         "estilos": [{"s": s, "f": f, "w": w} for (s, f, w) in estilos],
-        "coords": _b64gz(coords), "partes": _b64gz(np.array(partes, "<u4")),
+        "coords": _b64gz(coords.T), "partes": _b64gz(np.array(partes, "<u4").T),   # por coluna: gzip rende mais
         "n_partes": len(partes), "n_pontos": len(coords),
         "textos": textos_pdf(caminho, pagina),
     }
@@ -410,8 +454,8 @@ def decodificar_pacote(pacote: dict) -> tuple[np.ndarray, np.ndarray]:
     """Inverso de `pacote_vetorial`: (pontos em pt (N×2), partes (P×4): n_pontos, layer, estilo, flags)."""
     import base64
     import gzip
-    deltas = np.frombuffer(gzip.decompress(base64.b64decode(pacote["coords"])), "<i4").reshape(-1, 2)
-    partes = np.frombuffer(gzip.decompress(base64.b64decode(pacote["partes"])), "<u4").reshape(-1, 4)
+    deltas = np.frombuffer(gzip.decompress(base64.b64decode(pacote["coords"])), "<i4").reshape(2, -1).T
+    partes = np.frombuffer(gzip.decompress(base64.b64decode(pacote["partes"])), "<u4").reshape(4, -1).T
     return np.cumsum(deltas.astype(np.int64), axis=0) / 10, partes
 
 

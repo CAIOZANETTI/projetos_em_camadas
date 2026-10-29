@@ -21,8 +21,8 @@ medir sobre a geometria, clicar para identificar e buscar textos.
 | `largura`, `altura` | float | folha em pt (1/72"), origem no canto superior esquerdo, y para baixo |
 | `layers[]` | `{nome, n, classe, cor}` | layers CAD na ordem de índice; `classe` = etapa/categoria quando há regra (ex.: `"1ª etapa"`) |
 | `estilos[]` | `{s, f, w}` | contorno `#rrggbb` ou null, preenchimento ou null, largura em pt |
-| `coords` | base64(gzip(Int32LE)) | pares (dx, dy) ×10 encadeados: ponto absoluto = soma acumulada / 10 (pt) desde (0,0), **contínua entre partes** |
-| `partes` | base64(gzip(Uint32LE)) | 4 valores por subcaminho: `n_pontos, layer, estilo, flags` (flags: 1 fechado, 2 preenchido) |
+| `coords` | base64(gzip(Int32LE)) | deltas ×10 **por coluna** (rodada 13): os N dx, depois os N dy; ponto absoluto = soma acumulada / 10 (pt) desde (0,0), **contínua entre partes**. Simplificados para a tela (Douglas–Peucker 0,25 pt, `pdf_cad.simplificar_partes`); os `quantitativos` vêm da geometria exata |
+| `partes` | base64(gzip(Uint32LE)) | 4 valores por subcaminho, **por coluna** (rodada 13): os P `n_pontos`, os P `layer`, os P `estilo`, os P `flags` (flags: 1 fechado, 2 preenchido) |
 | `n_partes`, `n_pontos` | int | tamanhos |
 | `textos[]` | `{t, x, y, a, h, cor}` | spans de texto (pt), ângulo em graus (anti-horário), altura em pt |
 | `M` | `[a,b,c,d,e,f]` ou null | pt → UTM: `E = a·x + b·y + c`, `N = d·x + e·y + f` (contém reflexão: y da folha para baixo) |
