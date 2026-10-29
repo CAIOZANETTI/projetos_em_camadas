@@ -239,3 +239,24 @@ def test_tubo_contrato_x_desenho():
     assert linhas == [{"prancha": "aat06_10", "nome": "AAT06 10", "tabelas": ["94"], "codigo": "309244",
                        "descricao": "TUBO PE DE 630", "contrato_m": 540.0, "desenho_m": 542.0, "diferenca_pct": 0.4}]
     assert escopo["itens"][0]["desenho"]["diferenca_pct"] == 0.4 and "desenho" not in escopo["itens"][1]
+
+
+def test_area_da_obra_recorta_a_ortofoto(tmp_path):
+    """Área da obra = envoltória das intervenções dentro do voo + margem; a ortofoto do HTML fica só nela."""
+    crs = {"ll2utm": [1, 0, 0, 0, 1, 0]}                        # coordenadas já em "UTM" no teste
+    feat = lambda tipo, c: {"type": "Feature", "properties": {}, "geometry": {"type": tipo, "coordinates": c}}
+    vetores = [{"id": "escavacao", "geojson": {"type": "FeatureCollection", "features": [
+                   feat("Polygon", [[[1020, 2020], [1040, 2020], [1040, 2040], [1020, 2040], [1020, 2020]]])]}},
+               {"id": "valas", "geojson": {"type": "FeatureCollection", "features": [
+                   feat("LineString", [[1030, 2030], [1030, 2060], [5000, 9000]])]}},       # sai do voo: só conta o trecho dentro
+               {"id": "cameras", "geojson": {"type": "FeatureCollection", "features": [feat("Point", [1090, 2090])]}}]
+    cfg = {"area_obra": {"fontes": ["escavacao$", "valas$"], "margem_m": 5.0}}
+    area = obra.area_da_obra(cfg, vetores, [1000, 2000, 1100, 2100], crs)
+    assert area.bounds == pytest.approx((1015, 2015, 1045, 2065), abs=0.01)   # buffer em segmentos
+    assert obra.area_da_obra({}, vetores, [1000, 2000, 1100, 2100], crs) is None
+    (tmp_path / "sfm").mkdir()
+    cv2.imwrite(str(tmp_path / "sfm" / "ortofoto.jpg"), np.random.default_rng(1).integers(0, 240, (1000, 1000, 3), np.uint8))   # 0,1 m/px
+    b = obra._ortofoto_html(tmp_path, {"extensao_utm": [1000, 2000, 1100, 2100], "res_m_px": 0.1}, 0.5, area)
+    assert (b["w"], b["h"]) == (61, 101) and b["m"] == pytest.approx([0.5, 0, 1015, 0, -0.5, 2065])
+    inteira = obra._ortofoto_html(tmp_path, {"extensao_utm": [1000, 2000, 1100, 2100], "res_m_px": 0.1}, 0.5)
+    assert (inteira["w"], inteira["h"]) == (200, 200) and len(b["src"]) < len(inteira["src"])

@@ -559,7 +559,8 @@ const camadasMapa = {};   // id -> {layer, ...}
 let satErro = false;
 if (D.satelite) {
   const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    {maxNativeZoom: 18, maxZoom: 24, attribution: "Satélite © Esri, Maxar, Earthstar Geographics"});
+    {maxNativeZoom: 18, maxZoom: 24, attribution: "Satélite © Esri, Maxar, Earthstar Geographics",
+     ...(D.limites_obra ? {bounds: L.latLngBounds(D.limites_obra)} : {})});   // só pede tiles na extensão da obra
   sat.on("tileerror", () => { if (!satErro) { satErro = true; const a = $("#aviso-sat"); if (a) a.hidden = false; } });
   camadasMapa.satelite = {layer: sat, nome: "Satélite (Esri, online)", grupo: "Levantamento"};
   sat.addTo(map);

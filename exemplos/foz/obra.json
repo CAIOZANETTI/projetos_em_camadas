@@ -806,6 +806,12 @@
   "pasta": "dados/foz/projeto",
   "fonte": "listagem recursiva do Drive '211 - SAA Foz do Iguaçu' pelo conector (skill drive-ingestao)"
  },
+ "area_obra": {
+  "fontes": ["escavacao$", "valas$", "supressao$", "blocos_forma$", "f004-"],
+  "margem_m": 10.0,
+  "margem_satelite_m": 200.0,
+  "fonte": "envoltória das intervenções calculadas dentro do voo (cavas, valas, supressão, blocos da forma e manchas de etapa da f004) + 10 m; fora dela a ortofoto do drone não entra no HTML, o satélite mostra o entorno"
+ },
  "escavacao": {
   "pranchas": [
    "es1",

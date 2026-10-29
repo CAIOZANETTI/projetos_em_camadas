@@ -56,6 +56,9 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   # modelo3d.solidos: [{id, xy, z0, z1}] — blocos da forma extrudados; vetor "blocos_forma" no mapa
   # --- rodada 9 (opcionais) ---
   # fichas[].pilares, fichas[].vistas[].encaixe; vetor "pecas_baloes"; inventario.itens[].ficha (lote)
+  # --- rodada 11 (opcionais) ---
+  # area_obra {area_m2, fracao_do_voo, margem_m, fontes, utm} (ortofoto recortada nela; vetor "area_obra");
+  # limites_obra [[lat_s, lon_o], [lat_n, lon_l]] — o satélite só pede tiles aí dentro
 }
 
 `gerar(..., leaflet="inline")` embute Leaflet e three.js r128 (+ OrbitControls); com "cdn" ambos vêm de CDN.

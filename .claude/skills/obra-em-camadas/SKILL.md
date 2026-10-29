@@ -41,6 +41,10 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
    `python scripts/testar_visualizador.py saida/<obra>/visualizador.html`.
    Para publicar (Artifact, limite 16 MB) use a versão `visualizador_artifact.html` (CDN) e, se
    passar do limite, reduza `max_pontos_3d` e `res_html` no obra.json.
+   **Área da obra** (`"area_obra": {"fontes": [regex de vetor], "margem_m", "margem_satelite_m"}`): a ortofoto do
+   drone entra só na envoltória das intervenções + margem (o satélite mostra o entorno) e o satélite só pede tiles
+   na extensão da obra (voo + pranchas georreferenciadas). Foz: 67 % do voo, ortofoto 1,84 → 1,24 MB. O peso maior
+   do HTML são as pranchas vetoriais (~13 MB de 27): elas vão inteiras porque a aba Pranchas mostra a folha toda.
 8. **Conferência visual (Opus)** — sobreponha cada prancha aceita à ortofoto em zoom alto; marque
    no obra.json como pendente o que não convencer. Nunca aceite georreferência só pelo número.
 

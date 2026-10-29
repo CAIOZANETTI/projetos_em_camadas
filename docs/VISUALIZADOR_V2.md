@@ -130,6 +130,8 @@ Chaves novas em `dados`. Tudo é calculado no Python; o front só seleciona e ex
 | `vetores[id=blocos_forma]` | blocos lidos na forma `{rotulo, estacas, face_superior_m, arrasamento_m, ficha}` e pilares `{tipo: "pilar", bloco, lado_m, cor}` |
 | `fichas[].pilares` (rodada 9) | `[{bloco, lado_m, contorno_utm}]` (estrutura); `fichas[].vistas[].encaixe` = `{ok, rotacao, f1, segundo, motivo}` (hidráulica com `referencia_vistas`) |
 | `vetores[id=pecas_baloes]` (rodada 9) | ponto de cada balão de vista encaixada `{tipo, item, codigo, descricao, qtde, ficha}` |
+| `area_obra` (rodada 11) | `{area_m2, fracao_do_voo, margem_m, fontes[], fonte, utm[[E, N]]}`: a base `orto` vem recortada nela (transparente fora); vetor `area_obra` com o contorno (`camadas/obra.py: area_da_obra`) |
+| `limites_obra` (rodada 11) | `[[lat_s, lon_o], [lat_n, lon_l]]`: o satélite só pede tiles aí (voo + área desenhada das pranchas georreferenciadas + `margem_satelite_m`) |
 | `inventario.itens[].ficha` (rodada 9) | `{vistas, escalas, tabelas, baloes, obra, objetos[], genericos_pct, completa{tabelas_contrato, itens, itens_no_contrato, baloes_com_item, itens_sem_balao, familia?{relacao_em[], validos[], itens[]}}}` ou `{erro}`; `null` fora do disco ou documento (`prancha.lote`, ligado pela pasta + arquivo) |
 | `modelo3d.solidos` | `[{id, xy[[x,y]] relativo à origem, z0 (arrasamento), z1 (face superior)}]` extrudados no 3D (só com controle vertical) |
 | `vetores[id=valas]` | trechos do tubo por classe `{rede, classe, tipo, cor, extensao_m, estimado}`; o front pinta cada trecho com `properties.cor` |
