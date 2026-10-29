@@ -254,3 +254,8 @@ def test_escala_em_fonte_acima_da_vista():
     abaixo = [*textos, (200.0, 420.0, "ESCALA"), (240.0, 420.0, "1:100")]
     assert prancha.escala_do_titulo(Pagina(), [100, 150, 500, 400], tracos=[], textos=abaixo) == 100
     assert prancha.escala_do_titulo(Pagina(), [100, 500, 500, 700], tracos=[], textos=textos) is None
+
+
+def test_folha_sem_blocos_nao_quebra():
+    """ETL01 (reforma do edifício do lodo): estacas sem bloco novo — rótulos e pilares vazios, sem IndexError."""
+    assert prancha.rotulos(None, []) == [] and prancha.pilares(None, [], 50) == []
