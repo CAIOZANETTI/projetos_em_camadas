@@ -2,7 +2,7 @@
 
 ## 0.13.0 — 2026-10-29 · Foz, rodada 13: pranchas mais leves e medição exata
 - **Simplificação correta das polilinhas** (`pdf_cad.simplificar_partes`, distância ao segmento): a antiga (cv2,
-  distância à reta) cortava pontas e símbolos e encurtava os comprimentos dos quantitativos em 5–14 % por prancha.
+  distância à reta) cortava pontas e símbolos e encurtava os comprimentos dos quantitativos em 3,5–17 % por prancha.
 - **Quantitativos na geometria exata**; a simplificação (0,25 pt) é só para a tela. Escopo × desenho inalterado.
 - **Pranchas por coluna + gzip 9** (Python e front): coords 12,8 → 10,6 MB; HTML 27,3 → 26,4 MB já com a geometria
   corrigida.

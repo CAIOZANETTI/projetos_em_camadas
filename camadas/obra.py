@@ -253,7 +253,7 @@ def prancha_vetorial(p: dict, extensao_utm=None, margem_m: float = 25.0) -> dict
                 min(pac["largura"], float(q[:, 0].max())), min(pac["altura"], float(q[:, 1].max()))]
     esc = float(np.sqrt(abs(np.linalg.det(np.asarray(M)[:2, :2])))) if M is not None else None
     m6 = np.asarray(M)[:2].ravel().tolist() if M is not None else None
-    # medição na geometria exata: a simplificação antiga (cv2, distância à reta) encurtava 5–14 % por prancha
+    # medição na geometria exata: a simplificação antiga (cv2, distância à reta) encurtava 3,5–17 % por prancha
     quant = pdf_cad.quantitativos({**pdf_cad.pacote_vetorial(p["pdf"], regras, tolerancia_pt=0, tracos=tr),
                                    "M": m6, "clip_mapa": clip}) if M is not None else None
     return {"id": p["id"], "nome": p["nome"], "disciplina": p.get("disciplina", g), "grupo": g, "subgrupo": sg,
