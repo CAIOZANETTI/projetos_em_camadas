@@ -208,3 +208,38 @@ def test_quantitativos_eixo_de_faixa_triangulada(tmp_path):
     q = pdf_cad.quantitativos(pac)[0]
     assert q["eixo_faixa_m"] == pytest.approx(36.0 + 0.3, abs=0.2)      # meio perímetro: comprimento + largura
     assert q["area_m2"] == pytest.approx(36.0 * 0.3, rel=0.02)
+
+
+def _decodificar_nuvem(pac: dict) -> tuple[np.ndarray, np.ndarray]:
+    """Equivalente em Python do `decodificarNuvem` do template: (pos cm int32 (n, 3), rgb uint8 (n, 3))."""
+    n = pac["n"]
+    pb = np.frombuffer(gzip.decompress(base64.b64decode(pac["pos_cm_gz"])), np.uint8).astype(np.uint32).reshape(3, 4, n)
+    cb = np.frombuffer(gzip.decompress(base64.b64decode(pac["rgb_gz"])), np.uint8).reshape(3, n).astype(np.int64)
+    u = pb[:, 0] | pb[:, 1] << 8 | pb[:, 2] << 16 | pb[:, 3] << 24
+    pos = np.cumsum(((u >> 1) ^ -(u & 1).astype(np.int64)).astype(np.int64), axis=1).T.astype(np.int32)
+    g, dr, db = np.cumsum(cb, axis=1) & 255
+    return pos, np.stack([(g + dr) & 255, g, (g + db) & 255], 1).astype(np.uint8)
+
+
+def test_pacote_visualizador_nuvem_ida_e_volta_sem_perda():
+    """A nuvem sai reordenada (Morton) mas é o mesmo multiconjunto de (x, y, z em cm, r, g, b) — com negativos, repetidos e saltos grandes."""
+    rng = np.random.default_rng(1)
+    n = 5000
+    xyz = np.c_[rng.uniform(-300, 300, n), rng.uniform(-200, 200, n), 0.05 * rng.standard_normal(n) + 235.0]
+    xyz[:50] = xyz[50:100]                                  # pontos repetidos (diferença zero)
+    xyz[100] += [4000.0, -3000.0, 120.0]                    # ponto isolado muito longe: diferenças com 3 bytes
+    rgb = rng.integers(0, 256, (n, 3), dtype=np.uint8)
+    origem = np.array([745782.0, 7182889.0, 0.0])
+    pac = sfm.pacote_visualizador(xyz + origem, rgb, [], origem=origem, max_pontos=10 * n)
+    assert pac["n"] == n and "pos_cm_b64" not in pac
+    pos, cor = _decodificar_nuvem(pac)
+    esperado = np.c_[np.round(xyz * 100).astype(np.int64), rgb]
+    obtido = np.c_[pos, cor].astype(np.int64)
+    ordem = lambda a: a[np.lexsort(a.T[::-1])]               # multiconjunto: ordena as linhas
+    assert np.array_equal(ordem(obtido), ordem(esperado))
+    assert not np.array_equal(obtido, esperado)             # de fato reordenou
+    # nuvem em superfície (a real): bem menor que o formato antigo (15 bytes por ponto, sem gzip)
+    s = np.c_[rng.uniform(0, 100, n), rng.uniform(0, 100, n), np.zeros(n) + 10.0]
+    antigo = len(base64.b64encode(bytes(15 * n)))
+    novo = sfm.pacote_visualizador(s, rgb, [], origem=np.zeros(3), max_pontos=10 * n)
+    assert len(novo["pos_cm_gz"]) + len(novo["rgb_gz"]) < antigo

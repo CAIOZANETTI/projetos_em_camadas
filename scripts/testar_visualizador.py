@@ -2,7 +2,7 @@
 """Teste de ponta a ponta do visualizador v2 + v3 (Chromium headless via Playwright).
 
 Uso:
-    python scripts/testar_visualizador.py saida/foz/visualizador.html [--capturas saida/foz/capturas]
+    python scripts/testar_visualizador.py saida/foz/foz-vilac_camadas_v0.14.0_2026-10-29.html [--capturas saida/foz/capturas]
 
 Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema escuro), e verifica:
   * console sem erros (falhas de rede para hosts externos — fontes, satélite — são esperadas offline e ignoradas);
@@ -662,7 +662,7 @@ def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("html", help="visualizador.html gerado (ex.: saida/foz/visualizador.html)")
+    ap.add_argument("html", help="HTML gerado (ex.: saida/foz/foz-vilac_camadas_v0.14.0_2026-10-29.html)")
     ap.add_argument("--capturas", help="pasta das capturas (padrão: <pasta do html>/capturas)")
     a = ap.parse_args()
     html = Path(a.html)

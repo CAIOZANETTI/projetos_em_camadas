@@ -295,3 +295,15 @@ def test_area_da_obra_recorta_a_ortofoto(tmp_path):
     assert (b["w"], b["h"]) == (61, 101) and b["m"] == pytest.approx([0.5, 0, 1015, 0, -0.5, 2065])
     inteira = obra._ortofoto_html(tmp_path, {"extensao_utm": [1000, 2000, 1100, 2100], "res_m_px": 0.1}, 0.5)
     assert (inteira["w"], inteira["h"]) == (200, 200) and len(b["src"]) < len(inteira["src"])
+
+
+def test_versao_e_nome_do_html():
+    """A versão do código é a do topo do CHANGELOG e entra no nome do HTML com a obra e a data."""
+    import re
+    from pathlib import Path
+
+    from camadas import VERSAO
+    topo = re.search(r"^## (\d+\.\d+\.\d+)", (Path(__file__).parents[1] / "CHANGELOG.md").read_text(), re.MULTILINE)[1]
+    assert VERSAO == topo
+    assert obra.nome_html({"id": "foz-vilac"}, "2026-10-29") == f"foz-vilac_camadas_v{VERSAO}_2026-10-29.html"
+    assert obra.nome_html({"id": "x", "nome_html": "{id}-{versao}"}) == f"x-{VERSAO}.html"

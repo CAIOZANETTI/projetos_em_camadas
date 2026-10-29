@@ -1904,7 +1904,7 @@ $("#dlgFoto").addEventListener("keydown", e => { if (e.key === "ArrowLeft") foto
    v2 · Modo 3D (three.js r128 + OrbitControls): nuvem de pontos, câmeras, pranchas no terreno, medida 3D
    Eixos: x = Leste, y = Norte, z = altura sobre a decolagem (relativos à origem do modelo, em metros).
    ==================================================================== */
-const V3 = {pronto: false, falhou: false, raf: 0, sujo: true, medindo: false, med: [], sig: ""};
+const V3 = {pronto: false, inicio: null, falhou: false, raf: 0, sujo: true, medindo: false, med: [], sig: ""};
 const CORES_CAM = {nadir: 0xfacc15, obliqua: 0xf97316};
 const VIRIDIS = [[.267, .005, .329], [.229, .322, .546], [.128, .567, .551], [.370, .789, .383], [.993, .906, .144]];
 function rampa(t) {
@@ -1915,8 +1915,8 @@ const pct = (arr, p) => arr[Math.min(arr.length - 1, Math.max(0, Math.round(p * 
 
 function abrir3D() { if (D.modelo3d) mostrarVista("3d"); }
 function v3Sujo() { V3.sujo = true; if (vista === "3d" && V3.pronto) v3Pranchas(); }
-function v3Mostrar() {
-  if (!V3.pronto) iniciar3D();
+async function v3Mostrar() {
+  await (V3.inicio ||= iniciar3D());   // a nuvem vem em gzip: a decodificação é assíncrona e roda uma vez só
   if (V3.falhou) return;
   v3Ajustar(); v3Pranchas(); pedir3D();
 }
@@ -1926,18 +1926,41 @@ function pedir3D() {
 }
 function v3Falha(txt) { V3.falhou = true; const m = $("#msg3d"); m.hidden = false; m.textContent = txt; }
 
-function iniciar3D() {
-  V3.pronto = true;
+/* Nuvem em gzip+base64 (layout em camadas/sfm.py: pacote_visualizador). pos_cm_gz: 12 planos de n bytes, os 4 bytes
+   (menos -> mais significativo) do zigzag das diferenças de x, depois de y e de z -> Int32 xyz intercalado em cm.
+   rgb_gz: 3 planos de diferenças mod 256 de g, r-g e b-g -> Uint8 rgb intercalado. A ordem dos pontos é a da curva
+   de Morton; nada depende do índice além do picking, que lê o mesmo P3 */
+async function decodificarNuvem(M3) {
+  const n = M3.n, [pb, cb] = await Promise.all([gunzip(b64bytes(M3.pos_cm_gz)), gunzip(b64bytes(M3.rgb_gz))]);
+  if (pb.length !== 12 * n || cb.length !== 3 * n) throw new Error("nuvem 3D com tamanho diferente do declarado");
+  const pos = new Int32Array(3 * n), rgb = new Uint8Array(3 * n);
+  for (let k = 0; k < 3; k++) {
+    const o = 4 * k * n; let a = 0;
+    for (let i = 0; i < n; i++) {
+      const u = pb[o + i] | pb[o + n + i] << 8 | pb[o + 2 * n + i] << 16 | pb[o + 3 * n + i] << 24;
+      a = (a + ((u >>> 1) ^ -(u & 1))) | 0; pos[3 * i + k] = a;
+    }
+  }
+  for (let i = 0, g = 0, dr = 0, db = 0; i < n; i++) {
+    g = (g + cb[i]) & 255; dr = (dr + cb[n + i]) & 255; db = (db + cb[2 * n + i]) & 255;
+    rgb[3 * i] = (g + dr) & 255; rgb[3 * i + 1] = g; rgb[3 * i + 2] = (g + db) & 255;
+  }
+  return {pos, rgb};
+}
+
+async function iniciar3D() {
   if (typeof THREE === "undefined" || !THREE.OrbitControls) return v3Falha("O three.js não foi carregado: o modo 3D precisa dele (no HTML com CDN é preciso internet).");
   const M3 = D.modelo3d, cv = $("#c3d");
-  let renderer;
+  let renderer, nuvem;
   try { renderer = new THREE.WebGLRenderer({canvas: cv, antialias: true, preserveDrawingBuffer: true}); }
   catch (e) { return v3Falha("Este navegador não conseguiu iniciar o WebGL, necessário para o 3D."); }
+  const msg = $("#msg3d"); msg.hidden = false; msg.textContent = "Decodificando a nuvem de pontos…";
+  try { nuvem = await decodificarNuvem(M3); } catch (e) { return v3Falha("Não foi possível decodificar a nuvem 3D: " + e.message); }
+  msg.hidden = true; V3.pronto = true;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0x101412, 1);
   // nuvem: posições em cm (Int32) -> metros (Float32); cores RGB de 8 bits
-  const pos = new Int32Array(b64bytes(M3.pos_cm_b64).buffer), rgb = b64bytes(M3.rgb_b64);
-  const n = Math.min(M3.n || Infinity, Math.floor(pos.length / 3), Math.floor(rgb.length / 3));
+  const {pos, rgb} = nuvem, n = M3.n;
   const P3 = new Float32Array(n * 3);
   for (let i = 0; i < n * 3; i++) P3[i] = pos[i] / 100;
   // percentis por amostragem: enquadramento robusto a pontos fora da curva e nível do terreno (p10 de z)

@@ -28,7 +28,7 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
              "desenhos_por_tabela": {"01": "código do desenho (nome do PDF sem extensão)"}, "fonte": "..."},
   "sondagens": [{"id", "tipo", "E", "N", "lon", "lat", "cota_boca", "profundidade_m", "na_m",
                  "nspt": [[prof_m, golpes]], "camadas": [{"de", "ate", "descricao", "classe"}], "fonte"}],
-  "modelo3d": {"origem": [E0, N0, 0], "n", "pos_cm_b64": Int32LE xyz em cm, "rgb_b64": Uint8 rgb,
+  "modelo3d": {"origem": [E0, N0, 0], "n", "pos_cm_gz": xyz em cm (Int32), "rgb_gz": rgb (Uint8), gzip+base64, em Morton,
                "cameras": [{"nome", "centro", "eixo", "topo", "tipo", "focal_px", "largura", "altura", ...}],
                "sondagens": [{"id", "x", "y", "z_boca", "z_fundo", "z_na", "segmentos": [{"z_topo", "z_base", "classe",
                               "descricao", "confirmado"}]}]},   # só com controle vertical (z em cota)
@@ -119,6 +119,31 @@ def crs_info(epsg: int, extensao_utm, altitude_m: float = 0.0) -> dict:
             "centro": [latc, lonc]}
 
 
+def arredondar_geojson(dados: dict, casas: int = 7) -> dict:
+    """Cópia de `dados` com as coordenadas de `vetores[*].geojson` arredondadas a `casas` decimais.
+
+    Coordenadas em graus: 7 casas ≈ 1 cm no terreno, mais que a precisão de qualquer dado da obra
+    (o drone tem ~4 cm/px). Os 14–15 dígitos que o float devolve são ruído e pesam no HTML.
+    O `dados` original não muda; properties e as demais chaves seguem como estão.
+    """
+    def arredondar(coords):
+        if isinstance(coords, (list, tuple)):            # o shapely devolve tuplas (mapping)
+            return [arredondar(c) for c in coords]
+        return round(coords, casas)
+
+    def feicao(f):
+        g = f.get("geometry")
+        if not g or "coordinates" not in g:                  # geometria nula ou GeometryCollection: fica como está
+            return f
+        return {**f, "geometry": {**g, "coordinates": arredondar(g["coordinates"])}}
+
+    def vetor(v):
+        gj = v["geojson"]
+        return {**v, "geojson": {**gj, "features": [feicao(f) for f in gj["features"]]}}
+
+    return {**dados, "vetores": [vetor(v) for v in dados.get("vetores", [])]}
+
+
 def gerar(dados: dict, saida: str | Path, leaflet: str = "inline", documento: bool = True) -> Path:
     """leaflet='inline' embute as bibliotecas (Leaflet e, se houver `modelo3d`, three.js + OrbitControls:
     funciona offline); 'cdn' carrega do cdnjs/jsDelivr. documento=False grava só o conteúdo, sem
@@ -143,7 +168,7 @@ def gerar(dados: dict, saida: str | Path, leaflet: str = "inline", documento: bo
                 .replace("<!--__LEAFLET_JS__-->", tag)
                 .replace("<!--__THREE_JS__-->", tag3)
                 .replace("__TITULO__", titulo)
-                .replace("/*__DADOS__*/null", _json_seguro(dados)))
+                .replace("/*__DADOS__*/null", _json_seguro(arredondar_geojson(dados))))
     if documento:
         html = ('<!doctype html>\n<html lang="pt-BR"><head><meta charset="utf-8">'
                 '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'

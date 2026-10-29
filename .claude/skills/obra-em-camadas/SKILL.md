@@ -37,9 +37,10 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
    (sondagens locadas por topografia) corrige o viés do GPS do drone.
 6. **obra.json** — copie `exemplos/foz/obra.json` e ajuste caminhos, pranchas, etapas, escopo,
    sondagens e `controle_absoluto`. Rode `python -m camadas.obra`.
-7. **Visualizador** — `saida/<obra>/visualizador.html` (offline). Teste com
-   `python scripts/testar_visualizador.py saida/<obra>/visualizador.html`.
-   Para publicar (Artifact, limite 16 MB) use a versão `visualizador_artifact.html` (CDN) e, se
+7. **Visualizador** — `saida/<obra>/<id>_camadas_v<versão>_<data>.html` (offline; `obra.nome_html`, padrão
+   mudável por `nome_html` no obra.json; versão em `camadas.VERSAO` = topo do CHANGELOG). Teste com
+   `python scripts/testar_visualizador.py saida/<obra>/<arquivo>.html`.
+   Para publicar (Artifact, limite 16 MB) use a versão `…_artifact.html` (CDN) e, se
    passar do limite, reduza `max_pontos_3d` e `res_html` no obra.json.
    **Área da obra** (`"area_obra": {"fontes": [regex de vetor], "margem_m", "margem_satelite_m"}`): a ortofoto do
    drone entra só na envoltória das intervenções + margem (o satélite mostra o entorno) e o satélite só pede tiles

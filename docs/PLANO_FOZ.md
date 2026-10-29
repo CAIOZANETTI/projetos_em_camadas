@@ -1,6 +1,6 @@
 # Plano de implementação — ETA Vila C / SAA Foz do Iguaçu (Sanepar LE 211/2026)
 
-Entregável final: **HTML totalmente interativo** (`saida/foz/visualizador.html`, offline), com:
+Entregável final: **HTML totalmente interativo** (`saida/foz/foz-vilac_camadas_v<versão>_<data>.html`, offline), com:
 - ortofoto verdadeira e modelo 3D do drone;
 - todas as pranchas possíveis em **vetor com os layers CAD**, georreferenciadas;
 - etapas e escopo de materiais;
