@@ -236,7 +236,8 @@ def prancha_vetorial(p: dict, extensao_utm=None, margem_m: float = 25.0) -> dict
     (planta das adutoras, fora do voo); senão a área do levantamento + margem levada para o
     espaço da folha. Carimbo e tabelas ficam só na aba Pranchas.
     """
-    pac = pdf_cad.pacote_vetorial(p["pdf"], _regras(p) if p.get("regras") in REGRAS else None)
+    regras, tr = _regras(p) if p.get("regras") in REGRAS else None, pdf_cad.extrair(p["pdf"])
+    pac = pdf_cad.pacote_vetorial(p["pdf"], regras, tracos=tr)          # simplificado: só para a tela
     g, sg = pdf_cad.disciplina_da_prancha(Path(p["pdf"]).name, p["nome"])
     g, sg = p.get("grupo", g), p.get("subgrupo", sg)
     for l in pac["layers"]:
@@ -251,10 +252,13 @@ def prancha_vetorial(p: dict, extensao_utm=None, margem_m: float = 25.0) -> dict
         clip = [max(0.0, float(q[:, 0].min())), max(0.0, float(q[:, 1].min())),
                 min(pac["largura"], float(q[:, 0].max())), min(pac["altura"], float(q[:, 1].max()))]
     esc = float(np.sqrt(abs(np.linalg.det(np.asarray(M)[:2, :2])))) if M is not None else None
+    m6 = np.asarray(M)[:2].ravel().tolist() if M is not None else None
+    # medição na geometria exata: a simplificação antiga (cv2, distância à reta) encurtava 5–14 % por prancha
+    quant = pdf_cad.quantitativos({**pdf_cad.pacote_vetorial(p["pdf"], regras, tolerancia_pt=0, tracos=tr),
+                                   "M": m6, "clip_mapa": clip}) if M is not None else None
     return {"id": p["id"], "nome": p["nome"], "disciplina": p.get("disciplina", g), "grupo": g, "subgrupo": sg,
-            "pdf": Path(p["pdf"]).name, **pac,
-            "M": np.asarray(M)[:2].ravel().tolist() if M is not None else None,
-            "escala_m_pt": esc, "clip_mapa": clip,
+            "pdf": Path(p["pdf"]).name, **pac, "M": m6, "escala_m_pt": esc, "clip_mapa": clip,
+            **({"quantitativos": quant} if quant is not None else {}),
             "georef": {k: p.get(k) for k in ("ok", "motivo", "residuo_mediano_m", "frac_05m", "residuo_max_m")}}
 
 
@@ -622,9 +626,7 @@ def _pranchas_no_mapa(cfg: dict, pranchas: list, extensao: list, epsg: int) -> t
     """Pacote vetorial de cada prancha (com quantitativos se georreferenciada), manchas de etapa e pendências."""
     lista, vetores, pendentes = [], [], {}
     for p in pranchas:
-        lista.append(prancha_vetorial(p, extensao))
-        if lista[-1]["M"] is not None:
-            lista[-1]["quantitativos"] = pdf_cad.quantitativos(lista[-1])
+        lista.append(prancha_vetorial(p, extensao))           # com quantitativos (geometria exata) se georreferenciada
         if p.get("M") is None:
             pendentes.setdefault(p.get("disciplina", "Geral"), []).append(
                 f"{p['nome']} — sem georreferência ({p.get('motivo', '')}); veja na aba Pranchas")

@@ -795,18 +795,18 @@ function carregarPrancha(P) {
     for (const t of d.textos || []) t.t = textoLegivel(t.t);
     const dl = new Int32Array(cb.buffer, 0, cb.length >> 2), pa = new Uint32Array(pb.buffer, 0, pb.length >> 2);
     const np = pa.length >> 2, nTot = dl.length >> 1;
-    // deltas (×10) encadeados -> pontos absolutos em pt
+    // deltas (×10) encadeados -> pontos absolutos em pt; vêm por coluna: todos os dx, depois todos os dy
     const xy = new Float32Array(nTot * 2);
     let maxX = 0, maxY = 0, minX = Infinity, minY = Infinity;
     for (let i = 0, x = 0, y = 0; i < nTot; i++) {
-      x += dl[2 * i]; y += dl[2 * i + 1];
+      x += dl[i]; y += dl[nTot + i];
       const fx = x / 10, fy = y / 10; xy[2 * i] = fx; xy[2 * i + 1] = fy;
       if (fx > maxX) maxX = fx; if (fx < minX) minX = fx; if (fy > maxY) maxY = fy; if (fy < minY) minY = fy;
     }
     const ini = new Uint32Array(np + 1), lay = new Uint16Array(np), est = new Uint16Array(np), fl = new Uint8Array(np);
     const nE = d.estilos.length, ents = new Map();
     for (let k = 0, p = 0; k < np; k++) {
-      const n = pa[4 * k], li = pa[4 * k + 1], ei = pa[4 * k + 2], f = pa[4 * k + 3];
+      const n = pa[k], li = pa[np + k], ei = pa[2 * np + k], f = pa[3 * np + k];   // partes também por coluna
       ini[k] = p; lay[k] = li; est[k] = ei; fl[k] = f;
       const st = d.estilos[ei];
       if (st && n > 1) {
