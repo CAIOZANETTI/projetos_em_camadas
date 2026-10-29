@@ -105,6 +105,41 @@ def test_geotiff_tem_crs_e_transformacao(tmp_path):
     json.loads((tmp_path / "o.json").read_text())
 
 
+def test_recortar_ortofoto_zera_o_alfa_fora_do_poligono(tmp_path):
+    rasterio = pytest.importorskip("rasterio")
+    cv2.imwrite(str(tmp_path / "o.jpg"), np.full((100, 200, 3), 120, np.uint8))        # 20 × 10 m a 0,1 m/px
+    _georef(tmp_path / "o.jpg", 1000.0, 2010.0, 0.1)
+    sig.geotiff(tmp_path / "o.jpg", tmp_path / "o.tif")
+    triangulo = [[1005.0, 2002.0], [1015.0, 2002.0], [1005.0, 2008.0], [1005.0, 2002.0]]      # meio retângulo 10 × 6 m
+    saida = sig.recortar(tmp_path / "o.tif", triangulo, tmp_path / "obra" / "o_obra.tif")
+    with rasterio.open(saida) as t:
+        assert t.crs.to_epsg() == 31981 and t.count == 4 and (t.width, t.height) == (100, 60)
+        assert t.transform.c == pytest.approx(1005.0) and t.transform.f == pytest.approx(2008.0)
+        assert t.transform.a == pytest.approx(0.1) and len(t.overviews(1)) == 4
+        assert t.colorinterp[3].name == "alpha"
+        alfa = t.read(4)
+        assert alfa[5, 5] == 255 and alfa[55, 5] == 255 and alfa[5, 95] == 0      # dentro, dentro, fora (hipotenusa)
+        assert (t.read(1)[alfa == 0] == 0).all() and (t.read(1)[alfa == 255] == 120).all()
+
+
+def test_recortar_mds_deixa_nodata_fora_do_poligono(tmp_path):
+    rasterio = pytest.importorskip("rasterio")
+    cota = np.full((100, 200), 5.0, np.float32)
+    cv2.imwrite(str(tmp_path / "m.png"), np.uint16(cota * 100))
+    _georef(tmp_path / "m.png", 1000.0, 2010.0, 0.1, {"z_min_m": 0.0})
+    sig.geotiff(tmp_path / "m.png", tmp_path / "m.tif", mds=True)
+    quadrado = [[1002.0, 2002.0], [1012.0, 2002.0], [1012.0, 2008.0], [1002.0, 2008.0], [1002.0, 2002.0]]
+    with rasterio.open(sig.recortar(tmp_path / "m.tif", quadrado, tmp_path / "m_obra.tif")) as t:
+        assert t.count == 1 and t.nodata == -9999.0 and t.dtypes[0] == "float32"
+        assert (t.width, t.height) == (100, 60) and t.transform.c == pytest.approx(1002.0)
+        z = t.read(1)
+        assert (z == 5.0).all()                                       # o retângulo inteiro está dentro
+    triangulo = [[1002.0, 2002.0], [1012.0, 2002.0], [1002.0, 2008.0], [1002.0, 2002.0]]
+    with rasterio.open(sig.recortar(tmp_path / "m.tif", triangulo, tmp_path / "m_tri.tif")) as t:
+        z = t.read(1)
+        assert z[5, 5] == pytest.approx(5.0) and z[5, 95] == -9999.0 and (z == -9999.0).mean() == pytest.approx(0.5, abs=0.05)
+
+
 def test_reestruturar_nao_e_estrutura():
     hidraulica = ("Hidráulica", "Tubulações e conexões")
     assert pdf_cad.disciplina_do_layer("_EXISTENTES A REESTRUTURAR", hidraulica) == ("Geral", "Existente")

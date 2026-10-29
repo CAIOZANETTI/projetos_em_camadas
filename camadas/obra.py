@@ -844,7 +844,7 @@ def _gravar(cfg: dict, out: Path, dados: dict, pranchas: list, epsg: int) -> Pat
 
 
 def etapa_sig(out: Path, dados: dict, pranchas: list, epsg: int) -> None:
-    """GeoTIFF (ortofoto, MDS), GeoPackage com todas as camadas e .points do QGIS."""
+    """GeoTIFF (ortofoto, MDS e, havendo `area_obra`, os dois recortados), GeoPackage com todas as camadas e .points do QGIS."""
     from . import sig
     pasta = out / "sig"
     sig.geotiff(out / "sfm" / "ortofoto.jpg", pasta / "ortofoto.tif")
@@ -852,11 +852,16 @@ def etapa_sig(out: Path, dados: dict, pranchas: list, epsg: int) -> None:
     sig.geotiff(out / "sfm" / "ortofoto_mds.png", pasta / "mds.tif", mds=True, correcao_z=(
         lambda E, N: sfm.aplicar_vertical(np.c_[E.ravel(), N.ravel(), np.zeros(E.size)], vertical)[:, 2].reshape(E.shape))
         if vertical else None)
+    area = dados.get("area_obra")
+    if area:                                          # versões recortadas na área da obra (as inteiras ficam)
+        sig.recortar(pasta / "ortofoto.tif", area["utm"], pasta / "ortofoto_obra.tif")
+        sig.recortar(pasta / "mds.tif", area["utm"], pasta / "mds_obra.tif")
     for p, pv in zip(pranchas, dados["pranchas"]):
         if p.get("M") is not None:
             sig.pontos_qgis(np.asarray(p["M"]), pv["clip_mapa"], pasta / "pontos" / f"{p['id']}.points", epsg)
     sig.geopackage(dados, pasta / "obra.gpkg", epsg)
-    _log(f"SIG: {pasta}/ (ortofoto.tif, mds.tif, obra.gpkg, pontos/*.points)")
+    recortes = ", ortofoto_obra.tif, mds_obra.tif" if area else ""
+    _log(f"SIG: {pasta}/ (ortofoto.tif, mds.tif{recortes}, obra.gpkg, pontos/*.points)")
 
 
 def main(argv=None):

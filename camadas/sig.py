@@ -1,8 +1,11 @@
 """Exportações para SIG (QGIS/ArcGIS): GeoTIFF, GeoPackage e pontos de controle.
 
     saida/<obra>/sig/
-        ortofoto.tif        RGB, SIRGAS 2000 / UTM, com overviews (abre rápido no QGIS)
+        ortofoto.tif        RGBA, SIRGAS 2000 / UTM, com overviews (abre rápido no QGIS); alfa 0 onde o voo não cobre
         mds.tif             float32, cota (m) quando há controle vertical, senão altura sobre a decolagem; nodata -9999
+        ortofoto_obra.tif   a ortofoto recortada na área da obra (`dados["area_obra"]`): alfa 0 fora do polígono
+        mds_obra.tif        o MDS recortado na área da obra: nodata -9999 fora do polígono
+                            (os dois _obra.tif só existem quando a obra define a área)
         obra.gpkg           camadas: etapas, supressao, sondagens, estacas, cameras e uma
                             camada de linhas por prancha (com layer CAD, grupo e subgrupo)
         pontos/<id>.points  pontos de controle no formato do Georreferenciador do QGIS
@@ -53,6 +56,32 @@ def geotiff(jpg_ou_png: str | Path, saida: str | Path, mds: bool = False, correc
         if not mds:
             dst.colorinterp = [rasterio.enums.ColorInterp.red, rasterio.enums.ColorInterp.green,
                                rasterio.enums.ColorInterp.blue, rasterio.enums.ColorInterp.alpha]
+        dst.build_overviews([2, 4, 8, 16], Resampling.average)
+    return saida
+
+
+def recortar(tif: str | Path, anel_utm: list, saida: str | Path) -> Path:
+    """Recorta o GeoTIFF no polígono `anel_utm` ([[E, N], ...], mesmo CRS do raster): fica o retângulo do polígono e
+    o que cai fora dele é zerado — alfa 0 na ortofoto RGBA, nodata (-9999) no MDS. Mantém CRS, tiles, deflate,
+    overviews e a interpretação de cor de `geotiff()`."""
+    import rasterio
+    from rasterio.enums import ColorInterp, Resampling
+    from rasterio.mask import mask
+    with rasterio.open(tif) as src:
+        bandas, transformacao = mask(src, [{"type": "Polygon", "coordinates": [anel_utm]}], crop=True,
+                                     nodata=src.nodata if src.nodata is not None else 0)
+        perfil = {**src.profile, "width": bandas.shape[2], "height": bandas.shape[1], "transform": transformacao}
+        cores = src.colorinterp
+    rgba = bandas.shape[0] == 4
+    perfil.update(tiled=True, blockxsize=512, blockysize=512, compress="deflate")
+    saida = Path(saida)
+    saida.parent.mkdir(parents=True, exist_ok=True)
+    with rasterio.open(saida, "w", **perfil) as dst:
+        dst.write(bandas)
+        if rgba:
+            dst.colorinterp = [ColorInterp.red, ColorInterp.green, ColorInterp.blue, ColorInterp.alpha]
+        else:
+            dst.colorinterp = cores
         dst.build_overviews([2, 4, 8, 16], Resampling.average)
     return saida
 
