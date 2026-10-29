@@ -732,8 +732,10 @@ def _furos_x_nuvem(furos: list, vertical: dict | None) -> list:
 
 def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | None, lista: list) -> list:
     """Painel de informações: sistema, levantamento, posição, ortofoto, nuvem, cotas e georreferência das pranchas."""
+    from . import VERSAO
     epsg, n_obl, res_html = crs["epsg"], sum(c["tipo"] == "obliqua" for c in rel["cameras"]), cfg.get("res_html", 0.06)
     return [
+        ["Versão", f"projetos_em_camadas {VERSAO} · gerado em {time.strftime('%d/%m/%Y')}"],
         ["Sistema", f"{crs['nome']} (EPSG:{epsg})"],
         ["Levantamento", (f"{len(rel['cameras'])} fotos ({n_obl} oblíquas), SfM com reprojeção "
                           f"{rel['reprojecao_px']:.2f} px")],
@@ -833,15 +835,23 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     return _gravar(cfg, out, dados, pranchas, epsg)
 
 
+def nome_html(cfg: dict, data: str | None = None) -> str:
+    """Nome do HTML: obra, versão do código e data do build (`nome_html` no obra.json muda o padrão; campos {id},
+    {versao}, {data}). Ex.: foz-vilac_camadas_v0.14.0_2026-10-29.html — cada versão fica num arquivo próprio."""
+    from . import VERSAO
+    padrao = cfg.get("nome_html", "{id}_camadas_v{versao}_{data}")
+    return padrao.format(id=cfg["id"], versao=VERSAO, data=data or time.strftime("%Y-%m-%d")) + ".html"
+
+
 def _gravar(cfg: dict, out: Path, dados: dict, pranchas: list, epsg: int) -> Path:
     """dados.json, pacote SIG e o HTML (offline; e o do Artifact, com bibliotecas do CDN, se pedido)."""
     (out / "dados.json").write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")))
     if cfg.get("sig", True):
         etapa_sig(out, dados, pranchas, epsg)
-    html = visualizador.gerar(dados, out / "visualizador.html", "inline")
+    html = visualizador.gerar(dados, out / nome_html(cfg), "inline")
     _log(f"Visualizador: {html} ({html.stat().st_size / 1e6:.1f} MB)")
     if cfg.get("artifact"):
-        visualizador.gerar(dados, out / "visualizador_artifact.html", "cdn", documento=False)
+        visualizador.gerar(dados, out / (html.stem + "_artifact.html"), "cdn", documento=False)
     return html
 
 

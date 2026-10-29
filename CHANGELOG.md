@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.0 — 2026-10-29 · Foz, rodada 14: HTML com nome e versão, nuvem e vetores mais leves
+- **Nome do HTML com obra, versão e data** (`obra.nome_html`, `nome_html` no obra.json):
+  `saida/foz/foz-vilac_camadas_v0.14.0_2026-10-29.html`; versão única do código em `camadas.VERSAO` (teste amarra ao
+  CHANGELOG) e linha "Versão" no painel de informações.
+
 ## 0.13.0 — 2026-10-29 · Foz, rodada 13: pranchas mais leves e medição exata
 - **Simplificação correta das polilinhas** (`pdf_cad.simplificar_partes`, distância ao segmento): a antiga (cv2,
   distância à reta) cortava pontas e símbolos e encurtava os comprimentos dos quantitativos em 3,5–17 % por prancha.
