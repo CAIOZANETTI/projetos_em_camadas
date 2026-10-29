@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.0 — 2026-10-29 · Foz, rodada 12: pacote SIG na área da obra e dependências completas
+- **GeoTIFF recortado na área da obra** (`sig.recortar`, `rasterio.mask` — GDAL): `sig/ortofoto_obra.tif` (alfa 0
+  fora) e `sig/mds_obra.tif` (nodata fora) ao lado dos inteiros. Foz: ortofoto 54,2 → 39,5 MB, MDS 1,6 → 1,1 MB.
+- **`requirements.txt` completo**: `shapely>=2.0` obrigatório; `geopandas`, `rasterio` (GDAL) e `playwright` nos
+  opcionais com o módulo que os usa; nota do SIG no README.
+- Feito com agentes em paralelo (Sonnet no recorte, Haiku na auditoria de dependências), revisado na sessão
+  principal.
+
 ## 0.11.0 — 2026-10-29 · Foz, rodada 11: só a área da obra no HTML
 - **Área da obra** (`obra.area_da_obra`, `"area_obra"` no obra.json): envoltória convexa das intervenções calculadas
   dentro do voo + margem; contorno como camada. Foz: 22 331 m², 67 % do voo.

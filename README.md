@@ -47,6 +47,7 @@ python -m camadas.obra exemplos/foz/obra.json        # SfM + ortofoto + pranchas
 python scripts/testar_visualizador.py saida/foz/visualizador.html
 python scripts/afericao.py --registrar     # régua do código (estilo-caio-python, regra 17)
 ```
+O pacote SIG (`camadas.sig`: GeoTIFF, recorte na área da obra e GeoPackage) precisa de `rasterio` (que usa GDAL) e `geopandas`, comentadas como opcionais em `requirements.txt`; o `shapely` é obrigatório.
 Saídas em `saida/foz/`: `visualizador.html` (offline), `sig/` (ortofoto.tif, mds.tif, obra.gpkg, pontos/*.points para o
 QGIS), `sfm/` (nuvem.ply, ortofoto, MDS).
 Para uma obra nova, peça ao Claude: *"faça o mesmo para a obra X"* — a skill `obra-em-camadas`
