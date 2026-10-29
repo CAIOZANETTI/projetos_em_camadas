@@ -44,7 +44,8 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
    **Área da obra** (`"area_obra": {"fontes": [regex de vetor], "margem_m", "margem_satelite_m"}`): a ortofoto do
    drone entra só na envoltória das intervenções + margem (o satélite mostra o entorno) e o satélite só pede tiles
    na extensão da obra (voo + pranchas georreferenciadas). Foz: 67 % do voo, ortofoto 1,84 → 1,24 MB. O peso maior
-   do HTML são as pranchas vetoriais (~13 MB de 27): elas vão inteiras porque a aba Pranchas mostra a folha toda.
+   do HTML são as pranchas vetoriais (~12 MB de 26): vão inteiras (a aba Pranchas mostra a folha toda),
+   simplificadas a 0,25 pt só para a tela e por coluna + gzip 9; os quantitativos usam a geometria exata.
 8. **Conferência visual (Opus)** — sobreponha cada prancha aceita à ortofoto em zoom alto; marque
    no obra.json como pendente o que não convencer. Nunca aceite georreferência só pelo número.
 
