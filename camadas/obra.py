@@ -635,15 +635,80 @@ def _pranchas_no_mapa(cfg: dict, pranchas: list, extensao: list, epsg: int) -> t
     return lista, vetores, pendentes
 
 
-def _ortofoto_html(out: Path, orto: dict, res_html: float) -> dict:
-    """Ortofoto reduzida a `res_html` (m/px) com transparência fora da área voada, como base do mapa."""
+def _ortofoto_html(out: Path, orto: dict, res_html: float, area=None) -> dict:
+    """Ortofoto reduzida a `res_html` (m/px) com transparência fora da área voada e, com `area` (polígono UTM),
+    fora da área da obra — recortada no retângulo dela: o satélite dá o entorno."""
     e0, _, _, n1 = orto["extensao_utm"]
     img = cv2.imread(str(out / "sfm" / "ortofoto.jpg"))
     k = orto["res_m_px"] / res_html
     small = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
     alfa = cv2.resize((img.min(axis=2) < 250).astype(np.uint8) * 255, small.shape[1::-1], interpolation=cv2.INTER_NEAREST)
+    if area is not None:
+        dentro = np.zeros_like(alfa)
+        for g in getattr(area, "geoms", [area]):
+            c = np.asarray(g.exterior.coords)
+            cv2.fillPoly(dentro, [np.c_[(c[:, 0] - e0) / res_html, (n1 - c[:, 1]) / res_html].round().astype(np.int32)], 255)
+        alfa &= dentro
+        x, y, w, h = cv2.boundingRect(dentro)
+        small, alfa, e0, n1 = small[y:y + h, x:x + w], alfa[y:y + h, x:x + w], e0 + x * res_html, n1 - y * res_html
     return {"src": visualizador.data_url(np.dstack([small, alfa]), "webp", 80), "w": small.shape[1],
             "h": small.shape[0], "m": [res_html, 0, e0, 0, -res_html, n1]}
+
+
+def area_da_obra(cfg: dict, vetores: list, extensao_voo, crs: dict):
+    """Área da obra (polígono UTM) dentro do voo: envoltória convexa das intervenções calculadas (`area_obra.fontes`:
+    regex de id de vetor — cavas, valas, supressão, blocos, manchas de etapa) + `margem_m`. Fora dela, a ortofoto do
+    drone não entra no HTML (o satélite mostra o entorno). None sem `area_obra` no obra.json ou sem intervenção."""
+    import shapely
+    from shapely.geometry import MultiPoint, box
+    c = cfg.get("area_obra")
+    if not c:
+        return None
+    A = np.asarray(crs["ll2utm"]).reshape(2, 3)                 # lon/lat → UTM (afim da área, erro sub-mm)
+    voo = box(*extensao_voo)
+    pts = [shapely.get_coordinates(shapely.from_geojson(json.dumps(f["geometry"]))) @ A[:, :2].T + A[:, 2]
+           for v in vetores if any(re.match(r, v["id"]) for r in c["fontes"]) for f in v["geojson"]["features"]]
+    pts = np.vstack(pts) if pts else np.zeros((0, 2))
+    pts = pts[shapely.contains_xy(voo, pts[:, 0], pts[:, 1])]
+    if len(pts) < 3:
+        return None
+    return MultiPoint(pts).convex_hull.buffer(c.get("margem_m", 10.0)).intersection(voo)
+
+
+def _vetor_area(area, epsg: int) -> dict:
+    """Contorno da área da obra no mapa (desligado: referência do recorte da ortofoto)."""
+    lon, lat = geo.para_lonlat(*np.asarray(area.exterior.coords).T, epsg)
+    return {"id": "area_obra", "nome": "Área da obra (recorte da ortofoto)", "grupo": "Levantamento", "subgrupo": "Drone",
+            "visivel": False, "estilo": {"color": "#f97316", "weight": 2, "fillOpacity": 0},
+            "geojson": {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {
+                "tipo": "Área da obra", "area_m2": round(area.area)},
+                "geometry": {"type": "Polygon", "coordinates": [np.c_[lon, lat].round(7).tolist()]}}]}}
+
+
+def _resumo_area(area, extensao_voo, cfg: dict) -> dict | None:
+    if area is None:
+        return None
+    e0, n0, e1, n1 = extensao_voo
+    c = cfg["area_obra"]
+    return {"area_m2": round(area.area), "fracao_do_voo": round(area.area / ((e1 - e0) * (n1 - n0)), 3),
+            "margem_m": c.get("margem_m", 10.0), "fontes": c["fontes"], "fonte": c.get("fonte", ""),
+            "utm": np.asarray(area.exterior.coords).round(2).tolist()}
+
+
+def limites_da_obra(lista: list, extensao_voo, epsg: int, margem_m: float = 200.0) -> list:
+    """[[lat_s, lon_o], [lat_n, lon_l]] do voo e da área desenhada de cada prancha georreferenciada (adutoras
+    incluídas) + margem: o satélite só pede tiles aí dentro."""
+    e0, n0, e1, n1 = extensao_voo
+    cantos = [np.array([[e0, n0], [e1, n1]])]
+    for p in lista:
+        if p["M"] is not None:
+            x0, y0, x1, y1 = p.get("clip_mapa") or [0, 0, p["largura"], p["altura"]]
+            M = np.vstack([np.asarray(p["M"]).reshape(2, 3), [0, 0, 1]])
+            cantos.append(geo.aplicar(M, np.array([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], float)))
+    c = np.vstack(cantos)
+    lon, lat = geo.para_lonlat(c[:, 0].min() - margem_m, c[:, 1].min() - margem_m, epsg)
+    lon1, lat1 = geo.para_lonlat(c[:, 0].max() + margem_m, c[:, 1].max() + margem_m, epsg)
+    return [[round(lat, 6), round(lon, 6)], [round(lat1, 6), round(lon1, 6)]]
 
 
 def _furos_x_nuvem(furos: list, vertical: dict | None) -> list:
@@ -716,7 +781,6 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         c["centro"] = [c["centro"][0] - desloc[0], c["centro"][1] - desloc[1], c["centro"][2]]
     orto = json.loads((out / "sfm" / "ortofoto.json").read_text())
     e0, n0, e1, n1 = orto["extensao_utm"]
-
     pranchas = etapa_pranchas(cfg, out, "pranchas" in refazer)
     lista, vetores, pendentes = _pranchas_no_mapa(cfg, pranchas, orto["extensao_utm"], epsg)
     crs = visualizador.crs_info(epsg, [e0, n0, e1, n1], rel["alt_decolagem_m"])
@@ -735,13 +799,17 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         vala and {"id": "valas", "nome": "Valas: pista, calçada e lote (calculado)", "grupo": "Intervenções",
                   "subgrupo": "Demolição e recomposição", "visivel": False, "geojson": vala["geojson"],
                   "estilo": {"color": "#dc2626", "weight": 4, "opacity": 0.9}}) if v]
+    area = area_da_obra(cfg, vetores, orto["extensao_utm"], crs)
+    vetores += [_vetor_area(area, epsg)] if area is not None else []
     furos = _furos_x_nuvem(sondagens(cfg, epsg), vertical)
     n_obl = sum(c["tipo"] == "obliqua" for c in rel["cameras"])
     dados = {
         "id": cfg["id"], "titulo": cfg["titulo"], "titulo_curto": cfg.get("titulo_curto", cfg["titulo"]),
         "subtitulo": cfg.get("subtitulo", ""), "crs": crs, "satelite": True,
+        "limites_obra": limites_da_obra(lista, orto["extensao_utm"], epsg, cfg.get("area_obra", {}).get("margem_satelite_m", 200.0)),
+        "area_obra": _resumo_area(area, orto["extensao_utm"], cfg),
         "bases": [{"id": "orto", "nome": f"Ortofoto drone ({len(rel['cameras']) - n_obl} fotos nadirais)",
-                   "grupo": "Levantamento", **_ortofoto_html(out, orto, cfg.get("res_html", 0.06)), "visivel": True}],
+                   "grupo": "Levantamento", **_ortofoto_html(out, orto, cfg.get("res_html", 0.06), area), "visivel": True}],
         "folhas": [], "pranchas": lista, "vetores": vetores, "pendentes": pendentes,
         "etapas": cfg.get("etapas", []),
         "grupos": pdf_cad.disciplinas()["grupos"],

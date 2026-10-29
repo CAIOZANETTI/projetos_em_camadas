@@ -481,6 +481,18 @@ def verificar_v3_marcos(c: dict) -> None:
     page.keyboard.press("Escape")
 
 
+def verificar_area_obra(c: dict) -> None:
+    """Ortofoto do drone só na área da obra (o retângulo da base cabe nela + 2 px) e satélite limitado à obra."""
+    if not js(c, "!!__viz.D.area_obra"):
+        return
+    r = js(c, """() => { const D = __viz.D, b = D.bases[0], xs = D.area_obra.utm.map(p => p[0]), ys = D.area_obra.utm.map(p => p[1]);
+      const e0 = b.m[2], n1 = b.m[5], e1 = e0 + b.w * b.m[0], n0 = n1 - b.h * b.m[0], s = __viz.camadasMapa.satelite;
+      const t = 2 * b.m[0];   // 2 px: arredondamento da rasterização do polígono
+      return {cabe: e0 >= Math.min(...xs) - t && e1 <= Math.max(...xs) + t && n0 >= Math.min(...ys) - t && n1 <= Math.max(...ys) + t,
+              limites: !s || !!s.layer.options.bounds, contorno: !!__viz.camadasMapa.area_obra}; }""")
+    passo(c, "área da obra: ortofoto recortada nela, satélite só na extensão da obra", r["cabe"] and r["limites"] and r["contorno"], str(r))
+
+
 def verificar_projeto(c: dict) -> None:
     """Aba Projeto: inventário (soma = listagem), cavas (escavação e reaterro) e valas (uma tabela por rede)."""
     page = c["page"]
@@ -636,7 +648,8 @@ def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
     c = abrir_pagina(pw, html, cen, pasta, rel)
     for secao in (verificar_inicio, verificar_mapa, verificar_filtro_etapa, verificar_escopo_tabela, verificar_escopo_valores,
                   verificar_pranchas, verificar_sondagens_fotos, verificar_3d, verificar_v3_arvore, verificar_v3_intervencao,
-                  verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_projeto):
+                  verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_area_obra,
+                  verificar_projeto):
         secao(c)
     if c["info"]["crono"]:
         for secao in (verificar_v3_4d_abrir, verificar_v3_4d_dia100, verificar_v3_4d_3d, verificar_v3_4d_dias, verificar_v3_4d_play, verificar_v3_4d_sair):

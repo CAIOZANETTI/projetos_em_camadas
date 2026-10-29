@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0 — 2026-10-29 · Foz, rodada 11: só a área da obra no HTML
+- **Área da obra** (`obra.area_da_obra`, `"area_obra"` no obra.json): envoltória convexa das intervenções calculadas
+  dentro do voo + margem; contorno como camada. Foz: 22 331 m², 67 % do voo.
+- **Ortofoto do drone só na área da obra** (transparente fora e recortada): 1,84 → 1,24 MB; o satélite mostra o
+  entorno. HTML 27,9 → 27,3 MB.
+- **Satélite só na extensão da obra** (`limites_obra`: voo + pranchas georreferenciadas + 200 m, 5,1 × 6,1 km em
+  Foz): tiles fora não são pedidos.
+- A nuvem 3D já estava toda dentro da área; o peso maior continua nas pranchas vetoriais (13,2 MB), que vão
+  inteiras para a aba Pranchas.
+
 ## 0.10.0 — 2026-10-29 · Foz, rodada 10: saúde do código e as relações de materiais que faltavam
 - **Ruff limpo** no repositório inteiro (40 avisos antigos → 0).
 - **`obra.construir` em partes** (132 → 57 linhas) e `etapa_escopo` (81 → 29), com o escopo idêntico; a aferição
