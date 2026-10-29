@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 camadas/orcamento_sanepar.py
 ============================
@@ -45,9 +44,9 @@ Estrutura do orçamento principal (descoberta na análise):
   * 'Medição e Faturamento' / 'Marcos Cont.' -> Unidades Construtivas (UC 1..8)
         e "Fases executivas (licitações)".
 """
+import os
 import re
 import sys
-import os
 from collections import defaultdict
 
 import openpyxl
@@ -109,10 +108,10 @@ def extrair_dn(desc):
     - sem DN, mas 'DE 630' / 'DE32MM' (PEAD/PVC) -> (630, 'DE', None)
     """
     d = desc or ""
-    dns = [int(x) for x in re.findall(r"\bDN\s*[:=]?\s*(\d{2,4})\b", d, re.I)]
+    dns = [int(x) for x in re.findall(r"\bDN\s*[:=]?\s*(\d{2,4})\b", d, re.IGNORECASE)]
     if dns:
         return dns[0], "DN", (dns[1] if len(dns) > 1 and dns[1] != dns[0] else None)
-    des = re.findall(r"\bDE\s*[:=]?\s*(\d{2,4})(?:\s*MM)?\b", d, re.I)
+    des = re.findall(r"\bDE\s*[:=]?\s*(\d{2,4})(?:\s*MM)?\b", d, re.IGNORECASE)
     if des:
         return int(des[0]), "DE", None
     return None, "", None
@@ -246,7 +245,7 @@ def fonte_civil(cod):
 # Aba 'MATS E EQUIP'
 # --------------------------------------------------------------------------
 
-BLOCOS_TOPO = re.compile(r"^(ETA VILA C|ADUTORA AAT.*|XXX|SISTEMA ACTIFLO)$", re.I)
+BLOCOS_TOPO = re.compile(r"^(ETA VILA C|ADUTORA AAT.*|XXX|SISTEMA ACTIFLO)$", re.IGNORECASE)
 
 
 def unidade_do_bloco(bloco):
@@ -258,7 +257,7 @@ def unidade_do_bloco(bloco):
 
 
 def etapa_da_descricao(desc):
-    m = re.search(r"(\d)\s*ª\s*ETAPA", desc or "", re.I)
+    m = re.search(r"(\d)\s*ª\s*ETAPA", desc or "", re.IGNORECASE)
     return f"{m.group(1)}ª etapa" if m else ""
 
 
@@ -294,7 +293,7 @@ def extrair_mats(wb):
             elif loc.upper() == "PNEUMÁTICO" and g.upper().startswith("SISTEMA"):
                 bloco, tabela, nome_tabela, sub_extra, proj_hdr = "SISTEMA PNEUMÁTICO", "", "", "", e
             elif loc.upper() == "PNEUMÁTICO":
-                sub_extra = re.sub(r"^PROJETO:\s*", "", g, flags=re.I)
+                sub_extra = re.sub(r"^PROJETO:\s*", "", g, flags=re.IGNORECASE)
             else:
                 tabela, nome_tabela, proj_hdr = f, g, e
                 sub_extra = ""
@@ -417,7 +416,7 @@ def extrair_custo_civil(wb):
     proj = ""
     out = []
     # cabeçalhos sem código/quantidade que são marcadores de escopo (viram linha própria)
-    marcador = re.compile(r"^(RECOMPOSI[ÇC][ÃA]O DE PAVIMENTO|BLOCOS? DE (APOIO|ANCORAGEM)|MEDIDORES? DE VAZ)", re.I)
+    marcador = re.compile(r"^(RECOMPOSI[ÇC][ÃA]O DE PAVIMENTO|BLOCOS? DE (APOIO|ANCORAGEM)|MEDIDORES? DE VAZ)", re.IGNORECASE)
     for r in range(hdr + 1, ws.max_row + 1):
         a, b, c, d, e, _, _, h, i = [ws.cell(r, k).value for k in range(1, 10)]   # F e G = preço/total: ignorados
         a, b, c, d = txt(a), txt(b), txt(c), txt(d)

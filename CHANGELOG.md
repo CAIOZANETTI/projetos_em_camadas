@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0 — 2026-10-29 · Foz, rodada 10: saúde do código e as relações de materiais que faltavam
+- **Ruff limpo** no repositório inteiro (40 avisos antigos → 0).
+- **`obra.construir` em partes** (132 → 57 linhas) e `etapa_escopo` (81 → 29), com o escopo idêntico; a aferição
+  cai de 8 para 6 funções longas — as restantes dependem de dados fora do disco para provar a refatoração.
+- **Lote pelo caminho** (dois PDFs com o mesmo nome em pastas diferentes colidiam) e **só desenhos**
+  (`prancha.e_desenho`: termo de referência, memorial, lista e descritivo ficam fora): 128 desenhos em Foz.
+- **Relação na folha irmã** (`_relacao_da_familia`): balões de folha sem relação ligados à da irmã, só pelos itens
+  que ela lista sem balão (015–018 → 019; PMEC 004 → 002/003).
+- **Mais formatos de relação**: "DISCRIMINAÇÃO · QUANT. · UND." com código sem coluna (042A), "Nº" lido vazio
+  (perfis AAT06), dois códigos na célula; **número do balão em fonte do PDF** (`palavras`, sistema pneumático);
+  **escala do título em fonte e acima da vista** (contenção, 1:50).
+- Foz: balões ligados a item 1 864 → 2 336 (87 %), itens lidos 538 → 597 em 29 folhas, 456 no contrato; só 011 e
+  012 (TRATAM360) ficam sem relação — nenhuma irmã a tem no disco.
+
 ## 0.9.0 — 2026-10-28 · Foz, rodada 9: forma completa, fichas em lote e diagnóstico em código
 - **Forma completa** (`prancha.rotulos`, `prancha.pilares`): rótulos sob hachura lidos numa 2ª passada sobre o
   recorte redesenhado sem a hachura (`desenho_sem_hachura`) → 41/41 blocos rotulados (antes 34); pilares como

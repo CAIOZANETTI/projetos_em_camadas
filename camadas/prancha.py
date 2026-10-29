@@ -31,7 +31,7 @@ from shapely.geometry import LineString
 from . import geo, pdf_cad
 
 MM_PT = 25.4 / 72                                       # 1 pt = 0,3528 mm
-VERSAO = 5                                              # entra na assinatura do cache: mudou a leitura, refaz a ficha
+VERSAO = 6                                              # entra na assinatura do cache: mudou a leitura, refaz a ficha
 
 
 def _pagina(pdf):
@@ -94,32 +94,44 @@ def vistas(tracos: list, largura: float, altura: float, fechar_pt: float = 12.0,
     return [a for a in cx if not any(dentro(a, b) for b in cx)]          # contorno interno é da mesma vista
 
 
-def escala_do_titulo(pagina, caixa, faixa_pt: float = 60.0, tracos: list | None = None,
-                     glifo_max_pt: float = 15.0) -> int | None:
-    """Denominador da escala escrita logo abaixo da vista ("ESCALA 1:100"); None se não houver. Com `tracos`, o OCR
-    lê só os traços curtos da faixa (glifos SHX) redesenhados no branco: com o desenho ao fundo o tesseract levava
-    30–100 s por faixa na folha de layout de Foz."""
+ESCALA = re.compile(r"ESC(?:ALA|\.)?\s*[:.]?\s*1\s*[:/]\s*(\d{1,4})")
+
+
+def _texto_da_faixa(pagina, x0, x1, ya, yb, tracos, textos, glifo_max_pt) -> str:
+    """Texto de uma faixa da folha: palavras de fonte do PDF, senão OCR dos glifos SHX redesenhados no branco (ou
+    da imagem da folha, sem `tracos`)."""
     import pymupdf
-    x0, _, x1, y1 = caixa
-    y2 = min(y1 + faixa_pt, pagina.rect.height)
-    if y2 - y1 < 4:                                      # vista encostada na borda: não há faixa de título
-        return None
+    if textos:
+        dentro = sorted((round(y), x, t) for x, y, t in textos if x0 <= x <= x1 and ya <= y <= yb)
+        if dentro:
+            return " ".join(t for _, _, t in dentro)
     if tracos is None:
-        img = _imagem(pagina, pymupdf.Rect(x0, y1, x1, y2), 300)
-    else:
-        px = 300 / 72
-        img = np.full((int((y2 - y1) * px) + 1, int((x1 - x0) * px) + 1), 255, np.uint8)
-        for t in tracos:
-            for q in t["partes"]:
-                q = np.asarray(q, float)
-                if len(q) >= 2 and np.ptp(q, axis=0).max() <= glifo_max_pt and x0 <= q[:, 0].min() and \
-                        q[:, 0].max() <= x1 and y1 <= q[:, 1].min() and q[:, 1].max() <= y2:
-                    cv2.polylines(img, [((q - [x0, y1]) * px).astype(np.int32)], False, 0, 2, cv2.LINE_AA)
-        if img.min() == 255:
-            return None
-    texto = _ocr(img, "--psm 11")
-    m = re.search(r"ESC(?:ALA|\.)?\s*[:.]?\s*1\s*[:/]\s*(\d{1,4})", texto.upper().replace(" ", " "))
-    return int(m[1]) if m else None
+        return _ocr(_imagem(pagina, pymupdf.Rect(x0, ya, x1, yb), 300), "--psm 11")
+    px = 300 / 72
+    img = np.full((int((yb - ya) * px) + 1, int((x1 - x0) * px) + 1), 255, np.uint8)
+    for t in tracos:
+        for q in t["partes"]:
+            q = np.asarray(q, float)
+            if len(q) >= 2 and np.ptp(q, axis=0).max() <= glifo_max_pt and x0 <= q[:, 0].min() and \
+                    q[:, 0].max() <= x1 and ya <= q[:, 1].min() and q[:, 1].max() <= yb:
+                cv2.polylines(img, [((q - [x0, ya]) * px).astype(np.int32)], False, 0, 2, cv2.LINE_AA)
+    return "" if img.min() == 255 else _ocr(img, "--psm 11")
+
+
+def escala_do_titulo(pagina, caixa, faixa_pt: float = 60.0, tracos: list | None = None, textos: list = (),
+                     glifo_max_pt: float = 15.0) -> int | None:
+    """Denominador da escala do título da vista ("ESCALA 1:100", "ESC 1:50"): primeiro na faixa logo abaixo, depois
+    na de cima (contenção de Foz: título em fonte acima da vista); None se não houver. Com `tracos`, o OCR lê só os
+    glifos SHX da faixa (com o desenho ao fundo o tesseract levava 30–100 s por faixa); com `textos` (`palavras`),
+    o texto de fonte vem direto do PDF."""
+    x0, y0, x1, y1 = caixa
+    for ya, yb in ((y1, min(y1 + faixa_pt, pagina.rect.height)), (max(y0 - faixa_pt, 0), y0)):
+        if yb - ya < 4:                                  # vista encostada na borda: não há faixa de título
+            continue
+        m = ESCALA.search(_texto_da_faixa(pagina, x0, x1, ya, yb, tracos, textos, glifo_max_pt).upper())
+        if m:
+            return int(m[1])
+    return None
 
 
 def escala_da_afim(M) -> float:
@@ -261,15 +273,32 @@ def celulas(pagina, caixa, dpi: int = 400, dpi_releitura: int = 900) -> list[lis
     return out
 
 
+SINONIMOS_COLUNA = {"DISC": "DESC", "QUAN": "QTD", "QUNT": "QTD"}   # "DISCRIMINAÇÃO", "QUANT." (folha 042A)
+
+
+def _colunas(cabecalho: list[str]) -> dict:
+    """Índice de cada coluna pelas 4 primeiras letras/dígitos do título ("1ª ETAPA" → 1AET, "Nº" → NO)."""
+    col = {}
+    for k, c in enumerate(cabecalho):
+        if c:
+            chave = re.sub(r"[^A-Z0-9]", "", pdf_cad._sem_acento(c))[:4]
+            col[SINONIMOS_COLUNA.get(chave, chave)] = k
+    kc = next((k for c, k in col.items() if c.startswith(("ESPE", "COD"))), 0)
+    if kc and not any(c in ("N", "NO", "NR", "NUM", "ITEM") for c in col):
+        col["N"] = kc - 1                                 # "Nº" pequeno lido vazio (perfis AAT06): vem antes do código
+    return col
+
+
 def itens_da_tabela(linhas: list[list[str]]) -> list[dict]:
-    """Relação de materiais: a linha com 'DESCRI' é o cabeçalho e dá o índice de cada coluna; linha com uma só
-    célula cheia é subtítulo (vários blocos na mesma tabela); linha com nº ou S/N na coluna 'N' é item."""
-    itens, col, bloco = [], {}, ""
+    """Relação de materiais: a linha com 'DESCRI'/'DISCRIM' é o cabeçalho e dá o índice de cada coluna; linha com uma
+    só célula cheia é subtítulo (vários blocos na mesma tabela); linha com nº ou S/N na coluna 'N' é item. Corpo com
+    uma coluna a mais que o cabeçalho e sem coluna de código: o código SAM vem logo depois do nº (folha 042A)."""
+    itens, col, nh, bloco = [], {}, 0, ""
     for cel in linhas:
         cel = [c.strip() for c in cel]
         cheias = [c for c in cel if c]
-        if any("DESCRI" in c.upper() for c in cel):
-            col = {re.sub(r"[^A-Z0-9]", "", pdf_cad._sem_acento(c))[:4]: k for k, c in enumerate(cel) if c}   # "1ª ETAPA" → 1AET
+        if any(re.search(r"DESCRI|DISCRIM", pdf_cad._sem_acento(c)) for c in cel):
+            col, nh = _colunas(cel), len(cel)
             continue
         if len(cheias) == 1:
             bloco = cheias[0]
@@ -277,18 +306,24 @@ def itens_da_tabela(linhas: list[list[str]]) -> list[dict]:
         kn = next((k for c, k in col.items() if c in ("N", "NO", "NR", "NUM", "ITEM")), None)   # "Nº" vira "NO"
         if kn is None or kn >= len(cel):
             continue
-        n = cel[kn].upper().replace(" ", "")
+        n = re.sub(r"[^0-9A-Z/]", "", cel[kn].upper())                # '“4' → '4'
         if not re.fullmatch(r"S/?N", n):
             n = n.translate(str.maketrans("OSIL", "0511"))          # "OS" lido no lugar de "05"
         if not re.fullmatch(r"\d{1,3}|S/?N", n):
             continue
-        valor = {c: cel[k] for c, k in col.items() if k < len(cel)}
+        c_lin = col
+        if len(cel) > nh and not any(c.startswith(("ESPE", "COD")) for c in col):
+            c_lin = {**{c: k + (k > kn) for c, k in col.items()}, "COD": kn + 1}
+        valor = {c: cel[k] for c, k in c_lin.items() if k < len(cel)}
         pega = lambda *chaves, v=valor: next((x for c, x in v.items() if c.startswith(chaves)), "")
         # quantidade por etapa pela ordem das colunas "nª ETAPA" (o OCR leu "1ª" como "4a" na folha 009)
-        et = sorted(k for c, k in col.items() if re.match(r"\dA?ET", c) and k < len(cel))
+        et = sorted(k for c, k in c_lin.items() if re.match(r"\dA?ET", c) and k < len(cel))
         q1, q2 = ([cel[k] or None for k in et[:2]] + [None, None])[:2]
         qtde = pega("QTD") or " · ".join(f"{i}ª {q}" for i, q in ((1, q1), (2, q2)) if q)
-        itens.append({"n": "S/N" if "S" in n else n.zfill(2), "codigo": re.sub(r"\D", "", pega("ESPE", "COD")) or None,
+        cod = re.sub(r"\D", "", pega("ESPE", "COD"))
+        if len(cod) > 7:                                  # dois códigos (tubo + flange): fica o primeiro
+            cod = re.search(r"\d{3,7}", pega("ESPE", "COD"))[0]
+        itens.append({"n": "S/N" if "S" in n else n.zfill(2), "codigo": cod or None,
                       "descricao": pega("DESC"), "qtde": qtde,
                       "q1": q1, "q2": q2, "un": pega("UN"), "bloco": bloco})
     return itens
@@ -538,10 +573,31 @@ def ler_numero(tracos_pt: list[np.ndarray], validos: set | None = None) -> str |
     return Counter(bons or lidos).most_common(1)[0][0] if (bons or lidos) else None
 
 
+def palavras(pagina) -> list[tuple]:
+    """Texto de fonte da folha (quando não é SHX): [(cx, cy, texto)] em pt da folha exibida."""
+    import pymupdf
+    out = []
+    for w in pagina.get_text("words"):
+        r = pymupdf.Rect(w[:4]) * pagina.rotation_matrix
+        out.append(((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2, w[4]))
+    return out
+
+
+def _numero_do_texto(c, r: float, textos: list[tuple], validos: set | None) -> str | None:
+    """Número do balão escrito em fonte: palavra de 1–3 dígitos com o centro dentro do círculo."""
+    for x, y, t in textos:
+        if np.hypot(x - c[0], y - c[1]) < r * 0.8 and re.fullmatch(r"\d{1,3}", t):
+            n = t.zfill(2)
+            if validos is None or n in validos:
+                return n
+    return None
+
+
 def baloes(tracos: list, layer: str, layer_numero: str | None = None, diametro_pt: tuple = (7.0, 14.0),
-           validos: set | None = None) -> list[dict]:
+           validos: set | None = None, textos: list[tuple] = ()) -> list[dict]:
     """Balões da lista de peças: círculo do layer; número = traços SHX dentro do círculo (do layer do texto; sem ele,
-    do layer com mais traços dentro dos círculos, o do balão incluído), lidos por OCR numa imagem só com eles;
+    do layer com mais traços dentro dos círculos, o do balão incluído), lidos por OCR numa imagem só com eles, ou
+    texto de fonte do PDF dentro do círculo (`textos`, de `palavras`; folhas do sistema pneumático);
     peça = ponta da linha de chamada que sai do círculo."""
     partes = [np.asarray(q, float) for t in tracos if t["layer"] == layer for q in t["partes"] if len(q) >= 2]
     redondos = [q for q in partes if len(q) >= 8 and diametro_pt[0] <= np.ptp(q, axis=0).max() <= diametro_pt[1]]
@@ -562,7 +618,7 @@ def baloes(tracos: list, layer: str, layer_numero: str | None = None, diametro_p
     for q in redondos:
         c, r = q.mean(0), np.ptp(q, axis=0).max() / 2
         dentro = [letras[k] for k in np.flatnonzero(np.linalg.norm(centros - c, axis=1) < r * 0.8)]
-        num = ler_numero(dentro, validos) if dentro else None
+        num = ler_numero(dentro, validos) if dentro else _numero_do_texto(c, r, textos, validos)   # SHX ou fonte
         ponta = next((s[int(np.argmax(np.linalg.norm(s - c, axis=1)))] for s in retas
                       if np.linalg.norm(s - c, axis=1).min() < r * 1.3 < np.linalg.norm(s - c, axis=1).max()), None)
         out.append({"centro_pt": c.round(1).tolist(), "n": num,
@@ -692,9 +748,10 @@ def ficha_hidraulica(f: dict, M, cadastro: dict, contrato: list[dict], ref_utm: 
     prancha de referência já em UTM), cada vista com escala lida é encaixada nela; vista aceita põe as peças dos
     balões no mapa."""
     pg, tr = _pagina(f["pdf"]), pdf_cad.extrair(f["pdf"])
+    txt = palavras(pg)
     vs = []
     for caixa in vistas(tr, pg.rect.width, pg.rect.height):
-        esc = escala_do_titulo(pg, caixa, tracos=tr)
+        esc = escala_do_titulo(pg, caixa, tracos=tr, textos=txt)
         afim = round(escala_da_afim(M)) if M is not None else None
         v = {"caixa": [round(x, 1) for x in caixa], "escala_titulo": esc, "escala_afim": afim,
              "georreferenciada": bool(esc and afim and abs(afim / esc - 1) < 0.03), "M": None}
@@ -709,7 +766,7 @@ def ficha_hidraulica(f: dict, M, cadastro: dict, contrato: list[dict], ref_utm: 
         if it:
             itens += conferir_itens(it, cadastro, contrato)
     numeros = {i["n"] for i in itens}
-    bs = baloes(tr, f["layer_balao"], f.get("layer_numero"), validos=numeros)
+    bs = baloes(tr, f["layer_balao"], f.get("layer_numero"), validos=numeros, textos=txt)
     for b in bs:
         b["item"] = b["n"] if b["n"] in numeros else None
         p = np.array(b["ponta_pt"] or b["centro_pt"])
@@ -759,8 +816,9 @@ def ficha_leve(pdf: str | Path) -> dict:
     """Ficha sem OCR de tabela: identidade, elementos por layer, vistas e escalas lidas nos títulos, nº de tabelas
     e de balões (círculos do layer de balão)."""
     pg, tr = _pagina(pdf), pdf_cad.extrair(pdf)
+    txt = palavras(pg)
     vs = vistas(tr, pg.rect.width, pg.rect.height)
-    escalas = sorted({e for v in vs if (e := escala_do_titulo(pg, v, tracos=tr))})
+    escalas = sorted({e for v in vs if (e := escala_do_titulo(pg, v, tracos=tr, textos=txt))})
     cls = {lay: pdf_cad.elemento_do_layer(lay) for lay in {t["layer"] for t in tr}}
     lay_b = [lay for lay, c in cls.items() if c == "balao"]
     n_b = sum(1 for t in tr if t["layer"] in lay_b for q in t["partes"]
@@ -771,6 +829,16 @@ def ficha_leve(pdf: str | Path) -> dict:
             "layer_balao": (lay_b or [None])[0] if n_b else None, "baloes": n_b,
             "objetos": sorted((k for k in el if k in objetos), key=lambda k: -el[k]["tracos"]),
             "tracos": sum(v["tracos"] for v in el.values()), "genericos": el.get("generico", {}).get("tracos", 0)}
+
+
+def e_desenho(nome: str, regras: dict) -> bool:
+    """Prancha de desenho (entra no lote): código Sanepar do tipo DE, ou "-DE-"/"-FX-" no nome; termo de referência,
+    memorial, lista e descritivo (tipo documento pelo nome) ficam de fora."""
+    from . import inventario
+    cod = inventario.codigo_sanepar(nome)
+    if cod:
+        return cod["tipo"] == "DE"
+    return bool(re.search(r"-(DE|FX)-", nome.upper())) or inventario.tipo_documento(nome, None, regras) != "documento"
 
 
 @functools.cache
@@ -797,7 +865,7 @@ def _ficha_do_lote(pdf: str, tabs: list[str], contrato: list[dict], catalogo: st
 
 
 def lote(cfg: dict, escopo: dict | None, out: Path, log=print, processos: int | None = None) -> dict:
-    """Ficha leve de todo desenho no disco (inventário); a completa (tabela + balões, sem georreferência) onde há
+    """Ficha leve de todo desenho no disco (inventário), pelo caminho relativo à pasta; a completa (tabela + balões, sem georreferência) onde há
     balões, com as tabelas do contrato que apontam para o desenho. Cache por assinatura do arquivo; as folhas que
     faltam rodam em paralelo (um processo por núcleo)."""
     from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -812,8 +880,9 @@ def lote(cfg: dict, escopo: dict | None, out: Path, log=print, processos: int | 
     tabelas = {}
     for t, d in (escopo or {}).get("desenhos_por_tabela", {}).items():
         tabelas.setdefault(chave(d), []).append(t)
+    regras = json.loads((pdf_cad.CONCEITOS / "tipos_prancha.json").read_text(encoding="utf-8"))
     pdfs = {str(p): f"v{VERSAO}:{p.stat().st_size}:{int(p.stat().st_mtime)}" for p in sorted(Path(c["pasta"]).rglob("*"))
-            if p.suffix.lower() == ".pdf" and (inventario.codigo_sanepar(p.name) or {}).get("tipo", "DE") == "DE"}
+            if p.suffix.lower() == ".pdf" and e_desenho(p.name, regras)}
     falta = [p for p, a in pdfs.items() if cache.get(p, {}).get("assinatura") != a]
     if falta:
         with ProcessPoolExecutor(processos) as ex:
@@ -828,11 +897,42 @@ def lote(cfg: dict, escopo: dict | None, out: Path, log=print, processos: int | 
                 cache[p] = {"assinatura": pdfs[p], "ficha": f}
                 arq.write_text(json.dumps(cache, ensure_ascii=False))
                 log(f"  ficha {k}/{len(falta)} {Path(p).name}: {f.get('baloes', 0)} balões, {f.get('erro', 'ok')} ({dt:.0f} s)")
-    out_lote = {Path(p).name: cache[p]["ficha"] for p in pdfs}
+    if _relacao_da_familia(cache, list(pdfs), log):
+        arq.write_text(json.dumps(cache, ensure_ascii=False))
+    out_lote = {Path(p).relative_to(c["pasta"]).as_posix(): cache[p]["ficha"] for p in pdfs}   # nomes repetem entre pastas
     comp = [f for f in out_lote.values() if f.get("completa")]
     log(f"Fichas em lote: {len(out_lote)} desenhos, {sum('erro' in f for f in out_lote.values())} com erro, "
         f"{len(comp)} com balões ({sum(f['completa']['baloes_com_item'] for f in comp)} balões ligados a item)")
     return out_lote
+
+
+def _relacao_da_familia(cache: dict, pdfs: list[str], log=print) -> bool:
+    """Balões de folha sem relação de materiais ligados à relação de uma folha irmã (mesma descrição no código
+    Sanepar sem o número final, ex.: 015 a 019 "…TRATAM600LS"). Só valem os números que a irmã lista como itens sem balão na própria
+    folha — a peça está desenhada em outra folha da família (Foz: itens 80–84 da 019 nos balões da 015–018).
+    Devolve True se mudou alguma ficha."""
+    from . import inventario
+    familias = defaultdict(list)
+    for p in pdfs:
+        cod, comp = inventario.codigo_sanepar(Path(p).name), cache[p]["ficha"].get("completa")
+        if cod and comp:
+            familias[(cod["disciplina"], re.sub(r"\d+$", "", cod["descricao"]))].append(p)   # SISTPNEU02…04
+    mudou = False
+    for ps in familias.values():
+        doadoras = [p for p in ps if cache[p]["ficha"]["completa"]["itens"]]
+        validos = sorted({n for p in doadoras for n in cache[p]["ficha"]["completa"]["itens_sem_balao"]})
+        for p in ps:
+            comp = cache[p]["ficha"]["completa"]
+            if comp["itens"] or not validos or comp.get("familia", {}).get("validos") == validos:
+                continue
+            bs = baloes(pdf_cad.extrair(p), cache[p]["ficha"]["layer_balao"], validos=set(validos),
+                        textos=palavras(_pagina(p)))
+            vistos = sorted({b["n"] for b in bs if b["n"] in validos})
+            comp["familia"] = {"relacao_em": [Path(d).name for d in doadoras], "validos": validos, "itens": vistos}
+            comp["baloes_com_item"] = sum(b["n"] in validos for b in bs)
+            log(f"  relação da família: {Path(p).name} → {comp['baloes_com_item']} balões ligados ({', '.join(vistos)})")
+            mudou = True
+    return mudou
 
 
 def resumo_lote(f: dict | None) -> dict | None:

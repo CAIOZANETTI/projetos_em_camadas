@@ -28,7 +28,6 @@ import numpy as np
 
 from . import geo
 
-
 CONCEITOS = Path(__file__).resolve().parents[1] / "conceitos"
 
 
@@ -142,7 +141,7 @@ def regras(nome: str) -> list[dict]:
 
 def casa(regra: dict, traco: dict) -> bool:
     """O traço pertence à classe da regra? Layer por regex; cor de contorno ou preenchimento."""
-    if regra.get("layer") is not None and not re.search(regra["layer"], traco["layer"], re.I):
+    if regra.get("layer") is not None and not re.search(regra["layer"], traco["layer"], re.IGNORECASE):
         return False
     if regra.get("cor") is None:
         return True
@@ -264,7 +263,7 @@ def manchas(tracos: list[dict], classes: list, classe: str, M: np.ndarray, epsg:
 
 
 def _hex(c) -> str | None:
-    return None if c is None else "#%02x%02x%02x" % tuple(int(round(v * 255)) for v in c[:3])
+    return None if c is None else "#" + "".join(f"{round(v * 255):02x}" for v in c[:3])
 
 
 def _b64gz(a: np.ndarray) -> str:
@@ -351,7 +350,7 @@ def pacote_vetorial(caminho: str | Path, lista_regras: list[dict] | None = None,
                     "cor": max(l["cores"], key=l["cores"].get)} for l in lista_layers],
         "estilos": [{"s": s, "f": f, "w": w} for (s, f, w) in estilos],
         "coords": _b64gz(coords), "partes": _b64gz(np.array(partes, "<u4")),
-        "n_partes": len(partes), "n_pontos": int(len(coords)),
+        "n_partes": len(partes), "n_pontos": len(coords),
         "textos": textos_pdf(caminho, pagina),
     }
 

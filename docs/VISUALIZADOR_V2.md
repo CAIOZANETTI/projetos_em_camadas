@@ -130,7 +130,7 @@ Chaves novas em `dados`. Tudo é calculado no Python; o front só seleciona e ex
 | `vetores[id=blocos_forma]` | blocos lidos na forma `{rotulo, estacas, face_superior_m, arrasamento_m, ficha}` e pilares `{tipo: "pilar", bloco, lado_m, cor}` |
 | `fichas[].pilares` (rodada 9) | `[{bloco, lado_m, contorno_utm}]` (estrutura); `fichas[].vistas[].encaixe` = `{ok, rotacao, f1, segundo, motivo}` (hidráulica com `referencia_vistas`) |
 | `vetores[id=pecas_baloes]` (rodada 9) | ponto de cada balão de vista encaixada `{tipo, item, codigo, descricao, qtde, ficha}` |
-| `inventario.itens[].ficha` (rodada 9) | `{vistas, escalas, tabelas, baloes, obra, objetos[], genericos_pct, completa{tabelas_contrato, itens, itens_no_contrato, baloes_com_item, itens_sem_balao}}` ou `{erro}`; `null` fora do disco (`prancha.lote`) |
+| `inventario.itens[].ficha` (rodada 9) | `{vistas, escalas, tabelas, baloes, obra, objetos[], genericos_pct, completa{tabelas_contrato, itens, itens_no_contrato, baloes_com_item, itens_sem_balao, familia?{relacao_em[], validos[], itens[]}}}` ou `{erro}`; `null` fora do disco ou documento (`prancha.lote`, ligado pela pasta + arquivo) |
 | `modelo3d.solidos` | `[{id, xy[[x,y]] relativo à origem, z0 (arrasamento), z1 (face superior)}]` extrudados no 3D (só com controle vertical) |
 | `vetores[id=valas]` | trechos do tubo por classe `{rede, classe, tipo, cor, extensao_m, estimado}`; o front pinta cada trecho com `properties.cor` |
 | `cronograma` | `{fonte, data_os, data_os_hipotese, prazo_dias, marcos[{id,dia,descricao}], atividades[{id,nome,inicio_dia,fim_dia,uc,etapa,peso_pct,origem_peso,elementos:{layers:{prancha:[layers]}, vetores:[], estacas:[ids], intervencoes:[tipos]}, n_elementos}], curva_s:{dia[], planejado_pct[]}}` |

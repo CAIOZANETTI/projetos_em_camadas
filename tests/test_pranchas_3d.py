@@ -9,7 +9,7 @@ import pytest
 from camadas import geo, georef_prancha, sfm
 
 pymupdf = pytest.importorskip("pymupdf")
-from camadas import pdf_cad  # noqa: E402
+from camadas import pdf_cad
 
 
 @pytest.fixture
@@ -96,7 +96,7 @@ def test_mds_fecha_buraco_de_telhado():
     buraco = (np.abs(g[:, 0] - 15) < 0.5) & (np.abs(g[:, 1] - 15) < 0.5)
     xyz = np.c_[g, z][~buraco]
     m = sfm.mds(xyz, res=0.25)
-    c = int(round((m["n1"] - 15) / 0.25)), int(round((15 - m["e0"]) / 0.25))
+    c = int(round((m["n1"] - 15) / 0.25)), int(round((15 - m["e0"]) / 0.25))   # noqa: RUF046 — numpy 1.x
     assert m["z"][c] == pytest.approx(8.0, abs=0.01)
 
 

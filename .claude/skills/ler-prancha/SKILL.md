@@ -29,6 +29,9 @@ O cache (`saida/<obra>/fichas_cache.json`) é por assinatura do PDF e da configu
    Cabeçalho separado do corpo por linha dupla é outra grade: `grades()` junta as empilhadas de mesma largura
    (`_empilhar`) antes de filtrar. Colunas "1ª ETAPA / 2ª ETAPA" entram pela ordem em `q1`, `q2` (o OCR lê "1ª"
    como "4a").
+   Variações já vistas (`_colunas`, `SINONIMOS_COLUNA`): "DISCRIMINAÇÃO · QUANT. · UND." com o código SAM numa
+   coluna sem título logo depois do nº (042A); "Nº" pequeno lido vazio → a coluna antes do código (perfis AAT06);
+   dois códigos na célula (tubo + flange) → fica o primeiro.
 4. **Elementos** — pelo layer (`pdf_cad.elemento_do_layer`, `conceitos/elementos.json`, primeira regra que casa
    vence: grafismo antes de objeto) ou, se o layer é numerado por pena, pela geometria (`estacas_e_blocos`:
    círculos tracejados no diâmetro da estaca; retângulos de até 8 m que contêm estacas).
@@ -49,6 +52,16 @@ O cache (`saida/<obra>/fichas_cache.json`) é por assinatura do PDF e da configu
   (`desenho_sem_hachura`: tira os segmentos longos a 45°, não o layer — o rótulo pode estar no mesmo layer da
   hachura), com 70 pt de margem. Forma MOD01: 41/41. O que ainda faltar fica sem rótulo; não deduza.
 
+## Número do balão
+SHX: traços do layer do número (sem `layer_numero`, o layer com mais traços dentro dos círculos, o do próprio balão
+incluído). Fonte do PDF: `palavras(pagina)` → `baloes(..., textos=…)` (sistema pneumático). A linha de chamada tem
+de sair do círculo.
+
+## Relação na folha irmã
+Folha com balões e sem relação: `_relacao_da_familia` liga os balões à relação de uma irmã (mesma descrição no
+código Sanepar, sem o número final), **só com os números que a irmã lista como "sem balão"** — Foz: itens 80–84 da
+019 nos balões da 015–018. Resultado em `completa.familia = {relacao_em, validos, itens}`.
+
 ## Pilares
 `pilares(pagina, blocos, escala)`: o quadrado preto do pilar é hachura de traços, não preenchimento. Raster a
 144 dpi + abertura 9×9 deixa só as manchas cheias; vale a mancha quadrada dentro de um bloco com lado próximo do
@@ -61,8 +74,12 @@ F1 (precisão × revocação das linhas). Só aceita com **pico claro**: o 1º a
 certo: 29 %; referência sem o desenho: 8 %). Sem pico, a vista fica sem coordenada, com o motivo — não force.
 Com a vista encaixada, os balões ganham `utm` e entram no mapa (vetor `pecas_baloes`).
 
+## Escala do título
+`escala_do_titulo(pg, caixa, tracos=tr, textos=palavras(pg))`: faixa abaixo da vista e, se nada, a de cima
+(contenção: "ESC 1:50" em fonte acima); texto de fonte direto do PDF, senão OCR só dos glifos SHX.
+
 ## Lote (todas as pranchas no disco)
-`lote(cfg, escopo, out)` dá a `ficha_leve` (identidade, vistas, escalas, nº de tabelas, layer de balão, nº de
+`lote(cfg, escopo, out)` (chave = caminho relativo à pasta do inventário; só desenho: `e_desenho`) dá a `ficha_leve` (identidade, vistas, escalas, nº de tabelas, layer de balão, nº de
 balões, objetos por classe, % genérico) a todo PDF de desenho (tipo DE) da pasta do inventário; onde há balões,
 roda a completa (relação de materiais por OCR × balões × tabelas do contrato que apontam para o desenho). Cache em
 `saida/<obra>/fichas_lote_cache.json`; erro de PDF fica como `{"erro": motivo}`. `resumo_lote` vai para a linha

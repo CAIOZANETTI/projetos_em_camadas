@@ -173,7 +173,7 @@ def densificar(rec, g: dict, pasta: str | Path, pares: list[tuple[str, str]], la
     k = lado / max(W, H)
     Kr = K.copy()
     Kr[:2] *= k
-    tam = (int(round(W * k)), int(round(H * k)))
+    tam = (int(round(W * k)), int(round(H * k)))   # noqa: RUF046 — numpy 1.x: round(np.float64) é float
     imgs = {i.name: i for i in rec.images.values()}
     pts, cores = [], []
     for na, nb in pares:
@@ -336,7 +336,7 @@ def pacote_visualizador(xyz: np.ndarray, rgb: np.ndarray, cams: list[dict], orig
     o = np.array(origem if origem is not None else [np.floor(xyz[:, 0].mean()), np.floor(xyz[:, 1].mean()), 0.0])
     rel = np.round((xyz - o) * 100).astype(np.int32)
     import base64
-    return {"origem": o.tolist(), "n": int(len(rel)),
+    return {"origem": o.tolist(), "n": len(rel),
             "pos_cm_b64": base64.b64encode(rel.astype("<i4").tobytes()).decode(),
             "rgb_b64": base64.b64encode(rgb.astype(np.uint8).tobytes()).decode(),
             "cameras": [{**c, "centro": (np.array(c["centro"]) - o).round(3).tolist()} for c in cams]}
@@ -363,7 +363,7 @@ def mds(xyz: np.ndarray, res: float = 0.25, extensao=None, fechar_m: float = 20.
     # do telhado — sem isso o buraco vira "chão" e o telhado sai torto na ortofoto
     zf = np.where(valido, z, base).astype(np.float32)
     zf = np.where(valido, cv2.medianBlur(zf, 5), zf)
-    k = max(3, int(round(fechar_telhado_m / res)) | 1)
+    k = max(3, int(round(fechar_telhado_m / res)) | 1)   # noqa: RUF046 — idem
     baixo = np.where(valido, zf, -1e4).astype(np.float32)
     fech = cv2.erode(cv2.dilate(baixo, np.ones((k, k), np.uint8)), np.ones((k, k), np.uint8))
     novos = ~valido & (fech > -1e3)
@@ -482,7 +482,7 @@ def executar(pasta, saida, denso: bool = False, orto_res: float | None = None, l
     xyz, rgb = filtrar(xyz, rgb, nuvem_esparsa(rec, g)[0])
     salvar_ply(saida / "nuvem.ply", xyz, rgb)
     rel = {"epsg": g["epsg"], "rmse_gps_m": g["rmse_gps_m"], "residuo_gps_m": g["residuo_gps_m"],
-           "alt_decolagem_m": g["alt_decolagem_m"], "n_pontos": int(len(xyz)), "cameras": cams,
+           "alt_decolagem_m": g["alt_decolagem_m"], "n_pontos": len(xyz), "cameras": cams,
            "reprojecao_px": rec.compute_mean_reprojection_error()}
     (saida / "sfm.json").write_text(json.dumps(rel, indent=2, ensure_ascii=False))
     np.savez_compressed(saida / "nuvem.npz", xyz=xyz, rgb=rgb)

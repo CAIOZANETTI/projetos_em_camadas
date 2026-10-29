@@ -85,6 +85,7 @@ def test_supressao_so_dentro_da_faixa_e_so_vegetacao_alta(tmp_path):
     cv2.imwrite(str(tmp_path / "mds.png"), np.uint16(z * 100))
     _georef(tmp_path / "mds.png", 1000.0, 2050.0, res, {"z_min_m": 0.0})
     from shapely.geometry import LineString
+
     from camadas import supressao
     tubo = LineString([(1030.0, 2049.0), (1030.0, 2001.0)])        # passa pelo meio da faixa verde
     fc = supressao.estimar(tmp_path / "orto.jpg", tmp_path / "mds.png", {"1ª etapa": [tubo]}, faixa_m=4.0)
@@ -198,6 +199,7 @@ def test_continuidade_escolhe_pela_coincidencia_na_area_comum():
     """A folha 2 desenha um L; a folha 1 desenha a cauda do mesmo L além da emenda. Deslizar a folha 2 ao longo da
     própria rua também encosta, mas a esquina deixa de coincidir."""
     from shapely import LineString, Polygon
+
     from camadas import georef_prancha
     vizinha = LineString([(0, 0), (100, 0), (100, -40)])           # folha 1 em UTM: rua + cauda que dobra a esquina
     janela_viz = Polygon([(-10, -60), (130, -60), (130, 20), (-10, 20)])

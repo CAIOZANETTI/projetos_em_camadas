@@ -72,7 +72,7 @@ def mapa_bordas(img: np.ndarray, res: float, res_alvo: float, sigma_m: float = 0
     vazio = cv2.resize(vazio, bordas.shape[::-1], interpolation=cv2.INTER_NEAREST) == 0
     bordas[vazio] = 0
     # só bordas "longas" (meio-fio, parede, tanque): componentes curtos são textura de grama/copa
-    n, lab, st, _ = cv2.connectedComponentsWithStats(bordas, connectivity=8)
+    _, lab, st, _ = cv2.connectedComponentsWithStats(bordas, connectivity=8)
     compr = np.maximum(st[:, cv2.CC_STAT_WIDTH], st[:, cv2.CC_STAT_HEIGHT]) * res_alvo
     bordas[(compr < min_compr_m)[lab]] = 0
     d = cv2.distanceTransform(255 - bordas, cv2.DIST_L2, 5) * res_alvo
@@ -293,6 +293,7 @@ def registrar_cad(tracos, referencia: str | Path, M_base: np.ndarray, padrao_lay
     0,095 m/pt em Foz). Retorna {"M" (pt -> UTM) | None, "ok", "motivo", diagnóstico}.
     """
     import re
+
     from . import pdf_cad
     referencia = Path(referencia)
     meta = json.loads(referencia.with_suffix(".json").read_text())
@@ -303,7 +304,7 @@ def registrar_cad(tracos, referencia: str | Path, M_base: np.ndarray, padrao_lay
     rot_base = float(np.degrees(np.arctan2(M_base[1, 0], M_base[0, 0])))
     k = esc_base / res                                    # px por pt na escala da base
     img, _ = pdf_cad.rasterizar(tracos, dpi=72 * k, espessura=2,
-                                filtro=lambda t: re.search(padrao_layers, t["layer"], re.I) is not None)
+                                filtro=lambda t: re.search(padrao_layers, t["layer"], re.IGNORECASE) is not None)
     if img.max() == 0:
         return {"M": None, "ok": False, "motivo": f"sem traços nos layers '{padrao_layers}'"}
     try:
@@ -591,6 +592,7 @@ def hipoteses_malha(tracos, padrao_layer: str, escala: float) -> list[np.ndarray
 def geometria_do_layer(tracos, padrao_layer: str, janela=None, M: np.ndarray | None = None):
     """União (shapely) dos traços e faixas preenchidas de um layer dentro da `janela` (pt); em UTM se vier `M`."""
     import re
+
     from shapely import LineString, Polygon, affinity, union_all
     x0, y0, x1, y1 = janela or (-np.inf, -np.inf, np.inf, np.inf)
     geoms = []

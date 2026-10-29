@@ -43,9 +43,9 @@ def geotiff(jpg_ou_png: str | Path, saida: str | Path, mds: bool = False, correc
         bandas, dtype, nodata = np.concatenate([img.transpose(2, 0, 1), alfa[None]]), "uint8", None
     saida = Path(saida)
     saida.parent.mkdir(parents=True, exist_ok=True)
-    perfil = dict(driver="GTiff", width=bandas.shape[2], height=bandas.shape[1], count=bandas.shape[0],
-                  dtype=dtype, crs=f"EPSG:{meta['epsg']}", transform=Affine(res, 0, e0, 0, -res, n1),
-                  tiled=True, blockxsize=512, blockysize=512, compress="deflate", nodata=nodata)
+    perfil = {"driver": "GTiff", "width": bandas.shape[2], "height": bandas.shape[1], "count": bandas.shape[0],
+              "dtype": dtype, "crs": f"EPSG:{meta['epsg']}", "transform": Affine(res, 0, e0, 0, -res, n1),
+              "tiled": True, "blockxsize": 512, "blockysize": 512, "compress": "deflate", "nodata": nodata}
     if not mds:
         perfil["photometric"] = "RGB"
     with rasterio.open(saida, "w", **perfil) as dst:
@@ -81,7 +81,9 @@ def _geometrias_da_prancha(prancha: dict):
     que tocam `clip_mapa`; hachuras e texto ficam de fora (estão no HTML). Construção vetorizada do shapely 2.
     """
     import re
+
     import shapely
+
     from .pdf_cad import decodificar_pacote
     pontos_pt, partes = decodificar_pacote(prancha)
     afim = np.asarray(prancha["M"], float).reshape(2, 3)
@@ -92,7 +94,7 @@ def _geometrias_da_prancha(prancha: dict):
     xmin, xmax = np.minimum.reduceat(pontos_pt[:, 0], inicio), np.maximum.reduceat(pontos_pt[:, 0], inicio)
     ymin, ymax = np.minimum.reduceat(pontos_pt[:, 1], inicio), np.maximum.reduceat(pontos_pt[:, 1], inicio)
     nomes = [l["nome"] for l in prancha["layers"]]
-    fora = np.array([bool(re.search(r"HACHURA|TEXTO|TXT|CARIMBO|LOGO", n, re.I)) for n in nomes])
+    fora = np.array([bool(re.search(r"HACHURA|TEXTO|TXT|CARIMBO|LOGO", n, re.IGNORECASE)) for n in nomes])
     usar = (xmax >= x0) & (xmin <= x1) & (ymax >= y0) & (ymin <= y1) & ~fora[layer] & (n_pontos >= 2)
     area = usar & (flags & 2 > 0) & (n_pontos >= 4)
     linha = usar & ~area
@@ -175,7 +177,7 @@ def ler_kmz(caminho: str | Path) -> list[dict]:
     with zipfile.ZipFile(caminho) as z:
         kml = z.read(next(n for n in z.namelist() if n.endswith(".kml"))).decode("utf-8", "replace")
     marcos = []
-    for bloco in re.findall(r"<Placemark.*?</Placemark>", kml, re.S):
+    for bloco in re.findall(r"<Placemark.*?</Placemark>", kml, re.DOTALL):
         coord = re.search(r"<coordinates>\s*([-\d.]+),([-\d.]+)", bloco)
         if not coord:
             continue
