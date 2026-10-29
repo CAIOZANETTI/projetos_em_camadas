@@ -1,8 +1,11 @@
+import copy
+
 import numpy as np
 import pytest
 
 from camadas import geo
 from camadas.pdf_cad import desempacotar, empacotar, separar_por_cor
+from camadas.visualizador import arredondar_geojson
 
 
 @pytest.mark.parametrize("tipo", ["similaridade", "afim", "homografia"])
@@ -63,3 +66,27 @@ def test_mosaico_ajuste_global_com_estado_em_dict():
     Ta, Tb = mos["fotos"][0]["T"], mos["fotos"][1]["T"]
     assert Tb[0, 2] - Ta[0, 2] == pytest.approx(3.0, abs=1e-6)   # 30 px × 0,1 m
     assert a["gsd_ajustado_m"] == pytest.approx(s)
+
+
+def test_arredondar_geojson_coordenadas_copia_e_properties():
+    ponto = {"type": "Feature", "properties": {"nome": "PV-1", "cota": 703.791234567890123},
+             "geometry": {"type": "Point", "coordinates": [-54.559761257087651, -25.464500123456789]}}
+    poligono = {"type": "Feature", "properties": {"nome": "cava"},
+                "geometry": {"type": "MultiPolygon", "coordinates": [[[
+                    [-50.533512345678901, -25.464512345678910], [-50.533599999999999, -25.464500000000001],
+                    [-50.533512345678901, -25.464512345678910]]]]}}
+    dados = {"titulo": "teste", "vetores": [
+        {"id": "pv", "geojson": {"type": "FeatureCollection", "features": [ponto]}},
+        {"id": "cava", "geojson": {"type": "FeatureCollection", "features": [poligono]}}]}
+    original = copy.deepcopy(dados)
+    arredondado = arredondar_geojson(dados)
+    geom_pv = arredondado["vetores"][0]["geojson"]["features"][0]["geometry"]
+    geom_cava = arredondado["vetores"][1]["geojson"]["features"][0]["geometry"]
+    assert geom_pv["coordinates"] == [-54.5597613, -25.4645001]
+    assert geom_cava["coordinates"][0][0][0] == [-50.5335123, -25.4645123]
+    assert arredondado["vetores"][0]["geojson"]["features"][0]["properties"] == ponto["properties"]
+    assert arredondado["titulo"] == "teste"
+    assert dados == original
+    nula = {"vetores": [{"id": "x", "geojson": {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {}, "geometry": None}]}}]}
+    assert arredondar_geojson(nula) == nula and arredondar_geojson({"titulo": "sem vetores"})["vetores"] == []

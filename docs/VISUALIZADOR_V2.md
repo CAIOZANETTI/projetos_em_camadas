@@ -94,8 +94,8 @@ Esses dois campos não usam gzip.
 ## Teste
 
 ```bash
-python -m camadas.obra exemplos/foz/obra.json   # gera saida/foz/visualizador.html
-python scripts/testar_visualizador.py saida/foz/visualizador.html
+python -m camadas.obra exemplos/foz/obra.json   # gera saida/foz/foz-vilac_camadas_v<versão>_<data>.html
+python scripts/testar_visualizador.py saida/foz/foz-vilac_camadas_v<versão>_<data>.html
 ```
 O teste abre no Chromium (Playwright) e verifica:
 - console sem erros;
