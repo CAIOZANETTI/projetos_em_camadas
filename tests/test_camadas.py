@@ -89,4 +89,8 @@ def test_arredondar_geojson_coordenadas_copia_e_properties():
     assert dados == original
     nula = {"vetores": [{"id": "x", "geojson": {"type": "FeatureCollection", "features": [
         {"type": "Feature", "properties": {}, "geometry": None}]}}]}
+    tupla = {"vetores": [{"id": "t", "geojson": {"type": "FeatureCollection", "features": [{"type": "Feature",
+        "properties": {}, "geometry": {"type": "LineString", "coordinates": ((-54.123456789, -25.1), (-54.2, -25.987654321))}}]}}]}
+    assert arredondar_geojson(tupla)["vetores"][0]["geojson"]["features"][0]["geometry"]["coordinates"] == [
+        [-54.1234568, -25.1], [-54.2, -25.9876543]]
     assert arredondar_geojson(nula) == nula and arredondar_geojson({"titulo": "sem vetores"})["vetores"] == []

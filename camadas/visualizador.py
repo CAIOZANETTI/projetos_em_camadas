@@ -127,7 +127,7 @@ def arredondar_geojson(dados: dict, casas: int = 7) -> dict:
     O `dados` original não muda; properties e as demais chaves seguem como estão.
     """
     def arredondar(coords):
-        if isinstance(coords, list):
+        if isinstance(coords, (list, tuple)):            # o shapely devolve tuplas (mapping)
             return [arredondar(c) for c in coords]
         return round(coords, casas)
 
