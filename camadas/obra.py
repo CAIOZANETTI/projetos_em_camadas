@@ -144,7 +144,7 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
         t = time.time()
         tr = pdf_cad.extrair(p["pdf"], clip=p.get("clip"))
         filtro_ref = p.get("layers_referencia", "EXIST")
-        pts = georef_prancha.pontos_de_traco(tr, filtro=lambda t, f=filtro_ref: re.search(f, t["layer"], re.I) is not None,
+        pts = georef_prancha.pontos_de_traco(tr, filtro=lambda t, f=filtro_ref: re.search(f, t["layer"], re.IGNORECASE) is not None,
                                              passo_pt=3)
         r, ok, motivo = None, False, ""
         pc = p.get("pontos_controle")
@@ -172,7 +172,7 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
             ok, motivo = r["ok"], f"automático sobre a prancha {p['irma']}: {r['motivo']}"
             if not ok and len(pts) > 200:                 # alternativa: ICP a partir da escala da irmã
                 r2 = georef_prancha.registrar(pts, ref, M_irma=irma, log=lambda *a: None)
-                ok2, m2 = georef_prancha.aceitavel(r2, irma, max_residuo_m=0.25, min_frac=0.6)
+                ok2, _ = georef_prancha.aceitavel(r2, irma, max_residuo_m=0.25, min_frac=0.6)
                 if ok2:
                     r, ok, motivo = r2, True, f"automático (ICP) sobre a prancha {p['irma']}"
         else:
@@ -214,7 +214,7 @@ def referencia_cad(base: dict, pasta: Path, filtro: str, res: float = 0.10) -> P
         return caminho
     tr = pdf_cad.extrair(base["pdf"], clip=base.get("clip"))
     M = np.asarray(base["M"])
-    partes = [geo.aplicar(M, q) for t in tr if re.search(filtro, t["layer"], re.I) for q in t["partes"]]
+    partes = [geo.aplicar(M, q) for t in tr if re.search(filtro, t["layer"], re.IGNORECASE) for q in t["partes"]]
     todos = np.vstack(partes)
     e0, n0 = todos.min(0) - 20
     e1, n1 = todos.max(0) + 20
@@ -279,6 +279,70 @@ def manchas_etapa(p: dict, epsg: int) -> list:
 
 
 # 3 ---------------------------------------------------------------------------
+def _qtd_da_planilha(v) -> tuple[float, str | None]:
+    """Quantidade numérica; serial de data do Excel (≈ 2009–2036) vira alerta."""
+    import pandas as pd
+    if pd.isna(v):
+        return 0.0, None
+    v = float(v)
+    if 40000 <= v <= 50000 and v == int(v):
+        return 0.0, f"quantidade na planilha parece data do Excel ({int(v)})"
+    return v, None
+
+
+def _mesma_unidade(a, b) -> bool:
+    sinonimos = {"pç": "un", "pc": "un", "peça": "un", "und": "un", "cj": "cj", "conj": "cj", "ml": "m"}
+    a, b = str(a).strip().lower(), str(b).strip().lower()
+    return sinonimos.get(a, a) == sinonimos.get(b, b)
+
+
+def _item_do_escopo(r, unidades: dict, cat: dict) -> dict:
+    """Linha da relação de materiais com quantidades por etapa, especificação do cadastro e alertas."""
+    codigo = str(r.codigo).split(".")[0]
+    q1, a1 = _qtd_da_planilha(r.qtd_etapa1)
+    q2, a2 = _qtd_da_planilha(r.qtd_etapa2)
+    alertas = [a for a in (a1, a2) if a]
+    # tabela+item+código: o número do item repete entre blocos
+    un_orc, q_orc = unidades.get((str(r.tabela), str(r.item), codigo), (None, None))
+    if un_orc and not _mesma_unidade(r.unidade, un_orc):
+        alertas.append(f"unidade diverge do orçamento ({r.unidade} × {un_orc} {q_orc})")
+    espec = cat.get(codigo)
+    if cat and not codigo.isdigit():
+        alertas.append("item sem código de material Sanepar")
+    elif cat and espec is None:
+        alertas.append(f"código {codigo} fora do cadastro de materiais Sanepar")
+    elif espec:
+        if espec.get("unidade_medida") and not _mesma_unidade(r.unidade, espec["unidade_medida"]):
+            alertas.append(f"unidade do cadastro Sanepar é {espec['unidade_medida']} (relação: {r.unidade})")
+        if str(espec.get("situacao", "")).startswith("4"):          # 1/3 licitável, 6 para obra, 2 SCD: normais
+            alertas.append(f"situação no cadastro: {espec['situacao']}")
+    return {"tabela": r.tabela, "nome_tabela": r.nome_tabela, "item": r.item, "codigo": codigo,
+            "descricao": r.descricao, "un": r.unidade, "q1": q1, "q2": q2,
+            "alerta": "; ".join(alertas) or None,
+            "etapa": r.etapa if isinstance(r.etapa, str) else "",
+            "material": r.material_base if isinstance(r.material_base, str) else "",
+            "local": r.local,
+            "cadastro": {k: espec[k] for k in ("descricao", "unidade_medida", "norma_eb", "situacao", "familia",
+                                               "material_base", "dn", "pn", "qtd_marcas", "marcas_homologadas")
+                         if k in espec} if espec else None}
+
+
+def _resumo_escopo(lin: list[dict]) -> tuple[dict, dict]:
+    """Contagens por tabela e totais (itens, com quantidade na 1ª/2ª etapa, com alerta, no cadastro)."""
+    por_tabela = {}
+    for item in lin:
+        t = por_tabela.setdefault(item["tabela"], {"nome": item["nome_tabela"], "n": 0, "n_q1": 0, "n_q2": 0,
+                                                   "n_alerta": 0})
+        t["n"] += 1
+        t["n_q1"] += item["q1"] > 0
+        t["n_q2"] += item["q2"] > 0
+        t["n_alerta"] += bool(item["alerta"])
+    totais = {"itens": len(lin), "itens_q1": sum(i["q1"] > 0 for i in lin), "itens_q2": sum(i["q2"] > 0 for i in lin),
+              "com_alerta": sum(bool(i["alerta"]) for i in lin),
+              "no_cadastro": sum(i["cadastro"] is not None for i in lin)}
+    return por_tabela, totais
+
+
 def etapa_escopo(cfg: dict) -> dict | None:
     """Escopo do contrato por etapa, sem preço (decisão do Caio, 28/10/2026).
 
@@ -302,60 +366,8 @@ def etapa_escopo(cfg: dict) -> dict | None:
                 desenhos.setdefault(t, d)
     cat = orcamento_sanepar.catalogo(e["catalogo"]) if e.get("catalogo") and Path(e["catalogo"]).exists() else {}
 
-    def qtd(v):
-        """Quantidade numérica; serial de data do Excel (≈ 2009–2036) vira alerta."""
-        if pd.isna(v):
-            return 0.0, None
-        v = float(v)
-        if 40000 <= v <= 50000 and v == int(v):
-            return 0.0, f"quantidade na planilha parece data do Excel ({int(v)})"
-        return v, None
-
-    def mesma_unidade(a, b):
-        sinonimos = {"pç": "un", "pc": "un", "peça": "un", "und": "un", "cj": "cj", "conj": "cj", "ml": "m"}
-        a, b = str(a).strip().lower(), str(b).strip().lower()
-        return sinonimos.get(a, a) == sinonimos.get(b, b)
-
-    lin = []
-    for r in rel.itertuples():
-        codigo = str(r.codigo).split(".")[0]
-        q1, a1 = qtd(r.qtd_etapa1)
-        q2, a2 = qtd(r.qtd_etapa2)
-        alertas = [a for a in (a1, a2) if a]
-        # tabela+item+código: o número do item repete entre blocos
-        un_orc, q_orc = unidades.get((str(r.tabela), str(r.item), codigo), (None, None))
-        if un_orc and not mesma_unidade(r.unidade, un_orc):
-            alertas.append(f"unidade diverge do orçamento ({r.unidade} × {un_orc} {q_orc})")
-        espec = cat.get(codigo)
-        if cat and not codigo.isdigit():
-            alertas.append("item sem código de material Sanepar")
-        elif cat and espec is None:
-            alertas.append(f"código {codigo} fora do cadastro de materiais Sanepar")
-        elif espec:
-            if espec.get("unidade_medida") and not mesma_unidade(r.unidade, espec["unidade_medida"]):
-                alertas.append(f"unidade do cadastro Sanepar é {espec['unidade_medida']} (relação: {r.unidade})")
-            if str(espec.get("situacao", "")).startswith("4"):          # 1/3 licitável, 6 para obra, 2 SCD: normais
-                alertas.append(f"situação no cadastro: {espec['situacao']}")
-        lin.append({"tabela": r.tabela, "nome_tabela": r.nome_tabela, "item": r.item, "codigo": codigo,
-                    "descricao": r.descricao, "un": r.unidade, "q1": q1, "q2": q2,
-                    "alerta": "; ".join(alertas) or None,
-                    "etapa": r.etapa if isinstance(r.etapa, str) else "",
-                    "material": r.material_base if isinstance(r.material_base, str) else "",
-                    "local": r.local,
-                    "cadastro": {k: espec[k] for k in ("descricao", "unidade_medida", "norma_eb", "situacao", "familia",
-                                                       "material_base", "dn", "pn", "qtd_marcas", "marcas_homologadas")
-                                 if k in espec} if espec else None})
-    por_tabela = {}
-    for item in lin:
-        t = por_tabela.setdefault(item["tabela"], {"nome": item["nome_tabela"], "n": 0, "n_q1": 0, "n_q2": 0,
-                                                   "n_alerta": 0})
-        t["n"] += 1
-        t["n_q1"] += item["q1"] > 0
-        t["n_q2"] += item["q2"] > 0
-        t["n_alerta"] += bool(item["alerta"])
-    totais = {"itens": len(lin), "itens_q1": sum(i["q1"] > 0 for i in lin), "itens_q2": sum(i["q2"] > 0 for i in lin),
-              "com_alerta": sum(bool(i["alerta"]) for i in lin),
-              "no_cadastro": sum(i["cadastro"] is not None for i in lin)}
+    lin = [_item_do_escopo(r, unidades, cat) for r in rel.itertuples()]
+    por_tabela, totais = _resumo_escopo(lin)
     return {"itens": lin, "por_tabela": por_tabela, "totais": totais, "desenhos_por_tabela": desenhos,
             "fonte": e.get("fonte", ""),
             "fonte_cadastro": "cadastro de materiais Sanepar (sanepar_mat, coletado em 08/2026), só especificação"
@@ -606,10 +618,94 @@ def cronograma_4d(cfg: dict, dados: dict) -> dict | None:
             "peso_total_pct": round(float(peso.sum()), 2)}
 
 
+def _pranchas_no_mapa(cfg: dict, pranchas: list, extensao: list, epsg: int) -> tuple[list, list, dict]:
+    """Pacote vetorial de cada prancha (com quantitativos se georreferenciada), manchas de etapa e pendências."""
+    lista, vetores, pendentes = [], [], {}
+    for p in pranchas:
+        lista.append(prancha_vetorial(p, extensao))
+        if lista[-1]["M"] is not None:
+            lista[-1]["quantitativos"] = pdf_cad.quantitativos(lista[-1])
+        if p.get("M") is None:
+            pendentes.setdefault(p.get("disciplina", "Geral"), []).append(
+                f"{p['nome']} — sem georreferência ({p.get('motivo', '')}); veja na aba Pranchas")
+        elif p.get("manchas_etapa"):
+            vetores += manchas_etapa(p, epsg)
+    for disc, itens in cfg.get("pendentes", {}).items():
+        pendentes.setdefault(disc, []).extend(itens)
+    return lista, vetores, pendentes
+
+
+def _ortofoto_html(out: Path, orto: dict, res_html: float) -> dict:
+    """Ortofoto reduzida a `res_html` (m/px) com transparência fora da área voada, como base do mapa."""
+    e0, _, _, n1 = orto["extensao_utm"]
+    img = cv2.imread(str(out / "sfm" / "ortofoto.jpg"))
+    k = orto["res_m_px"] / res_html
+    small = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
+    alfa = cv2.resize((img.min(axis=2) < 250).astype(np.uint8) * 255, small.shape[1::-1], interpolation=cv2.INTER_NEAREST)
+    return {"src": visualizador.data_url(np.dstack([small, alfa]), "webp", 80), "w": small.shape[1],
+            "h": small.shape[0], "m": [res_html, 0, e0, 0, -res_html, n1]}
+
+
+def _furos_x_nuvem(furos: list, vertical: dict | None) -> list:
+    """Boca de cada furo × terreno da nuvem já em cota (usado, descartado ou sem nuvem)."""
+    if not vertical:
+        return furos
+    por_id = {l["id"]: l for l in vertical["pontos"]}
+    for s in furos:
+        l = por_id.get(s["id"]) or por_id.get(s["id"].rstrip("A"))
+        if l:
+            terreno = (None if l["z_nuvem"] is None else
+                       float(sfm.aplicar_vertical(np.array([[l["E"], l["N"], l["z_nuvem"]]]), vertical)[0, 2]))
+            s["controle_vertical"] = {
+                "situacao": "sem nuvem" if terreno is None else "descartado" if l.get("descartado") else "usado",
+                "terreno_m": None if terreno is None else round(terreno, 2),
+                "diferenca_m": None if terreno is None else round(l["cota"] - terreno, 2)}
+    return furos
+
+
+def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | None, lista: list) -> list:
+    """Painel de informações: sistema, levantamento, posição, ortofoto, nuvem, cotas e georreferência das pranchas."""
+    epsg, n_obl, res_html = crs["epsg"], sum(c["tipo"] == "obliqua" for c in rel["cameras"]), cfg.get("res_html", 0.06)
+    return [
+        ["Sistema", f"{crs['nome']} (EPSG:{epsg})"],
+        ["Levantamento", (f"{len(rel['cameras'])} fotos ({n_obl} oblíquas), SfM com reprojeção "
+                          f"{rel['reprojecao_px']:.2f} px")],
+        ["Posição absoluta", f"GPS do drone (RMSE {rel['rmse_gps_m']:.1f} m)" + (
+            f"; corrigida {-desloc[0]:+.2f} m E / {-desloc[1]:+.2f} m N pelo controle "
+            f"topográfico ({cfg['controle_absoluto'].get('fonte', '')})" if np.any(desloc) else
+            " — sem pontos de controle em campo")],
+        ["Ortofoto", (f"verdadeira (MDS da nuvem), {orto['res_m_px'] * 100:.0f} cm/px; embutida a "
+                      f"{res_html * 100:.0f} cm/px")],
+        ["Nuvem 3D", f"{rel['n_pontos']:,} pontos".replace(",", ".") + (
+            " (Z em cota)" if vertical else " (Z = altura sobre a decolagem)")],
+        *([["Cotas", (f"plano ajustado a {vertical['usados']} furos SPT ({vertical['fonte']}); validação cruzada "
+                      f"{vertical['rms_validacao_cruzada_m']:.2f} m; descartados (copa/edificação) "
+                      f"{', '.join(vertical['descartados']) or '—'}")]] if vertical else []),
+        *[[f"Prancha {f['id']}", (f"{f['georef']['motivo']}; resíduo "
+                                  f"{(f['georef']['residuo_mediano_m'] or 0) * 100:.0f} cm")]
+          for f in lista if f["M"] is not None],
+    ]
+
+
+def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
+    """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas e inventário com a ficha em lote."""
+    if fichas:
+        dados["fichas"] = prancha.para_html(fichas)
+        if dados.get("vertical"):
+            dados["modelo3d"]["solidos"] = prancha.solidos_3d(fichas, np.asarray(dados["modelo3d"]["origem"]))
+    for chave, pacote in pacotes.items():
+        if pacote:
+            dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}
+    if cfg.get("inventario"):                         # todos os PDFs da listagem do Drive, com o carimbo
+        dados["inventario"] = inventario.para_html(inventario.inventario(cfg, out / "inventario_cache.json", log=_log))
+        fl = prancha.lote(cfg, escopo, out, log=_log)                  # ficha leve de cada desenho no disco
+        for it in dados["inventario"]["itens"]:
+            it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
+
+
 # 5 ---------------------------------------------------------------------------
 def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
-    cfg_path = Path(cfg_path)
-    cfg = json.loads(cfg_path.read_text())
+    cfg = json.loads(Path(cfg_path).read_text())
     out = Path(cfg["saida"])
     out.mkdir(parents=True, exist_ok=True)
     rel = etapa_sfm(cfg, out, "sfm" in refazer)
@@ -622,68 +718,30 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     e0, n0, e1, n1 = orto["extensao_utm"]
 
     pranchas = etapa_pranchas(cfg, out, "pranchas" in refazer)
-    lista, vetores, pendentes = [], [], {}
-    for p in pranchas:
-        lista.append(prancha_vetorial(p, [e0, n0, e1, n1]))
-        if lista[-1]["M"] is not None:
-            lista[-1]["quantitativos"] = pdf_cad.quantitativos(lista[-1])
-        if p.get("M") is None:
-            pendentes.setdefault(p.get("disciplina", "Geral"), []).append(
-                f"{p['nome']} — sem georreferência ({p.get('motivo', '')}); veja na aba Pranchas")
-        elif p.get("manchas_etapa"):
-            vetores += manchas_etapa(p, epsg)
-    for disc, itens in cfg.get("pendentes", {}).items():
-        pendentes.setdefault(disc, []).extend(itens)
-
-    # ortofoto reduzida para o HTML
-    res_html = cfg.get("res_html", 0.06)
-    img = cv2.imread(str(out / "sfm" / "ortofoto.jpg"))
-    k = orto["res_m_px"] / res_html
-    small = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
-    alfa = cv2.resize((img.min(axis=2) < 250).astype(np.uint8) * 255, small.shape[1::-1], interpolation=cv2.INTER_NEAREST)
-    M_orto = np.array([[res_html, 0, e0], [0, -res_html, n1]])
-
+    lista, vetores, pendentes = _pranchas_no_mapa(cfg, pranchas, orto["extensao_utm"], epsg)
     crs = visualizador.crs_info(epsg, [e0, n0, e1, n1], rel["alt_decolagem_m"])
-    vetores.append({"id": "cameras", "nome": "Fotos do drone (posição e visada)", "grupo": "Levantamento",
-                    "subgrupo": "Drone",
-                    "visivel": False, "geojson": vetores_cameras(rel, epsg), "fotos": True,
-                    "estilo": {"color": "#f5c518", "weight": 2}})
     esc = escavacao.etapa(cfg, pranchas, out, vertical, log=_log)     # cavas: escavação e reaterro
-    for v in (estacas(cfg, epsg), vetor_supressao(cfg, out, pranchas), vetor_escavacao(esc),
-              vetor_marcos(cfg, epsg, ((e0 + e1) / 2, (n0 + n1) / 2))):
-        if v:
-            vetores.append(v)
     escopo = etapa_escopo(cfg)
     if escopo:
         escopo["tubo_x_desenho"] = tubo_contrato_x_desenho(escopo, lista, cfg)
     fichas = prancha.etapa(cfg, pranchas, escopo, out, log=_log)           # prancha lida em camadas (pilotos)
-    for v in (prancha.vetor_blocos(fichas, epsg), prancha.vetor_pecas(fichas, epsg)) if fichas else ():
-        if v:
-            vetores.append(v)
     vala = valas.etapa(cfg, pranchas, lista, escopo, out, epsg, log=_log)   # pista × calçada × lote em cada rede
-    if vala:
-        vetores.append({"id": "valas", "nome": "Valas: pista, calçada e lote (calculado)", "grupo": "Intervenções",
-                        "subgrupo": "Demolição e recomposição", "visivel": False, "geojson": vala["geojson"],
-                        "estilo": {"color": "#dc2626", "weight": 4, "opacity": 0.9}})
-    furos = sondagens(cfg, epsg)
-    if vertical:                                      # boca do furo × terreno da nuvem já em cota, por furo
-        por_id = {l["id"]: l for l in vertical["pontos"]}
-        for s in furos:
-            l = por_id.get(s["id"]) or por_id.get(s["id"].rstrip("A"))
-            if l:
-                terreno = (None if l["z_nuvem"] is None else
-                           float(sfm.aplicar_vertical(np.array([[l["E"], l["N"], l["z_nuvem"]]]), vertical)[0, 2]))
-                s["controle_vertical"] = {
-                    "situacao": "sem nuvem" if terreno is None else "descartado" if l.get("descartado") else "usado",
-                    "terreno_m": None if terreno is None else round(terreno, 2),
-                    "diferenca_m": None if terreno is None else round(l["cota"] - terreno, 2)}
+    vetores += [v for v in (
+        {"id": "cameras", "nome": "Fotos do drone (posição e visada)", "grupo": "Levantamento", "subgrupo": "Drone",
+         "visivel": False, "geojson": vetores_cameras(rel, epsg), "fotos": True, "estilo": {"color": "#f5c518", "weight": 2}},
+        estacas(cfg, epsg), vetor_supressao(cfg, out, pranchas), vetor_escavacao(esc),
+        vetor_marcos(cfg, epsg, ((e0 + e1) / 2, (n0 + n1) / 2)),
+        *((prancha.vetor_blocos(fichas, epsg), prancha.vetor_pecas(fichas, epsg)) if fichas else ()),
+        vala and {"id": "valas", "nome": "Valas: pista, calçada e lote (calculado)", "grupo": "Intervenções",
+                  "subgrupo": "Demolição e recomposição", "visivel": False, "geojson": vala["geojson"],
+                  "estilo": {"color": "#dc2626", "weight": 4, "opacity": 0.9}}) if v]
+    furos = _furos_x_nuvem(sondagens(cfg, epsg), vertical)
     n_obl = sum(c["tipo"] == "obliqua" for c in rel["cameras"])
     dados = {
         "id": cfg["id"], "titulo": cfg["titulo"], "titulo_curto": cfg.get("titulo_curto", cfg["titulo"]),
         "subtitulo": cfg.get("subtitulo", ""), "crs": crs, "satelite": True,
         "bases": [{"id": "orto", "nome": f"Ortofoto drone ({len(rel['cameras']) - n_obl} fotos nadirais)",
-                   "grupo": "Levantamento", "src": visualizador.data_url(np.dstack([small, alfa]), "webp", 80),
-                   "w": small.shape[1], "h": small.shape[0], "m": M_orto.ravel().tolist(), "visivel": True}],
+                   "grupo": "Levantamento", **_ortofoto_html(out, orto, cfg.get("res_html", 0.06)), "visivel": True}],
         "folhas": [], "pranchas": lista, "vetores": vetores, "pendentes": pendentes,
         "etapas": cfg.get("etapas", []),
         "grupos": pdf_cad.disciplinas()["grupos"],
@@ -696,41 +754,17 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "vertical": vertical,
         "fotos": fotos_obliquas(cfg, rel),
         "anotacoes": {"type": "FeatureCollection", "features": []},
-        "info": [
-            ["Sistema", f"{crs['nome']} (EPSG:{epsg})"],
-            ["Levantamento", f"{len(rel['cameras'])} fotos ({n_obl} oblíquas), SfM com reprojeção "
-                             f"{rel['reprojecao_px']:.2f} px"],
-            ["Posição absoluta", f"GPS do drone (RMSE {rel['rmse_gps_m']:.1f} m)" + (
-                f"; corrigida {-desloc[0]:+.2f} m E / {-desloc[1]:+.2f} m N pelo controle "
-                f"topográfico ({cfg['controle_absoluto'].get('fonte', '')})" if np.any(desloc) else
-                " — sem pontos de controle em campo")],
-            ["Ortofoto", f"verdadeira (MDS da nuvem), {orto['res_m_px'] * 100:.0f} cm/px; embutida a "
-                         f"{res_html * 100:.0f} cm/px"],
-            ["Nuvem 3D", f"{rel['n_pontos']:,} pontos".replace(",", ".") + (
-                " (Z em cota)" if vertical else " (Z = altura sobre a decolagem)")],
-            *([["Cotas", f"plano ajustado a {vertical['usados']} furos SPT ({vertical['fonte']}); validação cruzada "
-                         f"{vertical['rms_validacao_cruzada_m']:.2f} m; descartados (copa/edificação) "
-                         f"{', '.join(vertical['descartados']) or '—'}"]] if vertical else []),
-            *[[f"Prancha {f['id']}", f"{f['georef']['motivo']}; resíduo "
-                                     f"{(f['georef']['residuo_mediano_m'] or 0) * 100:.0f} cm"]
-              for f in lista if f["M"] is not None],
-        ],
+        "info": _info(cfg, crs, rel, desloc, orto, vertical, lista),
     }
     if vertical:                                      # perfil dos furos no 3D só com a nuvem em cota
         dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
-    if fichas:
-        dados["fichas"] = prancha.para_html(fichas)
-        if vertical:
-            dados["modelo3d"]["solidos"] = prancha.solidos_3d(fichas, np.asarray(dados["modelo3d"]["origem"]))
-    for chave, pacote in (("escavacao", esc), ("valas", vala)):
-        if pacote:
-            dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}
-    if cfg.get("inventario"):                         # todos os PDFs da listagem do Drive, com o carimbo
-        dados["inventario"] = inventario.para_html(inventario.inventario(cfg, out / "inventario_cache.json", log=_log))
-        fl = prancha.lote(cfg, escopo, out, log=_log)                  # ficha leve de cada desenho no disco
-        for it in dados["inventario"]["itens"]:
-            it["ficha"] = prancha.resumo_lote(fl.get(it["arquivo"])) if it["situacao"].startswith("no disco") else None
+    _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala})
     dados["cronograma"] = cronograma_4d(cfg, dados)
+    return _gravar(cfg, out, dados, pranchas, epsg)
+
+
+def _gravar(cfg: dict, out: Path, dados: dict, pranchas: list, epsg: int) -> Path:
+    """dados.json, pacote SIG e o HTML (offline; e o do Artifact, com bibliotecas do CDN, se pedido)."""
     (out / "dados.json").write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")))
     if cfg.get("sig", True):
         etapa_sig(out, dados, pranchas, epsg)

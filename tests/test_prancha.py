@@ -186,3 +186,71 @@ def test_layer_do_numero_do_balao(monkeypatch):
     assert len(b) == 1 and b[0]["n"] == "2" and b[0]["ponta_pt"] == [80.0, 60.0]
     texto = {"layer": "TEXTO", "partes": [np.array([[48.0, 49.0], [48.5, 51.0]]) for _ in range(3)]}
     assert prancha.baloes([*tracos, texto], "BALAO")[0]["n"] == "3"
+
+
+def test_o_que_entra_no_lote():
+    import json
+    regras = json.loads((prancha.pdf_cad.CONCEITOS / "tipos_prancha.json").read_text(encoding="utf-8"))
+    sim = ["004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES-R5.pdf", "SAA-0000-4087-ESTR-DE-BLANCORAGEMTIPO18-018-R0.PDF",
+           "SAA-0017-8764-PMEC-FX-0001ETAVILACSISTPNEU01-R0.pdf", "PLANTA_GERAL_SONDAGEM_FOZ_IGUAÇU_01.pdf"]
+    nao = ["001-SAA-0017-8764-PBEA-LC-01ETAVILACLISTACA-R0.pdf", "Anexo_A_Termo_de_Referencia_SAA_de_Foz_do_Iguacu.pdf",
+           "LISTA_VALVULAS_ETA_VILA_C_.pdf", "Descritivo Tecnico - Obra Civil_ETA_VilaC.pdf"]
+    assert [prancha.e_desenho(n, regras) for n in sim + nao] == [True] * 4 + [False] * 4
+
+
+def test_relacao_na_folha_irma(monkeypatch):
+    """Folha sem relação (015) liga seus balões aos itens que a irmã (019) lista sem balão; número fora disso fica
+    sem item; família diferente não entra."""
+    monkeypatch.setattr(prancha.pdf_cad, "extrair", lambda p: [])
+    monkeypatch.setattr(prancha, "_pagina", lambda p: None)
+    monkeypatch.setattr(prancha, "palavras", lambda pg: [])
+    monkeypatch.setattr(prancha, "baloes", lambda tr, lay, layer_numero=None, validos=None, textos=():
+                        [{"n": "80"}, {"n": "84"}, {"n": "84"}, {"n": "34"}])
+    comp = lambda itens, sem: {"completa": {"itens": itens, "baloes_com_item": 0, "itens_sem_balao": sem},
+                               "layer_balao": "B"}
+    cache = {"a/019-SAA-0017-7471-PBHI-DE-0001ETAVILACTRATAM600LS-R1.pdf": {"ficha": comp(54, ["80", "81", "84"])},
+             "a/015-SAA-0017-7471-PBHI-DE-0001ETAVILACTRATAM600LS-R2.pdf": {"ficha": comp(0, [])},
+             "a/011-SAA-0017-7471-PBHI-DE-0001ETAVILACTRATAM360LS-R1.pdf": {"ficha": comp(0, [])}}
+    assert prancha._relacao_da_familia(cache, list(cache), log=lambda *a: None)
+    f015 = cache["a/015-SAA-0017-7471-PBHI-DE-0001ETAVILACTRATAM600LS-R2.pdf"]["ficha"]["completa"]
+    assert f015["baloes_com_item"] == 3 and f015["familia"]["itens"] == ["80", "84"]
+    assert f015["familia"]["relacao_em"] == ["019-SAA-0017-7471-PBHI-DE-0001ETAVILACTRATAM600LS-R1.pdf"]
+    assert "familia" not in cache["a/011-SAA-0017-7471-PBHI-DE-0001ETAVILACTRATAM360LS-R1.pdf"]["ficha"]["completa"]
+    assert not prancha._relacao_da_familia(cache, list(cache), log=lambda *a: None)      # nada novo: não refaz
+
+
+def test_relacao_com_discriminacao_e_codigo_sem_coluna():
+    """Folha 042A: cabeçalho 'Nº · DISCRIMINAÇÃO · QUANT. · UND.' e o código SAM numa coluna sem título."""
+    linhas = [["RELAÇÃO DE MATERIAIS"], ["Nº", "DISCRIMINAÇÃO", "QUANT.", "UND."],
+              ["03", "13609", "TE FD FFF PN10 DN300", "01", "Pç"], ["“4", "10251", "REDUCAO FD FF DN300 DN250", "01", "PÇ"],
+              ["10", "314465 308608", "TUBO ESPECIAL + FLANGE", "01", "PÇ"]]
+    it = prancha.itens_da_tabela(linhas)
+    assert [(i["n"], i["codigo"], i["qtde"], i["un"]) for i in it] == [("03", "13609", "01", "Pç"), ("04", "10251", "01", "PÇ"),
+                                                                       ("10", "314465", "01", "PÇ")]
+    assert it[0]["descricao"] == "TE FD FFF PN10 DN300"
+
+
+def test_numero_do_item_sem_titulo_lido():
+    linhas = [["", "", "ESPECIF/ COD SAM", "DESCRIÇÃO", "QTDE", "UN"],
+              ["", "01", "309244", "TUBO POLIETILENO PE 100 PN 10 DE 630", "540,00", "m"]]
+    assert [(i["n"], i["codigo"], i["qtde"]) for i in prancha.itens_da_tabela(linhas)] == [("01", "309244", "540,00")]
+
+
+def test_numero_do_balao_em_fonte():
+    """Sistema pneumático (PMEC): o número do balão é texto de fonte, não traço."""
+    a = np.linspace(0, 2 * np.pi, 17)
+    tracos = [{"layer": "BALAO", "partes": [np.c_[50 + 4.5 * np.cos(a), 50 + 4.5 * np.sin(a)]]}]
+    textos = [(50.3, 49.9, "3"), (120.0, 40.0, "07")]
+    assert prancha.baloes(tracos, "BALAO", textos=textos)[0]["n"] == "03"
+    assert prancha.baloes(tracos, "BALAO", textos=textos, validos={"01"})[0]["n"] is None
+
+
+def test_escala_em_fonte_acima_da_vista():
+    """Contenção de Foz: o título ("… ESC 1:50") é texto de fonte e fica acima da vista; abaixo vale primeiro."""
+    class Pagina:
+        rect = type("R", (), {"height": 1000.0})()
+    textos = [(130.0, 122.0, "ESC"), (150.0, 122.0, "1:50"), (900.0, 122.0, "ESC"), (920.0, 122.0, "1:20")]
+    assert prancha.escala_do_titulo(Pagina(), [100, 150, 500, 400], tracos=[], textos=textos) == 50
+    abaixo = [*textos, (200.0, 420.0, "ESCALA"), (240.0, 420.0, "1:100")]
+    assert prancha.escala_do_titulo(Pagina(), [100, 150, 500, 400], tracos=[], textos=abaixo) == 100
+    assert prancha.escala_do_titulo(Pagina(), [100, 500, 500, 700], tracos=[], textos=textos) is None
