@@ -27,6 +27,7 @@ import numpy as np
 from . import (
     construtivos,
     escavacao,
+    escopo_obra,
     geo,
     georef_prancha,
     inventario,
@@ -773,6 +774,8 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
     dados["construtivos"] = construtivos.montar(dados, cfg)        # aba Obra: unidade > sistema > elemento
+    if dados["construtivos"]:                                       # escopo por unidade, decomposição e evidências
+        dados["construtivos"]["escopo"] = escopo_obra.montar(dados, cfg)
 
 
 # 5 ---------------------------------------------------------------------------

@@ -13,8 +13,11 @@ Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema
   * sondagens (popup com SVG), foto do drone e o 3D (canvas WebGL com pixels desenhados);
   * v3: árvore por disciplina, recorte classificado (intervenção), estacas no mapa e no 3D, marcos geodésicos
     e o 4D (linha do tempo, play, curva S);
-  * aba Obra (só com `D.construtivos`): busca por rótulo/classe/sistema, árvore por unidade, clique que enquadra e destaca
-    um único elemento, ficha com atributos e trecho de rede como linha vetorial clicável;
+  * aba Obra (só com `D.construtivos`): é a primeira aba e abre ao carregar; busca por rótulo/classe/sistema, árvore por
+    unidade, clique que enquadra e destaca um único elemento, ficha (só no painel) com atributos e fonte como link,
+    popup do mapa mínimo, trecho de rede como linha vetorial clicável; e, com `construtivos.escopo`: resumo
+    dentro/fora/a definir, filtro "Só o escopo", escolha por sistema (localStorage, exportar/restaurar), decomposição
+    construtiva com evidências em link e partes com geometria enquadradas no mapa;
   * sem rolagem horizontal da página no celular.
 Sai com código 1 se algum passo falhar. Capturas em PNG na pasta indicada (padrão: <pasta do html>/capturas).
 Requer apenas `playwright` (já com o Chromium instalado); não instala nada.
@@ -516,12 +519,27 @@ JS_OBRA_SELECAO = """() => { const o = __viz.obra, lay = o.camada.get(o.sel), it
   return {sel: o.sel, dentro: b.contains(c) || (!lay.getBounds && c.distanceTo(lay.getLatLng()) < .5), zoom: __viz.map.getZoom(), aneis: o.halo.getLayers().length,
     ligada: __viz.map.hasLayer(__viz.camadasMapa.construtivos.layer), caixas: [document.querySelector('#obMapa').checked, document.querySelector('#v-construtivos').checked],
     ficha: document.querySelector('#obFicha').textContent, popup: (document.querySelector('.leaflet-popup-content') || {}).textContent || '',
+    popTabelas: document.querySelectorAll('.leaflet-popup-content table').length, sisNome: it.sisNome, fichaTabelas: document.querySelectorAll('#obFicha table').length,
+    popBotao: [...document.querySelectorAll('.leaflet-popup-content button')].some(b => /ver ficha/i.test(b.textContent)),
     classe: C.classes[it.classe].nome, rotulo: it.rotulo, num: num == null ? null : num.toLocaleString('pt-BR', {maximumFractionDigits: 3}),
     cores: [...o.camada.values()].every(l => { const k = C.classes[l.feature.properties.classe]; return !k || l.options[l.feature.geometry.type === 'Point' ? 'fillColor' : 'color'] === k.cor; })}; }"""
 
 
+def verificar_obra_abertura(c: dict) -> None:
+    """A aba Obra é a primeira e vem aberta ao carregar; entrega as demais seções à aba Camadas, como sempre foi."""
+    if not js(c, "!!(__viz.D.construtivos && __viz.obra)"):
+        return
+    r = js(c, """() => { const t = [...document.querySelectorAll('.abas button:not([hidden])')];
+      return {primeira: t[0].id, sel: t[0].getAttribute('aria-selected'), obra: !document.querySelector('#aba-obra').hidden,
+              outras: t.slice(1).every(b => b.getAttribute('aria-selected') === 'false'), camadas: document.querySelector('#aba-camadas').hidden}; }""")
+    passo(c, "obra: é a primeira aba e abre ao carregar; as demais ficam como secundárias",
+          r["primeira"] == "t-obra" and r["sel"] == "true" and r["obra"] and r["outras"] and r["camadas"], str(r))
+    foto(c, "00_obra_aberta")
+    c["page"].click("#t-camadas")
+
+
 def verificar_obra(c: dict) -> None:
-    """Aba Obra (só com `D.construtivos`): árvore por unidade, busca, clique que enquadra/destaca/abre a ficha e trecho de rede clicável."""
+    """Aba Obra (só com `D.construtivos`): escopo por sistema, árvore, busca, ficha/popup, fonte, decomposição e trecho de rede."""
     page = c["page"]
     if not js(c, "!!(__viz.D.construtivos && __viz.obra)"):
         return
@@ -530,11 +548,237 @@ def verificar_obra(c: dict) -> None:
     passo(c, "obra: aba Obra visível; camada no grupo Obra, desligada até selecionar",
           js(c, "!document.querySelector('#t-obra').hidden && __viz.camadasMapa.construtivos.grupo === 'Obra' && !__viz.map.hasLayer(__viz.camadasMapa.construtivos.layer)"))
     page.click("#t-obra")
+    escopo = js(c, "!!__viz.obra.ES")
+    passo(c, "obra: dados com escopo por sistema (D.construtivos.escopo)", escopo)
+    if escopo:
+        obra_escopo(c)
+        obra_escopo_alternar(c)
+        page.uncheck("#obSoEscopo")   # os passos abaixo olham todos os sistemas, também os de fora
     obra_arvore(c)
     alvos = obra_busca(c)
     obra_selecao(c, alvos)
+    if escopo:
+        obra_fonte(c)
+        obra_decomposicao(c)
     obra_linha(c, alvos)
     obra_fim(c, alvos)
+    js(c, "__viz.obra.definirSoEscopo(true)")   # volta ao padrão
+
+
+JS_ESCOPO_ESTADO = """() => { const o = __viz.obra, E = o.ES.sistemas, ids = [...document.querySelectorAll('#obArvore .ob-sis')].map(d => d.dataset.sis);
+  const cont = {dentro: 0, fora: 0, 'a definir': 0}; ids.forEach(i => cont[(E[i] || {}).estado || 'a definir']++);
+  const chips = Object.fromEntries([...document.querySelectorAll('#obResumo .ob-chip')].map(x => [x.dataset.e, +x.querySelector('b').textContent]));
+  return {cont, chips, total: ids.length, resumo: o.resumo()}; }"""
+JS_ESCOPO_SISTEMA = """(id) => { const o = __viz.obra, g = __viz.camadasMapa.construtivos.layer, its = o.itens.filter(i => i.sis === id), d = document.querySelector('.ob-sis[data-sis="' + id + '"]');
+  const l = its.length ? o.camada.get(its[0].id) : null, cb = d.querySelector('.ob-esc-cb');
+  return {n: its.length, noMapa: its.filter(i => g.hasLayer(o.camada.get(i.id))).length, opac: parseFloat(getComputedStyle(d.querySelector('.ob-sis-h')).opacity),
+          estilo: l ? (l.options.fillOpacity !== undefined && l.options.fill !== false ? l.options.fillOpacity : l.options.opacity) : null,
+          marcado: cb.checked, indef: cb.indeterminate, orig: d.querySelector('.ob-orig').textContent, estado: d.dataset.escopo, rotulo: its.length ? its[0].rotulo : null,
+          achados: its.length ? o.buscar(its[0].rotulo).filter(i => i.sis === id).length : 0, alterado: d.dataset.alterado === '1',
+          altVisivel: !d.querySelector('.ob-alt-l').hidden, altTexto: d.querySelector('.ob-alt-l').textContent}; }"""
+
+
+def obra_escopo(c: dict) -> None:
+    """Resumo no topo e filtro "Só o escopo" (ligado por padrão): sistema fora fica esmaecido na árvore e some do mapa e da busca."""
+    page = c["page"]
+    r = js(c, JS_ESCOPO_ESTADO)
+    passo(c, "obra/escopo: resumo no topo (dentro / fora / a definir) bate com os dados",
+          r["chips"] == r["cont"] == {k: r["resumo"][k] for k in r["cont"]} and sum(r["cont"].values()) == r["total"] > 0, f"{r['chips']}")
+    passo(c, "obra/escopo: filtro 'Só o escopo' vem ligado", js(c, "document.querySelector('#obSoEscopo').checked && __viz.obra.soEscopo"))
+    ids = js(c, """() => { const E = __viz.obra.ES.sistemas, ids = [...document.querySelectorAll('#obArvore .ob-sis')].map(d => d.dataset.sis);
+      return {fora: ids.find(i => (E[i] || {}).estado === 'fora') || null, dentro: ids.find(i => (E[i] || {}).estado === 'dentro' && __viz.obra.itens.some(x => x.sis === i)) || null,
+              definir: ids.find(i => ((E[i] || {}).estado || 'a definir') === 'a definir') || null}; }""")
+    if ids["fora"]:
+        r = js(c, JS_ESCOPO_SISTEMA, ids["fora"])
+        passo(c, "obra/escopo: sistema fora aparece na árvore, esmaecido e desmarcado, com a origem e o motivo",
+              r["opac"] < 1 and not r["marcado"] and not r["indef"] and r["estado"] == "fora" and "fora" in r["orig"] and len(r["orig"]) > 8, f"{ids['fora']}: {r['orig']}")
+        passo(c, "obra/escopo: com 'Só o escopo' o sistema fora some do mapa e da busca",
+              r["n"] > 0 and r["noMapa"] == 0 and r["achados"] == 0, f"{r['n']} elementos, {r['noMapa']} no mapa")
+        page.fill("#obBusca", r["rotulo"])
+        nota = js(c, "document.querySelector('#obRes .nota-l').textContent")
+        passo(c, "obra/escopo: a busca avisa dos resultados ocultos pelo filtro", "fora do escopo" in nota and "Só o escopo" in nota, nota)
+        page.fill("#obBusca", "")
+        page.uncheck("#obSoEscopo")
+        r2 = js(c, JS_ESCOPO_SISTEMA, ids["fora"])
+        passo(c, "obra/escopo: sem o filtro os elementos voltam ao mapa, esmaecidos",
+              r2["noMapa"] == r2["n"] and r2["estilo"] is not None and r2["estilo"] < .3 and r2["achados"] > 0, f"opacidade {r2['estilo']}")
+        page.check("#obSoEscopo")
+    if ids["dentro"]:
+        r = js(c, JS_ESCOPO_SISTEMA, ids["dentro"])
+        passo(c, "obra/escopo: sistema dentro marcado, sem esmaecer, no mapa e na busca",
+              r["marcado"] and r["opac"] == 1 and r["noMapa"] == r["n"] and r["achados"] > 0 and r["estado"] == "dentro", f"{ids['dentro']}: {r['orig']}")
+    if ids["definir"]:
+        r = js(c, JS_ESCOPO_SISTEMA, ids["definir"])
+        passo(c, "obra/escopo: sistema 'a definir' aparece indeterminado, visível no mapa", r["indef"] and r["noMapa"] == r["n"], ids["definir"])
+    foto(c, "18_obra_escopo")
+
+
+def storage_ok(c: dict) -> bool:
+    return js(c, "(() => { try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); return true; } catch (e) { return false; } })()")
+
+
+def obra_escopo_alternar(c: dict) -> None:
+    """Alterar o escopo de um sistema muda o resumo e o mapa, persiste (localStorage), exporta em JSON e restaura; sem storage funciona."""
+    import json
+    page = c["page"]
+    js(c, "__viz.obra.restaurar()")
+    alvo = js(c, "() => [...document.querySelectorAll('#obArvore .ob-sis')].map(d => d.dataset.sis).find(i => __viz.obra.estado(i) === 'dentro' && __viz.obra.itens.some(x => x.sis === i))")
+    if not alvo:
+        return
+    antes = js(c, JS_ESCOPO_ESTADO)
+    page.locator(f'.ob-sis[data-sis="{alvo}"] .ob-esc-cb').click()
+    depois = js(c, JS_ESCOPO_ESTADO)
+    r = js(c, JS_ESCOPO_SISTEMA, alvo)
+    passo(c, "obra/escopo: desmarcar 'No escopo' muda o resumo (dentro -1, fora +1) e o mapa",
+          depois["chips"]["dentro"] == antes["chips"]["dentro"] - 1 and depois["chips"]["fora"] == antes["chips"]["fora"] + 1 and depois["resumo"]["fora"] == depois["chips"]["fora"]
+          and r["estado"] == "fora" and r["noMapa"] == 0, f"{antes['chips']} -> {depois['chips']}")
+    passo(c, "obra/escopo: o sistema fica marcado 'alterado por você', com o estado do projeto",
+          r["alterado"] and r["altVisivel"] and "alterado por você" in r["altTexto"] and "projeto: dentro" in r["altTexto"] and "alterado" in js(c, "document.querySelector('#obResumo').textContent"), r["altTexto"])
+    foto(c, "18b_obra_escopo_alterado")
+    exp = js(c, "(() => { document.querySelector('#obExp').click(); return document.querySelector('#dlgTxt').value; })()")
+    try:
+        d = json.loads(exp)
+    except ValueError:
+        d = {}
+    v = d.get(alvo, {})
+    passo(c, "obra/escopo: 'Exportar escolhas de escopo' gera {sistema: {estado, origem: manual, data}}",
+          list(d) == [alvo] and v.get("estado") == "fora" and v.get("origem") == "manual" and bool(js(c, "(s) => /^\\d{4}-\\d{2}-\\d{2}$/.test(s)", v.get("data") or "")), exp.replace("\n", " "))
+    page.click("#dlgFechar")
+    if storage_ok(c):
+        p2 = page.context.new_page()
+        p2.on("pageerror", lambda e: c["erros"].append(f"exceção (página 2): {e}"))
+        p2.goto(page.url)
+        p2.wait_for_function("window.__viz && window.__viz.obra", timeout=60000)
+        r2 = p2.evaluate("(id) => ({e: __viz.obra.estado(id), alt: !document.querySelector('.ob-sis[data-sis=\"' + id + '\"] .ob-alt-l').hidden, r: __viz.obra.resumo()})", alvo)
+        p2.close()
+        passo(c, "obra/escopo: a escolha persiste ao recarregar (localStorage com D.id)", r2["e"] == "fora" and r2["alt"] and r2["r"]["alterados"] == 1, str(r2))
+    else:
+        passo(c, "obra/escopo: sem localStorage neste ambiente (persistência não testada)", True)
+    # sem storage (modo privado, dados bloqueados) a aba tem de funcionar do mesmo jeito, só sem lembrar
+    p3 = page.context.new_page()
+    erros3: list[str] = []
+    p3.on("pageerror", lambda e: erros3.append(str(e)))
+    p3.add_init_script("Object.defineProperty(window, 'localStorage', {get() { throw new Error('bloqueado'); }});")
+    p3.goto(page.url)
+    p3.wait_for_function("window.__viz && window.__viz.obra", timeout=60000)
+    r3 = p3.evaluate("""(id) => { const o = __viz.obra, a = o.resumo(); o.definirEscopo(id, 'fora'); const b = o.resumo();
+      return {a: a.dentro, b: b.dentro, fora: b.fora, aba: !document.querySelector('#aba-obra').hidden, alt: o.resumo().alterados}; }""", alvo)
+    p3.close()
+    passo(c, "obra/escopo: sem localStorage a aba abre e as escolhas funcionam na sessão",
+          r3["aba"] and r3["b"] == r3["a"] - 1 and r3["alt"] == 1 and not erros3, f"{r3} {erros3[:2]}")
+    page.click("#obRest")
+    r = js(c, JS_ESCOPO_ESTADO)
+    guardado = js(c, "(k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }", js(c, "__viz.obra.chave"))
+    passo(c, "obra/escopo: 'Restaurar do projeto' volta ao estado dos dados e limpa o que estava guardado",
+          r["chips"] == r["cont"] == antes["cont"] and js(c, "Object.keys(__viz.obra.manual).length") == 0 and guardado is None and js(c, "document.querySelector('#obRest').disabled"), str(r["chips"]))
+
+
+def abrir_sistema(c: dict, sis: str) -> None:
+    sel = f'#obArvore .ob-sis[data-sis="{sis}"] .ob-sis-h'
+    if js(c, "(s) => document.querySelector(s).getAttribute('aria-expanded')", sel) != "true":
+        c["page"].click(sel)
+
+
+JS_OBRA_DECOMP = r"""() => { const o = __viz.obra, E = o.ES.sistemas, ids = Object.keys(E).filter(i => document.querySelector('.ob-sis[data-sis="' + i + '"]'));
+  const dec = i => E[i].decomposicao || [], est = i => new Set(dec(i).map(p => p.estado));
+  const link = ev => { const d = o.ES.documentos[ev.doc]; return d && /^https:\/\//.test(d.link || '') ? d : null; };
+  const tri = [...ids].sort((a, b) => est(b).size - est(a).size)[0];
+  const geos = []; for (const i of ids) for (const p of dec(i)) if (p.estado === 'geometria' && o.estado(i) === 'dentro') geos.push({i, p: p.id, n: o.elementosDaParte(i, p).length});
+  geos.sort((a, b) => b.n - a.n); const geo = geos.length && geos[0].n ? geos[0].i : null;
+  const soltas = []; for (const i of ids) for (const p of dec(i)) if (p.estado === 'geometria' && p.n_geometria > 0 && o.elementosDaParte(i, p).length !== p.n_geometria) soltas.push(i + '/' + p.id);
+  const par = [];
+  for (const i of ids) for (const p of dec(i)) if ((p.evidencias || []).some(link)) par.push({sis: i, parte: p.id, pontos: (p.estado === 'documento' ? 2 : 0) + (p.evidencias.some(e => e.pagina != null) ? 1 : 0) + (p.evidencias.some(e => e.trecho) ? 1 : 0)});
+  par.sort((a, b) => b.pontos - a.pontos);
+  return {tri, geo, parteGeo: geo ? geos[0].p : null, soltas, ev: par[0] || null, estadosDados: [...new Set(ids.flatMap(i => [...est(i)]))]}; }"""
+JS_OBRA_DECOMP_DOM = """(a) => { const d = document.querySelector('.ob-sis[data-sis="' + a.tri + '"]'), E = __viz.obra.ES.sistemas[a.tri].decomposicao || [];
+  const marca = p => { const m = getComputedStyle(p.querySelector('.ob-mk')); return [m.backgroundColor, m.clipPath, m.borderTopWidth, m.backgroundImage].join('|'); };
+  const por = {}; d.querySelectorAll('.ob-parte').forEach(p => { por[p.dataset.estado] = por[p.dataset.estado] || p; });
+  const marcas = Object.values(por).map(marca), sem = d.querySelector('.ob-parte.est-sem > .ob-pt');
+  const todos = [...new Set([...document.querySelectorAll('#obArvore .ob-parte')].map(p => p.dataset.estado))];
+  return {partes: d.querySelectorAll('.ob-parte').length, esperado: E.length, grupos: d.querySelectorAll('.ob-grp').length, gEsperado: new Set(E.map(p => p.grupo || 'Outros')).size,
+          estados: Object.keys(por), distintas: new Set(marcas).size === marcas.length,
+          semAtencao: sem ? getComputedStyle(sem).backgroundColor !== 'rgba(0, 0, 0, 0)' && getComputedStyle(d.querySelector('.ob-parte.est-sem .ob-mk')).clipPath !== 'none' : null,
+          agrupado: [...d.querySelectorAll('.ob-grp')].every(g => g.nextElementSibling && g.nextElementSibling.classList.contains('ob-parte')),
+          todos, nome: d.querySelector('.ob-parte .nm').textContent, n: E.filter(p => p.estado === 'geometria').every(p => d.querySelector('.ob-parte[data-parte="' + p.id + '"] .es').textContent.includes(String(p.n_geometria)))}; }"""
+
+
+def obra_decomposicao(c: dict) -> None:
+    """Decomposição construtiva por sistema: partes por grupo, três estados com marcador distinto, evidências em link e geometria no mapa."""
+    page = c["page"]
+    page.fill("#obBusca", "")   # com busca preenchida a árvore fica oculta
+    a = js(c, JS_OBRA_DECOMP)
+    if not a["tri"]:
+        return
+    abrir_sistema(c, a["tri"])
+    r = js(c, JS_OBRA_DECOMP_DOM, a)
+    passo(c, "obra/decomposição: partes agrupadas por 'grupo', cada uma com estado e nº de elementos",
+          r["partes"] == r["esperado"] > 0 and r["grupos"] == r["gEsperado"] and r["agrupado"] and r["n"], f"{a['tri']}: {r['partes']} partes em {r['grupos']} grupos")
+    passo(c, "obra/decomposição: cada estado (geometria, documento, sem evidência) tem marcador visual distinto",
+          r["distintas"] and set(r["estados"]) == set(js(c, "(i) => [...new Set(__viz.obra.ES.sistemas[i].decomposicao.map(p => p.estado))]", a["tri"])), str(r["estados"]))
+    passo(c, "obra/decomposição: 'sem evidência' chama a atenção (fundo e marcador de alerta)", r["semAtencao"] in (True, None), str(r["semAtencao"]))
+    passo(c, "obra/decomposição: todos os estados presentes nos dados aparecem na árvore", set(r["todos"]) == set(a["estadosDados"]), str(r["todos"]))
+    passo(c, "obra/decomposição: toda parte com geometria casa com a classe dos elementos do sistema (n_geometria = elementos no mapa)", not a["soltas"], str(a["soltas"]))
+    sem = page.locator(f'#obArvore .ob-sis[data-sis="{a["tri"]}"] .ob-parte.est-sem > .ob-pt')
+    if sem.count():
+        sem.first.click()
+        passo(c, "obra/decomposição: abrir uma parte sem evidência mostra a lacuna",
+              js(c, "(i) => { const l = document.querySelector('.ob-sis[data-sis=\"' + i + '\"] .ob-parte.est-sem .ob-lacuna'); return !!l && l.offsetParent !== null; }", a["tri"]))
+    foto(c, "19_obra_decomposicao")
+    if a["ev"]:
+        abrir_sistema(c, a["ev"]["sis"])
+        page.locator(f'#obArvore .ob-sis[data-sis="{a["ev"]["sis"]}"] .ob-parte[data-parte="{a["ev"]["parte"]}"] > .ob-pt').click()
+        e = js(c, r"""(a) => { const E = __viz.obra.ES, pt = E.sistemas[a.sis].decomposicao.find(p => p.id === a.parte), box = document.querySelector('.ob-sis[data-sis="' + a.sis + '"] .ob-parte[data-parte="' + a.parte + '"] .ob-pt-c');
+          const ev = pt.evidencias.find(x => E.documentos[x.doc] && /^https:\/\//.test(E.documentos[x.doc].link || '')), d = E.documentos[ev.doc];
+          const lk = [...box.querySelectorAll('a')].find(x => x.href === d.link || x.getAttribute('href').startsWith(d.link));
+          return {visivel: box.offsetParent !== null, href: lk ? lk.getAttribute('href') : null, alvo: lk ? lk.target : null, rel: lk ? lk.rel : null, titulo: lk ? lk.textContent : null, tit: d.titulo,
+                  pag: ev.pagina == null ? true : box.textContent.includes('p. ' + ev.pagina), trecho: !ev.trecho || box.textContent.includes('“' + ev.trecho + '”'), link: d.link}; }""", a["ev"])
+        passo(c, "obra/decomposição: a evidência é o título do documento como link https em nova aba (noopener)",
+              e["visivel"] and e["href"] is not None and e["href"].startswith("https://") and e["alvo"] == "_blank" and "noopener" in e["rel"] and e["titulo"] == e["tit"], f"{e['titulo']} → {e['href']}")
+        passo(c, "obra/decomposição: a página aparece como 'p. N' e o trecho entre aspas", e["pag"] and e["trecho"])
+    if a["geo"] and a["parteGeo"]:
+        abrir_sistema(c, a["geo"])
+        parte = f'#obArvore .ob-sis[data-sis="{a["geo"]}"] .ob-parte[data-parte="{a["parteGeo"]}"]'
+        page.locator(parte + " > .ob-pt").click()
+        page.locator(parte + ' [data-ob-acao="parte-mapa"]').click()
+        page.wait_for_timeout(700)
+        g = js(c, """(a) => { const o = __viz.obra, pt = o.ES.sistemas[a.geo].decomposicao.find(p => p.id === a.parteGeo), its = o.elementosDaParte(a.geo, pt), m = __viz.map, b = m.getBounds();
+          const lista = document.querySelectorAll('.ob-sis[data-sis="' + a.geo + '"] .ob-parte[data-parte="' + a.parteGeo + '"] .ob-els [data-ob-id]').length;
+          return {n: its.length, lista, todos: its.every(i => { const l = o.camada.get(i.id); return b.contains(l.getBounds ? l.getBounds().getCenter() : l.getLatLng()); }),
+                  ligada: m.hasLayer(__viz.camadasMapa.construtivos.layer), classes: [...new Set(its.map(i => i.classe))].join(',')}; }""", a)
+        passo(c, "obra/decomposição: parte com geometria lista e enquadra os elementos dela no mapa",
+              g["n"] > 0 and g["lista"] == min(g["n"], 300) and g["todos"] and g["ligada"], f"{g['n']} elemento(s) da classe {g['classes']}")
+        foto(c, "19b_obra_parte_no_mapa")
+
+
+def obra_fonte(c: dict) -> None:
+    """Fonte da ficha como link (nova aba) e 'ver na aba Pranchas'; popup mínimo leva à ficha mesmo com outra aba aberta."""
+    page = c["page"]
+    a = js(c, r"""() => { const o = __viz.obra, E = o.ES, bom = (i, p) => { const d = E.documentos[i.f.properties.doc]; return d && /^https:\/\//.test(d.link || '') && (!p || (d.prancha && __viz.PR.some(x => x.id === d.prancha))); };
+      const it = o.itens.find(i => bom(i, true)) || o.itens.find(i => bom(i, false)); if (!it) return null; const d = E.documentos[it.f.properties.doc];
+      return {id: it.id, rotulo: it.rotulo, titulo: d.titulo, link: d.link, prancha: d.prancha && __viz.PR.some(x => x.id === d.prancha) ? d.prancha : null}; }""")
+    if not a:
+        passo(c, "obra/fonte: nenhum elemento com documento e link nos dados (não testado)", True)
+        return
+    js(c, "(id) => __viz.obra.selecionar(id, {enquadrar: false})", a["id"])
+    page.wait_for_timeout(400)   # o popup anterior some com um fade de 200 ms
+    r = js(c, """(a) => { const lk = [...document.querySelectorAll('#obFicha a')].find(x => x.getAttribute('href') === a.link);
+      return {href: !!lk, alvo: lk ? lk.target : null, rel: lk ? lk.rel : null, titulo: lk ? lk.textContent : null, fonte: [...document.querySelectorAll('#obFicha tr')].some(t => t.firstElementChild.textContent === 'Fonte' && t.contains(lk)),
+              botao: !!document.querySelector('#obFicha [data-ob-acao="prancha"]'), popBotao: [...document.querySelectorAll('.leaflet-popup-content button')].filter(b => /ver ficha/i.test(b.textContent)).length}; }""", a)
+    passo(c, "obra/fonte: 'Fonte' na ficha é o link do projeto, em nova aba (target=_blank, rel=noopener)",
+          r["href"] and r["fonte"] and r["alvo"] == "_blank" and "noopener" in r["rel"] and a["link"].startswith("https://") and r["titulo"] == a["titulo"], f"{r['titulo']} → {a['link']}")
+    foto(c, "20_obra_ficha_fonte")
+    # popup mínimo: com outra aba aberta, 'ver ficha' traz a aba Obra de volta, já no elemento
+    page.click("#t-camadas")
+    passo(c, "obra/popup: uma só ação no popup, 'ver ficha'", r["popBotao"] == 1)
+    page.locator(".leaflet-popup-content button", has_text="Ver ficha").click()
+    passo(c, "obra/popup: 'ver ficha' abre a aba Obra no elemento",
+          js(c, "(a) => !document.querySelector('#aba-obra').hidden && document.querySelector('#obFicha').textContent.includes(a.rotulo) && __viz.obra.sel === a.id", a))
+    if a["prancha"]:
+        page.locator('#obFicha [data-ob-acao="prancha"]').click()
+        p = js(c, "() => ({folha: __viz.FV.P ? __viz.FV.P.id : null, aba: !document.querySelector('#aba-pranchas').hidden, sel: document.querySelector('#t-pranchas').getAttribute('aria-selected')})")
+        passo(c, "obra/fonte: 'ver na aba Pranchas' abre a prancha do documento", p["folha"] == a["prancha"] and p["aba"] and p["sel"] == "true", f"{p['folha']}")
+        page.select_option("#pSel", "")   # fecha a folha: o roteiro segue pelo mapa
+        page.click("#t-obra")
 
 
 def obra_arvore(c: dict) -> None:
@@ -548,7 +792,7 @@ def obra_arvore(c: dict) -> None:
     alvo = js(c, """() => { const t = []; for (const u of __viz.D.construtivos.arvore) for (const s of u.sistemas) for (const [k, n] of Object.entries(s.classes)) t.push({sis: s.id, classe: k, n});
       return t.find(x => x.classe === 'pilar') || t.find(x => x.n > 0 && x.n <= 300) || null; }""")
     if alvo:
-        page.click(f'#obArvore .ob-sis[data-sis="{alvo["sis"]}"] > summary')
+        page.click(f'#obArvore .ob-sis[data-sis="{alvo["sis"]}"] .ob-sis-h')
         page.click(f'#obArvore .ob-cls[data-sis="{alvo["sis"]}"][data-classe="{alvo["classe"]}"]')
         n = js(c, "(a) => document.querySelectorAll('#obArvore .ob-cls[data-sis=\"' + a.sis + '\"][data-classe=\"' + a.classe + '\"] + .ob-els [data-ob-id]').length", alvo)
         passo(c, "obra: clicar numa classe lista os elementos dela", n == alvo["n"], f"{alvo['classe']}: {n} de {alvo['n']}")
@@ -590,7 +834,9 @@ def obra_selecao(c: dict, a: dict) -> None:
     f = r["ficha"]
     passo(c, "obra: ficha com rótulo, classe, sistema, unidade, etapa, atributos e fonte",
           all(t in f for t in (r["rotulo"], r["classe"], "Sistema", "Unidade", "Etapa", "Atributos", "Fonte")), f"{r['classe']} {r['rotulo']}")
-    passo(c, "obra: popup do mapa mostra a classe", r["classe"] in r["popup"])
+    passo(c, "obra: popup do mapa é mínimo (rótulo, classe, sistema e 'ver ficha'), sem a tabela de atributos",
+          r["rotulo"] in r["popup"] and r["classe"] in r["popup"] and r["sisNome"] in r["popup"] and r["popBotao"] and r["popTabelas"] == 0 and "Atributos" not in r["popup"])
+    passo(c, "obra: a ficha completa (tabelas e atributos) fica só no painel", r["fichaTabelas"] >= 1 and "Atributos" in f)
     passo(c, "obra: atributo decimal com vírgula (pt-BR)", r["num"] is None or ("," in r["num"] and r["num"] in f), str(r["num"]))
     passo(c, "obra: elemento destacado (anel duplo) e item da lista marcado", r["aneis"] == 2 and js(c, "document.querySelectorAll('#obRes [aria-current=true]').length") == 1)
     foto(c, "17_obra")
@@ -808,7 +1054,7 @@ def verificar_final(c: dict) -> None:
 
 def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
     c = abrir_pagina(pw, html, cen, pasta, rel)
-    for secao in (verificar_inicio, verificar_mapa, verificar_filtro_etapa, verificar_escopo_tabela, verificar_escopo_valores,
+    for secao in (verificar_obra_abertura, verificar_inicio, verificar_mapa, verificar_filtro_etapa, verificar_escopo_tabela, verificar_escopo_valores,
                   verificar_pranchas, verificar_sondagens_fotos, verificar_3d, verificar_v3_arvore, verificar_v3_intervencao,
                   verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_area_obra,
                   verificar_obra, verificar_projeto):

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.16.0 — 2026-10-30 · Foz, rodada 16: aba Obra como determinação de escopo
+- **Escopo por unidade construtiva** (`camadas/escopo_obra.py`): dentro / fora / a definir pela convenção do desenho
+  004 (regra do `Escopo_1etapa_PBES.pdf`, manchas lidas da f004), pelo contrato (redes) ou manual
+  (`escopo_unidades.manual` no obra.json — módulo de filtros fora, Caio 30/10), com motivo e evidência. Foz:
+  Actiflo 360 e 600, adutoras e drenagens dentro; filtros, edifício do lodo e EEE fora; torre, guarita e depósito a
+  definir.
+- **Decomposição construtiva** (`conceitos/construcao_civil.json`, 5 tipologias, 38 partes): cada unidade desdobrada
+  no que se constrói (escavação, estacas, blocos, laje de fundo, paredes, pilares, vigas, lajes, escadas,
+  impermeabilização…), com evidências de geometria, pranchas e Relação de Desenhos, memoriais/TR e itens do
+  contrato (sem preço); lacuna fica "sem evidência".
+- **Fonte com link** para o projeto (Google Drive, pelo id da listagem) e para a aba Pranchas; elementos com `doc`.
+- **Aba Obra principal**: abre primeiro; controle "No escopo" por sistema (salvo no navegador, exporta para o
+  obra.json, restaura do projeto); filtro "Só o escopo"; resumo dentro/fora/a definir; ficha só no painel e popup
+  mínimo.
+- Motor e aba feitos por dois agentes (Sonnet) contra um contrato fixo; regra no obra.json, ligação, revisão e
+  testes na sessão principal.
+
 ## 0.15.0 — 2026-10-29 · Foz, rodada 15: o HTML navegável por elementos construtivos
 - **Elementos construtivos** (`camadas/construtivos.py`, `conceitos/unidades_construtivas.json`): Unidade 1 (ETA,
   obra localizada) e Unidade 2 (adutoras, obra linear) → sistema (módulo de filtros, Actiflo 360/600, AAT06…) →
