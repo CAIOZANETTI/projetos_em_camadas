@@ -54,3 +54,13 @@ def test_base_do_repositorio_confere():
     medida, motivos = determinismo.medir()
     assert not [m for m in motivos if 'não existe' in m]
     assert 0 < medida['indice_etapas'] < 1
+
+
+def test_cada_versao_desde_a_0_19_deixa_uma_licao():
+    """A regra vale para qualquer sessão: versão nova no CHANGELOG sem lição em pdca/licoes.jsonl reprova."""
+    import re
+    raiz = Path(__file__).resolve().parents[1]
+    versoes = re.findall(r"^## (\d+)\.(\d+)\.(\d+)", (raiz / 'CHANGELOG.md').read_text(encoding='utf-8'), re.MULTILINE)
+    exigidas = {'.'.join(v) for v in versoes if tuple(map(int, v)) >= (0, 19, 0)}
+    _, licoes, _ = determinismo.carregar(raiz)
+    assert exigidas - {l.get('versao') for l in licoes} == set()

@@ -1,157 +1,311 @@
-# Arquitetura — projetos em camadas (R6, 30/10/2026)
+# Arquitetura — projetos em camadas (R8, 30/10/2026)
 
-Diagrama e cenário de mesa: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
+Diagrama, cenário de mesa e índice: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
 
 ## 1. Princípios
 
-1. **Só escopo.** Serviços e atividades numa EAP com quantidades. Sem preço, sem prazo: nada de valor unitário,
+1. **Só escopo.** Serviços e atividades numa EAP com quantidades. Sem preço e sem prazo: nada de valor unitário,
    fornecedor, cronograma, 4D, curva S ou produtividade (decisões do Caio, 28/10 e 30/10/2026).
 2. **A EAP é a linha mestra; os documentos são evidências; o georreferenciamento é o jeito de ver no local**
    (`docs/EAP.md`).
-3. **Um arquivo HTML** é a entrega e a memória da obra: os dados, os fatos e as decisões moram dentro dele.
-4. **Código para a certeza, IA para a dúvida.** O código extrai, mede e confere. A IA trabalha só no que o código não
-   resolve e sempre com citação conferida. Cada dúvida resolvida vira regra com teste (§8).
-5. **A decisão do engenheiro prevalece sobre a evidência**, sem apagá-la.
+3. **Inventário primeiro, e reavaliado.** Nada se lê antes do inventário de todos os arquivos. Depois de cada
+   extração, o inventário é reavaliado: o que não saiu, ou saiu incompleto, volta para o loop (§2).
+4. **Todo fato diz de onde veio**: a classe da fonte (projeto, memorial, laudo, folha de dados, ordem de serviço…),
+   o documento, o local dentro dele, o método e o passe (§3).
+5. **Código para a certeza, IA para a dúvida.** O trabalho braçal vai para os agentes menores e o julgamento para os
+   maiores. Cada dúvida resolvida vira regra com teste (§9).
+6. **A decisão do engenheiro prevalece sobre a evidência**, sem apagá-la (§6).
+7. **Um arquivo HTML** é a entrega e a memória da obra: dados, fatos, pendências e decisões moram dentro dele.
 
-## 2. Inventário primeiro (portão G0)
+## 2. O ciclo de extração: inventário → extração → reavaliação → loop
 
-Nada se lê antes de existir o inventário de **todos** os arquivos, e nada se afirma ausente sem consultá-lo. Lição
-L008: a forma e a armadura do Actiflo 360 foram dadas como inexistentes e existiam. Em Foz, as formas dos Actiflo
-estavam na listagem como PDFs acima de 5 MB, não baixados.
+```
+pastas da obra ─► P0 inventário ─► P1 código ─► reavaliação ─► completa? ─ sim ─► fatos
+                       ▲                              │ não
+                       │                              ▼
+                       └──── próximo passe da escada (código alternativo → Haiku → Sonnet → Opus → você)
+```
 
-| # | Passo | Quem | Estado |
-|---|---|---|---|
-| 1 | Listagem recursiva do Drive: todo arquivo, de qualquer tipo (pasta não) | Haiku (conector) | feito |
-| 2 | Download dos pendentes pelo link direto, conferindo `%PDF` e tamanho; arquivo privado fica como falha, com o motivo, para você liberar | código (`camadas/drive.py`) | feito |
-| 3 | Loop em todos os arquivos com o leitor do tipo: PDF (formato, layers, código, carimbo), planilha (abas, inclusive ocultas), zip (conteúdo sem extrair); o resto fica "sem leitor", à vista | código (`inventario.ler_arquivo`) | feito |
-| 4 | Situação final de cada arquivo: no disco e lido · lido com erro · sem leitor · falhou · não tentado | código | feito |
-| 5 | Ausência só por consulta: `inventario.procurar(inv, padrão)` busca nome, pasta e título do carimbo em qualquer situação e separa "existe, não lido" de "não existe" | código | feito |
-| 6 | O que cada arquivo entrega: arquivo → sistema × disciplina × conteúdo (planta, forma, armadura, locação, memorial…) pelo código Sanepar, pelo carimbo e pelos termos da EAP | código | a fazer |
-| 7 | Esperado × encontrado: para cada sistema, os documentos que a tipologia exige (forma, armadura, locação e cargas, fundação) → achado ou falta, pela busca do passo 5 | código | a fazer |
-| 8 | Índices cruzados: cada desenho citado na Relação de Desenhos e nos anexos do edital casa com um arquivo; citado e não achado vira alerta (Foz: 58 dos 104 desenhos da Relação do PBES não estão no Drive, rodada 18) | código | a fazer |
-| 9 | PDF com várias folhas: carimbo e título de cada página, não só da primeira | código | a fazer |
+**P0 · Inventário por pasta.** Cada obra tem a própria árvore no Drive, e cada pasta raiz tem um papel:
+- orçamento/licitação: edital, projetos, planilha;
+- obra/execução: ordens de serviço, folhas de dados, projeto executivo, atas;
+- referências.
 
-O G0 fecha quando 100 % dos arquivos têm situação final e o relatório "esperado × encontrado" foi gerado. Os agentes
-só entram nos arquivos sem leitor, e cada um vira candidato a leitor novo (regra da lição, §8).
+O papel da pasta vai para o `obra.json` (`inventario.pastas`, **a fazer**) e orienta a classe da fonte. A listagem
+recursiva traz todo arquivo, de qualquer tipo (`camadas/inventario.py`). O download dos pendentes é feito por
+`camadas/drive.py`, pelo link direto.
 
-## 3. Camadas
+**P1 · Leitura por código.** Cada tipo de arquivo tem seu leitor:
+- **PDF**: formato, layers, código Sanepar, carimbo;
+- **planilha**: abas, inclusive as ocultas;
+- **zip**: o conteúdo.
 
-| # | Camada | Quem | Saída |
-|---|---|---|---|
-| 1 | Fontes: fotos, pranchas, planilha, TR, memoriais, laudos | — | `dados/<obra>/` (fora do git e do HTML) |
-| 2 | Inventário e tipo: planta, perfil, detalhe, documento; disciplina | código (Haiku só baixa) | inventário |
-| 3 | EAP da obra: unidades, sistemas, água/esgoto, localizada/linear | IA propõe, você confirma | sistemas da obra |
-| 4 | Loop de evidências: texto, planilha, pranchas, associados, IA | código; IA no que sobra | evidências |
-| 5 | Fatos: código EAP × serviço × unidade (convergente, fonte única, conflito, só menção, decidido) | código | fatos |
-| 6 | EAP com quantidades, cobertura item × projeto × edital, regra dos 100 % | código | árvore da EAP |
-| 7 | Caderno HTML: blocos `eap`, `fatos`, `camadas`, `decisões`, `dúvidas`, `versões` | código | `saida/<obra>/<id>_camadas_v…html` |
+O que não tem leitor fica "sem leitor", à vista.
 
-**Tipos de documento.** Planta: georreferenciada. Perfil: ancorado pela estaca ao trecho. Detalhe (armadura, forma,
-corte): ancorado ao elemento, nunca georreferenciado. Documento: texto e tabelas.
+**Reavaliação** (`camadas/extracao.py`, regras em `conceitos/fontes.json`). Roda a cada build e grava
+`saida/<obra>/pendencias.json`. Para cada arquivo, ela calcula:
+- **classe da fonte**, em passadas: termos de cotação e de documento de obra, tipo do código Sanepar (DE, MD, RT,
+  LM…), extensão e, por fim, termos no caminho, no nome e no carimbo;
+- **estado**: completa · parcial · falhou · sem leitor · fora do disco. A classe exige campos para contar como
+  completa: uma prancha precisa de título, folha e escala no carimbo; laudo, memorial e edital precisam ter texto;
+- **próximo passe** da escada, para cada situação;
+- **séries de folhas** pelo carimbo: "FOLHA 06/14" diz que a série tem 14 folhas, e as que não aparecem na listagem
+  viram pendência;
+- **registro** `saida/<obra>/extracao.jsonl`: uma linha por arquivo cada vez que o estado muda, com o passe e o
+  executor. Mostra quantas voltas cada arquivo levou e quem resolveu.
 
-**Disciplinas.**
-- Civil e geotecnia: elementos pela geometria → dimensões → serviços associados (`dimensoes.json`,
-  `servicos_associados.jsonl`).
-- Hidráulica: relação de materiais da prancha (OCR), memorial descritivo e planilha, todos ligados ao cadastro
-  Sanepar de 40 mil materiais.
-- Elétrica: pranchas PBEA com texto real, listas de materiais e de cabos, quadros de carga e cadastro elétrico.
-  Hoje só termos; o leitor de listas é lacuna.
+**A escada** (`conceitos/fontes.json`, `escada`). A IA só entra depois que o código tentou:
 
-## 4. Decisões: ida e volta
+| Situação | Próximo passe | Ação |
+|---|---|---|
+| fora do disco | código | `camadas/drive.py`; arquivo privado: você libera |
+| falhou | código → Haiku | repetir a leitura; persistindo, o Haiku diz o que o arquivo é (protegido, corrompido, digitalizado) |
+| carimbo incompleto | código → Haiku | OCR do carimbo em todas as páginas e em 300 dpi; persistindo, o Haiku lê o recorte do canto inferior direito |
+| sem texto | código → Sonnet | OCR de página inteira; persistindo, o Sonnet lê a imagem com citação |
+| sem leitor | Sonnet | lê e devolve no schema da classe, com citação; o leitor em código vira candidato a lição |
+| classe desconhecida | Haiku | diz a classe pelo nome, pela pasta e pela 1ª página; a resposta vira termo novo em `fontes.json` |
+| conteúdo não inventariado | código | extrair e inventariar o conteúdo do compactado |
+| conflito ou julgamento | Opus | decide com as evidências; o que for regra vira `conceitos/` |
+| fechamento | Fable | audita uma amostra e o relatório de pendências sem ver a conclusão de quem extraiu |
+
+**Rodar mais de uma vez é desejado.** O inventário tem cache por arquivo, o registro só grava quando o estado muda
+e a reavaliação é determinística. Cada volta fecha as pendências que o passe anterior abriu.
+
+O loop para em dois casos:
+- tudo completo;
+- a escada esgotou: aí vira pendência sua, com o motivo.
+
+A `fracao_completa` (arquivos completos ÷ arquivos no escopo; cotação fica fora e é listada à parte) mede o
+progresso da obra.
+
+**Ausência só por consulta.** `inventario.procurar(inv, padrão)` busca no nome, na pasta e no carimbo, em qualquer
+situação, e separa "existe, não lido" de "não existe". A forma do Actiflo 360 foi dada como inexistente e existia
+(lição L008).
+
+**O que falta para o loop fechar sozinho** (revisão independente do Fable, 30/10, em ordem de prioridade):
+1. **Um executor da escada**: hoje ninguém lê o `pendencias.json`, e o segundo passe é manual. Falta um comando que
+   leia as pendências e chame o degrau certo, como `camadas/drive.py` para "fora do disco".
+2. **O cache não pode impedir a repetição**: o inventário guarda também o erro e o carimbo incompleto pela
+   assinatura do arquivo (tamanho + data). Falta invalidar o cache pelo que faltou, ou pôr o passe na assinatura.
+3. **Os degraus de código alternativo**: OCR do carimbo em 300 dpi e em todas as páginas, OCR de página inteira,
+   extrair o zip. Falta também um contador de tentativas por degrau: "o código esgotou" é o que manda subir para o
+   Haiku.
+4. **Contrato de retorno da IA**: o resultado do Haiku ou do Sonnet volta ao item do inventário e ao registro com o
+   executor certo. Hoje o build sempre grava "código".
+5. **Papel por pasta, esperado × encontrado por sistema** (forma, armadura, locação e cargas, fundação) e **carimbo de
+   todas as páginas**; o `texto` do PDF também precisa olhar além da 1ª página.
+
+Já corrigido a partir da mesma revisão (lição L012):
+- o nome do arquivo vale mais que a pasta;
+- os termos têm fronteira de palavra (FORMA não casa INFORMAÇÕES);
+- laudo vem antes de projeto (perfil de sondagem é laudo);
+- toda classe que lê PDF exige texto, então a OS escaneada não sai completa;
+- foto dispensa leitura e não vai para a IA;
+- as séries de folhas separam por unidade e avisam quando há arquivos fora do disco na pasta;
+- o registro grava qualquer mudança de classe, estado ou do que falta;
+- a cotação é listada à parte.
+
+## 3. Fontes de evidência: o que cada documento entrega
+
+| Classe | Exemplos | Entrega |
+|---|---|---|
+| projeto | pranchas DE (planta, perfil, detalhe), DWG | geometria, layers, tabelas de material, carimbo |
+| memorial | MD, MC, ES, caderno | o que se constrói, materiais, critérios de medição |
+| laudo | RT: sondagem, topografia, ensaio | furos, camadas, NSPT, NA, coordenadas |
+| lista | LM, LC, QC | itens e quantidades de material, cabos, cargas |
+| edital | edital, TR, anexos, minuta | escopo oficial, etapas, decisões do cliente |
+| planilha | contrato, quantitativos (sem preço) | itens e quantidades por etapa |
+| folha de dados | datasheet, catálogo, ficha técnica | equipamento, tag, vazão, potência, DN, PN |
+| documento de obra | ordem de serviço, ata, notificação, ofício | o que será executado, liberado, por quem |
+| cotação | proposta de fornecedor | **fora do escopo** (preço); fica no inventário |
+
+**Todo fato carrega a fonte:**
+- `classe`, `documento`, `id_drive`;
+- localizador (página e linha, aba e célula, layer e ids dos elementos);
+- trecho literal;
+- `metodo` (texto, OCR, geometria, planilha, IA, decisão);
+- `passe` e `executor`.
+
+Esse formato já é o da evidência do ramo da EAP (`evidencia.schema.json`); ganha `classe` e `passe`. A força de um
+fato é o número de **classes** que concordam, não de arquivos: projeto + memorial + planilha concordando vale mais
+que três folhas do mesmo projeto. Hierarquia quando discordam:
+1. decisão;
+2. documento de obra;
+3. edital;
+4. planilha do contrato;
+5. projeto;
+6. memorial;
+7. folha de dados.
+
+## 4. Interpretação dos projetos pelo carimbo
+
+O carimbo fica no canto inferior direito (ABNT NBR 10582; região de 200 × 115 mm em `inventario.CARIMBO_MM`). A
+leitura tenta três fontes, nesta ordem:
+1. texto do PDF;
+2. fonte embaralhada reparada;
+3. OCR, quando o texto vem em traço SHX.
+
+Campos lidos: título, folha n/m, escala, data. A completar: unidade construtiva, revisão, projetista e responsável.
+O carimbo serve para:
+- **identidade**: título e unidade decidem o sistema da EAP; a escala confere a georreferência (vista em 1:100 não
+  encaixa numa folha em 1:250);
+- **completude**: a série n/m acusa folhas faltando (feito); a Relação de Desenhos acusa desenhos citados e não
+  entregues (rodada 19: 104 citados, 58 não entregues);
+- **coerência**: revisão e disciplina do carimbo × as do nome do arquivo. Divergência vira pendência (a fazer);
+- **todas as páginas**: um PDF de várias folhas tem um carimbo por página (a fazer; hoje só a 1ª).
+
+## 5. Disciplinas
+
+**Geotecnia é separada da civil**, com análise própria, porque a interpretação da sondagem decide boa parte do
+escopo de movimento de terra e de fundação.
+
+O que existe hoje:
+- `sondagens.json` escrito por um agente a partir do laudo, sem schema validado;
+- dois interpretadores divergentes, `obras_lineares.py` (main) e `dimensoes.dimensionar_vala` (ramo EAP):
+
+| Ponto | `obras_lineares` | `dimensionar_vala` |
+|---|---|---|
+| raio de influência do furo | 60 m | 300 m |
+| margem do NA | 0 | 0,5 m |
+| impenetrável | só se a descrição diz | é topo de rocha |
+| categoria de escavação 1ª/2ª/3ª | sim | não |
+| empolamento | 1,30 | 1,25 (solo) / 1,50 (rocha) |
+| cota do terreno × boca do furo | ignorada | considerada |
+
+**Módulo `geotecnia`** (a fazer):
+1. **Leitor de laudo por código**: tabela de coordenadas (com EPSG e datum declarados) e perfil SPT por furo
+   (camadas, NSPT, NA, impenetrável), lidos do texto do PDF, com schema validado. O que não sair fica "não lido" e
+   entra na escada.
+2. **Modelo geotécnico único** (`conceitos/geotecnia.json`): perfil por furo, interpolação entre furos com a
+   distância reportada e as funções `perfil(E, N)`, `topo_rocha`, `na`, `categoria_em(h)`. Os dois interpretadores
+   passam a chamá-lo.
+3. **Serviços GEO na EAP**: escavação por categoria, esgotamento e rebaixamento, escoramento por tipo, comprimento de
+   estaca até a camada resistente, bota-fora, empréstimo e contenção.
+4. **Conferências projeto × sondagem**:
+   - estaca projetada × topo do impenetrável;
+   - fundo de cava × NA;
+   - boca do furo × terreno do MDS (já existe);
+   - trecho fora do raio de qualquer furo.
+5. **Relatório geotécnico independente** na aba EAP: furos, modelo, serviços e conflitos, separado da civil.
+
+**Civil**: estruturas de concreto, edificações e pavimentação. Elementos pela geometria → dimensões → serviços
+associados (forma, concreto, armadura por taxa, lastro, escoramento de laje). As formas dos Actiflo já entram pelo
+build (rodada 18).
+
+**Hidráulica**: três fontes, todas ligadas ao cadastro Sanepar de 40 mil materiais:
+- relação de materiais da prancha, lida por OCR (balão → item);
+- memorial descritivo como especificação (material, DN, PN, norma);
+- planilha do contrato.
+
+**Elétrica**: pranchas PBEA com texto real, listas de materiais e de cabos, quadro de cargas. Hoje só termos; o
+leitor de listas é lacuna.
+
+## 6. Decisões: ida e volta
 
 Schema único: `{id, alvo (prefixo da EAP), estado (executar | nao_executar | a_definir), motivo, autor, data,
-supera[]}`. O build aplica as decisões **antes** dos cálculos e elas descem para os filhos e os serviços associados.
-Exemplo: sem drenagem urbana, também não há vala nem pavimento da drenagem. O HTML mostra a evidência superada e o nó
-riscado, fora da soma. Ao gravar, o navegador gera uma nova versão do arquivo com o bloco de decisões. O build
-seguinte lê esse bloco. Um teste de ida e volta garante que nada se perde.
+supera[]}`.
+- O build aplica as decisões **antes** dos cálculos.
+- Elas descem para os filhos e para os serviços associados: sem drenagem urbana, também não há vala nem pavimento da
+  drenagem.
+- O HTML mostra a evidência superada e o nó riscado, fora da soma.
+- Ao gravar, o navegador gera uma nova versão do arquivo com o bloco de decisões; o build seguinte lê esse bloco.
+- Um teste de ida e volta garante que nada se perde.
 
-## 5. Quem faz o quê
+## 7. Quem faz o quê
 
-| Executor | Papel |
+| Executor | Papel no ciclo |
 |---|---|
-| Código | tudo o que já é certeza; valida o que os agentes devolvem |
-| Haiku | volume mecânico: listar e baixar o Drive (um por pasta), conferir contagens |
-| Sonnet | leitura técnica em volume (memoriais, laudos, perfil de planilha, listas); módulo a partir de contrato fixo |
-| Fable | revisor independente: crítica de arquitetura, cenário de mesa, revisão de PR sem ver a conclusão do autor |
-| Opus | sessão principal: contrato de saída, georreferência difícil, revisão das dúvidas, integração e PR |
-| Você | sistemas da obra nova, decisões de execução, confirmação de regra nova |
+| Código | inventário, leitores, reavaliação, georreferência, dimensões, associados; valida tudo o que os agentes devolvem |
+| Haiku | braçal: listar o Drive, dizer a classe de arquivo desconhecido, ler um recorte de carimbo, conferir contagens |
+| Sonnet | leitura técnica em volume: arquivos sem leitor, laudos, memoriais, listas, perfil de planilha; módulo a partir de contrato fixo |
+| Opus | sessão principal: contrato de saída, conflitos, georreferência difícil, revisão das dúvidas, integração e PR |
+| Fable | revisor independente: auditoria do fechamento do ciclo, crítica de arquitetura, revisão de PR |
+| Você | sistemas da obra nova, decisões de execução, arquivos privados, confirmação de regra nova |
 
 Regras do paralelismo:
 - o contrato de saída é fixado antes de abrir os lotes;
-- lotes sem sobreposição;
-- a prancha não vai inteira para a IA;
-- cada agente devolve schema + dúvidas, nunca texto livre.
+- lotes sem sobreposição (por pasta, por classe de fonte);
+- a prancha não vai inteira para a IA, só o recorte em dúvida;
+- cada agente devolve schema + dúvidas, nunca texto livre, e o passe dele entra no registro.
 
-## 6. Processo (portões)
+## 8. Processo (portões)
 
 | Portão | O que fecha |
 |---|---|
-| G0 | inventário de todos os arquivos com situação final, esperado × encontrado e orçamento de MB por bloco |
+| G0 | inventário por pasta, reavaliado; nenhum arquivo sem estado; séries e índices cruzados conferidos |
 | G1 | EAP da obra com os sistemas confirmados |
-| G2 | extração por perfil, com as dúvidas na fila |
+| G2 | extração em loop até a escada esgotar; pendências restantes com motivo |
 | G3 | georreferência e âncoras (drone opcional) |
-| G4 | fatos |
+| G4 | fatos com a fonte de cada um |
 | G5 | decisões aplicadas |
-| G6 | serviços associados, com um motor por assunto |
+| G6 | geotecnia (modelo único) e serviços associados, um motor por assunto |
 | G7 | caderno HTML dentro do orçamento de tamanho |
 
-## 7. O que o cenário de mesa mostrou (obra nova: elevatória + 3 km de rede de esgoto)
-
-Trava em cinco pontos. As correções da R4 são estas:
-
-1. **Sistemas da obra**: `unidades_construtivas.json` só tem Foz. Correção: separar conceito (todas as obras) de obra
-   (sistemas no caderno).
-2. **Planilha**: `orcamento_sanepar.py` fixa as abas de Foz. Correção: perfil de planilha em JSON e leitor genérico.
-   A IA escreve o perfil, não o código.
-3. **Obra sem drone**: o build exige o SfM. Correção: drone opcional, com base satélite.
-4. **Três motores de vala** com regras diferentes (`valas.py`, `dimensoes.dimensionar_vala`, `obras_lineares`).
-   Correção: um dimensionador, com o MOS Sanepar como padrão.
-5. **Decisões**: a exportação do navegador usa outra chave e fica fora do HTML. Correção: o schema único do §3.
-
-## 8. Regra da lição aprendida e índice de determinismo
+## 9. Regra da lição aprendida e índice de determinismo
 
 **Regra.** Toda rodada com a IA deixa ao menos uma lição formalizada em código: uma regra em `conceitos/` ou uma
-função, e um teste. As lições ficam em `pdca/licoes.jsonl`, com `licao`, `antes`, `formalizada_em`, `teste` e
-`estado`. A rodada não se registra sem lição nova.
+função, e um teste. As lições ficam em `pdca/licoes.jsonl`, com `versao`, `licao`, `antes`, `formalizada_em`, `teste`
+e `estado`. Desde a 0.21.0, **cada versão do CHANGELOG a partir da 0.19.0 precisa de ao menos uma lição**, e um teste
+reprova a falta (`tests/test_determinismo.py`). Assim a regra vale para qualquer sessão, não só para quem lembra
+dela.
 
-**Índice.** O índice mede a **IA na obra**, não a IA no desenvolvimento:
-- **IA na obra**: um agente leu, julgou, configurou ou operou para que o dado existisse;
-- **IA no desenvolvimento**: escrever código e regras. É o papel criativo da IA e o caminho para ela virar código.
-
-`pdca/determinismo.json` lista cada etapa do processo com o executor (`codigo`, `ia` ou `humano`), o número de itens
-da obra e, nas etapas de IA, o que falta para virar código (`para_codigo`). A decisão humana fica fora do índice: ela
-é desejada.
+**Índice.** O índice mede a **IA na obra**: um agente leu, julgou, configurou ou operou para o dado existir. Não mede
+a IA no desenvolvimento (escrever código e regras), que é o papel criativo dela e o caminho para virar código. A
+decisão humana fica fora do índice.
 
 ```
 python scripts/determinismo.py              # mede e confere as lições
 python scripts/determinismo.py --registrar  # grava a rodada em pdca/determinismo.jsonl
 ```
 
-O script reprova em três casos:
-- lição dada como formalizada cujo arquivo ou teste não existe;
-- índice por etapas pior que o da última rodada;
-- rodada registrada sem lição nova.
+| Medida (Foz) | Base | Rodada 18 | 0.21.0 |
+|---|---:|---:|---:|
+| Etapas do processo em código | 12 / 21 = 57,1 % | 13 / 21 = 61,9 % | **14 / 22 = 63,6 %** |
 
-**Base (Foz, 30/10/2026):**
+A reavaliação do inventário entrou como etapa de código. Antes, essa conferência era da IA na sessão.
 
-| Medida | Base | Após a rodada 18 | |
-|---|---:|---:|---|
-| Etapas do processo (código / IA) | 12 / 9 = **57,1 %** | 13 / 8 = **61,9 %** | o download passou a código (`camadas/drive.py`) |
-| Registros (PDFs, itens, estacas, furos…) | 2 518 / 952 = 72,6 % | 2 684 / 791 = 77,2 % | |
+**Meta:** 85 % das etapas em código. Próximas a converter:
+1. 7 afins coladas;
+2. afim da GEOPLANTA;
+3. conferência visual;
+4. configuração por prancha;
+5. **leitor de laudo de sondagem** (geotecnia, §5).
 
-As 8 etapas que ainda são de IA, por papel:
-- **operação** (1): listar o Drive (conector);
-- **julgamento** (3): afim da GEOPLANTA, 7 afins coladas, conferência visual;
-- **leitura** (2): sondagens e estacas;
-- **configuração** (2): configuração por prancha e sistemas da obra.
+Por arquivo, a `fracao_completa` (§2) mede quanto da obra já foi extraído. Quando o retorno da IA entrar no registro
+(§2, item 4), dá para separar o que saiu só por código do que precisou de um passe de IA.
 
-Houve 1 decisão humana: o módulo de filtros fora do escopo.
+## 10. Como o trabalho anda: PDCA com gerente
 
-**Meta:** 85 % das etapas em código, com +5 p.p. por rodada: são 5 rodadas a partir de hoje. As próximas etapas a
-virar código são as de menor esforço:
-1. as 7 afins coladas → irmã CAD × CAD da GEOPLANTA no build;
-2. a afim da GEOPLANTA → ajuste no build pelas sondagens;
-3. a conferência visual → testemunha independente com limiar;
-4. a configuração por prancha → perfil por disciplina.
+Toda implementação segue um plano em `docs/plano/<data>_rodada<N>.md`. O plano tem uma tabela de entregas, cada uma
+com a verificação que a aceita, e o estado de cada entrega anda `pendente` → `feito` → `verificado`.
 
-Os 15 % restantes ficam com a IA criativa: dúvida nova, obra nova e melhoria do próprio código.
+| Fase | O que acontece | Quem |
+|---|---|---|
+| **P**lano | entregas, contrato de cada uma (arquivos, funções, schema), verificação e agente | Opus escreve; Fable aprova o plano |
+| **D**o | implementação em Python no estilo do repositório; lotes em paralelo sem sobreposição de arquivos | Sonnet (código), Haiku (braçal) |
+| **C**heck | `pytest`, `scripts/afericao.py`, `scripts/determinismo.py`; depois a revisão da entrega contra o plano: **aceita** ou **revisar**, com motivos | código, depois Fable |
+| **A**ct | aceita: PR na `main` com merge automático, plano atualizado, lição em `pdca/licoes.jsonl`. Revisar: volta ao implementador com os motivos | Opus executa; Fable decide |
+
+**Papéis.**
+- **Fable é o gerente da rodada.** Aprova o plano, aceita ou devolve cada entrega e escreve a entrega final para o
+  Caio: o prometido × o entregue, o que ficou de fora e por quê.
+- **Opus é quem executa.** Abre os agentes, integra os ramos, roda os testes, abre o PR e faz o merge depois do aceite.
+- **Sonnet e Haiku implementam** contra um contrato fixo: arquivos, funções, schema e testes esperados.
+- **O Caio** recebe a entrega final e verifica.
+
+**Regras.**
+- Uma entrega só vai para a `main` com os três verdes (testes, aferição, determinismo) **e** o aceite do Fable.
+- Cada PR sobe a versão, tem entrada no CHANGELOG e uma lição. O teste da lição reprova versão sem lição.
+- Depois de cada entrega, o plano é revisitado: a entrega cumpriu a verificação prometida? O estado só vira
+  `verificado` com a evidência escrita na linha do plano (números, testes, arquivos).
+- Uma entrega devolvida duas vezes vira pendência explícita do plano, com o motivo, em vez de ser aceita pela metade.
+- Sem os dados da obra (`dados/` fica fora do git), a verificação usa arquivos sintéticos nos testes. O build real de
+  Foz fica como verificação do Caio, listada na entrega final.
+
+**Estilo do código** (o mesmo dos módulos vizinhos):
+- Python em português: nomes, docstrings e mensagens;
+- dict puro e funções curtas (até 60 linhas, a aferição reprova a piora);
+- regras e premissas em `conceitos/*.json`, com `fonte` e `estado`;
+- `metadados()` em cada módulo;
+- teste para cada regra;
+- sem preço e sem prazo.

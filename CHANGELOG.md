@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.21.0 — 2026-10-30 · Arquitetura R7: ciclo de extração, fontes de evidência e geotecnia separada
+- **Reavaliação do inventário a cada build** (`camadas/extracao.py`, `conceitos/fontes.json`): classe da fonte de
+  cada arquivo (projeto, memorial, laudo, lista, edital, planilha, folha de dados, documento de obra, cotação fora do
+  escopo), estado da extração (completa, parcial, falhou, sem leitor, fora do disco) pelos campos que a classe exige,
+  próximo passe da escada (código → Haiku → Sonnet → Opus → você) e séries de folhas incompletas pelo carimbo "n/m".
+  Grava `saida/<obra>/pendencias.json` e o registro `extracao.jsonl` (só quando o estado muda).
+- **Arquitetura R7** (`docs/ARQUITETURA.md`): o ciclo inventário → extração → reavaliação → loop, a fonte de cada
+  fato, a interpretação dos projetos pelo carimbo, a geotecnia como disciplina independente (modelo geotécnico único
+  no lugar dos dois interpretadores divergentes) e os agentes por degrau da escada.
+- **A regra da lição vale para qualquer sessão**: cada versão do CHANGELOG desde a 0.19.0 precisa de uma lição em
+  `pdca/licoes.jsonl` (teste). Lições L010 (rodada 19), L011 e L012. Índice de determinismo: 63,6 % das etapas em
+  código.
+- **Revisão independente (Fable)** antes do PR: nome vale mais que a pasta, termos com fronteira de palavra, laudo
+  antes de projeto, OS escaneada não sai completa, foto dispensa leitura, séries por unidade com aviso de arquivo fora
+  do disco, registro de qualquer mudança e cotação listada à parte. O que falta para o loop fechar sozinho está em
+  `docs/ARQUITETURA.md` §2.
+- **Arquitetura R8** (§10, PDCA com gerente): cada rodada tem plano com entregas e verificação. O Fable aprova o plano,
+  aceita ou devolve cada entrega e escreve a entrega final; o Opus executa; Sonnet e Haiku implementam contra um
+  contrato fixo. PR na `main` só com testes, aferição, determinismo verdes e o aceite. Plano da rodada 20
+  (`docs/plano/2026-10-30_rodada20.md`) e o campo `retorno` por classe em `conceitos/fontes.json`.
+
 ## 0.20.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
 - **Unidades da Relação na aba Obra** (regra código do desenho → sistema em `conceitos/unidades_construtivas.json`):
   7 novas — câmara de contato, canal de água tratada, EEE lodo / reservatório de lodo, RECALD e RECALF, blocos de

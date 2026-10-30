@@ -28,6 +28,7 @@ from . import (
     construtivos,
     escavacao,
     escopo_obra,
+    extracao,
     geo,
     georef_prancha,
     inventario,
@@ -708,6 +709,18 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
     ]
 
 
+def _reavaliar(inv: dict, out: Path) -> dict:
+    """Reavaliação do inventário (`camadas.extracao`): classe de cada fonte, estado da extração, próximo passe e séries
+    de folhas incompletas; grava `pendencias.json` (a lista que abre a próxima rodada) e o registro `extracao.jsonl`."""
+    p = extracao.pendencias(inv)
+    extracao.registrar(p["avaliacoes"], out / "extracao.jsonl", passe="build", executor="código")
+    resumo = {k: p[k] for k in ("por_estado", "por_classe", "fracao_completa", "series", "fora_do_escopo")}
+    (out / "pendencias.json").write_text(json.dumps({**resumo, "pendencias": p["pendencias"]}, ensure_ascii=False,
+                                                    indent=1), encoding="utf-8")
+    _log(f"Extração: {p['por_estado']}; {len(p['pendencias'])} pendência(s), {len(p['series'])} série(s) incompleta(s)")
+    return {**resumo, "pendencias": p["pendencias"]}
+
+
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
     lote; e os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor."""
@@ -719,8 +732,10 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     for chave, pacote in pacotes.items():
         if pacote:
             dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}
-    if cfg.get("inventario"):                         # todos os PDFs da listagem do Drive, com o carimbo
-        dados["inventario"] = inventario.para_html(inventario.inventario(cfg, out / "inventario_cache.json", log=_log))
+    if cfg.get("inventario"):                         # todos os arquivos da listagem do Drive, com o carimbo
+        inv = inventario.inventario(cfg, out / "inventario_cache.json", log=_log)
+        dados["inventario"] = inventario.para_html(inv)
+        dados["inventario"]["extracao"] = _reavaliar(inv, out)
         fl = prancha.lote(cfg, escopo, out, log=_log)                  # ficha leve de cada desenho no disco
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))

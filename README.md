@@ -19,6 +19,7 @@ satélite (opcional, online) ─────────────────
 | `camadas/pdf_cad.py` | PDF vetorial → traços (dict) por **layer CAD** e cor, textos, classificação por etapa e por disciplina (`conceitos/`), pacote vetorial p/ HTML; separação por cor para PDF escaneado |
 | `camadas/georef_prancha.py` | Georreferencia prancha: **malha de coordenadas impressa (OCR)**, CAD × CAD por SIFT (pranchas irmãs), pontos de controle + ICP, busca global; registro imagem↔imagem |
 | `camadas/supressao.py` | Supressão vegetal estimada: ExG + altura do MDS na faixa de obra, por etapa |
+| `camadas/extracao.py` | Reavaliação do inventário: classe da fonte, estado da extração, próximo passe da escada, séries de folhas; `pendencias.json` e registro `extracao.jsonl` (`conceitos/fontes.json`) |
 | `camadas/inventario.py` | Inventário determinístico de **todos** os PDFs da listagem do Drive: situação (no disco / falhou / não tentado), formato da folha, código Sanepar, carimbo (canto inferior direito; texto, fonte reparada ou OCR) e planta × detalhe × documento (`conceitos/tipos_prancha.json`) |
 | `camadas/escavacao.py` | Escavação e reaterro por cava: base das estruturas + cota de fundo (OCR das marcas de nível) + crista desenhada + talude + MDS em cota; edificações como parede (`conceitos/escavacao.json`) |
 | `camadas/prancha.py` | Ficha da prancha em camadas de entendimento: identidade, vistas e escala, tabelas por OCR (relação de materiais, níveis), elementos pelo layer (`conceitos/elementos.json`) ou pela geometria (estacas, blocos), balões → itens, estacas do desenho → E/N (RANSAC), pilares, blocos em 3D, encaixe de vista de detalhe e fichas em lote de todas as pranchas do disco (skill `ler-prancha`) |
@@ -37,7 +38,7 @@ satélite (opcional, online) ─────────────────
 | `scripts/exemplo_irati.py` | Exemplo completo: EEB 10 Alto Recalque (SAA Irati/PR) |
 | `exemplos/foz/obra.json` | Obra completa: ETA Vila C, SAA Foz do Iguaçu (etapas, sondagens, 3D) |
 | `exemplos/irati/` | Resultado do exemplo: mosaico georreferenciado e visualizador |
-| `docs/ARQUITETURA.md` | Arquitetura R4: camadas, decisões, agentes, portões, regra da lição aprendida e índice de determinismo (`scripts/determinismo.py`, `pdca/determinismo.json`, `pdca/licoes.jsonl`) |
+| `docs/ARQUITETURA.md` | Arquitetura R7: ciclo de extração, fontes de evidência, carimbo, geotecnia, decisões, agentes, portões, regra da lição aprendida e índice de determinismo (`scripts/determinismo.py`, `pdca/determinismo.json`, `pdca/licoes.jsonl`) |
 | `docs/PLANO.md` | Plano de implementação, fases e perguntas em aberto |
 | `docs/PLANO_FOZ.md` | Plano e resultados da obra de Foz (achados, divisão Haiku/Sonnet/Opus, pendências) |
 | `docs/VISUALIZADOR_V2.md` | Contrato de dados do HTML v2 (pranchas vetoriais, etapas, escopo, 3D) |

@@ -13,6 +13,7 @@
  "etapas": [
   {"id": "listagem", "portao": "G0", "nome": "Listagem recursiva do Drive", "executor": "ia", "papel": "operação", "itens": 428, "fonte": "docs/PLANO_FOZ.md §5 (Haiku, conector do Drive)", "para_codigo": "listagem pela API do Drive dentro do build, com credencial do ambiente"},
   {"id": "download", "portao": "G0", "nome": "Download dos PDFs pendentes pelo link direto", "executor": "codigo", "itens": 164, "fonte": "camadas/drive.py (rodada 18: 164 PDFs, 811 MB, 0 falha); antes Haiku pelo conector, que não passa de ~5,5 MB"},
+  {"id": "reavaliacao", "portao": "G0", "nome": "Reavaliação do inventário: classe da fonte, extração saiu?, próximo passe, séries de folhas", "executor": "codigo", "itens": 325, "fonte": "camadas/extracao.py (0.21.0); antes a conferência era da IA na sessão (lição L008)"},
   {"id": "inventario", "portao": "G0", "nome": "Inventário, carimbo e tipo de cada PDF", "executor": "codigo", "itens": 325, "fonte": "camadas/inventario.py"},
   {"id": "sfm", "portao": "G3", "nome": "SfM, ortofoto verdadeira e 3D", "executor": "codigo", "itens": 13, "fonte": "camadas/sfm.py"},
   {"id": "controle_absoluto", "portao": "G3", "nome": "Afim da GEOPLANTA pelas 16 sondagens", "executor": "ia", "papel": "julgamento", "itens": 1, "fonte": "exemplos/foz/obra.json controle_absoluto (valores calculados na sessão e colados)", "para_codigo": "ajuste afim no build a partir das sondagens com E/N e dos rótulos SP-xx lidos na planta"},
