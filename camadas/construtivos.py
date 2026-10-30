@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import shapely
@@ -31,9 +32,16 @@ def _sistema(codigo: str) -> dict:
     return REGRAS["sistemas"].get(codigo) or {"unidade": "u1", "nome": codigo, "estado": "premissa"}
 
 
+def _doc_id(arquivo: str | None) -> str | None:
+    """Id do documento de origem = nome do PDF sem extensão (o mesmo id que `escopo_obra` usa nos links);
+    'A+B' (estaca vista em dois desenhos) fica com o primeiro."""
+    return Path(arquivo.split("+")[0]).stem if arquivo else None
+
+
 def _adicionar(ctx: dict, codigo: str, classe: str, rotulo: str, geometria: dict, atributos: list, fonte: str,
-               etapa: str | None = None, chave: str | None = None) -> None:
-    """Acrescenta uma feature no contrato; id = sistema-classe-chave, com sufixo se repetir. Valor nulo não entra."""
+               etapa: str | None = None, chave: str | None = None, doc: str | None = None) -> None:
+    """Acrescenta uma feature no contrato; id = sistema-classe-chave, com sufixo se repetir. Valor nulo não entra.
+    `doc` = id do documento (prancha, forma) de onde o elemento veio."""
     unidade = _sistema(codigo)["unidade"]
     nome = re.sub(r"\s+", "_", chave or rotulo)
     base = f"{unidade}-{codigo}-{classe}-{nome}"
@@ -47,7 +55,7 @@ def _adicionar(ctx: dict, codigo: str, classe: str, rotulo: str, geometria: dict
                             "properties": {"id": ident, "rotulo": rotulo, "classe": classe, "unidade": unidade,
                                            "sistema": f"{unidade}-{codigo}", "etapa": etapa,
                                            "atributos": [[k, v] for k, v in atributos if v is not None],
-                                           "fonte": fonte}})
+                                           "fonte": fonte, "doc": doc}})
 
 
 def _por_sistema(indices: list, estacas: list) -> str:
@@ -56,9 +64,14 @@ def _por_sistema(indices: list, estacas: list) -> str:
     return " · ".join(f"{k} {n}" for k, n in cont.most_common())
 
 
+def _arquivo_ficha(dados: dict, ficha: str) -> str | None:
+    """PDF de onde a ficha leu os blocos e pilares."""
+    return next((f["identidade"]["arquivo"] for f in dados.get("fichas") or [] if f["id"] == ficha), None)
+
+
 def _fonte_ficha(dados: dict, ficha: str) -> str:
     """Desenho de onde a ficha leu os blocos e pilares."""
-    arq = next((f["identidade"]["arquivo"] for f in dados.get("fichas") or [] if f["id"] == ficha), None)
+    arq = _arquivo_ficha(dados, ficha)
     return f"forma {arq.removesuffix('.pdf')} (camadas.prancha)" if arq else f"ficha {ficha} (camadas.prancha)"
 
 
@@ -69,7 +82,7 @@ def _estacas(ctx: dict, estacas: list, bloco_da_estaca: dict) -> None:
                    [["Diâmetro nominal (cm)", p.get("diametro_cm")], ["Comprimento (m)", p.get("comprimento_m")],
                     ["Cota de arrasamento (m)", p.get("cota_arrasamento")], ["E (m)", float(p["E"])],
                     ["N (m)", float(p["N"])], ["Bloco", bloco_da_estaca.get(i)]],
-                   f"fundação {p['desenho_origem']} (estacas.csv)")
+                   f"fundação {p['desenho_origem']} (estacas.csv)", doc=_doc_id(p["desenho_origem"]))
 
 
 def _blocos_e_pilares(ctx: dict, dados: dict, formas: list, estacas: list, dentro: list) -> dict:
@@ -89,7 +102,7 @@ def _blocos_e_pilares(ctx: dict, dados: dict, formas: list, estacas: list, dentr
                     ["Face superior (cota, m)", p.get("face_superior_m")], ["Arrasamento (cota, m)", p.get("arrasamento_m")],
                     ["Pilar", p["rotulo"] if p["rotulo"] in pilares else None], ["Ficha", p["ficha"]],
                     ["Conferir", "há estaca de outro sistema dentro do bloco" if outras else None]],
-                   _fonte_ficha(dados, p["ficha"]))
+                   _fonte_ficha(dados, p["ficha"]), doc=_doc_id(_arquivo_ficha(dados, p["ficha"])))
     for f in formas:
         p = f["properties"]
         if p["tipo"] == "Pilar (forma)":
@@ -97,7 +110,7 @@ def _blocos_e_pilares(ctx: dict, dados: dict, formas: list, estacas: list, dentr
             _adicionar(ctx, codigo, "pilar", p["bloco"], f["geometry"],
                        [["Lado (m)", p.get("lado_m")], ["Bloco", p["bloco"]],
                         ["Estacas do bloco", resumo.get(p["bloco"]) or None], ["Ficha", p["ficha"]]],
-                       _fonte_ficha(dados, p["ficha"]))
+                       _fonte_ficha(dados, p["ficha"]), doc=_doc_id(_arquivo_ficha(dados, p["ficha"])))
     return bloco_da_estaca
 
 
@@ -111,6 +124,18 @@ def _sistema_da_cava(idx: list, estacas: list) -> tuple[str, str]:
     if fracao > REGRAS["cava_maioria"]["valor"]:
         return codigo, f"maioria das estacas dentro ({round(100 * fracao)} %)"
     return geral, f"nenhuma estrutura com maioria das estacas ({codigo} {round(100 * fracao)} %)"
+
+
+def _doc_da_cava(dados: dict, geometria: dict) -> str | None:
+    """Folha PBGE ESCAVAÇÃO cuja janela da planta contém a cava; sem janela que a contenha, a primeira folha de escavação."""
+    folhas = [p for p in dados.get("pranchas", [])
+              if re.search(r"ESCAVA[CÇ][AÃ]O", f"{p.get('pdf', '')} {p['nome']}".upper())]
+    ponto = shape(geometria).representative_point()
+    for p in folhas:
+        janela = _janela(p, dados["crs"]["epsg"])
+        if janela is not None and janela.contains(ponto):
+            return _doc_id(p.get("pdf"))
+    return _doc_id(folhas[0].get("pdf")) if folhas else None
 
 
 def _cavas(ctx: dict, dados: dict, cavas: list, estacas: list, dentro: list) -> None:
@@ -128,19 +153,21 @@ def _cavas(ctx: dict, dados: dict, cavas: list, estacas: list, dentro: list) -> 
                     ["Na borda do levantamento", None if "na_borda_do_levantamento" not in p
                      else "sim" if p["na_borda_do_levantamento"] else "não"],
                     ["Estacas dentro", _por_sistema(idx, estacas) or None], ["Sistema pelo critério", criterio]],
-                   fonte, etapa=p.get("etapa"))
+                   fonte, etapa=p.get("etapa"), doc=_doc_da_cava(dados, f["geometry"]))
 
 
-def _estruturas(ctx: dict, vetores: list) -> None:
+def _estruturas(ctx: dict, dados: dict) -> None:
     """Manchas de etapa da folha 04 (vetores f004-*): sistema geral, o nome da mancha como rótulo."""
-    for v in vetores:
+    pdfs = {p["nome"]: p.get("pdf") for p in dados.get("pranchas", [])}
+    for v in dados.get("vetores", []):
         if not v["id"].startswith("f004-"):
             continue
         for n, f in enumerate(v.get("geojson", {}).get("features", []), 1):
             p = f["properties"]
             _adicionar(ctx, REGRAS["sistema_geral"], "estrutura", p["nome"], f["geometry"],
                        [["Etapa", p.get("etapa")], ["Área (m²)", p.get("area_m2")], ["Prancha", p.get("prancha")]],
-                       p.get("prancha") or "folha 04 (camadas.prancha)", etapa=p.get("etapa"), chave=f"{v['id']}-{n:02d}")
+                       p.get("prancha") or "folha 04 (camadas.prancha)", etapa=p.get("etapa"), chave=f"{v['id']}-{n:02d}",
+                       doc=_doc_id(pdfs.get(p.get("prancha"))))
 
 
 def _janela(prancha: dict, epsg: int):
@@ -217,7 +244,7 @@ def _trecho_da_folha(ctx: dict, codigo: str, rede: dict, pid: str, dados: dict, 
     _adicionar(ctx, codigo, "trecho", rotulo, mapping(geom),
                [["Rede", _sistema(codigo)["nome"]], ["Diâmetro (mm)", rede["de_mm"]],
                 ["Fonte do diâmetro", rede.get("fonte_de") or None], ["Extensão estimada (m)", round(sum(ext.values()), 1)],
-                *superficies, ["Folha", prancha["nome"]], *contrato], fonte, chave=pid)
+                *superficies, ["Folha", prancha["nome"]], *contrato], fonte, chave=pid, doc=_doc_id(prancha.get("pdf")))
 
 
 def _rotulo_do_trecho(rede: str, prancha: dict, folhas: int) -> str:
@@ -280,7 +307,7 @@ def montar(dados: dict, cfg: dict) -> dict | None:
     bloco_da_estaca = _blocos_e_pilares(ctx, dados, formas, estacas, dentro(formas))
     _estacas(ctx, estacas, bloco_da_estaca)
     _cavas(ctx, dados, cavas, estacas, dentro(cavas))
-    _estruturas(ctx, dados.get("vetores", []))
+    _estruturas(ctx, dados)
     _trechos(ctx, dados, cfg)
     if not ctx["features"]:
         return None
