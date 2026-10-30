@@ -16,7 +16,12 @@ paginando `pageToken`; desça em cada `application/vnd.google-apps.folder`. Grav
   (JSON `{content, title, id, mimeType}`); decodifique com Python **sem ler o base64 no contexto**
   e apague o .txt.
 - **Limites do conector**: > 10 MB é recusado; ~5,5–10 MB costuma derrubar a conexão ("message too
-  large"). Liste esses arquivos para o usuário baixar manualmente (ou subir em partes).
+  large").
+- **Arquivo grande: link direto** (`camadas/drive.py`): `python -m camadas.drive exemplos/<obra>/obra.json
+  [--filtro PBES]` baixa os pendentes da listagem por `drive.usercontent.google.com/download?id=…` (arquivo
+  compartilhado por link), confere `%PDF` e o tamanho da listagem e registra no `_baixados.csv`. Foz, 30/10/2026:
+  164 PDFs (811 MB, formas e armaduras de 6 a 22 MB), 0 falha. Arquivo privado volta a página de login e fica
+  como falha com o motivo — só então peça ao usuário.
 - Só **um** processo varre `tool-results/` por vez (agentes paralelos roubam os arquivos uns dos outros).
 - Fotos do drone: `dados/<obra>/foto_drone/`; projeto: `dados/<obra>/projeto/<caminho do Drive>/`.
   `dados/` está no `.gitignore` (material do cliente).
