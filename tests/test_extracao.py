@@ -95,3 +95,56 @@ def test_series_por_unidade_e_com_aviso_de_fora_do_disco():
     s = extracao.series([a, b, c])
     assert [(x["unidade"], x["faltam"], x["fora_do_disco_na_pasta"]) for x in s] == \
         [("0017-7471", ["02/02"], 1), ("0017-8820", ["02/02"], 1)]
+
+
+def _inv(*itens):
+    return {"itens": list(itens), "fonte": "teste"}
+
+
+def _sis(tipologia="estrutura_concreto", **extra):
+    return {"S1": {"nome": "Sistema 1", "tipologia": tipologia, "chaves": ["~MOD ?01(?!\\d)"], **extra}}
+
+
+def test_esperado_x_encontrado_no_disco_fora_do_disco_e_nao_achado():
+    inv = _inv(_item("001-SAA-MOD01FORMA-R1.pdf", "PBES"),
+               _item("002-SAA-MOD01ARMADURA-R1.pdf", "PBES", situacao="não tentado"),
+               _item("003-SAA-MOD02FORMA-R1.pdf", "PBES"))                       # outro módulo: não conta
+    linhas = {l["documento"]: l for l in extracao.esperado_x_encontrado(inv, _sis())}
+    assert linhas["forma"]["situacao"] == "no disco" and linhas["forma"]["arquivos"] == ["001-SAA-MOD01FORMA-R1.pdf"]
+    assert linhas["armadura"]["situacao"] == "fora do disco"
+    assert linhas["locacao_cargas"]["situacao"] == "não achado" and "listagem inteira" in linhas["locacao_cargas"]["resposta"]
+    assert linhas["locacao_cargas"]["arquivos"] == [] and linhas["forma"]["tipologia"] == "estrutura_concreto"
+
+
+def test_rede_exige_so_planta_e_perfil_e_geral_nada():
+    inv = _inv(_item("PLANTA E PERFIL REDE R1.pdf", "REDE1"))
+    rede = {"R": {"nome": "Rede", "tipologia": "rede", "chaves": ["REDE ?1"]}}
+    geral = {"G": {"nome": "Geral", "tipologia": "geral", "chaves": ["REDE ?1"]}}
+    linhas = extracao.esperado_x_encontrado(inv, rede)
+    assert [(l["documento"], l["situacao"]) for l in linhas] == [("planta", "no disco"), ("perfil", "no disco")]   # sem "forma"
+    assert extracao.esperado_x_encontrado(inv, geral) == []                                   # geral não exige nada
+    assert extracao.esperado_x_encontrado(_inv(), rede)[0]["situacao"] == "não achado"
+
+
+def test_exclui_do_sistema_tira_o_arquivo():
+    inv = _inv(_item("MOD01 FORMA EEE FILTROS.pdf", "PBES"), _item("MOD01 FORMA.pdf", "PBES"))
+    linhas = extracao.esperado_x_encontrado(inv, _sis(exclui=["EEE ?FILTROS"]))
+    assert [l["arquivos"] for l in linhas if l["documento"] == "forma"] == [["MOD01 FORMA.pdf"]]
+
+
+def test_todas_as_tipologias_tem_documentos_esperados():
+    tipologias = json.loads((extracao.pdf_cad.CONCEITOS / "construcao_civil.json").read_text(encoding="utf-8"))["tipologias"]
+    assert set(tipologias) == set(extracao.ESPERADOS) and extracao.ESPERADOS["geral"]["documentos"] == []
+    assert {d["id"] for d in extracao.ESPERADOS["rede"]["documentos"]} == {"planta", "perfil"}
+
+
+def test_papel_pelo_prefixo_mais_longo_sem_acento():
+    pastas = {"01. RECEBIDOS": "licitacao", "01. RECEBIDOS/ORDENS": "obra", "05. ORÇAMENTO": "orcamento"}
+    papel = lambda pasta: extracao.papel(_item("a.pdf", pasta), pastas)
+    assert papel("01. RECEBIDOS/ORDENS/2027") == "obra" and papel("01. RECEBIDOS/EDITAL") == "licitacao"
+    assert papel("05. ORCAMENTO/planilhas") == "orcamento" and papel("05. orçamento") == "orcamento"
+    assert papel("01. RECEBIDOS EXTRAS") is None and papel("OUTRA") is None and extracao.papel(_item("a.pdf"), None) is None
+    av = extracao.avaliar(_item("a.pdf", "05. ORÇAMENTO"), pastas)
+    assert av["papel"] == "orcamento" and "papel" not in extracao.avaliar(_item("a.pdf"))
+    p = extracao.pendencias(_inv(_item("a.pdf", "05. ORÇAMENTO"), _item("b.pdf", "X")), pastas)
+    assert p["por_papel"] == {"orcamento": 1, "sem papel": 1}
