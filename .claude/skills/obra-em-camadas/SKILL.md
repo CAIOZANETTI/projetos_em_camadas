@@ -63,8 +63,6 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
   `referencias_geodesicas: {pasta, raio_m}` cria a camada com distância à obra. Use os marcos em bom estado para
   pontos de controle GNSS e datum vertical; a RBMC mais próxima é a base do RTK/PPK.
 - **Supressão vegetal estimada** (`supressao`): `obra.json` `supressao: {faixa_m, altura_min_m, etapas}`.
-- **4D**: `cronograma` com atividades (início/fim em dias da OS, peso % das UCs do TR, seletor por pranchas,
-  grupos, etapas, vetores, estacas). Elementos e curva S são calculados no Python; o HTML só exibe.
 - **SIG**: `sig/` com ortofoto.tif, mds.tif, obra.gpkg e pontos/*.points (`"sig": true`).
 - **Estilo do Caio** (skill `estilo-caio-python`): dict puro, pt-BR, YAGNI, cálculo no Python,
   `metadados()` com bibliografia, `python scripts/afericao.py --registrar` antes do PR.

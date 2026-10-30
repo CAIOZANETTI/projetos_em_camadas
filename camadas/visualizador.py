@@ -37,7 +37,6 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
   # --- visualizador v3 (opcionais; veja a seção "v3" de docs/VISUALIZADOR_V2.md) ---
   "grupos": {"Civil": ["Drenagem", ...]},      # árvore por disciplina; pranchas[].grupo/subgrupo e layers[].grupo/subgrupo
   "intervencoes": [{"id", "nome", "cor"}],     # tipos do recorte classificado
-  "cronograma": {"data_os", "data_os_hipotese", "prazo_dias", "marcos", "atividades", "curva_s": {"dia", "planejado_pct"}},   # 4D
   # vetores especiais: "estacas" (flag estacas), "supressao" (resumo por etapa) e "marcos" (marcos geodésicos)
   # escopo: por_tabela e totais são contagens (itens, 1ª/2ª etapa, alerta, no cadastro), calculadas no Python;
   #   tubo_x_desenho: [{prancha, nome, tabelas, codigo, descricao, contrato_m, desenho_m, diferenca_pct}]

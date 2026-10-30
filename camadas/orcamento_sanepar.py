@@ -41,8 +41,6 @@ Estrutura do orçamento principal (descoberta na análise):
         está quantificada).
   * 'Relação de Materiais' (OCULTA) -> mesmas tabelas, com 'Quantidade 1ª
         etapa' e 'Quantidade 2ª etapa' (única indicação explícita de etapa).
-  * 'Medição e Faturamento' / 'Marcos Cont.' -> Unidades Construtivas (UC 1..8)
-        e "Fases executivas (licitações)".
 """
 import os
 import re
