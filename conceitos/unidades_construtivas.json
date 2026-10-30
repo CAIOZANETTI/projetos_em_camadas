@@ -33,7 +33,11 @@
  "sistema_geral": "ETA",
  "fichas": {
   "mod01_forma": {"sistema": "FILTROS", "estado": "confirmado",
-                  "fonte": "ficha 'Módulo de filtros · locação e cargas (piloto estrutura)'; blocos e pilares lidos da forma MOD01FORMA"}
+                  "fonte": "ficha 'Módulo de filtros · locação e cargas (piloto estrutura)'; blocos e pilares lidos da forma MOD01FORMA"},
+  "act01_forma": {"sistema": "ACT600", "estado": "confirmado",
+                  "fonte": "forma 001-…-ACT01FORMA-R0 (pasta MOD_TRATAM_MICRO_AREIA_600Ls): 87/87 estacas encaixadas nas ACT600 do estacas.csv a 6 mm"},
+  "act02_forma": {"sistema": "ACT360", "estado": "confirmado",
+                  "fonte": "forma 001-…-ACT02FORMA-R0 (pasta MOD_TRATAM_MICRO_AREIA_360Ls): 39/39 estacas encaixadas nas ACT360 do estacas.csv a 3 mm"}
  },
  "cava_maioria": {"valor": 0.5, "estado": "premissa",
                   "fonte": "fração das estacas dentro da cava que uma só estrutura precisa passar para dar o sistema à cava (maioria estrita); abaixo disso a cava fica no sistema geral. A C02 (filtros + Actiflo 600 + EEE) passa por pouco: conferir"},
