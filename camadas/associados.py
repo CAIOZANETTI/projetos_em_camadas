@@ -2,7 +2,8 @@
 
     bloco      ─► escavação, reaterro, lastro, forma, concreto, armadura (taxa)
     estaca     ─► concreto do fuste, arrasamento
-    trecho     ─► escavação de vala, berço, reaterro, demolição e recomposição de pavimento (premissas de valas.json)
+    trecho     ─► camadas.calculo_vala: largura, escoramento, pavimento, escavação solo/rocha, tubo, reaterro,
+                  bota-fora e água pela sondagem mais próxima
     fato laje  ─► escoramento          fato baldrame ─► escavação e reaterro
 
 Cada regra tem base (classe do elemento construtivo ou fato consolidado), destino (item EAP + serviço), variáveis
@@ -112,9 +113,10 @@ def _evidencia(regra: dict, codigo_base: str, localizador: str, contexto: dict, 
                      regra=regra["id"])
 
 
-def de_elementos(construtivos: dict, epsg: int) -> tuple[list[dict], dict]:
-    """Evidências dos serviços associados a cada elemento construtivo; e {regra: elementos sem valor}."""
-    saida, sem_valor = [], {}
+def de_elementos(construtivos: dict, epsg: int, sondagens: list | None = None) -> tuple[list[dict], dict]:
+    """Evidências dos serviços associados a cada elemento construtivo (regras por fórmula e, nos trechos de rede, o
+    cálculo da vala com as `sondagens`); e {regra: elementos sem valor}."""
+    saida, sem_valor = _de_trechos(construtivos, epsg, sondagens)
     for regra in (r for r in REGRAS if "classe" in r["base"]):
         for f in construtivos["geojson"]["features"]:
             p = f["properties"]
@@ -127,6 +129,32 @@ def de_elementos(construtivos: dict, epsg: int) -> tuple[list[dict], dict]:
             resultado, contexto = calcular(regra, valores)
             base = f"{p['unidade'].upper()}.{p['sistema'].split('-', 1)[1]}"
             saida.append(_evidencia(regra, base, p["id"], contexto, resultado))
+    return saida, sem_valor
+
+
+def _de_trechos(construtivos: dict, epsg: int, sondagens: list | None) -> tuple[list[dict], dict]:
+    """Uma evidência por quantidade (não detalhe) do cálculo de vala de cada trecho, com a memória do serviço."""
+    from . import calculo_vala
+    from .evidencias import evidencia
+    saida, sem_valor = [], {}
+    for f in construtivos["geojson"]["features"]:
+        p = f["properties"]
+        if p["classe"] != "trecho":
+            continue
+        trecho = calculo_vala.de_feature(f, epsg)
+        if trecho is None:
+            sem_valor.setdefault("calculo_vala", []).append(p["id"])
+            continue
+        calc = calculo_vala.calcular_trecho(trecho, sondagens)
+        base = f"{p['unidade'].upper()}.{p['sistema'].split('-', 1)[1]}"
+        for q in (q for q in calc["quantidades"] if q["servico"]):
+            passos = "; ".join(f"{x['passo']}: {x['formula']} = {x['resultado']} {x['unidade']}".strip()
+                               for x in calc["passos"] if x["segmento"] == q["segmento"])
+            saida.append(evidencia(codigo=f"{base}.{q['item']}", servico=q["servico"], unidade=q["unidade"],
+                                   valor=q["valor"], parcela=True, documento=DOCUMENTO,
+                                   localizador=f"{p['id']} · {q['segmento']}", trecho=f"{q['descricao']} · {passos}"
+                                   + (f" · alertas: {'; '.join(calc['alertas'])}" if calc["alertas"] else ""),
+                                   metodo="associado", regra=f"calculo_vala.{q['servico']}"))
     return saida, sem_valor
 
 

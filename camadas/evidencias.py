@@ -365,15 +365,16 @@ def paginas_pdf(caminho: str | Path) -> list[str]:
 
 
 def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: dict | None = None,
-         epsg: int | None = None, ia: list[dict] | None = None, decisoes: list[dict] | None = None) -> list[dict]:
+         epsg: int | None = None, ia: list[dict] | None = None, decisoes: list[dict] | None = None,
+         sondagens: list | None = None) -> list[dict]:
     """Passa por todos os documentos e junta as evidências, na ordem: texto (`documentos`: [{id, tipo, nome,
     paginas, unidade?, sistema?, obra?, escopo?}]), planilha ((DataFrame, documento, catálogo)), pranchas medidas e
-    serviços associados aos elementos (`construtivos`), IA (citação conferida no documento citado), decisões; por
+    serviços associados aos elementos (`construtivos`; a vala usa as `sondagens`), IA (citação conferida no documento citado), decisões; por
     fim os serviços associados aos fatos já consolidados (laje → escoramento)."""
     evs = [e for d in documentos for e in buscar_texto(d, d["paginas"])]
     evs += de_planilha(*planilha) if planilha else []
     if construtivos:
-        evs += de_quantificacao(eap.quantificar(construtivos, epsg)) + associados.de_elementos(construtivos, epsg)[0]
+        evs += de_quantificacao(eap.quantificar(construtivos, epsg)) + associados.de_elementos(construtivos, epsg, sondagens)[0]
     paginas = {d["id"]: d["paginas"] for d in documentos}
     evs += [conferir_citacao(e, paginas.get(e["documento"]["id"], [])) for e in ia or []]
     evs += list(decisoes or [])
@@ -403,7 +404,7 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
         planilha = (df, {"id": Path(esc["itens_csv"]).name, "tipo": "planilha", "nome": esc.get("fonte", "")}, cat)
     extras = {k: ler(conf[k]) if conf.get(k) and Path(conf[k]).exists() else [] for k in ("ia", "decisoes")}
     evs = loop(_documentos(cfg, log), planilha, dados.get("construtivos"), dados["crs"]["epsg"],
-               extras["ia"], extras["decisoes"])
+               extras["ia"], extras["decisoes"], dados.get("sondagens"))
     if not evs:
         return None
     gravar(evs, out / "evidencias.jsonl")

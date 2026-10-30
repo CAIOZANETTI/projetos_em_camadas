@@ -125,8 +125,10 @@ def test_servicos_associados_por_formula():
     assert por[("U1.FILTROS.GEO.MOV.ESC", "")]["valor"] == pytest.approx(20.0, rel=1e-3)   # (16 + 0,5·16 + 1)·0,80
     assert por[("U1.FILTROS.GEO.MOV.REA", "")]["valor"] == pytest.approx(7.2, rel=1e-3)
     assert por[("U1.FILTROS.GEO.FUN.BLO", "forma")]["valor"] == pytest.approx(12.0, rel=1e-3)
-    assert por[("U2.AAT06.GEO.MOV.VAL", "escavacao")]["valor"] == pytest.approx(1.23 * 1.73 * 180, rel=1e-3)
+    # vala (camadas.calculo_vala): escavação abaixo dos 0,35 m de pavimento; demolição em b + 2 × 0,15
+    assert por[("U2.AAT06.GEO.MOV.VAL", "escavacao")]["valor"] == pytest.approx(1.23 * (1.73 - 0.35) * 180, rel=1e-3)
     assert por[("U2.AAT06.CIV.PAV.REC", "demolicao")]["valor"] == pytest.approx(180 * 1.53, rel=1e-3)
+    assert por[("U2.AAT06.GEO.MOV.VAL", "escoramento_pontaleteamento")]["valor"] == pytest.approx(2 * 1.73 * 180, rel=1e-3)
     assert "f=0.5" in por[("U1.FILTROS.GEO.MOV.ESC", "")]["trecho"]          # memória de cálculo
     assert sem_valor == {}
 

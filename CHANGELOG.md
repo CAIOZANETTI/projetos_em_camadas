@@ -32,6 +32,15 @@
   baldrame → escavação e reaterro. Fórmulas num avaliador restrito, com a memória de cálculo no trecho. Variável
   faltando vai para `sem_valor`, nunca para zero. `associados_x_edital` aponta o serviço associado que o edital não
   cita.
+- **Cálculo da vala** (`camadas/calculo_vala.py`, `conceitos/calculo_vala.json`): por segmento de superfície,
+  profundidade (recobrimento + DE + berço, ou a do perfil), escoramento pela profundidade (NR-18, 1,25 m) e pelos
+  agravantes (areia/aterro, NSPT < 4, abaixo do NA) e largura com o acréscimo do escoramento. Depois: corte,
+  demolição e recomposição pelo tipo de pavimento (asfalto → `CIV.PAV.REC`, calçada → `CIV.PAV.CAL`, item novo),
+  escavação abaixo do pavimento em solo e em rocha, berço, envoltória (tubo flexível), assentamento, reaterro com
+  reaproveitamento, bota-fora empolado e esgotamento ou ponteiras quando a vala atinge o NA. Solo, rocha e NA vêm
+  da sondagem mais próxima (raio 300 m, NA com margem de 0,5 m). Sem sondagem, nada disso é suposto e o resultado
+  leva alerta. Memória de cálculo passo a passo. Substitui as regras de vala por fórmula; serviços novos: corte de
+  pavimento, escavação em rocha, escoramento por tipo, envoltória e esgotamento.
 - Cadastro de materiais × EAP: 24,7 mil materiais balizam itens no escopo água e 29,6 mil no esgoto.
 - O build grava `dados.eap`, `dados.evidencias` e o código `eap` em cada elemento da aba Obra, além de
   `evidencias.jsonl`, `fatos.csv`, `cobertura.csv` e `associados.csv`. A aba EAP no HTML fica para a próxima rodada

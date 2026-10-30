@@ -201,8 +201,7 @@ Cada regra tem:
 | bloco (área A, perímetro P, face e arrasamento) | escavação (GEO.MOV.ESC) | (A + f·P + 4f²)·(h + e), h = face − arrasamento + embutimento |
 | bloco | reaterro, lastro, forma, concreto, armadura | (Af − A)(h+e) · A·e · P·h · A·h · taxa·A·h (taxa a calibrar) |
 | estaca (d, L) | concreto do fuste, arrasamento | π d²/4 · L · 1 un |
-| trecho de rede (DE, extensão por superfície) | escavação, berço, reaterro de vala | b = max(DE + 0,60; 0,60); h = recobrimento (pista/calçada/outros) + DE + berço |
-| trecho de rede | demolição e recomposição de pavimento | extensão em pista × (b + 2 × 0,15) |
+| trecho de rede | vala completa (§7.1) | `camadas/calculo_vala.py`, com a sondagem mais próxima |
 | fato laje (m²) | escoramento | A |
 | fato viga baldrame (m) | escavação e reaterro | L(b + 2f)(h + e) · L·2f·(h + e) (seção a conferir) |
 
@@ -214,6 +213,57 @@ Como as fórmulas são calculadas e usadas:
 - **Fatos em conflito** não geram serviço associado: primeiro se resolve o conflito.
 - **`associados_x_edital`** lista o serviço associado que nenhum documento do edital cita: `não citado no edital:
   incluir ou confirmar`. É a pergunta "o escoramento da laje está no orçamento?".
+
+### 7.1 Cálculo da vala (`camadas/calculo_vala.py`, `conceitos/calculo_vala.json`)
+
+O cálculo da rede fica num arquivo próprio. Ele é feito **por segmento de superfície** do trecho (pista, calçada,
+fora da via…), e cada segmento tem a sua profundidade, largura, escoramento e pavimento. Os passos:
+
+| # | Passo | Regra |
+|---|---|---|
+| 1 | Profundidade | h = recobrimento da superfície (pista 1,0; calçada/outros 0,6) + DE + berço; ou a profundidade do perfil |
+| 2 | Solo e água | furo com E/N mais próximo da linha do trecho, até 300 m: classes na faixa 0–h, NSPT mínimo, topo de rocha (camada de rocha ou impenetrável), NA medido − 0,5 m (margem sazonal); com a cota do trecho, as profundidades do furo são deslocadas |
+| 3 | Escoramento | ≤ 1,25 m vala rasa (NR-18); ≤ 2,0 pontaleteamento; ≤ 3,0 descontínuo; ≤ 4,5 contínuo; acima, especial. Areia, aterro, NSPT < 4 ou abaixo do NA ⇒ no mínimo contínuo |
+| 4 | Largura | b = max(DE + 0,60; mínimo da profundidade 0,60/0,80/1,00) + acréscimo do escoramento (0 a 0,30) |
+| 5 | Pavimento | tipo pela superfície (pista → asfalto, calçada → concreto); corte com serra nas 2 bordas (m); demolição L × (b + 2 × 0,15) (m²); volume pelas camadas |
+| 6 | Escavação | abaixo do pavimento, separada em **solo** e **rocha**; escoramento só na parte em solo |
+| 7 | Tubo | berço; envoltória até 0,30 m acima da geratriz (só tubo flexível: PEAD, PVC); assentamento |
+| 8 | Reaterro e bota-fora | reaterro = escavação − berço − envoltória − tubo; rocha e solo mole não voltam (reaterro importado); bota-fora empolado (solo 1,25; rocha 1,50; pavimento 1,35) |
+| 9 | Recomposição | mesma área demolida (m²); camadas do pavimento em m³ como detalhe |
+| 10 | Água | vala abaixo do NA: até 0,5 m de água em solo coesivo → bomba submersível (h); senão ou em areia/aterro → ponteiras (m + h); horas = L / avanço por DE × 10 h/dia |
+
+Para quem usa o resultado:
+- **Memória de cálculo**: cada passo tem fórmula, valores, resultado e fonte.
+- **Detalhes**: o volume demolido, as camadas e o reaterro importado ficam na memória, mas não viram evidência.
+- **Itens EAP de destino**:
+  - corte, demolição e recomposição vão para `CIV.PAV.REC` (asfalto) ou `CIV.PAV.CAL` (calçada);
+  - escavação, rocha, escoramento por tipo, berço, envoltória, reaterro, bota-fora, esgotamento e rebaixamento vão
+    para `GEO.MOV.VAL`;
+  - o assentamento vai para `HID.TUB.RED`.
+- **Sem sondagem no raio**: nada de rocha nem de NA é suposto, e o resultado leva o alerta.
+- **Terreno**: sem a cota do trecho, o terreno fica na cota da boca do furo, também com alerta.
+
+Exemplo (`calcular_trecho`): AAT06, DE 630 PEAD, 120 m em pista e 30 m em calçada. O furo SP-07 está a 80 m, com
+aterro e argila siltosa, NSPT 5–9, NA a 1,9 m e impenetrável a 2,3 m.
+
+| Passo (pista) | Fórmula | Resultado |
+|---|---|---|
+| profundidade | 1,0 + 0,63 + 0,10 | 1,73 m |
+| escoramento | 1,73 m e aterro (não coesivo) | contínuo |
+| largura | max(0,63 + 0,60; 0,80) + 0,20 | 1,43 m |
+| corte / demolição | 2 × 120 · 120 × (1,43 + 0,30) | 240 m · 207,6 m² |
+| escavação em solo | 1,43 × (1,73 − 0,35) × 120 | 236,8 m³ (impenetrável abaixo da vala: sem rocha) |
+| escoramento | 2 × 1,73 × 120 | 415,2 m² |
+| lençol | 1,73 − (1,9 − 0,5) | 0,33 m de água → ponteiras, 80 h |
+
+| Item | Serviço | Total do trecho |
+|---|---|---|
+| CIV.PAV.REC | corte · demolição · recomposição de asfalto | 240 m · 207,6 m² · 207,6 m² |
+| CIV.PAV.CAL | corte · demolição · recomposição de calçada | 60 m · 51,9 m² · 51,9 m² |
+| GEO.MOV.VAL | escavação em solo · escoramento contínuo | 288,7 m³ · 495,0 m² |
+| GEO.MOV.VAL | berço · envoltória · reaterro · bota-fora | 21,5 · 152,7 · 67,8 · 382,7 m³ |
+| GEO.MOV.VAL | rebaixamento (ponteiras) | 120 m · 80 h |
+| HID.TUB.RED | assentamento | 150 m |
 
 ## 8. Quantificação das pranchas e verificação de proposta (`camadas/eap.py`)
 
@@ -253,7 +303,8 @@ com as afirmações, cobertura e associados × edital) e o código `eap` em cada
 | c | Skill de leitura por IA: lê os documentos e escreve `evidencias_ia.jsonl` com trecho literal | `.claude/skills/eap-evidencias` |
 | d | Medir vigas, paredes e lajes nas formas (comprimento/área por layer já calculados em `pdf_cad.quantitativos`) | `pdf_cad`, `prancha.ficha_estrutura` |
 | e | Calibrar premissas (taxa de armadura, embutimento, seção de baldrame) com projetos de armação | `servicos_associados.jsonl` |
-| f | Calçada na vala (demolição/recomposição em fato próprio), escoramento de vala por profundidade, bota-fora por empolamento | `servicos_associados.jsonl`, `servicos.jsonl` |
+| f | Vala pelo perfil longitudinal: profundidade e cota do terreno por estaca do perfil, trecho dividido entre sondagens | `calculo_vala.py`, leitura do perfil nas pranchas AAT |
+| g | Tipo de pavimento real (cadastro viário da prefeitura ou ortofoto) no lugar de "pista = asfalto" | `calculo_vala.json` (`superficie_tipo`) |
 
 ## 11. Decisões em aberto (Caio)
 
