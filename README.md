@@ -23,6 +23,7 @@ satélite (opcional, online) ─────────────────
 | `camadas/escavacao.py` | Escavação e reaterro por cava: base das estruturas + cota de fundo (OCR das marcas de nível) + crista desenhada + talude + MDS em cota; edificações como parede (`conceitos/escavacao.json`) |
 | `camadas/prancha.py` | Ficha da prancha em camadas de entendimento: identidade, vistas e escala, tabelas por OCR (relação de materiais, níveis), elementos pelo layer (`conceitos/elementos.json`) ou pela geometria (estacas, blocos), balões → itens, estacas do desenho → E/N (RANSAC), pilares, blocos em 3D, encaixe de vista de detalhe e fichas em lote de todas as pranchas do disco (skill `ler-prancha`) |
 | `camadas/construtivos.py` | Elementos construtivos para a aba **Obra**: unidade (localizada/linear) → sistema → estaca, bloco, pilar, cava, estrutura e trecho de rede, cada um vetor com atributos e fonte (`conceitos/unidades_construtivas.json`) |
+| `camadas/eap.py` | **EAP (WBS) codificada, a linha mestra**: `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM` (ex.: `U1.ACT600.GEO.FUN.EST`), elemento construtivo → item → quantidade determinística com evidências, prancha → pacote, lacunas e verificação de propostas de IA (`conceitos/eap.json`, `docs/EAP.md`) |
 | `camadas/diagnostico.py` | Conferência visual e calibração em linha de comando: layers em volta de um ponto UTM, inventário de layers × classe, recorte da folha, sobreposição prancha × referência × ortofoto, afinação do OCR |
 | `camadas/valas.py` | Valas das redes: pista × calçada × lote pela posição no desenho (divisas, meio-fio, quadras) ou superfície existente pela ortofoto; demolição, recomposição e volume de vala por rede (`conceitos/valas.json`) |
 | `camadas/sig.py` | GeoTIFF, GeoPackage por layer CAD, `.points` do QGIS; leitor de KMZ das redes de referência (Sanepar, IBGE, RBMC) |
@@ -36,6 +37,7 @@ satélite (opcional, online) ─────────────────
 | `exemplos/irati/` | Resultado do exemplo: mosaico georreferenciado e visualizador |
 | `docs/PLANO.md` | Plano de implementação, fases e perguntas em aberto |
 | `docs/PLANO_FOZ.md` | Plano e resultados da obra de Foz (achados, divisão Haiku/Sonnet/Opus, pendências) |
+| `docs/EAP.md` | EAP como linha mestra: codificação, ligação com elementos, pranchas e contrato, quantificação determinística, IA verificada e próximos passos |
 | `docs/VISUALIZADOR_V2.md` | Contrato de dados do HTML v2 (pranchas vetoriais, etapas, escopo, 3D) |
 | `docs/PESQUISA_REPOSITORIOS.md` | Projetos semelhantes e lições aprendidas |
 | `.claude/skills/` | Skills para o Claude repetir o processo em novos projetos |

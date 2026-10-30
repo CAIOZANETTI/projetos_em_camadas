@@ -26,6 +26,7 @@ import numpy as np
 
 from . import (
     construtivos,
+    eap,
     escavacao,
     geo,
     georef_prancha,
@@ -759,7 +760,8 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
 
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas e inventário com a ficha em lote; e os
-    elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor."""
+    elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor, e a EAP
+    (`camadas.eap`), que dá código e quantidade a cada elemento."""
     if fichas:
         dados["fichas"] = prancha.para_html(fichas)
         if dados.get("vertical"):
@@ -773,6 +775,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
     dados["construtivos"] = construtivos.montar(dados, cfg)        # aba Obra: unidade > sistema > elemento
+    dados["eap"] = eap.montar(dados, cfg)          # EAP: elemento → item (código) → quantidade com evidência
 
 
 # 5 ---------------------------------------------------------------------------

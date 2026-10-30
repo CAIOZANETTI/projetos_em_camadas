@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.16.0 — 2026-10-30 · EAP codificada como linha mestra
+- **EAP (WBS)** (`camadas/eap.py`, `conceitos/eap.json`, `docs/EAP.md`): código `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM`
+  sobre as unidades e os sistemas de `unidades_construtivas.json` (obra localizada × linear); disciplinas Geotecnia
+  (fundações: estacas, blocos, contenções; movimentação de solo), Civil (estruturas de concreto: piso, viga, pilar,
+  parede; pavimentação), Hidráulica (equipamentos; tubulações) e Elétrica. O item vale só para o tipo de obra
+  declarado.
+- **Quantificação determinística**: elemento construtivo → item pela classe → quantidade pela regra do item
+  (contagem, soma de atributo, comprimento ou área em UTM), sempre com os ids dos elementos e a fonte. Elemento sem
+  o atributo vai para `sem_valor`. A consolidação soma por tipo de item. `lacunas` lista o que falta e `sem_item` o
+  que sobra (regra dos 100 %).
+- **Prancha como evidência do pacote** (subgrupo de disciplina → pacote; `eap` opcional na prancha do obra.json).
+- **IA verificada** (`eap.verificar`): a proposta é refeita só com as evidências citadas. Sem evidência, evidência de
+  outro item, medição não prevista ou número que não sai dos elementos: recusada.
+- O build grava `dados.eap` e o código `eap` em cada elemento da aba Obra. A aba EAP no HTML fica para a próxima
+  rodada (`docs/EAP.md` §7).
+
 ## 0.15.0 — 2026-10-29 · Foz, rodada 15: o HTML navegável por elementos construtivos
 - **Elementos construtivos** (`camadas/construtivos.py`, `conceitos/unidades_construtivas.json`): Unidade 1 (ETA,
   obra localizada) e Unidade 2 (adutoras, obra linear) → sistema (módulo de filtros, Actiflo 360/600, AAT06…) →

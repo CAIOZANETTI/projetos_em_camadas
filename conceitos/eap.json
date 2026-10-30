@@ -1,0 +1,127 @@
+{
+ "metadata": {
+  "fonte": "pedido do Caio (30/10/2026): EAP como linha mestra — obras localizadas × lineares, disciplinas geotecnia, civil, hidráulica e elétrica; geotecnia = fundações (estacas, blocos) e movimentação de solo; civil = estruturas de concreto (piso, viga, pilar, parede); hidráulica = equipamentos (ex.: sistema de microareia/Actiflo da ETA Vila C = civil + equipamentos)",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Código EAP = UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM (ex.: U1.ACT600.GEO.FUN.EST). Unidade e sistema vêm de conceitos/unidades_construtivas.json; disciplina, pacote e item vêm daqui. O código mnemônico é a chave estável (não muda se entrar um sistema novo); o numérico (1.3.1.1.1) é só ordem de exibição. `obra` diz se o item vale para obra localizada, linear ou ambas. `construtivos` = classes de camadas.construtivos que viram quantidade no item (regras em `medicoes`: contagem, soma de atributo, comprimento ou área da geometria em UTM). `layers` = classes de conceitos/elementos.json que são evidência gráfica do item (traço na prancha), sem medir. `pranchas` liga o subgrupo de disciplina da prancha (conceitos/disciplinas.json) ao pacote EAP de que ela é evidência. `so_evidencia` = classes construtivas que provam o sistema mas não são item medido (mancha de etapa). Sem preço."
+ },
+ "niveis": ["obra", "unidade", "sistema", "disciplina", "pacote", "item"],
+ "regras_medicao": {
+  "contagem": "número de elementos com o item",
+  "soma": "soma do atributo `atributo` dos elementos; elemento sem o atributo conta em `sem_valor` e não entra na soma",
+  "comprimento": "comprimento da geometria em UTM (m)",
+  "area": "área da geometria em UTM (m²)"
+ },
+ "disciplinas": [
+  {
+   "codigo": "GEO", "nome": "Geotecnia",
+   "pacotes": [
+    {
+     "codigo": "FUN", "nome": "Fundações",
+     "itens": [
+      {"codigo": "EST", "nome": "Estacas", "obra": ["localizada"], "construtivos": ["estaca"], "layers": ["estaca"],
+       "medicoes": [{"grandeza": "quantidade", "unidade": "un", "regra": "contagem"},
+                    {"grandeza": "comprimento", "unidade": "m", "regra": "soma", "atributo": "Comprimento (m)"}]},
+      {"codigo": "BLO", "nome": "Blocos de coroamento", "obra": ["localizada"], "construtivos": ["bloco"], "layers": ["bloco"],
+       "medicoes": [{"grandeza": "quantidade", "unidade": "un", "regra": "contagem"},
+                    {"grandeza": "área em planta", "unidade": "m²", "regra": "area"}]},
+      {"codigo": "CON", "nome": "Contenções e tirantes", "obra": ["localizada"], "construtivos": [], "layers": ["tirante"],
+       "medicoes": []}
+     ]
+    },
+    {
+     "codigo": "MOV", "nome": "Movimentação de solo",
+     "itens": [
+      {"codigo": "ESC", "nome": "Escavação de cava", "obra": ["localizada"], "construtivos": ["cava"], "layers": ["escavacao"],
+       "medicoes": [{"grandeza": "volume", "unidade": "m³", "regra": "soma", "atributo": "Escavação (m³)"}]},
+      {"codigo": "REA", "nome": "Reaterro de cava", "obra": ["localizada"], "construtivos": ["cava"], "layers": [],
+       "medicoes": [{"grandeza": "volume", "unidade": "m³", "regra": "soma", "atributo": "Reaterro (m³)"}]},
+      {"codigo": "VAL", "nome": "Escavação e reaterro de vala", "obra": ["linear"], "construtivos": [], "layers": [],
+       "medicoes": []},
+      {"codigo": "SUP", "nome": "Supressão vegetal e limpeza", "obra": ["localizada", "linear"], "construtivos": [], "layers": ["vegetacao"],
+       "medicoes": []}
+     ]
+    }
+   ]
+  },
+  {
+   "codigo": "CIV", "nome": "Civil",
+   "pacotes": [
+    {
+     "codigo": "EST", "nome": "Estruturas de concreto",
+     "itens": [
+      {"codigo": "PIS", "nome": "Pisos e lajes", "obra": ["localizada"], "construtivos": [], "layers": ["concreto"], "medicoes": []},
+      {"codigo": "VIG", "nome": "Vigas", "obra": ["localizada"], "construtivos": [], "layers": ["viga"], "medicoes": []},
+      {"codigo": "PIL", "nome": "Pilares", "obra": ["localizada"], "construtivos": ["pilar"], "layers": ["pilar"],
+       "medicoes": [{"grandeza": "quantidade", "unidade": "un", "regra": "contagem"}]},
+      {"codigo": "PAR", "nome": "Paredes", "obra": ["localizada"], "construtivos": [], "layers": ["parede"], "medicoes": []}
+     ]
+    },
+    {
+     "codigo": "PAV", "nome": "Pavimentação e urbanização",
+     "itens": [
+      {"codigo": "REC", "nome": "Demolição e recomposição de pavimento", "obra": ["localizada", "linear"], "construtivos": [],
+       "layers": ["pavimento", "calcada", "meio_fio"], "medicoes": []}
+     ]
+    }
+   ]
+  },
+  {
+   "codigo": "HID", "nome": "Hidráulica",
+   "pacotes": [
+    {
+     "codigo": "EQP", "nome": "Equipamentos",
+     "itens": [
+      {"codigo": "EQU", "nome": "Equipamentos (fornecimento e montagem)", "obra": ["localizada"], "construtivos": [],
+       "layers": ["equipamento"], "medicoes": []}
+     ]
+    },
+    {
+     "codigo": "TUB", "nome": "Tubulações, conexões e válvulas",
+     "itens": [
+      {"codigo": "RED", "nome": "Tubulação (rede / adutora)", "obra": ["localizada", "linear"], "construtivos": ["trecho"],
+       "layers": ["tubo"],
+       "medicoes": [{"grandeza": "extensão", "unidade": "m", "regra": "soma", "atributo": "Extensão estimada (m)"}]},
+      {"codigo": "VAL", "nome": "Válvulas e conexões", "obra": ["localizada", "linear"], "construtivos": [],
+       "layers": ["valvula", "conexao", "caixa"], "medicoes": []}
+     ]
+    }
+   ]
+  },
+  {
+   "codigo": "ELE", "nome": "Elétrica",
+   "pacotes": [
+    {
+     "codigo": "FOR", "nome": "Força, iluminação e comando",
+     "itens": [
+      {"codigo": "INS", "nome": "Instalações elétricas (eletrodutos, cabos, painéis)", "obra": ["localizada"], "construtivos": [],
+       "layers": ["eletrica"], "medicoes": []}
+     ]
+    },
+    {
+     "codigo": "ATE", "nome": "Aterramento e SPDA",
+     "itens": [
+      {"codigo": "ATE", "nome": "Malha de aterramento e SPDA", "obra": ["localizada"], "construtivos": [], "layers": [], "medicoes": []}
+     ]
+    }
+   ]
+  }
+ ],
+ "so_evidencia": ["estrutura"],
+ "pranchas": {
+  "Geotecnia e fundação": ["GEO.FUN", "GEO.MOV"],
+  "Terraplenagem": ["GEO.MOV"],
+  "Estrutura": ["CIV.EST"],
+  "Arquitetura": ["CIV.EST"],
+  "Urbanização": ["CIV.PAV"],
+  "Pavimentação": ["CIV.PAV"],
+  "Drenagem": ["HID.TUB"],
+  "Tubulações e conexões": ["HID.TUB"],
+  "Adutoras": ["HID.TUB", "GEO.MOV"],
+  "Processo": ["HID.EQP", "HID.TUB"],
+  "Equipamentos": ["HID.EQP"],
+  "Força e iluminação": ["ELE.FOR"],
+  "Comando e automação": ["ELE.FOR"],
+  "Aterramento e SPDA": ["ELE.ATE"]
+ }
+}
