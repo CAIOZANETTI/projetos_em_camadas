@@ -921,25 +921,41 @@
   ]
  },
  "fichas": [
-  {
-   "id": "f010",
-   "nome": "Folha 10 · Interligações (piloto hidráulica)",
-   "piloto": "hidraulica",
-   "layer_balao": "CISM_18_BLOCO_LISTA_PEÇAS",
-   "tabelas": [
-    "16",
-    "17"
-   ],
-   "layer_numero": "CISM_24_TEXTO_IND_LISTA_PEÇAS",
-   "referencia_vistas": "f004"
-  },
-  {
-   "id": "mod01_forma",
-   "nome": "Módulo de filtros · locação e cargas (piloto estrutura)",
-   "piloto": "estrutura",
-   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_FILTROS_NOVOS/001-SAA-0017-8820-PBES-DE-0000MOD01FORMA-R1.pdf",
-   "escala": 50,
-   "ancoras": "dados/foz/geotec/estacas.csv"
-  }
+   {
+     "id": "f010",
+     "nome": "Folha 10 · Interligações (piloto hidráulica)",
+     "piloto": "hidraulica",
+     "layer_balao": "CISM_18_BLOCO_LISTA_PEÇAS",
+     "tabelas": [
+       "16",
+       "17"
+     ],
+     "layer_numero": "CISM_24_TEXTO_IND_LISTA_PEÇAS",
+     "referencia_vistas": "f004"
+   },
+   {
+     "id": "mod01_forma",
+     "nome": "Módulo de filtros · locação e cargas (piloto estrutura)",
+     "piloto": "estrutura",
+     "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_FILTROS_NOVOS/001-SAA-0017-8820-PBES-DE-0000MOD01FORMA-R1.pdf",
+     "escala": 50,
+     "ancoras": "dados/foz/geotec/estacas.csv"
+   },
+   {
+     "id": "act01_forma",
+     "nome": "Forma ACT01 · fundação do Actiflo 600 L/s",
+     "piloto": "estrutura",
+     "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_MICRO_AREIA_600Ls/001-SAA-0017-8820-PBES-DE-0000ACT01FORMA-R0.PDF",
+     "escala": 50,
+     "ancoras": "dados/foz/geotec/estacas.csv"
+   },
+   {
+     "id": "act02_forma",
+     "nome": "Forma ACT02 · fundação do Actiflo 360 L/s",
+     "piloto": "estrutura",
+     "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_MICRO_AREIA_360Ls/001-SAA-0017-8820-PBES-DE-0000ACT02FORMA-R0.PDF",
+     "escala": 50,
+     "ancoras": "dados/foz/geotec/estacas.csv"
+   }
  ]
 }
