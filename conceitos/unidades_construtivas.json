@@ -1,13 +1,13 @@
 {
  "metadata": {
-  "fonte": "unidades do contrato (Unidade 1 = ETA Vila C, obra localizada; Unidade 2 = adutoras, obra linear), códigos de estrutura das estacas (dados/foz/geotec/estacas.csv), redes de exemplos/foz/obra.json (valas.redes) e manchas de etapa da folha 04",
+  "fonte": "unidades do contrato (Unidade 1 = ETA Vila C, obra localizada; Unidade 2 = adutoras, obra linear), códigos de estrutura das estacas (dados/foz/geotec/estacas.csv), redes de exemplos/foz/obra.json (valas.redes) e manchas de etapa da folha 04; escopo água pelo código SAA dos desenhos (SAA-0017)",
   "estado": "premissa",
   "data_referencia": "2026-10",
   "observacoes": "Elemento construtivo = o que o usuário procura pelo nome (P5, PC12, ACT600-031, AAT06 · folha 09). Cada elemento pertence a um sistema (módulo da ETA ou rede) e cada sistema a uma unidade. Estaca: sistema pela `estrutura` do CSV. Bloco e pilar: sistema da ficha (forma) de onde foram lidos; as estacas dentro do bloco vão como atributo, sem reclassificar. Cava: sistema da estrutura que tem mais que `cava_maioria` das estacas dentro; sem estacas, ou sem maioria, fica no sistema geral. Mancha de etapa (folha 04): sistema geral. Trecho de rede: uma folha (prancha) da rede; a extensão por folha reparte a extensão da rede pela posição do tubo dentro da janela da planta (estimada). O nome do sistema só é expandido quando o projeto o expande: sigla sem expansão fica com o código como nome e estado premissa."
  },
  "unidades": {
-  "u1": {"nome": "Unidade 1 — ETA Vila C", "obra": "localizada"},
-  "u2": {"nome": "Unidade 2 — Adutoras", "obra": "linear"}
+  "u1": {"nome": "Unidade 1 — ETA Vila C", "obra": "localizada", "escopo": "agua"},
+  "u2": {"nome": "Unidade 2 — Adutoras", "obra": "linear", "escopo": "agua"}
  },
  "sistemas": {
   "FILTROS": {"unidade": "u1", "nome": "Módulo de filtros", "estado": "confirmado",

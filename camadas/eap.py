@@ -1,8 +1,9 @@
 """EAP (WBS) codificada: a linha mestra que liga elemento construtivo, prancha e quantidade.
 
     código = UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM          ex.: U1.ACT600.GEO.FUN.EST (estacas do Actiflo 600)
-    unidade, sistema   ← conceitos/unidades_construtivas.json (obra localizada × linear)
-    disciplina → item  ← conceitos/eap.json (GEO, CIV, HID, ELE)
+    unidade, sistema   ← conceitos/unidades_construtivas.json (obra localizada × linear, escopo água × esgoto)
+    disciplina, pacote ← conceitos/eap.json (GEO, CIV, HID, ELE)
+    item               ← conceitos/eap_geral.jsonl (EAP geral: um item por linha, regra do loop de evidências)
 
     elemento construtivo (camadas.construtivos) ─► item EAP pela classe ─► quantidade pela regra do item
     prancha (grupo/subgrupo de disciplinas.json) ─► pacote EAP de que é evidência
@@ -27,32 +28,40 @@ from .construtivos import _sistema
 from .pdf_cad import CONCEITOS
 
 REGRAS = json.loads((CONCEITOS / "eap.json").read_text(encoding="utf-8"))
+GERAL = [json.loads(linha) for linha in (CONCEITOS / "eap_geral.jsonl").read_text(encoding="utf-8").splitlines()
+         if linha.strip()]
 NIVEIS = REGRAS["niveis"][1:]                       # unidade, sistema, disciplina, pacote, item (obra é a raiz)
 
 
 def itens() -> dict:
-    """{'GEO.FUN.EST': item do modelo + nomes da disciplina e do pacote}, na ordem do conceito."""
+    """{'GEO.FUN.EST': item da EAP geral + nomes da disciplina e do pacote}, na ordem da hierarquia (eap.json) e,
+    dentro do pacote, na ordem do eap_geral.jsonl."""
     saida = {}
     for d in REGRAS["disciplinas"]:
         for p in d["pacotes"]:
-            for it in p["itens"]:
-                saida[f"{d['codigo']}.{p['codigo']}.{it['codigo']}"] = {**it, "disciplina": d["nome"], "pacote": p["nome"]}
+            for it in GERAL:
+                if it["codigo"].rsplit(".", 1)[0] == f"{d['codigo']}.{p['codigo']}":
+                    saida[it["codigo"]] = {**it, "disciplina": d["nome"], "pacote": p["nome"]}
     return saida
 
 
 def validar() -> list[str]:
     """Problemas do modelo (vazio = coerente): código repetido, regra, classe, layer ou subgrupo desconhecidos."""
     problemas = []
-    codigos = [f"{d['codigo']}.{p['codigo']}.{it['codigo']}" for d in REGRAS["disciplinas"]
-               for p in d["pacotes"] for it in p["itens"]]
+    codigos = [it["codigo"] for it in GERAL]
     problemas += [f"código repetido: {c}" for c in sorted({c for c in codigos if codigos.count(c) > 1})]
+    problemas += [f"{c}: pacote fora de eap.json" for c in codigos if c not in itens()]
+    servicos = {json.loads(linha)["id"] for linha in (CONCEITOS / "servicos.jsonl").read_text(encoding="utf-8").splitlines()
+                if linha.strip()}
     classes = set(UNIDADES["classes"])
     layers = {c["id"] for c in json.loads((CONCEITOS / "elementos.json").read_text(encoding="utf-8"))["classes"]}
     subgrupos = {s for g in json.loads((CONCEITOS / "disciplinas.json").read_text(encoding="utf-8"))["grupos"].values()
                  for s in g}
-    pacotes = {c.rsplit(".", 1)[0] for c in codigos}
+    pacotes = {f"{d['codigo']}.{p['codigo']}" for d in REGRAS["disciplinas"] for p in d["pacotes"]}
     for codigo, it in itens().items():
         problemas += [f"{codigo}: obra '{o}' desconhecida" for o in it["obra"] if o not in ("localizada", "linear")]
+        problemas += [f"{codigo}: escopo '{e}' desconhecido" for e in it["escopo"] if e not in REGRAS["escopos"]]
+        problemas += [f"{codigo}: serviço '{v}' fora de servicos.jsonl" for v in it["servicos"] if v not in servicos]
         problemas += [f"{codigo}: classe construtiva '{c}' fora de unidades_construtivas" for c in it["construtivos"]
                       if c not in classes]
         problemas += [f"{codigo}: layer '{c}' fora de elementos.json" for c in it["layers"] if c not in layers]
@@ -82,23 +91,29 @@ def estrutura(sistemas: list[str] | None = None) -> list[dict]:
         for js, (_, cs, s) in enumerate([x for x in lista if x[0] == uid], 1):
             nos.append({"codigo": f"{cu}.{cs}", "numero": f"{iu}.{js}", "nivel": "sistema", "nome": s["nome"],
                         "pai": cu, "obra": u["obra"]})
-            nos += _disciplinas(f"{cu}.{cs}", f"{iu}.{js}", u["obra"])
+            nos += _disciplinas(f"{cu}.{cs}", f"{iu}.{js}", u["obra"], u.get("escopo"))
     return nos
 
 
-def _disciplinas(pai: str, numero: str, obra: str) -> list[dict]:
-    """Disciplina > pacote > item sob um sistema; pacote e disciplina sem item do tipo de obra ficam de fora."""
+def _do_pacote(pacote: str, obra: str, escopo: str | None) -> list[tuple[int, dict]]:
+    """[(ordem no pacote, item)] da EAP geral que valem para o tipo de obra e o escopo (None = qualquer escopo)."""
+    todos = [it for it in GERAL if it["codigo"].rsplit(".", 1)[0] == pacote]
+    return [(k, it) for k, it in enumerate(todos, 1) if obra in it["obra"] and (escopo is None or escopo in it["escopo"])]
+
+
+def _disciplinas(pai: str, numero: str, obra: str, escopo: str | None) -> list[dict]:
+    """Disciplina > pacote > item sob um sistema; pacote e disciplina sem item do tipo de obra/escopo ficam de fora."""
     nos = []
     for kd, d in enumerate(REGRAS["disciplinas"], 1):
         sub = []
         for kp, p in enumerate(d["pacotes"], 1):
-            folhas = [(ki, it) for ki, it in enumerate(p["itens"], 1) if obra in it["obra"]]
+            folhas = _do_pacote(f"{d['codigo']}.{p['codigo']}", obra, escopo)
             if not folhas:
                 continue
             cp, npac = f"{pai}.{d['codigo']}.{p['codigo']}", f"{numero}.{kd}.{kp}"
             sub.append({"codigo": cp, "numero": npac, "nivel": "pacote", "nome": p["nome"],
                         "pai": f"{pai}.{d['codigo']}", "obra": obra})
-            sub += [{"codigo": f"{cp}.{it['codigo']}", "numero": f"{npac}.{ki}", "nivel": "item", "nome": it["nome"],
+            sub += [{"codigo": f"{pai}.{it['codigo']}", "numero": f"{npac}.{ki}", "nivel": "item", "nome": it["nome"],
                      "pai": cp, "obra": obra, "medicoes": it["medicoes"]} for ki, it in folhas]
         if sub:
             nos += [{"codigo": f"{pai}.{d['codigo']}", "numero": f"{numero}.{kd}", "nivel": "disciplina",
@@ -109,9 +124,9 @@ def _disciplinas(pai: str, numero: str, obra: str) -> list[dict]:
 def codigos_do_elemento(props: dict) -> list[str]:
     """Itens EAP de um elemento construtivo pela classe (uma cava alimenta escavação e reaterro)."""
     unidade, sistema = props["unidade"].upper(), props["sistema"].split("-", 1)[1]
-    obra = UNIDADES["unidades"].get(props["unidade"], {}).get("obra")
-    return [f"{unidade}.{sistema}.{c}" for c, it in itens().items()
-            if props["classe"] in it["construtivos"] and obra in it["obra"]]
+    u = UNIDADES["unidades"].get(props["unidade"], {})
+    return [f"{unidade}.{sistema}.{c}" for c, it in itens().items() if props["classe"] in it["construtivos"]
+            and u.get("obra") in it["obra"] and (u.get("escopo") is None or u["escopo"] in it["escopo"])]
 
 
 def anotar(construtivos: dict) -> dict:

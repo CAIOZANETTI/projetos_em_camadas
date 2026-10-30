@@ -13,8 +13,29 @@
 - **Prancha como evidência do pacote** (subgrupo de disciplina → pacote; `eap` opcional na prancha do obra.json).
 - **IA verificada** (`eap.verificar`): a proposta é refeita só com as evidências citadas. Sem evidência, evidência de
   outro item, medição não prevista ou número que não sai dos elementos: recusada.
-- O build grava `dados.eap` e o código `eap` em cada elemento da aba Obra. A aba EAP no HTML fica para a próxima
-  rodada (`docs/EAP.md` §7).
+- **EAP geral em JSONL** (`conceitos/eap_geral.jsonl`): um item por linha, com escopo água/esgoto, tipo de obra,
+  termos de busca, serviços admitidos, filtro no cadastro de materiais e medições; itens novos: viga baldrame,
+  poços de visita (esgoto) e ligações prediais. `eap.json` fica só com a hierarquia.
+- **Banco de serviços** (`conceitos/servicos.jsonl`): escavação, reaterro, escoramento, lastro, forma, concreto,
+  armadura, demolição e recomposição de pavimento, assentamento…
+- **Vocabulário** (`camadas/vocabulario.py`, `conceitos/sinonimos.json`): abreviações, sinônimos e unidades (t → kg).
+  "30 MPa" e "DN 300 mm" não viram quantidade.
+- **Loop de evidências** (`camadas/evidencias.py`, `conceitos/evidencia.schema.json`): texto (página e linha),
+  planilha do contrato (item pelo cadastro de materiais, senão pela descrição), pranchas medidas, IA com citação
+  conferida e decisões com autor. Fato = código × serviço × unidade. Status: convergente (força = nº de documentos),
+  fonte única, conflito (todas as afirmações e a diferença %), só menção ou decidido. O código `*` compara o total
+  de um documento com a soma dos sistemas de outro (300 estacas nas pranchas × 250 no memorial = conflito).
+  Também gera a cobertura item × projeto/edital e o registro `evidencias.jsonl` sem duplicar.
+- **Serviços associados** (`camadas/associados.py`, `conceitos/servicos_associados.jsonl`): bloco → escavação,
+  reaterro, lastro, forma, concreto e armadura (taxa a calibrar); estaca → concreto e arrasamento; trecho → escavação,
+  berço e reaterro de vala, demolição e recomposição de pavimento (premissas de `valas.json`); laje → escoramento;
+  baldrame → escavação e reaterro. Fórmulas num avaliador restrito, com a memória de cálculo no trecho. Variável
+  faltando vai para `sem_valor`, nunca para zero. `associados_x_edital` aponta o serviço associado que o edital não
+  cita.
+- Cadastro de materiais × EAP: 24,7 mil materiais balizam itens no escopo água e 29,6 mil no esgoto.
+- O build grava `dados.eap`, `dados.evidencias` e o código `eap` em cada elemento da aba Obra, além de
+  `evidencias.jsonl`, `fatos.csv`, `cobertura.csv` e `associados.csv`. A aba EAP no HTML fica para a próxima rodada
+  (`docs/EAP.md` §9).
 
 ## 0.15.0 — 2026-10-29 · Foz, rodada 15: o HTML navegável por elementos construtivos
 - **Elementos construtivos** (`camadas/construtivos.py`, `conceitos/unidades_construtivas.json`): Unidade 1 (ETA,

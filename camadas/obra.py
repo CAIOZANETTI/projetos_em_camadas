@@ -28,6 +28,7 @@ from . import (
     construtivos,
     eap,
     escavacao,
+    evidencias,
     geo,
     georef_prancha,
     inventario,
@@ -761,7 +762,7 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas e inventário com a ficha em lote; e os
     elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor, e a EAP
-    (`camadas.eap`), que dá código e quantidade a cada elemento."""
+    (`camadas.eap`), que dá código e quantidade a cada elemento, e o loop de evidências (`camadas.evidencias`)."""
     if fichas:
         dados["fichas"] = prancha.para_html(fichas)
         if dados.get("vertical"):
@@ -776,6 +777,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
     dados["construtivos"] = construtivos.montar(dados, cfg)        # aba Obra: unidade > sistema > elemento
     dados["eap"] = eap.montar(dados, cfg)          # EAP: elemento → item (código) → quantidade com evidência
+    dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
 
 
 # 5 ---------------------------------------------------------------------------
