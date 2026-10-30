@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.20.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
+- **Unidades da Relação na aba Obra** (regra código do desenho → sistema em `conceitos/unidades_construtivas.json`):
+  7 novas — câmara de contato, canal de água tratada, EEE lodo / reservatório de lodo, RECALD e RECALF, blocos de
+  apoio e ancoragem, caixas de saída de água tratada e caixas de chegada de água bruta (CXA separado pela unidade da
+  Relação); sistema sem geometria aparece na árvore ("sem geometria").
+- **Desenhos citados × entregues** por unidade e no total: 104 citados, 46 entregues, 58 não entregues; entregue com
+  link do Drive, não entregue com marcador de alerta; filtro "Só com desenho não entregue" (8 unidades).
+- Escopo das novas: "a definir" sem pegada no mapa, com o motivo; caixas de saída fora pelo contrato (tabelas 03 e
+  04 só com quantidade na 2ª etapa).
+- Python e aba feitos por dois agentes (Sonnet) contra um contrato fixo; revisão, build e testes na sessão principal.
+
 ## 0.19.0 — 2026-10-30 · Arquitetura: só escopo, inventário primeiro e índice de determinismo
 - **Cronograma e 4D removidos**: o sistema trata só de escopo (serviços e atividades numa EAP com quantidades), sem
   prazo nem preço. Saem `obra.cronograma_4d`, o bloco `cronograma` do obra.json de Foz (marcos MI, pesos das UCs,

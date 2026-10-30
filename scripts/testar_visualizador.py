@@ -16,7 +16,8 @@ Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema
     unidade, clique que enquadra e destaca um único elemento, ficha (só no painel) com atributos e fonte como link,
     popup do mapa mínimo, trecho de rede como linha vetorial clicável; e, com `construtivos.escopo`: resumo
     dentro/fora/a definir, filtro "Só o escopo", escolha por sistema (localStorage, exportar/restaurar), decomposição
-    construtiva com evidências em link e partes com geometria enquadradas no mapa;
+    construtiva com evidências em link e partes com geometria enquadradas no mapa; sistemas sem elemento de geometria;
+    desenhos da Relação por sistema (entregue com link, não entregue com alerta), resumo geral e atalho "Só com desenho não entregue";
   * sem rolagem horizontal da página no celular.
 Sai com código 1 se algum passo falhar. Capturas em PNG na pasta indicada (padrão: <pasta do html>/capturas).
 Requer apenas `playwright` (já com o Chromium instalado); não instala nada.
@@ -559,6 +560,9 @@ def verificar_obra(c: dict) -> None:
     if escopo:
         obra_fonte(c)
         obra_decomposicao(c)
+        obra_sem_geometria(c)
+        obra_desenhos(c)
+        obra_desenhos_filtro(c)
     obra_linha(c, alvos)
     obra_fim(c, alvos)
     js(c, "__viz.obra.definirSoEscopo(true)")   # volta ao padrão
@@ -749,6 +753,156 @@ def obra_decomposicao(c: dict) -> None:
         foto(c, "19b_obra_parte_no_mapa")
 
 
+def mostrar_no_topo(c: dict, seletor: str) -> None:
+    """Rola a aba Obra até o elemento ficar logo abaixo da busca fixa (para a captura mostrar o que interessa)."""
+    js(c, "(s) => { const a = document.querySelector('#aba-obra'), e = document.querySelector(s); a.scrollTop += e.getBoundingClientRect().top - a.getBoundingClientRect().top - document.querySelector('.ob-busca').offsetHeight - 4; }", seletor)
+
+
+JS_OBRA_DESENHOS = r"""() => { const E = __viz.obra.ES, ids = [...document.querySelectorAll('#obArvore .ob-sis')].map(d => d.dataset.sis);
+  const des = i => (E.sistemas[i] || {}).desenhos || [], pend = i => des(i).filter(d => d.entregue !== true).length;
+  const pr = new Set(__viz.PR.map(p => p.id)), https = d => d && /^https:\/\//.test(d.link || '');
+  const vazios = __viz.obra.OB.arvore.flatMap(u => u.sistemas).filter(s => Object.keys(s.classes || {}).length === 0).map(s => s.id);
+  const comDes = ids.filter(i => des(i).length), comPend = ids.filter(i => pend(i) > 0);
+  const ent = comDes.find(i => des(i).some(d => d.entregue === true && d.doc && https(E.documentos[d.doc])));
+  const comPr = comDes.find(i => des(i).some(d => d.entregue === true && d.doc && E.documentos[d.doc] && E.documentos[d.doc].prancha && pr.has(E.documentos[d.doc].prancha)));
+  return {vazios: vazios.filter(i => ids.includes(i)), comDes, comPend, ent: ent || null, comPr: comPr || null, resumo: E.desenhos_resumo || null,
+          todosEntregues: comDes.filter(i => pend(i) === 0)}; }"""
+JS_OBRA_DES_DOM = r"""(id) => { const E = __viz.obra.ES, d = document.querySelector('.ob-sis[data-sis="' + id + '"]'), L = (E.sistemas[id] || {}).desenhos || [];
+  const sec = [...d.querySelectorAll('.ob-corpo .ob-sec')].find(x => /Desenhos do projeto \(Rela/.test(x.textContent)), n = d.querySelector('.ob-des-n'), linhas = [...d.querySelectorAll('.ob-des')];
+  const k = L.filter(x => x.entregue !== true).length, ne = d.querySelector('.ob-sis-h .ob-ne');
+  const ok = (x, el) => !!el && el.querySelector('.f').textContent === (x.folha || '—') && el.querySelector('.ct').textContent.includes(x.conteudo || '') && el.querySelector('.ar').textContent === x.arquivo;
+  return {sec: !!sec, nota: n ? n.textContent.replace(/\s+/g, ' ').trim() : null, esperada: L.length + ' citados · ' + (L.length - k) + ' entregues · ' + k + ' não entregues',
+          linhas: linhas.length, n: L.length, campos: L.every((x, i) => ok(x, linhas[i])),
+          indicador: ne ? ne.textContent.trim() : null, indEsperado: k ? k + ' não entregue' + (k > 1 ? 's' : '') : null, indVisivel: ne ? ne.offsetParent !== null : false}; }"""
+JS_OBRA_DES_LINHAS = r"""(id) => { const E = __viz.obra.ES, d = document.querySelector('.ob-sis[data-sis="' + id + '"]'), L = (E.sistemas[id] || {}).desenhos || [], linhas = [...d.querySelectorAll('.ob-des')];
+  const nao = linhas.filter((el, i) => L[i].entregue !== true), sim = linhas.filter((el, i) => L[i].entregue === true);
+  const marca = el => { const m = el.querySelector('.ob-nao'); return m ? {txt: m.textContent.trim(), forma: getComputedStyle(m, '::before').clipPath, cor: getComputedStyle(m).color, fundo: getComputedStyle(el).backgroundColor} : null; };
+  const lk = el => { const a = el.querySelector('a'); return a ? {href: a.getAttribute('href'), alvo: a.target, rel: a.rel} : null; };
+  const sem = document.querySelector('.ob-parte.est-sem .es');
+  return {nao: nao.length, naoMarca: nao.every(el => marca(el) && marca(el).txt === 'não entregue'), naoSemLink: nao.every(el => !el.querySelector('a')),
+          alerta: nao.length ? marca(nao[0]) : null, lacuna: sem ? getComputedStyle(sem).color : null,
+          sim: sim.length, simSemMarca: sim.every(el => !el.querySelector('.ob-nao')),
+          simLink: sim.map(el => { const doc = L[linhas.indexOf(el)].doc && E.documentos[L[linhas.indexOf(el)].doc];
+            return {doc: !!doc, esperado: doc ? doc.link : null, l: lk(el), pr: doc && doc.prancha ? !!el.querySelector('[data-ob-acao="prancha"]') : null}; })}; }"""
+
+
+def obra_sem_geometria(c: dict) -> None:
+    """Sistema sem elemento de geometria (`classes = {}`) vem na árvore, abre sem erro e mantém o controle de escopo."""
+    page = c["page"]
+    page.fill("#obBusca", "")
+    a = js(c, JS_OBRA_DESENHOS)
+    if not a["vazios"]:
+        passo(c, "obra/sem geometria: nenhum sistema sem elemento nos dados (não testado)", True)
+        return
+    sid = a["vazios"][0]
+    erros = len(c["erros"])
+    abrir_sistema(c, sid)
+    r = js(c, """(id) => { const d = document.querySelector('.ob-sis[data-sis="' + id + '"]'), h = d.querySelector('.ob-sis-h'), cb = d.querySelector('.ob-esc-cb');
+      return {aberto: h.getAttribute('aria-expanded') === 'true' && !d.querySelector('.ob-corpo').hidden, cls: d.querySelectorAll('.ob-cls').length, mapa: d.querySelectorAll('[data-ob-acao="parte-mapa"]').length,
+              aviso: /Sem elementos de geometria/.test(d.querySelector('.ob-corpo').textContent), nota: h.querySelector('.nota').textContent, nan: /NaN|undefined|null/.test(d.textContent),
+              cb: !!cb, motivo: d.querySelector('.ob-motivo').textContent.length > 8, elementos: __viz.obra.itens.filter(i => i.sis === id).length}; }""", sid)
+    passo(c, "obra/sem geometria: o sistema sem elemento aparece na árvore e abre sem erro, sem 'ver no mapa' nem classes",
+          r["aberto"] and r["cls"] == 0 and r["mapa"] == 0 and r["aviso"] and not r["nan"] and r["elementos"] == 0 and len(c["erros"]) == erros, f"{sid} ({len(a['vazios'])} sem geometria)")
+    passo(c, "obra/sem geometria: sem contagem de elementos no cabeçalho; 'No escopo' e a origem do escopo continuam",
+          r["nota"] == "sem geometria" and r["cb"] and r["motivo"], r["nota"])
+    antes = js(c, JS_ESCOPO_ESTADO)
+    est = js(c, "(i) => __viz.obra.estado(i)", sid)
+    page.locator(f'.ob-sis[data-sis="{sid}"] .ob-esc-cb').click()
+    depois = js(c, JS_ESCOPO_ESTADO)
+    novo = js(c, "(i) => __viz.obra.estado(i)", sid)
+    passo(c, "obra/sem geometria: alternar 'No escopo' muda o estado e o resumo do sistema sem elemento",
+          novo != est and sum(depois["chips"].values()) == sum(antes["chips"].values()) and depois["chips"] != antes["chips"], f"{est} -> {novo}")
+    js(c, "__viz.obra.restaurar()")
+    mostrar_no_topo(c, f'#obArvore .ob-sis[data-sis="{sid}"]')
+    foto(c, "21_obra_sem_geometria")
+
+
+def obra_desenhos(c: dict) -> None:
+    """Desenhos do projeto (Relação) por sistema: contagem, não entregue com marcador de alerta e sem link, entregue com link e 'ver na aba Pranchas'; resumo geral."""
+    page = c["page"]
+    page.fill("#obBusca", "")
+    a = js(c, JS_OBRA_DESENHOS)
+    if not a["comDes"]:
+        passo(c, "obra/desenhos: nenhum sistema com desenhos da Relação nos dados (não testado)", True)
+        return
+    erros = len(c["erros"])
+    for sid in a["comDes"]:
+        abrir_sistema(c, sid)
+    dom = {i: js(c, JS_OBRA_DES_DOM, i) for i in a["comDes"]}
+    ruins = [i for i, r in dom.items() if not (r["sec"] and r["nota"] == r["esperada"] and r["linhas"] == r["n"] and r["campos"])]
+    passo(c, "obra/desenhos: cada sistema com desenhos mostra a seção, 'N citados · M entregues · K não entregues' igual aos dados, e uma linha por desenho (folha, conteúdo, arquivo)",
+          not ruins, f"{len(dom)} sistema(s)" + (f"; falhou {ruins[:3]}" if ruins else ""))
+    passo(c, "obra/desenhos: na árvore, o indicador 'K não entregues' aparece só nos sistemas com pendência e bate com os dados",
+          all(r["indicador"] == r["indEsperado"] and (r["indicador"] is None or r["indVisivel"]) for r in dom.values()), f"{len(a['comPend'])} com pendência")
+    passo(c, "obra/desenhos: sistema com todos os desenhos entregues não mostra o indicador",
+          all(dom[i]["indicador"] is None for i in a["todosEntregues"]), f"{len(a['todosEntregues'])} sistema(s)")
+    nao = next(iter(a["comPend"]), None)
+    if nao:
+        r = js(c, JS_OBRA_DES_LINHAS, nao)
+        passo(c, "obra/desenhos: desenho não entregue traz o marcador de alerta 'não entregue' e nenhum link",
+              r["nao"] > 0 and r["naoMarca"] and r["naoSemLink"] and r["alerta"]["forma"] != "none", f"{nao}: {r['nao']} não entregue(s)")
+        passo(c, "obra/desenhos: o alerta usa a cor da lacuna 'sem evidência' e destaca a linha",
+              (r["lacuna"] is None or r["alerta"]["cor"] == r["lacuna"]) and r["alerta"]["fundo"] != "rgba(0, 0, 0, 0)", r["alerta"]["cor"])
+        mostrar_no_topo(c, f'#obArvore .ob-sis[data-sis="{nao}"]')
+        foto(c, "22_obra_desenhos")
+    if a["ent"]:
+        r = js(c, JS_OBRA_DES_LINHAS, a["ent"])
+        bons = [x for x in r["simLink"] if x["doc"] and (x["esperado"] or "").startswith("https://")]
+        passo(c, "obra/desenhos: desenho entregue é link https para o documento, em nova aba (target=_blank, rel=noopener), sem marcador de alerta",
+              r["simSemMarca"] and bool(bons) and all(x["l"] and x["l"]["href"] == x["esperado"] and x["l"]["alvo"] == "_blank" and "noopener" in x["l"]["rel"] for x in bons), f"{a['ent']}: {len(bons)} entregue(s)")
+    else:
+        passo(c, "obra/desenhos: nenhum desenho entregue com link nos dados (não testado)", True)
+    if a["comPr"]:
+        r = js(c, JS_OBRA_DES_LINHAS, a["comPr"])
+        com = [x for x in r["simLink"] if x["pr"] is not None]
+        passo(c, "obra/desenhos: entregue que é prancha oferece 'ver na aba Pranchas'", bool(com) and all(x["pr"] for x in com), a["comPr"])
+        alvo = js(c, "(i) => { const D = __viz.obra.ES.sistemas[i].desenhos, E = __viz.obra.ES.documentos; return D.map(d => d.doc && E[d.doc] && E[d.doc].prancha).find(Boolean); }", a["comPr"])
+        c["page"].locator(f'#obArvore .ob-sis[data-sis="{a["comPr"]}"] .ob-des [data-ob-acao="prancha"]').first.click()
+        p = js(c, "() => ({folha: __viz.FV.P ? __viz.FV.P.id : null, aba: !document.querySelector('#aba-pranchas').hidden})")
+        passo(c, "obra/desenhos: 'ver na aba Pranchas' abre a prancha do documento", p["folha"] == alvo and p["aba"], str(p["folha"]))
+        page.select_option("#pSel", "")
+        page.click("#t-obra")
+    rs = a["resumo"]
+    if rs:
+        txt = js(c, "document.querySelector('#obDesResumo').textContent.replace(/\\s+/g, ' ').trim()")
+
+        def f(n: int) -> str:
+            return f"{n:,}".replace(",", ".")
+
+        esperado = f"Desenhos do projeto: {f(rs['citados'])} citados · {f(rs['entregues'])} entregues · {f(rs['nao_entregues'])} não entregues"
+        topo = js(c, "(() => { const r = document.querySelector('#obDesRes'), t = document.querySelector('#obArvore'); return !r.hidden && r.getBoundingClientRect().bottom <= t.getBoundingClientRect().top; })()")
+        passo(c, "obra/desenhos: resumo geral no topo da aba bate com desenhos_resumo", txt == esperado and topo, txt)
+    else:
+        passo(c, "obra/desenhos: sem desenhos_resumo nos dados o resumo geral fica vazio", js(c, "document.querySelector('#obDesResumo').textContent === ''"))
+    passo(c, "obra/desenhos: console sem erros ao abrir os sistemas e a seção", len(c["erros"]) == erros, "; ".join(c["erros"][erros:erros + 2]))
+    js(c, "document.querySelector('#aba-obra').scrollTop = 0")
+    foto(c, "23_obra_resumo_desenhos")
+
+
+def obra_desenhos_filtro(c: dict) -> None:
+    """Atalho "Só com desenho não entregue": a árvore lista exatamente os sistemas com pendência."""
+    page = c["page"]
+    a = js(c, JS_OBRA_DESENHOS)
+    if not a["comDes"]:
+        return
+    page.fill("#obBusca", "")
+    antes = js(c, "document.querySelectorAll('#obArvore .ob-sis:not([hidden])').length")
+    page.check("#obSoPend")
+    r = js(c, """() => ({ids: [...document.querySelectorAll('#obArvore .ob-sis:not([hidden])')].filter(d => d.offsetParent !== null).map(d => d.dataset.sis).sort(),
+      unidades: [...document.querySelectorAll('#obArvore .ob-un')].every(u => u.hidden === !u.querySelector('.ob-sis:not([hidden])')),
+      n: document.querySelector('#obSoPendN').textContent})""")
+    passo(c, "obra/desenhos: 'Só com desenho não entregue' lista exatamente os sistemas com pendência (e esconde unidades vazias)",
+          r["ids"] == sorted(a["comPend"]) and r["unidades"] and str(len(a["comPend"])) in r["n"], f"{len(r['ids'])} de {antes} sistemas")
+    for sid in r["ids"]:   # só para a captura: fecha os sistemas abertos, para a lista de pendências caber na tela
+        if js(c, "(s) => document.querySelector(s).getAttribute('aria-expanded')", f'#obArvore .ob-sis[data-sis="{sid}"] .ob-sis-h') == "true":
+            page.click(f'#obArvore .ob-sis[data-sis="{sid}"] .ob-sis-h')
+    mostrar_no_topo(c, "#obArvore")
+    foto(c, "24_obra_so_pendentes")
+    page.uncheck("#obSoPend")
+    depois = js(c, "document.querySelectorAll('#obArvore .ob-sis:not([hidden])').length")
+    passo(c, "obra/desenhos: desligar o atalho devolve todos os sistemas à árvore", depois == antes, f"{depois} sistemas")
+
+
 def obra_fonte(c: dict) -> None:
     """Fonte da ficha como link (nova aba) e 'ver na aba Pranchas'; popup mínimo leva à ficha mesmo com outra aba aberta."""
     page = c["page"]
@@ -909,8 +1063,9 @@ def verificar_projeto(c: dict) -> None:
     page.wait_for_timeout(300)
     if js(c, "!!__viz.D.inventario"):
         r = js(c, """() => { const I = __viz.D.inventario, s = I.resumo.reduce((a, l) => a + l.total, 0);
-          return {soma: s, pdfs: I.totais.pdfs, itens: I.itens.length, nota: document.querySelector('#invLista .nota-l').textContent}; }""")
-        passo(c, "inventário: soma do resumo = PDFs da listagem = itens", r["soma"] == r["pdfs"] == r["itens"], str(r))
+          return {soma: s, total: I.totais.arquivos ?? I.totais.pdfs, itens: I.itens.length, nota: document.querySelector('#invLista .nota-l').textContent}; }""")
+        # desde a 0.19.0 o inventário tem todos os arquivos da listagem (não só PDF): totais.arquivos
+        passo(c, "inventário: soma do resumo = arquivos da listagem = itens", r["soma"] == r["total"] == r["itens"], str(r))
         page.select_option("#invTipo", "planta")
         page.wait_for_timeout(200)
         n = js(c, "document.querySelectorAll('#invLista .inv-i').length")

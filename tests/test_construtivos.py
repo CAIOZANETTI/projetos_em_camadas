@@ -160,3 +160,17 @@ def test_conceito_cobre_unidades_estados_e_fontes():
     assert regras["metadata"]["fonte"] and all(c["geometria"] in ("ponto", "poligono", "linha") for c in regras["classes"].values())
     meta = construtivos.metadados()
     assert set(meta["funcoes"]) <= set(dir(construtivos)) and meta["premissas"]
+
+
+def test_unidade_da_relacao_sem_geometria_entra_na_arvore_com_classes_vazias():
+    dados = _dados()
+    sem = {s["id"] for u in construtivos.montar(dados, CFG)["arvore"] for s in u["sistemas"]}
+    assert "u1-CAMARA_CONTATO" not in sem                                             # sem a Relação no inventário, sistema vazio fica de fora
+    dados["inventario"] = {"itens": [{"arquivo": "Relação de Desenhos.pdf", "pasta_drive": "UNIDADE 01/QUANTITATIVOS"}]}
+    saida = construtivos.montar(dados, CFG)
+    sistemas = {s["id"]: s for u in saida["arvore"] for s in u["sistemas"]}
+    for sid in ("u1-CAMARA_CONTATO", "u1-CANAL_AT", "u1-EEE_LODO", "u1-RECALD_RECALF", "u1-BLOCOS_APOIO", "u1-CX_SAIDA", "u1-CX_CHEGADA"):
+        assert sistemas[sid]["classes"] == {} and sistemas[sid]["estado"] == "confirmado"
+    assert sistemas["u1-CX_SAIDA"]["nome"] == "Caixas de saída de água tratada"
+    assert sistemas["u1-CX_CHEGADA"]["nome"] == "Caixas de chegada de água bruta"
+    assert "u1-TORRE_ELEV" not in sistemas and len(saida["geojson"]["features"]) == 6        # contrato intacto: só entra o que não tem feição
