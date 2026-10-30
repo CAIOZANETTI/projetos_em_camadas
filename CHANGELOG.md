@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.21.0 — 2026-10-30 · Arquitetura R7: ciclo de extração, fontes de evidência e geotecnia separada
+- **Reavaliação do inventário a cada build** (`camadas/extracao.py`, `conceitos/fontes.json`): classe da fonte de
+  cada arquivo (projeto, memorial, laudo, lista, edital, planilha, folha de dados, documento de obra, cotação fora do
+  escopo), estado da extração (completa, parcial, falhou, sem leitor, fora do disco) pelos campos que a classe exige,
+  próximo passe da escada (código → Haiku → Sonnet → Opus → você) e séries de folhas incompletas pelo carimbo "n/m".
+  Grava `saida/<obra>/pendencias.json` e o registro `extracao.jsonl` (só quando o estado muda).
+- **Arquitetura R7** (`docs/ARQUITETURA.md`): o ciclo inventário → extração → reavaliação → loop, a fonte de cada
+  fato, a interpretação dos projetos pelo carimbo, a geotecnia como disciplina independente (modelo geotécnico único
+  no lugar dos dois interpretadores divergentes) e os agentes por degrau da escada.
+- **A regra da lição vale para qualquer sessão**: cada versão do CHANGELOG desde a 0.19.0 precisa de uma lição em
+  `pdca/licoes.jsonl` (teste). Lições L010 (rodada 19) e L011 (esta). Índice de determinismo: 63,6 % das etapas em
+  código.
+
 ## 0.20.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
 - **Unidades da Relação na aba Obra** (regra código do desenho → sistema em `conceitos/unidades_construtivas.json`):
   7 novas — câmara de contato, canal de água tratada, EEE lodo / reservatório de lodo, RECALD e RECALF, blocos de

@@ -1,0 +1,31 @@
+{
+ "metadata": {
+  "fonte": "pedido do Caio (30/10/2026): saber de onde veio cada fato (projeto, documento, folha de dados, ordem de serviço…) e o que cada arquivo entrega; reavaliar o inventário e repetir a extração do que não saiu ou saiu insatisfatória",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Classe da fonte = o que o arquivo é como evidência. Classe em passadas: termos das classes com `prioridade` (cotação e documento de obra), tipo do código Sanepar (DE, MD, RT…), extensão e, por fim, termos no caminho + nome + título do carimbo (sem acento, maiúsculas); dentro de cada passada, a primeira classe da lista vence. Cotação entra no inventário e fica fora do escopo (preço). `satisfatoria` = campos que a leitura precisa ter para a extração contar como completa; faltou campo = parcial. `escada` = próximo passe para cada situação, do mais barato (código) ao mais caro (você): a IA só entra quando o código já tentou."
+ },
+ "classes": [
+  {"id": "cotacao", "prioridade": true, "nome": "Cotação / proposta de fornecedor", "termos": "COTAC|PROPOSTA COMERCIAL|PROPOSTA DE PRECO|ORCAMENTO DE FORNECEDOR", "fora_do_escopo": "preço", "entrega": "nada para o escopo"},
+  {"id": "documento_obra", "prioridade": true, "nome": "Documento de obra (OS, ata, notificação, diário)", "termos": "ORDE(M|NS) DE SERVICO|\\bO\\.?S\\.?\\s*(N[O.]?\\s*)?\\d|\\bATA\\b|NOTIFICAC|DIARIO DE OBRA|\\bRDO\\b|OFICIO|CORRESPONDENC", "entrega": "decisões e ordens: o que será executado, quando liberado, por quem"},
+  {"id": "folha_de_dados", "nome": "Folha de dados / catálogo de equipamento", "termos": "FOLHA DE DADOS|DATA ?SHEET|\\bFD[-_ ]|CATALOGO|FICHA TECNICA", "entrega": "equipamento, tag, características (vazão, potência, DN, PN)"},
+  {"id": "projeto", "nome": "Projeto (prancha)", "codigo_tipo": ["DE"], "extensoes": [".dwg", ".dxf"], "termos": "PRANCHA|PLANTA|CORTE|DETALHE|FORMA|ARMADUR|LAYOUT|IMPLANTAC|PERFIL", "entrega": "geometria, layers, tabelas de material, carimbo", "satisfatoria": {"pdf": ["carimbo.titulo", "carimbo.folha", "carimbo.escala"]}},
+  {"id": "laudo", "nome": "Laudo / relatório técnico (sondagem, topografia, ensaio)", "codigo_tipo": ["RT"], "termos": "SONDAGEM|LAUDO|ENSAIO|TOPOGRAF|GEOTECN|RELATORIO", "entrega": "furos, camadas, NSPT, NA, coordenadas; levantamentos", "satisfatoria": {"pdf": ["texto"]}},
+  {"id": "memorial", "nome": "Memorial, especificação, caderno", "codigo_tipo": ["MD", "MC", "ES", "IC"], "termos": "MEMORIAL|DESCRITIVO|ESPECIFICAC|CADERNO|MEMORIA DE CALCULO", "entrega": "o que se constrói, materiais, critérios de medição", "satisfatoria": {"pdf": ["texto"]}},
+  {"id": "lista", "nome": "Lista de materiais, cabos, quadro de cargas", "codigo_tipo": ["LM", "LC", "QC", "QT"], "termos": "LISTA DE MATERIAIS|LISTA DE CABOS|QUADRO DE CARGAS", "entrega": "itens e quantidades de material", "satisfatoria": {"pdf": ["texto"]}},
+  {"id": "edital", "nome": "Edital, termo de referência, anexos", "termos": "EDITAL|TERMO DE REFERENCIA|\\bTR\\b|ANEXO|MINUTA|RESOLUCAO|CONTRATO", "entrega": "escopo oficial, etapas, critérios, decisões do cliente", "satisfatoria": {"pdf": ["texto"]}},
+  {"id": "planilha", "nome": "Planilha (contrato, orçamento sem preço, quantitativos)", "extensoes": [".xlsx", ".xlsm", ".xls", ".csv"], "entrega": "itens e quantidades por etapa", "satisfatoria": {"planilha": ["abas"]}},
+  {"id": "imagem", "nome": "Foto / imagem", "extensoes": [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".heic"], "entrega": "levantamento visual; fotos de drone"},
+  {"id": "compactado", "nome": "Arquivo compactado", "extensoes": [".zip", ".rar", ".7z"], "entrega": "outros arquivos: inventariar o conteúdo", "satisfatoria": {"zip": ["arquivos_dentro"]}},
+  {"id": "outro", "nome": "Outro documento", "entrega": "a classificar"}
+ ],
+ "escada": [
+  {"situacao": "fora do disco", "proximo": "código", "acao": "baixar pelo link direto (python -m camadas.drive); arquivo privado: você libera"},
+  {"situacao": "falhou", "proximo": "código", "acao": "repetir a leitura; persistindo, Haiku diz o que o arquivo é (protegido, corrompido, digitalizado)"},
+  {"situacao": "sem leitor", "proximo": "Sonnet", "acao": "ler e devolver no schema da classe, com citação; o leitor em código vira candidato a lição"},
+  {"situacao": "sem texto", "proximo": "código", "acao": "OCR de página inteira; persistindo, Sonnet lê a imagem com citação"},
+  {"situacao": "carimbo incompleto", "proximo": "código", "acao": "OCR do carimbo em todas as páginas e em 300 dpi; persistindo, Haiku lê o recorte do canto inferior direito"},
+  {"situacao": "conteúdo não inventariado", "proximo": "código", "acao": "extrair e inventariar o conteúdo do compactado"},
+  {"situacao": "classe desconhecida", "proximo": "Haiku", "acao": "dizer a classe pelo nome, pela pasta e pela 1ª página; a resposta vira termo novo nesta lista"}
+ ]
+}
