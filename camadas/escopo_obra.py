@@ -19,7 +19,7 @@ import json
 import re
 import unicodedata
 from collections import Counter, defaultdict
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 import numpy as np
@@ -41,7 +41,7 @@ RUIDO = re.compile(CIVIL["documentos"]["ruido"])
 UNIDADES = re.compile(r"\bL/s\b|\bm[²³]\b|\bmm\b|\bkV\b")
 
 
-@lru_cache(maxsize=None)
+@cache
 def _char(c: str) -> str:
     n = unicodedata.normalize("NFKD", c).encode("ascii", "ignore").decode()
     return n[:1].upper() if n else " "
@@ -52,12 +52,12 @@ def _norm(texto: str) -> str:
     return "".join(" " if c == "_" else _char(c) for c in texto)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _regras(codigo: str):
     """(fortes, ambíguas, exclui) do sistema, compiladas; '~' marca a chave ambígua."""
     s = SISTEMAS.get(codigo, {})
     chaves = s.get("chaves", [])
-    junta = lambda lista: re.compile("|".join(lista)) if lista else None          # noqa: E731
+    junta = lambda lista: re.compile("|".join(lista)) if lista else None
     return (junta([c for c in chaves if not c.startswith("~")]), junta([c[1:] for c in chaves if c.startswith("~")]),
             junta(s.get("exclui", [])))
 
@@ -183,11 +183,22 @@ def _blocos(texto: str) -> list:
 
 
 def _sem_cabecalho(paginas: list) -> list:
-    """Tira de cada página o cabeçalho/rodapé: linha que se repete em 40 % das páginas (mínimo 3) e 'Página N de M'."""
-    contagem = Counter(l for texto in paginas for l in {" ".join(x.split()) for x in texto.splitlines()} if l)
+    """Tira de cada página o cabeçalho/rodapé: linha que se repete em 40 % das páginas (mínimo 3) e está nas 8 primeiras ou
+    5 últimas linhas da página, e 'Página N de M'. Parágrafo repetido no meio do texto (cláusula de cada UC) fica."""
+    paginas_linhas = [[" ".join(x.split()) for x in texto.splitlines()] for texto in paginas]
+    pontas = [{l for l in [l for l in ls if l][:8] + [l for l in ls if l][-5:]} for ls in paginas_linhas]
+    contagem = Counter(l for conjunto in pontas for l in conjunto)
     repetida = {l for l, n in contagem.items() if n >= max(3, 0.4 * len(paginas))}
-    return ["\n".join(x for x in texto.splitlines() if " ".join(x.split()) not in repetida
-                      and not re.match(r"\s*P[áa]gina\s+\d+", x)) for texto in paginas]
+    return ["\n".join(l for l in ls if l not in repetida and not re.match(r"P[áa]gina\s+\d+", l)) for ls in paginas_linhas]
+
+
+def _frases(doc: str, pagina: int, paragrafo: str, cab: str) -> list:
+    """Frases úteis de um parágrafo: 25+ caracteres, sem preço ('R$') e sem a sujeira de tabela de medição."""
+    saida = []
+    for frase in FRASES.split(re.sub(r"\s*-{3,}>?\s*", " ", paragrafo)):
+        if len(frase) >= 25 and "R$" not in frase and not RUIDO.search(_norm(frase)):
+            saida.append({"doc": doc, "pagina": pagina, "frase": frase, "n": _norm(frase), "cab": _norm(cab)})
+    return saida
 
 
 def _passagens(doc: str, paginas: list) -> list:
@@ -197,17 +208,13 @@ def _passagens(doc: str, paginas: list) -> list:
     saida, cab, prefixo, restante = [], "", "", 0
     for n, texto in enumerate(_sem_cabecalho(paginas), 1):
         for tipo, conteudo in _blocos(texto):
+            restante = CIVIL["limites"]["titulo_blocos"] if tipo == "titulo" else restante - 1
             if tipo == "titulo":
                 numero = re.fullmatch(r"\d+(\.\d+)*\.?", conteudo)
                 prefixo, cab = (conteudo + " ", cab) if numero else ("", prefixo + conteudo)
-                restante = CIVIL["limites"]["titulo_blocos"]
-            else:
-                restante -= 1
-                if restante < 0:
-                    cab = ""
-                for frase in FRASES.split(re.sub(r"\s*-{3,}>?\s*", " ", conteudo)):
-                    if len(frase) >= 25 and "R$" not in frase and not RUIDO.search(_norm(frase)):
-                        saida.append({"doc": doc, "pagina": n, "frase": frase, "n": _norm(frase), "cab": _norm(cab)})
+                continue
+            cab = cab if restante >= 0 else ""
+            saida += _frases(doc, n, conteudo, cab)
     return saida
 
 
@@ -288,7 +295,7 @@ def _convencao(feicoes: list, manchas: dict, epsg: int) -> dict | None:
 
 def _texto_convencao(c: dict) -> str:
     """Frase do motivo: pegada, mancha dominante, o que a convenção diz e as manchas menores que também toca."""
-    pct = lambda f: f"{round(100 * f)} %"                                              # noqa: E731
+    pct = lambda f: f"{round(100 * f)} %"
     outras = "; também toca " + ", ".join(f"'{k}' {pct(v)}" for k, v in c["outras"].items()) if c["outras"] else ""
     if c["classe"] is None:
         return f"pegada ({c['area']} m², {c['base']}) não toca nenhuma mancha de convenção da folha 04"
