@@ -1,0 +1,136 @@
+# Arquitetura — projetos em camadas (R4, 30/10/2026)
+
+Diagrama e cenário de mesa: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
+
+## 1. Princípios
+
+1. **Só escopo.** Serviços e atividades numa EAP com quantidades. Sem preço, sem prazo: nada de valor unitário,
+   fornecedor, cronograma, 4D, curva S ou produtividade (decisões do Caio, 28/10 e 30/10/2026).
+2. **A EAP é a linha mestra; os documentos são evidências; o georreferenciamento é o jeito de ver no local**
+   (`docs/EAP.md`).
+3. **Um arquivo HTML** é a entrega e a memória da obra: os dados, os fatos e as decisões moram dentro dele.
+4. **Código para a certeza, IA para a dúvida.** O código extrai, mede e confere. A IA trabalha só no que o código não
+   resolve e sempre com citação conferida. Cada dúvida resolvida vira regra com teste (§7).
+5. **A decisão do engenheiro prevalece sobre a evidência**, sem apagá-la.
+
+## 2. Camadas
+
+| # | Camada | Quem | Saída |
+|---|---|---|---|
+| 1 | Fontes: fotos, pranchas, planilha, TR, memoriais, laudos | — | `dados/<obra>/` (fora do git e do HTML) |
+| 2 | Inventário e tipo: planta, perfil, detalhe, documento; disciplina | código (Haiku só baixa) | inventário |
+| 3 | EAP da obra: unidades, sistemas, água/esgoto, localizada/linear | IA propõe, você confirma | sistemas da obra |
+| 4 | Loop de evidências: texto, planilha, pranchas, associados, IA | código; IA no que sobra | evidências |
+| 5 | Fatos: código EAP × serviço × unidade (convergente, fonte única, conflito, só menção, decidido) | código | fatos |
+| 6 | EAP com quantidades, cobertura item × projeto × edital, regra dos 100 % | código | árvore da EAP |
+| 7 | Caderno HTML: blocos `eap`, `fatos`, `camadas`, `decisões`, `dúvidas`, `versões` | código | `saida/<obra>/<id>_camadas_v…html` |
+
+**Tipos de documento.** Planta: georreferenciada. Perfil: ancorado pela estaca ao trecho. Detalhe (armadura, forma,
+corte): ancorado ao elemento, nunca georreferenciado. Documento: texto e tabelas.
+
+**Disciplinas.**
+- Civil e geotecnia: elementos pela geometria → dimensões → serviços associados (`dimensoes.json`,
+  `servicos_associados.jsonl`).
+- Hidráulica: relação de materiais da prancha (OCR), memorial descritivo e planilha, todos ligados ao cadastro
+  Sanepar de 40 mil materiais.
+- Elétrica: pranchas PBEA com texto real, listas de materiais e de cabos, quadros de carga e cadastro elétrico.
+  Hoje só termos; o leitor de listas é lacuna.
+
+## 3. Decisões: ida e volta
+
+Schema único: `{id, alvo (prefixo da EAP), estado (executar | nao_executar | a_definir), motivo, autor, data,
+supera[]}`. O build aplica as decisões **antes** dos cálculos e elas descem para os filhos e os serviços associados.
+Exemplo: sem drenagem urbana, também não há vala nem pavimento da drenagem. O HTML mostra a evidência superada e o nó
+riscado, fora da soma. Ao gravar, o navegador gera uma nova versão do arquivo com o bloco de decisões. O build
+seguinte lê esse bloco. Um teste de ida e volta garante que nada se perde.
+
+## 4. Quem faz o quê
+
+| Executor | Papel |
+|---|---|
+| Código | tudo o que já é certeza; valida o que os agentes devolvem |
+| Haiku | volume mecânico: listar e baixar o Drive (um por pasta), conferir contagens |
+| Sonnet | leitura técnica em volume (memoriais, laudos, perfil de planilha, listas); módulo a partir de contrato fixo |
+| Fable | revisor independente: crítica de arquitetura, cenário de mesa, revisão de PR sem ver a conclusão do autor |
+| Opus | sessão principal: contrato de saída, georreferência difícil, revisão das dúvidas, integração e PR |
+| Você | sistemas da obra nova, decisões de execução, confirmação de regra nova |
+
+Regras do paralelismo:
+- o contrato de saída é fixado antes de abrir os lotes;
+- lotes sem sobreposição;
+- a prancha não vai inteira para a IA;
+- cada agente devolve schema + dúvidas, nunca texto livre.
+
+## 5. Processo (portões)
+
+| Portão | O que fecha |
+|---|---|
+| G0 | inventário com tipo, disciplina e orçamento de MB por bloco |
+| G1 | EAP da obra com os sistemas confirmados |
+| G2 | extração por perfil, com as dúvidas na fila |
+| G3 | georreferência e âncoras (drone opcional) |
+| G4 | fatos |
+| G5 | decisões aplicadas |
+| G6 | serviços associados, com um motor por assunto |
+| G7 | caderno HTML dentro do orçamento de tamanho |
+
+## 6. O que o cenário de mesa mostrou (obra nova: elevatória + 3 km de rede de esgoto)
+
+Trava em cinco pontos. As correções da R4 são estas:
+
+1. **Sistemas da obra**: `unidades_construtivas.json` só tem Foz. Correção: separar conceito (todas as obras) de obra
+   (sistemas no caderno).
+2. **Planilha**: `orcamento_sanepar.py` fixa as abas de Foz. Correção: perfil de planilha em JSON e leitor genérico.
+   A IA escreve o perfil, não o código.
+3. **Obra sem drone**: o build exige o SfM. Correção: drone opcional, com base satélite.
+4. **Três motores de vala** com regras diferentes (`valas.py`, `dimensoes.dimensionar_vala`, `obras_lineares`).
+   Correção: um dimensionador, com o MOS Sanepar como padrão.
+5. **Decisões**: a exportação do navegador usa outra chave e fica fora do HTML. Correção: o schema único do §3.
+
+## 7. Regra da lição aprendida e índice de determinismo
+
+**Regra.** Toda rodada com a IA deixa ao menos uma lição formalizada em código: uma regra em `conceitos/` ou uma
+função, e um teste. As lições ficam em `pdca/licoes.jsonl`, com `licao`, `antes`, `formalizada_em`, `teste` e
+`estado`. A rodada não se registra sem lição nova.
+
+**Índice.** O índice mede a **IA na obra**, não a IA no desenvolvimento:
+- **IA na obra**: um agente leu, julgou, configurou ou operou para que o dado existisse;
+- **IA no desenvolvimento**: escrever código e regras. É o papel criativo da IA e o caminho para ela virar código.
+
+`pdca/determinismo.json` lista cada etapa do processo com o executor (`codigo`, `ia` ou `humano`), o número de itens
+da obra e, nas etapas de IA, o que falta para virar código (`para_codigo`). A decisão humana fica fora do índice: ela
+é desejada.
+
+```
+python scripts/determinismo.py              # mede e confere as lições
+python scripts/determinismo.py --registrar  # grava a rodada em pdca/determinismo.jsonl
+```
+
+O script reprova em três casos:
+- lição dada como formalizada cujo arquivo ou teste não existe;
+- índice por etapas pior que o da última rodada;
+- rodada registrada sem lição nova.
+
+**Base (Foz, 30/10/2026):**
+
+| Medida | Código | IA | Índice |
+|---|---:|---:|---:|
+| Etapas do processo | 12 | 9 | **57,1 %** |
+| Registros (PDFs, itens, estacas, furos…) | 2 518 | 952 | 72,6 % |
+
+As 9 etapas de IA, por papel:
+- **operação** (2): listar e baixar o Drive;
+- **julgamento** (3): afim da GEOPLANTA, 7 afins coladas, conferência visual;
+- **leitura** (2): sondagens e estacas;
+- **configuração** (2): configuração por prancha e sistemas da obra.
+
+Houve 1 decisão humana: o módulo de filtros fora do escopo.
+
+**Meta:** 85 % das etapas em código, com +5 p.p. por rodada: são 6 rodadas a partir da base. As próximas etapas a
+virar código são as de menor esforço:
+1. as 7 afins coladas → irmã CAD × CAD da GEOPLANTA no build;
+2. a afim da GEOPLANTA → ajuste no build pelas sondagens;
+3. a conferência visual → testemunha independente com limiar;
+4. a configuração por prancha → perfil por disciplina.
+
+Os 15 % restantes ficam com a IA criativa: dúvida nova, obra nova e melhoria do próprio código.

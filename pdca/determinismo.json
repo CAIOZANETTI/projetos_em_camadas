@@ -1,0 +1,37 @@
+{
+ "metadata": {
+  "fonte": "pedido do Caio (30/10/2026): a cada rodada com a IA, uma lição aprendida vira código; medir a parte da obra que roda em código × IA, com meta e tendência",
+  "estado": "confirmado",
+  "data_referencia": "2026-10",
+  "observacoes": "Mede a IA NA OBRA (em tempo de execução: alguém precisou ler, julgar, configurar ou operar à mão para o dado existir), não a IA no desenvolvimento: escrever código e regras é o papel criativo da IA e é por ele que a IA vira código. Executor: 'codigo' = sai do build, reprodutível; 'ia' = um agente (Haiku, Sonnet, Opus) produziu o dado ou o valor colado no obra.json; 'humano' = decisão do engenheiro (desejada, fica fora do índice). Índice por etapas = etapas em código ÷ (código + IA), o indicador com meta. Índice por registros = itens em código ÷ (código + IA), informativo: unidades diferentes (PDF, furo, item, estaca) somadas como registro. 'para_codigo' diz o que falta para a etapa de IA virar código; quando virar, a etapa muda de executor e a lição entra em pdca/licoes.jsonl."
+ },
+ "meta": {
+  "indice_etapas": {"alvo": 0.85, "passo_por_rodada": 0.05, "fonte": "proposta: +5 p.p. por rodada até 85 %; o resto é IA criativa (dúvida nova, obra nova)"},
+  "indice_registros": {"alvo": 0.95}
+ },
+ "obra": "foz-vilac",
+ "etapas": [
+  {"id": "listagem", "portao": "G0", "nome": "Listagem recursiva do Drive", "executor": "ia", "papel": "operação", "itens": 428, "fonte": "docs/PLANO_FOZ.md §5 (Haiku, conector do Drive)", "para_codigo": "listagem pela API do Drive dentro do build, com credencial do ambiente"},
+  {"id": "download", "portao": "G0", "nome": "Download e decodificação dos PDFs", "executor": "ia", "papel": "operação", "itens": 161, "fonte": "docs/PLANO_FOZ.md §5 (Haiku, base64)", "para_codigo": "idem: download pela API, sem agente"},
+  {"id": "inventario", "portao": "G0", "nome": "Inventário, carimbo e tipo de cada PDF", "executor": "codigo", "itens": 325, "fonte": "camadas/inventario.py"},
+  {"id": "sfm", "portao": "G3", "nome": "SfM, ortofoto verdadeira e 3D", "executor": "codigo", "itens": 13, "fonte": "camadas/sfm.py"},
+  {"id": "controle_absoluto", "portao": "G3", "nome": "Afim da GEOPLANTA pelas 16 sondagens", "executor": "ia", "papel": "julgamento", "itens": 1, "fonte": "exemplos/foz/obra.json controle_absoluto (valores calculados na sessão e colados)", "para_codigo": "ajuste afim no build a partir das sondagens com E/N e dos rótulos SP-xx lidos na planta"},
+  {"id": "georef_malha", "portao": "G3", "nome": "Pranchas pela malha de coordenadas (OCR)", "executor": "codigo", "itens": 16, "fonte": "georef_prancha.registrar_malha"},
+  {"id": "georef_irma", "portao": "G3", "nome": "Pranchas irmãs CAD × CAD", "executor": "codigo", "itens": 10, "fonte": "georef_prancha.registrar_cad"},
+  {"id": "georef_colada", "portao": "G3", "nome": "Pranchas com afim absoluta colada (M_absoluta)", "executor": "ia", "papel": "julgamento", "itens": 7, "fonte": "exemplos/foz/obra.json pranchas[].M_absoluta", "para_codigo": "irmã CAD × CAD da GEOPLANTA calculada no build, como as outras 10"},
+  {"id": "config_prancha", "portao": "G3", "nome": "Configuração por prancha (layers, clip, irmã, regras)", "executor": "ia", "papel": "configuração", "itens": 34, "fonte": "exemplos/foz/obra.json pranchas[]", "para_codigo": "perfil por disciplina e padrão de layer em conceitos/: a prancha herda a configuração pelo código Sanepar"},
+  {"id": "conferencia_visual", "portao": "G3", "nome": "Conferência visual da georreferência", "executor": "ia", "papel": "julgamento", "itens": 34, "fonte": "skill obra-em-camadas, passo 8 (Opus)", "para_codigo": "testemunha independente no build (malha × irmã × marcos E/N) com limiar; a IA só olha o que reprovar"},
+  {"id": "sondagens", "portao": "G2", "nome": "Laudo de sondagem → furos com E/N, NSPT e camadas", "executor": "ia", "papel": "leitura", "itens": 16, "fonte": "docs/PLANO_FOZ.md §5 (Sonnet → sondagens.json)", "para_codigo": "leitor de laudo: tabela de coordenadas e perfis SPT por texto do PDF, schema validado"},
+  {"id": "estacas", "portao": "G2", "nome": "Estacas com E/N (estacas.csv)", "executor": "ia", "papel": "leitura", "itens": 256, "fonte": "docs/PLANO_FOZ.md §2 e §5 (leitura das pranchas de fundação; origem exata a confirmar)", "para_codigo": "prancha.estacas_e_blocos + tabela de locação por OCR"},
+  {"id": "sistemas", "portao": "G1", "nome": "Sistemas da obra e chaves de busca", "executor": "ia", "papel": "configuração", "itens": 15, "fonte": "conceitos/unidades_construtivas.json (escrito na sessão para Foz)", "para_codigo": "proposta automática pelos códigos de estrutura e pelas siglas das pranchas; você confirma"},
+  {"id": "planilha", "portao": "G2", "nome": "Planilha do contrato → itens sem preço", "executor": "codigo", "itens": 882, "fonte": "camadas/orcamento_sanepar.py"},
+  {"id": "cadastro", "portao": "G2", "nome": "Itens conferidos no cadastro de 40 mil materiais", "executor": "codigo", "itens": 882, "fonte": "orcamento_sanepar.catalogo, obra._item_do_escopo"},
+  {"id": "fichas", "portao": "G2", "nome": "Relação de materiais e balões das pranchas (OCR)", "executor": "codigo", "itens": 2, "fonte": "camadas/prancha.py (fichas piloto f010 e forma MOD01)"},
+  {"id": "escavacao", "portao": "G6", "nome": "Escavação e reaterro das cavas", "executor": "codigo", "itens": 8, "fonte": "camadas/escavacao.py"},
+  {"id": "valas", "portao": "G6", "nome": "Valas, demolição e recomposição por trecho", "executor": "codigo", "itens": 16, "fonte": "camadas/valas.py"},
+  {"id": "supressao", "portao": "G6", "nome": "Supressão vegetal estimada", "executor": "codigo", "itens": 1, "fonte": "camadas/supressao.py"},
+  {"id": "elementos", "portao": "G4", "nome": "Elementos construtivos (estaca, bloco, pilar, cava, trecho)", "executor": "codigo", "itens": 349, "fonte": "camadas/construtivos.py"},
+  {"id": "escopo_regra", "portao": "G5", "nome": "Escopo por sistema pela convenção de etapas", "executor": "codigo", "itens": 14, "fonte": "camadas/escopo_obra.py (rodada 16)"},
+  {"id": "escopo_decisao", "portao": "G5", "nome": "Decisão de escopo do engenheiro", "executor": "humano", "itens": 1, "fonte": "exemplos/foz/obra.json escopo_unidades.manual (FILTROS fora)"}
+ ]
+}

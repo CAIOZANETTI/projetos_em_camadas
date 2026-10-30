@@ -35,6 +35,7 @@ satélite (opcional, online) ─────────────────
 | `scripts/exemplo_irati.py` | Exemplo completo: EEB 10 Alto Recalque (SAA Irati/PR) |
 | `exemplos/foz/obra.json` | Obra completa: ETA Vila C, SAA Foz do Iguaçu (etapas, sondagens, 3D) |
 | `exemplos/irati/` | Resultado do exemplo: mosaico georreferenciado e visualizador |
+| `docs/ARQUITETURA.md` | Arquitetura R4: camadas, decisões, agentes, portões, regra da lição aprendida e índice de determinismo (`scripts/determinismo.py`, `pdca/determinismo.json`, `pdca/licoes.jsonl`) |
 | `docs/PLANO.md` | Plano de implementação, fases e perguntas em aberto |
 | `docs/PLANO_FOZ.md` | Plano e resultados da obra de Foz (achados, divisão Haiku/Sonnet/Opus, pendências) |
 | `docs/VISUALIZADOR_V2.md` | Contrato de dados do HTML v2 (pranchas vetoriais, etapas, escopo, 3D) |
