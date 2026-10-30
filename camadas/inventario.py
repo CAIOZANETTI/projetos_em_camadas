@@ -1,6 +1,8 @@
-"""Inventário determinístico dos projetos de uma obra: nenhum PDF fica de fora sem aparecer.
+"""Inventário determinístico dos projetos de uma obra: nenhum arquivo fica de fora sem aparecer.
 
-A referência é a **listagem do Drive** (todos os itens, gravada pela ingestão), não o que foi baixado. Para cada PDF:
+A referência é a **listagem do Drive** (todos os itens, gravada pela ingestão), não o que foi baixado. Todo arquivo
+entra (PDF, planilha, zip, DWG, imagem…); pasta não. Cada um diz o que tem pelo leitor do seu tipo (`LEITORES`) ou
+fica "sem leitor", à vista. Ausência só se afirma por `procurar`: "não baixado" não é "não existe". Para cada PDF:
 situação (no disco / falhou no download / não tentado), formato da folha (A0–A4, estendido), páginas, layers CAD,
 texto ou SHX, código Sanepar (sequência, disciplina, tipo de documento, revisão), o carimbo lido no canto inferior
 direito (texto do PDF; OCR quando o texto vem em traço) e o tipo: planta (vai ao mapa), detalhe (fica em Projeto) ou
@@ -161,6 +163,59 @@ def ler_pdf(caminho: str | Path, ocr: bool = True) -> dict:
     return {**meta, "carimbo": {**campos_carimbo(texto), "fonte": fonte, "texto": texto[:600]}}
 
 
+def ler_planilha(caminho: str | Path) -> dict:
+    """Abas da planilha com a situação (visível ou oculta) e o tamanho usado: a aba oculta também é escopo."""
+    import openpyxl
+    wb = openpyxl.load_workbook(caminho, read_only=True)
+    abas = [{"aba": ws.title, "estado": getattr(ws, "sheet_state", "visible"), "linhas": ws.max_row,
+             "colunas": ws.max_column} for ws in wb.worksheets]
+    wb.close()
+    return {"abas": abas, "ocultas": sum(a["estado"] != "visible" for a in abas)}
+
+
+def ler_zip(caminho: str | Path, amostra: int = 30) -> dict:
+    """O que há dentro do zip sem extrair: contagem por extensão e os primeiros nomes. Zip é pasta, não arquivo."""
+    import zipfile
+    with zipfile.ZipFile(caminho) as z:
+        nomes = [n for n in z.namelist() if not n.endswith("/")]
+    por_ext = {}
+    for n in nomes:
+        e = Path(n).suffix.lower() or "(sem extensão)"
+        por_ext[e] = por_ext.get(e, 0) + 1
+    return {"arquivos_dentro": len(nomes), "por_extensao": por_ext, "amostra": nomes[:amostra]}
+
+
+LEITORES = {".pdf": "ler_pdf", ".xlsx": "ler_planilha", ".xlsm": "ler_planilha", ".zip": "ler_zip"}
+
+
+def ler_arquivo(caminho: Path, ocr: bool = True) -> dict:
+    """O leitor do tipo do arquivo; sem leitor, o arquivo continua no inventário com `leitor: None`."""
+    nome = LEITORES.get(caminho.suffix.lower())
+    if not nome:
+        return {"leitor": None}
+    try:
+        return {"leitor": nome, **(ler_pdf(caminho, ocr) if nome == "ler_pdf" else globals()[nome](caminho))}
+    except Exception as erro:                       # arquivo corrompido não derruba o inventário: fica com o motivo
+        return {"leitor": nome, "erro": f"{type(erro).__name__}: {erro}"[:200]}
+
+
+def procurar(inv: dict, padrao: str) -> dict:
+    """Busca na listagem inteira (nome, pasta e título do carimbo), em qualquer situação. É a única forma de dizer
+    que um documento não existe: a resposta cita a listagem, o padrão e o que está fora do disco."""
+    rx = re.compile(normalizar(padrao), re.IGNORECASE)
+    achados = [i for i in inv["itens"]
+               if rx.search(normalizar(f"{i['pasta_drive']} {i['arquivo']} {(i.get('carimbo') or {}).get('titulo') or ''}"))]
+    fora = [i for i in achados if not i["situacao"].startswith("no disco")]
+    if not achados:
+        resposta = f"nenhum dos {len(inv['itens'])} arquivos da listagem ({inv['fonte']}) casa com '{padrao}'"
+    else:
+        resposta = f"{len(achados)} arquivo(s) casam com '{padrao}'" + (
+            f"; {len(fora)} fora do disco ({', '.join(sorted({i['situacao'] for i in fora}))}): existem, não foram lidos"
+            if fora else "")
+    return {"padrao": padrao, "achados": [{k: i.get(k) for k in ("arquivo", "pasta_drive", "mb", "situacao", "tipo")}
+                                          for i in achados], "resposta": resposta}
+
+
 def tipo_documento(nome: str, titulo: str | None, regras: dict) -> str:
     """planta (vai ao mapa) | detalhe (só em Projeto) | documento, por `conceitos/tipos_prancha.json`."""
     cod = codigo_sanepar(nome)
@@ -174,6 +229,24 @@ def tipo_documento(nome: str, titulo: str | None, regras: dict) -> str:
     return "documento"
 
 
+def _totais(itens: list) -> dict:
+    """Contagens do inventário: arquivos por extensão, PDFs, situação, sem leitor e tipo."""
+    pdfs = [i for i in itens if i["arquivo"].lower().endswith(".pdf")]
+    por_extensao = {}
+    for i in itens:
+        e = Path(i["arquivo"]).suffix.lower() or "(sem extensão)"
+        por_extensao[e] = por_extensao.get(e, 0) + 1
+    totais = {"arquivos": len(itens), "por_extensao": por_extensao, "pdfs": len(pdfs),
+              "sem_leitor": sum(i["situacao"].startswith("no disco") and not i.get("leitor") for i in itens),
+              "no_disco": sum(i["situacao"].startswith("no disco") for i in itens),
+              "falhou": sum(i["situacao"] == "falhou no download" for i in itens),
+              "nao_tentado": sum(i["situacao"] == "não tentado" for i in itens),
+              **{t: sum(i["tipo"] == t for i in itens) for t in ("planta", "detalhe", "documento")},
+              "no_mapa": sum(bool(i["no_mapa"]) for i in itens),
+              "plantas_fora_do_mapa": sum(i["tipo"] == "planta" and not i["no_mapa"] for i in itens)}
+    return totais
+
+
 def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print) -> dict:
     """Loop determinístico sobre a listagem do Drive (`inventario.listagem` no obra.json) × arquivos em disco.
 
@@ -182,7 +255,7 @@ def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print
     import pandas as pd
     c = cfg["inventario"]
     lista = pd.read_csv(c["listagem"], sep=";", dtype=str).fillna("")
-    lista = lista[lista["mimeType"] == "application/pdf"]
+    lista = lista[lista["mimeType"] != "application/vnd.google-apps.folder"]
     falhas = set()
     if c.get("baixados") and Path(c["baixados"]).exists():
         b = pd.read_csv(c["baixados"], sep=";", dtype=str).fillna("")
@@ -190,7 +263,7 @@ def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print
     tentados = set(pd.read_csv(c["baixados"], sep=";", dtype=str)["id"]) if c.get("baixados") else set()
     locais = {}
     for p in Path(c["pasta"]).rglob("*"):
-        if p.suffix.lower() == ".pdf":
+        if p.is_file() and not p.name.startswith("_"):            # _listagem_drive.csv e _baixados.csv são da ingestão
             locais.setdefault(normalizar(p.name), []).append(p)
     no_mapa = {normalizar(Path(q["pdf"]).name): q["id"] for q in cfg.get("pranchas", [])}
     regras = json.loads((pdf_cad.CONCEITOS / "tipos_prancha.json").read_text(encoding="utf-8"))
@@ -206,7 +279,7 @@ def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print
             p = caminhos[0]
             assinatura = f"{p.stat().st_size}:{int(p.stat().st_mtime)}"
             if memo.get(str(p), {}).get("assinatura") != assinatura:
-                memo[str(p)] = {"assinatura": assinatura, **ler_pdf(p, ocr)}
+                memo[str(p)] = {"assinatura": assinatura, **ler_arquivo(p, ocr)}
             item.update({"situacao": "no disco" if p == exato else "no disco (mesmo nome em outra pasta)", "caminho": str(p),
                          **{k: v for k, v in memo[str(p)].items() if k != "assinatura"}})
         else:
@@ -220,21 +293,17 @@ def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print
     if cache:
         cache.write_text(json.dumps(memo, ensure_ascii=False), encoding="utf-8")
     sem_lista = sorted(k for k in locais if k not in {normalizar(t) for t in lista["titulo"]})
-    log(f"Inventário: {len(itens)} PDFs na listagem do Drive, {sum(i['situacao'] == 'no disco' for i in itens)} no disco;"
-        f" {len(sem_lista)} PDF(s) em disco fora da listagem")
-    totais = {"pdfs": len(itens), "no_disco": sum(i["situacao"].startswith("no disco") for i in itens),
-              "falhou": sum(i["situacao"] == "falhou no download" for i in itens),
-              "nao_tentado": sum(i["situacao"] == "não tentado" for i in itens),
-              **{t: sum(i["tipo"] == t for i in itens) for t in ("planta", "detalhe", "documento")},
-              "no_mapa": sum(bool(i["no_mapa"]) for i in itens),
-              "plantas_fora_do_mapa": sum(i["tipo"] == "planta" and not i["no_mapa"] for i in itens)}
+    totais = _totais(itens)
+    log(f"Inventário: {totais['arquivos']} arquivos na listagem do Drive ({totais['pdfs']} PDFs), {totais['no_disco']} no "
+        f"disco; {len(sem_lista)} arquivo(s) em disco fora da listagem; {totais['sem_leitor']} sem leitor")
     return {"itens": itens, "resumo": resumo(itens), "totais": totais, "fora_da_listagem": sem_lista,
             "fonte": c.get("fonte") or c["listagem"]}
 
 
 def para_html(inv: dict) -> dict:
     """Versão enxuta para o visualizador (sem o texto bruto do carimbo)."""
-    campos = ("arquivo", "pasta_drive", "mb", "situacao", "tipo", "grupo", "subgrupo", "no_mapa", "formato", "paginas")
+    campos = ("arquivo", "pasta_drive", "mb", "situacao", "tipo", "grupo", "subgrupo", "no_mapa", "formato", "paginas",
+              "leitor", "erro")
     return {**{k: inv[k] for k in ("resumo", "totais", "fora_da_listagem", "fonte")},
             "itens": [{**{k: i.get(k) for k in campos},
                        "carimbo": {k: (i.get("carimbo") or {}).get(k) for k in ("titulo", "folha", "data", "escala", "fonte")}}
@@ -259,9 +328,10 @@ def metadados() -> dict:
     """Rastreabilidade das regras do inventário (regra 9 do estilo)."""
     return {
         "modulo": "inventario",
-        "descricao": "inventário determinístico dos PDFs de projeto: listagem do Drive × disco, formato, código, carimbo",
-        "funcoes": ["inventario", "ler_pdf", "campos_carimbo", "formato_folha", "codigo_sanepar", "tipo_documento",
-                    "desembaralhar", "resumo", "para_html"],
+        "descricao": "inventário determinístico de todos os arquivos da obra: listagem do Drive × disco, leitor por tipo "
+                     "(PDF: formato, código, carimbo; planilha: abas e ocultas; zip: conteúdo), busca que prova ausência",
+        "funcoes": ["inventario", "ler_arquivo", "ler_pdf", "ler_planilha", "ler_zip", "procurar", "campos_carimbo",
+                    "formato_folha", "codigo_sanepar", "tipo_documento", "desembaralhar", "resumo", "para_html"],
         "bibliografia": [
             {"obra": "ISO 216 / ABNT NBR 10068 — Folha de desenho: leiaute e dimensões", "ano": 1987,
              "editora": "ABNT", "aplicacao": {"formato_folha": ["FORMATOS_MM", "tolerância ±3 %"]}},
@@ -275,8 +345,11 @@ def metadados() -> dict:
              "fonte": "carimbos das pranchas da LE 211/2026 (modelo Sanepar: FOLHA N°, UNIDADE CONSTRUTIVA, DATA, ESCALA)"},
             {"aplicacao": {"desembaralhar": ["deslocamento de 29", "ACENTOS_FONTE", "vogais ≥ 0,25 / 0,35"]},
              "fonte": "pranchas PBGE de Foz: '&RPSDQKLD GH 6DQHDPHQWR' = 'Companhia de Saneamento'"},
+            {"aplicacao": {"procurar": ["ausência só por consulta à listagem inteira"], "inventario": ["todo arquivo, não só PDF"]},
+             "fonte": "Caio, 30/10/2026: a forma e a armadura do Actiflo 360 foram dadas como inexistentes e existiam "
+                      "(pdca/licoes.jsonl L008)"},
         ],
-        "ultima_revisao": "2026-10-28",
+        "ultima_revisao": "2026-10-30",
     }
 
 

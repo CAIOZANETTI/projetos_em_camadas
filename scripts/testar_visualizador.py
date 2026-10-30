@@ -11,8 +11,7 @@ Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema
   * a aba Pranchas numa prancha com textos ("fu1"): folha desenhada e busca de texto;
   * a aba Etapas & escopo (situação por item salva, CSV, contagens, especificação e alertas vindos do Python, sem preço);
   * sondagens (popup com SVG), foto do drone e o 3D (canvas WebGL com pixels desenhados);
-  * v3: árvore por disciplina, recorte classificado (intervenção), estacas no mapa e no 3D, marcos geodésicos
-    e o 4D (linha do tempo, play, curva S);
+  * v3: árvore por disciplina, recorte classificado (intervenção), estacas no mapa e no 3D, marcos geodésicos;
   * aba Obra (só com `D.construtivos`): é a primeira aba e abre ao carregar; busca por rótulo/classe/sistema, árvore por
     unidade, clique que enquadra e destaca um único elemento, ficha (só no painel) com atributos e fonte como link,
     popup do mapa mínimo, trecho de rede como linha vetorial clicável; e, com `construtivos.escopo`: resumo
@@ -81,7 +80,7 @@ JS_PIXELS_3D = """() => {
 JS_TODAS_PRONTAS = "__viz.PR.filter(p => p.mapa.on).every(p => p.pronta)"
 JS_INFO = """() => ({pr: __viz.PR.map(p => p.id), tem3d: !!__viz.D.modelo3d, sond: (__viz.D.sondagens || []).length,
   fotos: Object.keys(__viz.D.fotos || {}), escopo: ((__viz.D.escopo || {}).itens || []).length, etapas: (__viz.D.etapas || []).map(e => e.id),
-  grupos: __viz.D.grupos || {}, interv: (__viz.D.intervencoes || []).length, crono: !!__viz.D.cronograma,
+  grupos: __viz.D.grupos || {}, interv: (__viz.D.intervencoes || []).length,
   totais: (__viz.D.escopo || {}).totais || null})"""
 
 
@@ -1110,95 +1109,6 @@ def verificar_projeto(c: dict) -> None:
     page.wait_for_timeout(300)
 
 
-def ir_ao_dia(c: dict, dia: int) -> None:
-    """Usa o próprio controle da linha do tempo (evento input do range). Espera dois quadros com prazo largo: no
-    Chromium sem GPU (swiftshader), com o WebGL do 3D vivo e 34 canvases, o primeiro quadro do 4D já levou 42 s,
-    com a CPU ociosa — demora de composição do ambiente de teste, não do código (o mesmo passo também deu 0,6 s)."""
-    js(c, "(d) => { const r = document.querySelector('#b4Dia'); r.value = d; r.dispatchEvent(new Event('input', {bubbles: true})); }", dia)
-    c["page"].wait_for_function("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))",
-                                timeout=180000)
-    c["page"].wait_for_timeout(300)
-
-
-def verificar_v3_4d_abrir(c: dict) -> None:
-    page = c["page"]
-    js(c, "__viz.map.closePopup()")
-    page.click("#b-enquadrar")
-    page.wait_for_timeout(500)
-    page.click("#b-4d")
-    page.wait_for_function(JS_TODAS_PRONTAS, timeout=180000)
-    passo(c, "4D: barra da linha do tempo aberta", js(c, "!document.querySelector('#bar4d').hidden"))
-    passo(c, "4D: aviso de data da OS hipotética", js(c, "!document.querySelector('#b4Aviso').hidden") == bool(js(c, "__viz.D.cronograma.data_os_hipotese")))
-    passo(c, "4D: marcos MI na linha do tempo", js(c, "document.querySelectorAll('#b4Marcos button').length") == js(c, "__viz.D.cronograma.marcos.length"))
-    passo(c, "4D: curva S desenhada em SVG", js(c, "document.querySelectorAll('#b4Curva polyline').length") == 1)
-    ini = js(c, "document.querySelector('#b4Data').textContent")
-    page.fill("#b4Os", "2027-03-01")
-    passo(c, "4D: trocar a data da OS muda só o rótulo", js(c, "document.querySelector('#b4Data').textContent") != ini and js(c, "__viz.F4.dia") == 0)
-
-
-def verificar_v3_4d_dia100(c: dict) -> None:
-    ir_ao_dia(c, 100)
-    exec_ = c["page"].inner_text("#b4Exec")
-    passo(c, "4D dia 100: A04 e A05 em execução, A08 fora da lista", "A04" in exec_ and "A05" in exec_ and "A08" not in exec_)
-    r = js(c, """() => {
-      const f8 = __viz.PR.find(p => p.id === 'f008'), fu = __viz.PR.find(p => p.id === 'fu1'), E = __viz.ESTACAS;
-      const g = __viz.camadasMapa.estacas.layer, ac = E.find(e => e.id.startsWith('ACT360')), fi = E.find(e => e.id.startsWith('FILTROS'));
-      return {a08: f8.f4d.every(v => v === 1) && f8.ef.every(v => v === 0), a05: fu.f4d.some(v => v === 2),
-        estOk: ac.f4 === 2 && fi.f4 === 1 && !g.hasLayer(fi.marker) && g.hasLayer(ac.marker), pct: document.querySelector('#b4Pct').textContent};
-    }""")
-    passo(c, "4D dia 100: elementos da A08 ocultos", r["a08"])
-    passo(c, "4D dia 100: elementos da A05 destacados", r["a05"])
-    passo(c, "4D dia 100: estacas ACT360 destacadas e FILTROS ocultas no mapa", r["estOk"])
-    esperado = js(c, "__viz.D.cronograma.curva_s.planejado_pct[__viz.D.cronograma.curva_s.dia.indexOf(100)]")
-    pct = float(r["pct"].replace("%", "").replace(",", ".").strip())
-    passo(c, "4D dia 100: % planejado confere com a curva S", abs(pct - esperado) < .06, f"{pct} % × {esperado} %")
-    foto(c, "13_4d_dia100")
-
-
-def verificar_v3_4d_3d(c: dict) -> None:
-    """No 3D as estacas seguem a mesma regra (escala zero = oculta; cor laranja = em execução)."""
-    if not js(c, "!!(__viz.v3 && __viz.v3.estacas)"):
-        return
-    r = js(c, """() => {
-      const im = __viz.v3.estacas, m = new THREE.Matrix4(), cor = new THREE.Color(), E = __viz.ESTACAS;
-      const i = E.findIndex(e => e.id.startsWith('FILTROS')), j = E.findIndex(e => e.id.startsWith('ACT360'));
-      im.getMatrixAt(i, m); const sx = m.elements[0]; im.getColorAt(j, cor);
-      return {sx, laranja: cor.r > .9 && cor.g > .3 && cor.g < .6 && cor.b < .1};
-    }""")
-    passo(c, "4D dia 100: no 3D a estaca FILTROS some e a ACT360 fica laranja", r["sx"] == 0 and r["laranja"], str(r))
-
-
-def verificar_v3_4d_dias(c: dict) -> None:
-    ir_ao_dia(c, 400)
-    exec_ = c["page"].inner_text("#b4Exec")
-    passo(c, "4D dia 400: A10 e A11 em execução", "A10" in exec_ and "A11" in exec_ and "A04" not in exec_)
-    foto(c, "14_4d_dia400")
-    ir_ao_dia(c, 600)
-    r = js(c, "({oculto: __viz.PR.some(P => P.f4d.some(v => v === 1)) || __viz.ESTACAS.some(e => e.f4 === 1), exec: document.querySelector('#b4Exec').textContent})")
-    passo(c, "4D dia 600: 1ª etapa concluída, nada oculto (só a B01, da 2ª etapa, em execução)", not r["oculto"] and "B01" in r["exec"] and "A13" not in r["exec"])
-    foto(c, "15_4d_dia600")
-
-
-def verificar_v3_4d_play(c: dict) -> None:
-    page = c["page"]
-    ir_ao_dia(c, 0)
-    page.click("#b4Play")
-    page.wait_for_timeout(1000)
-    dia = js(c, "__viz.F4.dia")
-    passo(c, "4D: play por 1 s avança os dias", dia > 0, f"dia {dia}")
-    page.click("#b4Play")
-    passo(c, "4D: pausa", js(c, "document.querySelector('#b4Play').getAttribute('aria-pressed')") == "false")
-
-
-def verificar_v3_4d_sair(c: dict) -> None:
-    page = c["page"]
-    page.click("#b4Fechar")
-    page.wait_for_timeout(500)
-    r = js(c, """() => ({f4d: __viz.PR.every(P => P.f4d.every(v => v === 0)), est: __viz.ESTACAS.every(e => e.f4 === 0),
-      vet: Object.values(__viz.camadasMapa).every(c => !c.f4), f004: __viz.PR.find(p => p.id === 'f004').mapa.on, barra: document.querySelector('#bar4d').hidden})""")
-    passo(c, "4D: ao sair, tudo volta ao estado anterior", r["f4d"] and r["est"] and r["vet"] and r["f004"] and r["barra"], str(r))
-
-
 def verificar_final(c: dict) -> None:
     c["page"].wait_for_timeout(300)
     passo(c, "sem rolagem horizontal ao final", js(c, "document.documentElement.scrollWidth <= window.innerWidth + 1"))
@@ -1213,9 +1123,6 @@ def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
                   verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_area_obra,
                   verificar_obra, verificar_projeto):
         secao(c)
-    if c["info"]["crono"]:
-        for secao in (verificar_v3_4d_abrir, verificar_v3_4d_dia100, verificar_v3_4d_3d, verificar_v3_4d_dias, verificar_v3_4d_play, verificar_v3_4d_sair):
-            secao(c)
     verificar_final(c)
 
 

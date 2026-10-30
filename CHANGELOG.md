@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.19.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
+## 0.20.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
 - **Unidades da Relação na aba Obra** (regra código do desenho → sistema em `conceitos/unidades_construtivas.json`):
   7 novas — câmara de contato, canal de água tratada, EEE lodo / reservatório de lodo, RECALD e RECALF, blocos de
   apoio e ancoragem, caixas de saída de água tratada e caixas de chegada de água bruta (CXA separado pela unidade da
@@ -10,6 +10,22 @@
 - Escopo das novas: "a definir" sem pegada no mapa, com o motivo; caixas de saída fora pelo contrato (tabelas 03 e
   04 só com quantidade na 2ª etapa).
 - Python e aba feitos por dois agentes (Sonnet) contra um contrato fixo; revisão, build e testes na sessão principal.
+
+## 0.19.0 — 2026-10-30 · Arquitetura: só escopo, inventário primeiro e índice de determinismo
+- **Cronograma e 4D removidos**: o sistema trata só de escopo (serviços e atividades numa EAP com quantidades), sem
+  prazo nem preço. Saem `obra.cronograma_4d`, o bloco `cronograma` do obra.json de Foz (marcos MI, pesos das UCs,
+  curva S), a barra 4D do visualizador, os testes e a documentação. Os marcos geodésicos (topografia) ficam.
+- **Arquitetura R6** (`docs/ARQUITETURA.md`): EAP como linha mestra, o HTML único como caderno da obra, decisões com
+  ida e volta, tipos de documento (planta, perfil, detalhe, documento), disciplinas, agentes por papel (Fable como
+  revisor independente) e portões G0–G7. O cenário de mesa de uma obra nova trava em cinco pontos, com a correção de
+  cada um.
+- **Inventário de todos os arquivos** (`camadas/inventario.py`): não só PDF. Planilha (abas, inclusive ocultas), zip
+  (conteúdo) e o que não tem leitor fica "sem leitor", à vista. `procurar` prova a ausência: busca nome, pasta e
+  carimbo em qualquer situação e separa "existe, não lido" de "não existe" (lição do Actiflo 360).
+- **Regra da lição aprendida e índice de determinismo** (`scripts/determinismo.py`, `pdca/determinismo.json`,
+  `pdca/licoes.jsonl`): toda rodada com a IA deixa ao menos uma lição em código, com teste; o índice mede a IA na obra
+  × o código. Reprova índice pior, lição sem arquivo/teste e rodada sem lição nova. Foz: 61,9 % das etapas em código
+  (57,1 % antes do download pelo link direto); meta 85 %. 9 lições, 7 com teste.
 
 ## 0.18.0 — 2026-10-30 · Foz, rodada 18: a estrutura dos Actiflo a partir das formas do Drive
 - **Download pelo link direto** (`camadas/drive.py`): o conector do Drive não passa de ~5,5 MB por arquivo e as

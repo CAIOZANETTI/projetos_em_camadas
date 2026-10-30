@@ -574,57 +574,6 @@ def vetor_marcos(cfg: dict, epsg: int, centro_utm) -> dict | None:
             "estilo": {"color": "#0ea5e9", "radius": 5, "weight": 2, "fillOpacity": 0.9}}
 
 
-def cronograma_4d(cfg: dict, dados: dict) -> dict | None:
-    """Resolve os seletores de cada atividade em elementos do HTML e calcula a curva S planejada.
-
-    Seletor: pranchas (ids), grupos ([grupo, subgrupo] dos layers), etapas (classe dos layers e manchas),
-    vetores (ids), estacas (estrutura), intervencoes (tipos desenhados pelo usuário). O front só compara a data
-    escolhida com início/fim — a conta (elementos e curva S) é daqui (regra 12 do estilo).
-    """
-    c = cfg.get("cronograma")
-    if not c:
-        return None
-    estacas = next((v for v in dados["vetores"] if v["id"] == "estacas"), None)
-    ids_vetor = {v["id"] for v in dados["vetores"]}
-    atividades = []
-    for a in c["atividades"]:
-        sel = a.get("seletor", {})
-        layers = {}
-        for pr in dados["pranchas"]:
-            if pr["M"] is None:
-                continue
-            nomes = [l["nome"] for l in pr["layers"]
-                     if (pr["id"] in sel.get("pranchas", []) and not sel.get("grupos") and not sel.get("etapas"))
-                     or [l.get("grupo"), l.get("subgrupo")] in sel.get("grupos", [])
-                     or (l.get("classe") in sel.get("etapas", []) and not sel.get("grupos"))
-                     or (pr["id"] in sel.get("pranchas", []) and [l.get("grupo"), l.get("subgrupo")] in sel.get("grupos", []))]
-            if nomes:
-                layers[pr["id"]] = nomes
-        vetores = [v["id"] for v in dados["vetores"]
-                   if v["id"] in sel.get("vetores", []) or (v.get("etapa") and v["etapa"] in sel.get("etapas", []))]
-        ids_estacas = [f["properties"]["id"] for f in (estacas["geojson"]["features"] if estacas else [])
-                       if f["properties"].get("estrutura") in sel.get("estacas", [])]
-        n = sum(map(len, layers.values())) + len(vetores) + len(ids_estacas) + len(sel.get("intervencoes", []))
-        if sel and not n:
-            _log(f"  cronograma: atividade {a['id']} sem elemento no mapa (seletor {sel})")
-        faltam = [v for v in sel.get("vetores", []) if v not in ids_vetor]
-        atividades.append({**{k: v for k, v in a.items() if k != "seletor"},
-                           "elementos": {"layers": layers, "vetores": vetores, "estacas": ids_estacas,
-                                         "intervencoes": sel.get("intervencoes", [])},
-                           "n_elementos": n, "vetores_ausentes": faltam})
-    fim = max(a["fim_dia"] for a in atividades)
-    dias = np.arange(fim + 1)
-    peso = np.array([a.get("peso_pct", 0.0) for a in atividades], float)
-    inicio = np.array([a["inicio_dia"] for a in atividades], float)
-    termino = np.array([a["fim_dia"] for a in atividades], float)
-    avanco = np.clip((dias[:, None] - inicio) / np.maximum(termino - inicio, 1), 0, 1)   # linear por atividade
-    curva = avanco @ peso / max(peso.sum(), 1e-9) * 100
-    return {**{k: v for k, v in c.items() if k != "atividades"}, "atividades": atividades,
-            "curva_s": {"dia": dias[::5].tolist() + ([int(fim)] if fim % 5 else []),
-                        "planejado_pct": np.round(np.r_[curva[::5], [curva[-1]] if fim % 5 else []], 2).tolist()},
-            "peso_total_pct": round(float(peso.sum()), 2)}
-
-
 def _pranchas_no_mapa(cfg: dict, pranchas: list, extensao: list, epsg: int) -> tuple[list, list, dict]:
     """Pacote vetorial de cada prancha (com quantitativos se georreferenciada), manchas de etapa e pendências."""
     lista, vetores, pendentes = [], [], {}
@@ -827,7 +776,6 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "grupos": pdf_cad.disciplinas()["grupos"],
         "intervencoes": json.loads((pdf_cad.CONCEITOS / "intervencoes.json").read_text(encoding="utf-8"))["intervencoes"],
         "elementos": {c["id"]: {"nome": c["nome"], "grupo": c["grupo"]} for c in pdf_cad.elementos()["classes"]},
-        "cronograma": None,
         "escopo": escopo,
         "sondagens": furos,
         "modelo3d": modelo3d(out, rel, cfg.get("max_pontos_3d", 300_000), desloc, vertical),
@@ -839,7 +787,6 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     if vertical:                                      # perfil dos furos no 3D só com a nuvem em cota
         dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
     _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala})
-    dados["cronograma"] = cronograma_4d(cfg, dados)
     return _gravar(cfg, out, dados, pranchas, epsg)
 
 
