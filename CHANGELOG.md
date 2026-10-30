@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.17.0 — 2026-10-30 · Foz, rodada 17: a estrutura dos Actiflo a partir das formas do Drive
+- **Download pelo link direto** (`camadas/drive.py`): o conector do Drive não passa de ~5,5 MB por arquivo e as
+  formas e armaduras (6 a 22 MB) nunca desciam. Foz: 164 PDFs pendentes (811 MB), 0 falha; inventário com os 325
+  PDFs da listagem no disco.
+- **Formas dos Actiflo** (fichas `act01_forma`, `act02_forma`): Actiflo 600 — 87/87 estacas encaixadas a 6 mm, 85
+  blocos (83 rotulados); Actiflo 360 — 39/39 a 3 mm, 30 blocos (29 rotulados), com níveis. Blocos na aba Obra, no
+  mapa e no 3D (78 sólidos, eram 41); "blocos de coroamento" dos Actiflo passa a geometria.
+- Conferido na Relação de Desenhos: o Actiflo 360 não tem pilar nem passarela, e nenhum Actiflo tem projeto de
+  impermeabilização — as lacunas restantes dessas unidades são do projeto, não da leitura.
+
 ## 0.16.0 — 2026-10-30 · Foz, rodada 16: aba Obra como determinação de escopo
 - **Escopo por unidade construtiva** (`camadas/escopo_obra.py`): dentro / fora / a definir pela convenção do desenho
   004 (regra do `Escopo_1etapa_PBES.pdf`, manchas lidas da f004), pelo contrato (redes) ou manual
