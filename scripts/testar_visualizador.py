@@ -1063,8 +1063,9 @@ def verificar_projeto(c: dict) -> None:
     page.wait_for_timeout(300)
     if js(c, "!!__viz.D.inventario"):
         r = js(c, """() => { const I = __viz.D.inventario, s = I.resumo.reduce((a, l) => a + l.total, 0);
-          return {soma: s, pdfs: I.totais.pdfs, itens: I.itens.length, nota: document.querySelector('#invLista .nota-l').textContent}; }""")
-        passo(c, "inventário: soma do resumo = PDFs da listagem = itens", r["soma"] == r["pdfs"] == r["itens"], str(r))
+          return {soma: s, total: I.totais.arquivos ?? I.totais.pdfs, itens: I.itens.length, nota: document.querySelector('#invLista .nota-l').textContent}; }""")
+        # desde a 0.19.0 o inventário tem todos os arquivos da listagem (não só PDF): totais.arquivos
+        passo(c, "inventário: soma do resumo = arquivos da listagem = itens", r["soma"] == r["total"] == r["itens"], str(r))
         page.select_option("#invTipo", "planta")
         page.wait_for_timeout(200)
         n = js(c, "document.querySelectorAll('#invLista .inv-i').length")
