@@ -195,7 +195,7 @@ def ler_arquivo(caminho: Path, ocr: bool = True) -> dict:
         return {"leitor": None}
     try:
         return {"leitor": nome, **(ler_pdf(caminho, ocr) if nome == "ler_pdf" else globals()[nome](caminho))}
-    except Exception as erro:                       # arquivo corrompido não derruba o inventário: fica com o motivo
+    except Exception as erro:  # noqa: BLE001 — arquivo corrompido (qualquer leitor) não derruba o inventário: fica o motivo
         return {"leitor": nome, "erro": f"{type(erro).__name__}: {erro}"[:200]}
 
 

@@ -69,7 +69,9 @@ def test_inventario_nao_perde_pdf(tmp_path):
                         "UNIDADE 01;planta.dwg;h;image/vnd.dwg;dwg;10;x\n"
                         "PBES/ACTIFLO 360;012-SAA-0017-8820-PBES-DE-0000ACT360FORMA1-R1.pdf;i;application/pdf;pdf;7000000;x\n",
                         encoding="utf-8")
-    import openpyxl, zipfile
+    import zipfile
+
+    import openpyxl
     (pasta / "ORCAMENTO").mkdir()
     wb = openpyxl.Workbook()
     wb.active.title = "MATS E EQUIP"
