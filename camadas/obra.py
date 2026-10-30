@@ -31,6 +31,7 @@ from . import (
     geo,
     georef_prancha,
     inventario,
+    obras_lineares,
     orcamento_sanepar,
     pdf_cad,
     prancha,
@@ -759,8 +760,9 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
 
 
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
-    """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas e inventário com a ficha em lote; e os
-    elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor."""
+    """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
+    lote; e os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor."""
+    pacotes["obras_lineares"] = obras_lineares.etapa(cfg, dados["sondagens"], out, log=_log)   # vala (MOS) da planilha
     if fichas:
         dados["fichas"] = prancha.para_html(fichas)
         if dados.get("vertical"):

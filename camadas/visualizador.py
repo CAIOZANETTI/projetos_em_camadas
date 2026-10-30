@@ -49,6 +49,10 @@ Estrutura de `dados` (tudo em JSON; imagens como data URL):
                 "marcas", "conferencia_crista", "parametros", "premissas"},     # + vetor "escavacao"
   "valas": {"redes": [{id, de_mm, fonte_de, criterio, extensao_m, quadro: [{classe, nome, final, extensao_m,
             demolicao_m2, recomposicao_m2, volume_vala_m3, ...}]}], "classes", "fora", "premissas"},   # + vetor "valas"
+  "obras_lineares": {"trechos": [{local, dn_mm, material, metodo, comp_m, prof_m, escoramento, largura_m, escavacao_m3,
+                     reaterro_m3, bota_fora_m3, supressao_m2, pav_<tipo>_m2, solos, na_m, esgotamento_frac,
+                     confere_planilha, alertas, ...}], "conciliacao": [{item, descricao, custo_civil_m,
+                     obras_lineares_m, situacao, ...}], "unidade", "fonte", "premissas", "mnd"},   # rodada 17
 
   # --- rodada 8 (opcionais) ---
   "fichas": [{id, nome, piloto, identidade, vistas, itens, baloes, blocos, niveis, encaixe, elementos, servicos}],

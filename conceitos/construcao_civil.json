@@ -116,6 +116,13 @@
    "partes": ["canteiro", "demolicao", "escavacao", "escoramento", "berco", "tubulacao", "conexoes", "orgaos",
               "pocos_caixas", "blocos_ancoragem", "reaterro", "pavimento", "ensaios"]
   },
+  "rede_eta": {
+   "nome": "Tubulação enterrada dentro da ETA",
+   "estado": "premissa",
+   "fonte": "aba Obras Lineares do protótipo 211 (Giselle, 30/10/2026): vala a céu aberto (VCA) ou MND, escoramento acima de 1,25 m, escavação, reaterro, bota-fora, supressão vegetal e recomposição do pavimento (grama, asfalto, concreto, paver, lajota); CUSTO CIVIL 1.2–1.8: blocos de ancoragem e caixas de interligação",
+   "partes": ["demolicao", "escavacao", "escoramento", "berco", "tubulacao", "conexoes", "pocos_caixas",
+              "blocos_ancoragem", "reaterro", "pavimento", "ensaios"]
+  },
   "drenagem": {
    "nome": "Drenagem pluvial da ETA",
    "estado": "premissa",

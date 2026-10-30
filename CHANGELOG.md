@@ -17,6 +17,13 @@
   Obras Lineares; acusa a supressão de 66 % nas linhas do lodo (sem observação), a linha 9 sem profundidade
   (reaterro −0,49 m³) e concilia os itens em metro do CUSTO CIVIL (1.2, 1.3, 1.4, 1.7 e 1.8 batem; 1.5 e 1.6 são
   aéreos; 1.9 drenagem do Actiflo 600 sem comprimento nem trecho).
+- **No build e no HTML**: `obras_lineares` no obra.json (planilha, unidade, método por trecho escolhido pelo
+  usuário) → etapa com as sondagens da obra (ids tolerantes: SP-02 = SPT-2) → `obras_lineares.csv` e
+  `obras_lineares_conciliacao.csv` em `saida/` e tabela "Obras lineares" na aba Projeto (trecho, L, volumes,
+  supressão, pavimentos, solo, NA, esgotamento, conferência com a planilha, alertas, orientações de MND).
+- **Tubos da ETA na Unidade 1**: sistemas `AB_ENTRADA`, `AB_INTERLIG`, `LODO_SAIDA`, `LODO_RETORNO` (tipologia
+  `rede_eta`); o perfil hidráulico da ETA (`ETAVILACPERFILHIDRAU`) deixa de ser classificado como obra linear.
+- Referência `referencias/sanepar/MOS_largura_de_vala_tabela_I.png` e skill `obras-lineares`.
 
 ## 0.16.0 — 2026-10-30 · Foz, rodada 16: aba Obra como determinação de escopo
 - **Escopo por unidade construtiva** (`camadas/escopo_obra.py`): dentro / fora / a definir pela convenção do desenho

@@ -159,3 +159,39 @@ def test_metadados_citam_funcoes_existentes():
     assert all(hasattr(ol, f) for f in m["funcoes"]) and m["premissas"]
     assert ol.classe_solo("Basalto são")["categoria"] == "3ª categoria"
     assert ol.ler_furos(None) == []
+
+
+def test_etapa_do_build_usa_as_sondagens_da_obra_e_o_metodo_do_usuario(tmp_path):
+    caminho = _planilha(tmp_path)
+    furos = [{**FUROS[1], "id": "SPT 2"}]                              # o 'SP-02' da planilha, com outra grafia
+    cfg = {"obras_lineares": {"planilha": str(caminho), "unidade": "UNIDADE 1",
+                              "metodo": {"Retorno lodo EEE flotofiltro": "MND"}}}
+    pac = ol.etapa(cfg, furos, tmp_path, log=lambda *_: None)
+    entrada, retorno = pac["trechos"]
+    assert entrada["solos"].startswith("areia") and entrada["esgotamento_frac"] == 1.0   # NA 1,5 m < 2,4 m
+    assert "esgotamento" in entrada["alertas"]
+    assert retorno["metodo"] == "MND" and retorno["largura_m"] is None and retorno["caximbos"] == 2
+    assert {c["item"] for c in pac["conciliacao"]} == {"1.2", "1.5", "1.8"} and pac["mnd"]
+    assert (tmp_path / "obras_lineares.csv").exists()
+    assert ol.etapa({}, [], tmp_path) is None
+    assert ol.etapa({"obras_lineares": {"planilha": str(tmp_path / "nao.xlsx")}}, [], tmp_path, log=lambda *_: None) is None
+
+
+def test_id_de_sondagem_tolerante():
+    assert ol.id_furo("SP-02") == ol.id_furo("SP02") == ol.id_furo("SPT-2") == ol.id_furo("sp 2") == "SP2"
+    assert ol.id_furo("SP-15") != ol.id_furo("SP-1")
+
+
+def test_tubos_da_eta_sao_unidade_1_e_o_perfil_hidraulico_nao_e_linear():
+    import json
+    import re
+
+    from camadas import construtivos, escopo_obra, pdf_cad
+    sis = construtivos.REGRAS["sistemas"]
+    assert {sis[k]["unidade"] for k in ("AB_ENTRADA", "AB_INTERLIG", "LODO_SAIDA", "LODO_RETORNO")} == {"u1"}
+    assert escopo_obra._casa("AB_ENTRADA", "ENTRADA DA ADUTORA DE AGUA BRUTA")
+    assert not escopo_obra._casa("AAT00", "ENTRADA DA ADUTORA DE AGUA BRUTA")
+    assert not escopo_obra._casa("AB_INTERLIG", "INTERLIGACAO:MOD. TRATAMENTO COM MICRO AREIA 360L COM FILTROS EXISTENTES")
+    linear = json.loads((pdf_cad.CONCEITOS / "tipos_prancha.json").read_text(encoding="utf-8"))["linear"]
+    assert not re.search(linear, "005-SAA-0017-7471-PBHI-DE-0001ETAVILACPERFILHIDRAU-R1")
+    assert re.search(linear, "001-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF01-R0")

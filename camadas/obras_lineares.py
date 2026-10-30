@@ -105,6 +105,12 @@ def solo_na_vala(furo: dict, prof_m: float) -> dict[str, float]:
     return fatias
 
 
+def id_furo(texto) -> str:
+    """Id comparável de sondagem: 'SP-02', 'SP02', 'SPT-2' e 'SP 2' são o mesmo furo."""
+    t = re.sub(r"[^A-Z0-9]", "", norm(texto)).replace("SPT", "SP")
+    return re.sub(r"(?<=[A-Z])0+(?=\d)", "", t)
+
+
 def furo_por_metro(pts: np.ndarray, furos: list[dict]) -> list[str | None]:
     """Id do furo mais próximo de cada ponto do eixo (UTM) dentro do raio de influência; None fora dele."""
     com_xy = [f for f in furos if f.get("E") is not None and f.get("N") is not None]
@@ -130,13 +136,13 @@ def geotecnia(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) ->
     """Solo (fração por classe e categoria), NA e esgotamento do trecho pelas sondagens que o cobrem; sem o arquivo
     de sondagens, o solo e o NA digitados na planilha."""
     prof = trecho.get("prof_m")
-    por_id = {norm(f["id"]): f for f in furos}
+    por_id = {id_furo(f["id"]): f for f in furos}
     solos: dict[str, float] = {}
     nas, sem, esgota = [], 0.0, 0.0
     if not furos and trecho.get("solo"):
         solos[classe_solo(trecho["solo"])["classe"]] = 1.0
     for fid, frac in (cobertura(trecho, furos, pts) if furos else {}).items():
-        furo = por_id.get(norm(fid)) if fid else None
+        furo = por_id.get(id_furo(fid)) if fid else None
         if furo is None:
             sem += frac
             continue
@@ -396,6 +402,35 @@ def quadro(qs: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
+def para_html(qs: list[dict], conc: list[dict], c: dict) -> dict:
+    """Pacote da aba Projeto: quadro por trecho, conciliação com o CUSTO CIVIL, premissas e orientações de MND."""
+    df = quadro(qs)
+    return {"trechos": df.astype(object).where(df.notna(), None).to_dict("records"), "conciliacao": conc,
+            "unidade": c.get("unidade", ""), "fonte": c.get("fonte") or REGRAS["metadata"]["fonte"],
+            "premissas": REGRAS["metadata"]["observacoes"], "mnd": REGRAS["mnd"]["orientacoes"]}
+
+
+def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
+    """Etapa da obra (`obras_lineares` no obra.json): lê a planilha, aplica o método escolhido pelo usuário em cada
+    trecho (`metodo`: {local: 'MND'}), cruza com as sondagens da obra e grava os CSVs em `out`."""
+    c = cfg.get("obras_lineares")
+    if not c or not Path(c["planilha"]).exists():
+        if c:
+            log(f"Obras lineares: planilha {c['planilha']} não está no disco")
+        return None
+    escolha = {norm(k): v for k, v in (c.get("metodo") or {}).items()}
+    trechos = [{**t, "metodo": escolha.get(norm(t["local"]), t["metodo"])}
+               for t in ler_obras_lineares(c["planilha"], c.get("aba", "Obras Lineares"))]
+    qs = [quantificar(t, furos) for t in trechos]
+    conc = conciliar(trechos, ler_custo_civil(c["planilha"], c.get("aba_custo", "CUSTO CIVIL"), c.get("unidade", "UNIDADE 1")))
+    for nome, df in (("obras_lineares.csv", quadro(qs)), ("obras_lineares_conciliacao.csv", pd.DataFrame(conc))):
+        df.to_csv(Path(out) / nome, sep=";", decimal=",", index=False, encoding="utf-8-sig")
+    log(f"Obras lineares: {len(qs)} trechos, {sum(t['comp_m'] for t in trechos):.1f} m; "
+        f"{sum(bool(q['alertas']) for q in qs)} com alerta; conciliação: "
+        + ", ".join(f"{l['item']} {l['situacao']}" for l in conc))
+    return para_html(qs, conc, c)
+
+
 def ler_furos(caminho) -> list[dict]:
     """Sondagens no formato do obra.json (lista ou {'furos': [...]}), com id, E, N, na_m e camadas."""
     if not caminho:
@@ -432,7 +467,7 @@ def metadados() -> dict:
                      "quantidades VCA/MND por trecho; conferência com a planilha e conciliação com o CUSTO CIVIL",
         "funcoes": ["sobrelargura", "escorar", "largura", "classe_solo", "solo_na_vala", "furo_por_metro", "cobertura",
                     "geotecnia", "brilho", "pavimentos_ortofoto", "no_eixo", "vca", "mnd", "quantificar", "ler_obras_lineares",
-                    "ler_custo_civil", "conferir", "casar", "conciliar", "quadro"],
+                    "ler_custo_civil", "conferir", "casar", "conciliar", "quadro", "para_html", "etapa", "id_furo"],
         "bibliografia": [
             {"obra": "Sanepar — Manual de Obras de Saneamento (MOS): largura de vala e Tabela I de sobrelargura",
              "editora": "Sanepar", "aplicacao": {"largura": ["L = D + SL + X + Y"], "sobrelargura": ["Tabela I"]}},
