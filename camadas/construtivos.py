@@ -2,7 +2,8 @@
 
     unidade  = obra localizada (u1, ETA) ou linear (u2, adutoras)
     sistema  = módulo da ETA (filtros, Actiflo...) ou rede; estaca pela `estrutura`, bloco e pilar pela ficha da forma,
-               cava pela maioria das estacas dentro, mancha de etapa no sistema geral
+               cava pela maioria das estacas dentro, mancha de etapa no sistema geral. A unidade da Relação de Desenhos
+               sem geometria no mapa (câmara de contato, canal, caixas...) entra na árvore com `classes` vazio
     trecho   = uma folha da rede: o tubo das valas dentro da janela da planta; a extensão da rede (quadro das valas) é
                repartida pela posição do tubo, então é estimada. O contrato × desenho vem de `escopo.tubo_x_desenho`
 
@@ -22,9 +23,11 @@ import shapely.affinity
 from shapely.geometry import Polygon, mapping, shape
 
 from . import geo
+from .inventario import normalizar
 from .pdf_cad import CONCEITOS
 
 REGRAS = json.loads((CONCEITOS / "unidades_construtivas.json").read_text(encoding="utf-8"))
+RELACAO = re.compile(json.loads((CONCEITOS / "construcao_civil.json").read_text(encoding="utf-8"))["documentos"]["relacao"])
 
 
 def _sistema(codigo: str) -> dict:
@@ -278,8 +281,17 @@ def _trechos(ctx: dict, dados: dict, cfg: dict) -> None:
                              _rotulo_do_trecho(rede["id"], por_id[pid], len(janelas)))
 
 
-def _arvore(contagem: Counter) -> list:
-    """Unidades > sistemas > contagem por classe, na ordem do conceito; sistema sem elemento fica de fora."""
+def _declarados(dados: dict) -> set:
+    """Sistemas com `desenhos` na regra, quando o inventário traz a Relação de Desenhos: entram na árvore mesmo sem elemento."""
+    itens = (dados.get("inventario") or {}).get("itens") or []
+    if not any(RELACAO.search(normalizar(i["arquivo"]).upper().replace("_", " ")) for i in itens):
+        return set()
+    return {c for c, s in REGRAS["sistemas"].items() if s.get("desenhos")}
+
+
+def _arvore(contagem: Counter, declarados: set = frozenset()) -> list:
+    """Unidades > sistemas > contagem por classe, na ordem do conceito; sistema sem elemento só fica se for declarado
+    (unidade da Relação de Desenhos sem geometria no mapa: `classes` vazio)."""
     codigos = list(REGRAS["sistemas"]) + sorted({c for c, _ in contagem} - set(REGRAS["sistemas"]))
     arvore = []
     for uid, u in REGRAS["unidades"].items():
@@ -287,7 +299,7 @@ def _arvore(contagem: Counter) -> list:
         for codigo in codigos:
             classes = {cl: n for (c, cl), n in contagem.items() if c == codigo}
             s = _sistema(codigo)
-            if classes and s["unidade"] == uid:
+            if (classes or codigo in declarados) and s["unidade"] == uid:
                 sistemas.append({"id": f"{uid}-{codigo}", "nome": s["nome"], "estado": s["estado"], "classes": classes})
         arvore.append({"id": uid, "nome": u["nome"], "obra": u["obra"], "sistemas": sistemas})
     return arvore
@@ -314,7 +326,7 @@ def montar(dados: dict, cfg: dict) -> dict | None:
     presentes = {cl for _, cl in ctx["contagem"]}
     return {"fonte": REGRAS["metadata"]["fonte"],
             "classes": {k: v for k, v in REGRAS["classes"].items() if k in presentes},
-            "arvore": _arvore(ctx["contagem"]),
+            "arvore": _arvore(ctx["contagem"], _declarados(dados)),
             "geojson": {"type": "FeatureCollection", "features": ctx["features"]}}
 
 
