@@ -433,6 +433,14 @@
   "catalogo": "referencias/sanepar/catalogo_materiais.jsonl.gz"
  },
  "sondagens": "dados/foz/geotec/sondagens.json",
+ "obras_lineares": {
+  "planilha": "dados/foz/orcamento/211 - SAA Foz do Iguaçú.xlsx",
+  "aba": "Obras Lineares",
+  "aba_custo": "CUSTO CIVIL",
+  "unidade": "UNIDADE 1",
+  "fonte": "protótipo 211 - SAA Foz do Iguaçu (Giselle, 30/10/2026): aba Obras Lineares (colunas V–BC) e itens em metro da Unidade 1 no CUSTO CIVIL; tubos dentro da ETA, não são AAT",
+  "metodo": {}
+ },
  "pendentes": {
   "Estrutura": [
    "Formas e armaduras dos módulos ACTIFLO 360/600 (PDFs > 5 MB, baixar manualmente)"
