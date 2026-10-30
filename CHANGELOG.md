@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.19.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
+- **Unidades da Relação na aba Obra** (regra código do desenho → sistema em `conceitos/unidades_construtivas.json`):
+  7 novas — câmara de contato, canal de água tratada, EEE lodo / reservatório de lodo, RECALD e RECALF, blocos de
+  apoio e ancoragem, caixas de saída de água tratada e caixas de chegada de água bruta (CXA separado pela unidade da
+  Relação); sistema sem geometria aparece na árvore ("sem geometria").
+- **Desenhos citados × entregues** por unidade e no total: 104 citados, 46 entregues, 58 não entregues; entregue com
+  link do Drive, não entregue com marcador de alerta; filtro "Só com desenho não entregue" (8 unidades).
+- Escopo das novas: "a definir" sem pegada no mapa, com o motivo; caixas de saída fora pelo contrato (tabelas 03 e
+  04 só com quantidade na 2ª etapa).
+- Python e aba feitos por dois agentes (Sonnet) contra um contrato fixo; revisão, build e testes na sessão principal.
+
 ## 0.18.0 — 2026-10-30 · Foz, rodada 18: a estrutura dos Actiflo a partir das formas do Drive
 - **Download pelo link direto** (`camadas/drive.py`): o conector do Drive não passa de ~5,5 MB por arquivo e as
   formas e armaduras (6 a 22 MB) nunca desciam. Foz: 164 PDFs pendentes (811 MB), 0 falha; inventário com os 325

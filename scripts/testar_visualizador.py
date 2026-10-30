@@ -754,6 +754,11 @@ def obra_decomposicao(c: dict) -> None:
         foto(c, "19b_obra_parte_no_mapa")
 
 
+def mostrar_no_topo(c: dict, seletor: str) -> None:
+    """Rola a aba Obra até o elemento ficar logo abaixo da busca fixa (para a captura mostrar o que interessa)."""
+    js(c, "(s) => { const a = document.querySelector('#aba-obra'), e = document.querySelector(s); a.scrollTop += e.getBoundingClientRect().top - a.getBoundingClientRect().top - document.querySelector('.ob-busca').offsetHeight - 4; }", seletor)
+
+
 JS_OBRA_DESENHOS = r"""() => { const E = __viz.obra.ES, ids = [...document.querySelectorAll('#obArvore .ob-sis')].map(d => d.dataset.sis);
   const des = i => (E.sistemas[i] || {}).desenhos || [], pend = i => des(i).filter(d => d.entregue !== true).length;
   const pr = new Set(__viz.PR.map(p => p.id)), https = d => d && /^https:\/\//.test(d.link || '');
@@ -809,7 +814,7 @@ def obra_sem_geometria(c: dict) -> None:
     passo(c, "obra/sem geometria: alternar 'No escopo' muda o estado e o resumo do sistema sem elemento",
           novo != est and sum(depois["chips"].values()) == sum(antes["chips"].values()) and depois["chips"] != antes["chips"], f"{est} -> {novo}")
     js(c, "__viz.obra.restaurar()")
-    page.locator(f'#obArvore .ob-sis[data-sis="{sid}"]').scroll_into_view_if_needed()
+    mostrar_no_topo(c, f'#obArvore .ob-sis[data-sis="{sid}"]')
     foto(c, "21_obra_sem_geometria")
 
 
@@ -839,7 +844,7 @@ def obra_desenhos(c: dict) -> None:
               r["nao"] > 0 and r["naoMarca"] and r["naoSemLink"] and r["alerta"]["forma"] != "none", f"{nao}: {r['nao']} não entregue(s)")
         passo(c, "obra/desenhos: o alerta usa a cor da lacuna 'sem evidência' e destaca a linha",
               (r["lacuna"] is None or r["alerta"]["cor"] == r["lacuna"]) and r["alerta"]["fundo"] != "rgba(0, 0, 0, 0)", r["alerta"]["cor"])
-        js(c, "(i) => document.querySelector('.ob-sis[data-sis=\"' + i + '\"]').scrollIntoView({block: 'start'})", nao)
+        mostrar_no_topo(c, f'#obArvore .ob-sis[data-sis="{nao}"]')
         foto(c, "22_obra_desenhos")
     if a["ent"]:
         r = js(c, JS_OBRA_DES_LINHAS, a["ent"])
@@ -889,7 +894,10 @@ def obra_desenhos_filtro(c: dict) -> None:
       n: document.querySelector('#obSoPendN').textContent})""")
     passo(c, "obra/desenhos: 'Só com desenho não entregue' lista exatamente os sistemas com pendência (e esconde unidades vazias)",
           r["ids"] == sorted(a["comPend"]) and r["unidades"] and str(len(a["comPend"])) in r["n"], f"{len(r['ids'])} de {antes} sistemas")
-    js(c, "document.querySelector('#obArvore').scrollIntoView({block: 'start'})")
+    for sid in r["ids"]:   # só para a captura: fecha os sistemas abertos, para a lista de pendências caber na tela
+        if js(c, "(s) => document.querySelector(s).getAttribute('aria-expanded')", f'#obArvore .ob-sis[data-sis="{sid}"] .ob-sis-h') == "true":
+            page.click(f'#obArvore .ob-sis[data-sis="{sid}"] .ob-sis-h')
+    mostrar_no_topo(c, "#obArvore")
     foto(c, "24_obra_so_pendentes")
     page.uncheck("#obSoPend")
     depois = js(c, "document.querySelectorAll('#obArvore .ob-sis:not([hidden])').length")

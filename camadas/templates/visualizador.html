@@ -2665,7 +2665,7 @@ function htmlDesenho(d) {
     : dc && urlOk(dc.link) ? `<span class="nota-l">entregue</span>` + (dc.prancha && prPorId(dc.prancha) ? `<button class="btn mini" data-ob-acao="prancha" data-prancha="${esc(dc.prancha)}">ver na aba Pranchas</button>` : "")
     : `<span class="nota-l">entregue (sem link)</span>`;
   return `<div class="ob-des${ok ? "" : " ne"}" data-entregue="${ok ? 1 : 0}"><span class="f">${esc(d.folha || "—")}</span>
-    <span class="ct">${esc(d.conteudo || "sem descrição")}<span class="ar">${arquivo}</span></span><span class="st">${estado}</span></div>`;
+    <span class="ct">${esc(d.conteudo || "sem descrição")}<span class="ar">${arquivo}</span></span><span class="st">${estado}${d.obs ? `<span class="nota-l">${esc(d.obs)}</span>` : ""}</span></div>`;
 }
 function htmlDesenhosSis(sid) {
   const L_ = desenhosSis(sid);
