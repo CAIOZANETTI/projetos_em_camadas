@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.19.0 — 2026-10-30 · Arquitetura: só escopo, inventário primeiro e índice de determinismo
+- **Cronograma e 4D removidos**: o sistema trata só de escopo (serviços e atividades numa EAP com quantidades), sem
+  prazo nem preço. Saem `obra.cronograma_4d`, o bloco `cronograma` do obra.json de Foz (marcos MI, pesos das UCs,
+  curva S), a barra 4D do visualizador, os testes e a documentação. Os marcos geodésicos (topografia) ficam.
+- **Arquitetura R6** (`docs/ARQUITETURA.md`): EAP como linha mestra, o HTML único como caderno da obra, decisões com
+  ida e volta, tipos de documento (planta, perfil, detalhe, documento), disciplinas, agentes por papel (Fable como
+  revisor independente) e portões G0–G7. O cenário de mesa de uma obra nova trava em cinco pontos, com a correção de
+  cada um.
+- **Inventário de todos os arquivos** (`camadas/inventario.py`): não só PDF. Planilha (abas, inclusive ocultas), zip
+  (conteúdo) e o que não tem leitor fica "sem leitor", à vista. `procurar` prova a ausência: busca nome, pasta e
+  carimbo em qualquer situação e separa "existe, não lido" de "não existe" (lição do Actiflo 360).
+- **Regra da lição aprendida e índice de determinismo** (`scripts/determinismo.py`, `pdca/determinismo.json`,
+  `pdca/licoes.jsonl`): toda rodada com a IA deixa ao menos uma lição em código, com teste; o índice mede a IA na obra
+  × o código. Reprova índice pior, lição sem arquivo/teste e rodada sem lição nova. Foz: 61,9 % das etapas em código
+  (57,1 % antes do download pelo link direto); meta 85 %. 9 lições, 7 com teste.
+
+## 0.18.0 — 2026-10-30 · Foz, rodada 18: a estrutura dos Actiflo a partir das formas do Drive
+- **Download pelo link direto** (`camadas/drive.py`): o conector do Drive não passa de ~5,5 MB por arquivo e as
+  formas e armaduras (6 a 22 MB) nunca desciam. Foz: 164 PDFs pendentes (811 MB), 0 falha; inventário com os 325
+  PDFs da listagem no disco.
+- **Formas dos Actiflo** (fichas `act01_forma`, `act02_forma`): Actiflo 600 — 87/87 estacas encaixadas a 6 mm, 85
+  blocos (83 rotulados); Actiflo 360 — 39/39 a 3 mm, 30 blocos (29 rotulados), com níveis. Blocos na aba Obra, no
+  mapa e no 3D (78 sólidos, eram 41); "blocos de coroamento" dos Actiflo passa a geometria.
+- Conferido na Relação de Desenhos: o Actiflo 360 não tem pilar nem passarela, e nenhum Actiflo tem projeto de
+  impermeabilização — as lacunas restantes dessas unidades são do projeto, não da leitura.
+
+## 0.17.0 — 2026-10-30 · Foz, rodada 17: obras lineares dentro da ETA (demandas da Giselle)
+- **Obras lineares da Unidade 1** (`camadas/obras_lineares.py`, `conceitos/obras_lineares.json`): os trechos de tubo
+  da ETA (entrada de água bruta, interligações com os Actiflo 360/600, saída e retorno de lodo) não são AAT; cada
+  trecho tem DN, material, profundidade média, comprimento e método (VCA ou MND, escolhido pelo usuário).
+- **Vala pelo MOS Sanepar**: L = D + SL + X + Y, com a Tabela I de sobrelargura, X = 0,10 m se escorado e Y = 0,10 m
+  por metro ou fração acima de 2 m; escoramento acima de 1,25 m (NR-18; fórmula da coluna AD). Escavação, reaterro
+  (− π·DN²/4), bota-fora (empolamento 1,3), escoramento, pavimento demolido/recomposto por tipo (grama, asfalto,
+  concreto, paver, lajota) e supressão vegetal. MND: só os caximbos (1 a cada 80 m, 4,5 m²) e orientações de HDD.
+- **Sondagem no trecho**: cada metro do eixo na sondagem mais próxima dentro do raio de influência (60 m, calibrar)
+  ou metade inicial/metade final pelos ids da planilha; solo e categoria de escavação pela descrição das camadas até
+  o fundo da vala; NA mais raso que o fundo = esgotamento de vala.
+- **Pavimento pela ortofoto** no eixo desenhado: verde = grama (e supressão), preto = asfalto, cinza claro =
+  concreto/calçada (limiar de brilho a calibrar).
+- **Conferência e conciliação** da planilha `211 - SAA Foz do Iguaçu`: o cálculo reproduz as linhas 4 a 8 da aba
+  Obras Lineares; acusa a supressão de 66 % nas linhas do lodo (sem observação), a linha 9 sem profundidade
+  (reaterro −0,49 m³) e concilia os itens em metro do CUSTO CIVIL (1.2, 1.3, 1.4, 1.7 e 1.8 batem; 1.5 e 1.6 são
+  aéreos; 1.9 drenagem do Actiflo 600 sem comprimento nem trecho).
+- **No build e no HTML**: `obras_lineares` no obra.json (planilha, unidade, método por trecho escolhido pelo
+  usuário) → etapa com as sondagens da obra (ids tolerantes: SP-02 = SPT-2) → `obras_lineares.csv` e
+  `obras_lineares_conciliacao.csv` em `saida/` e tabela "Obras lineares" na aba Projeto (trecho, L, volumes,
+  supressão, pavimentos, solo, NA, esgotamento, conferência com a planilha, alertas, orientações de MND).
+- **Tubos da ETA na Unidade 1**: sistemas `AB_ENTRADA`, `AB_INTERLIG`, `LODO_SAIDA`, `LODO_RETORNO` (tipologia
+  `rede_eta`); o perfil hidráulico da ETA (`ETAVILACPERFILHIDRAU`) deixa de ser classificado como obra linear.
+- Referência `referencias/sanepar/MOS_largura_de_vala_tabela_I.png` e skill `obras-lineares`.
+
 ## 0.16.0 — 2026-10-30 · Foz, rodada 16: aba Obra como determinação de escopo
 - **Escopo por unidade construtiva** (`camadas/escopo_obra.py`): dentro / fora / a definir pela convenção do desenho
   004 (regra do `Escopo_1etapa_PBES.pdf`, manchas lidas da f004), pelo contrato (redes) ou manual

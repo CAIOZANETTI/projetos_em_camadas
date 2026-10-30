@@ -3123,6 +3123,26 @@ function htmlValas() {
   ${redes}${V.fora.length ? `<p class="nota-l">Fora do cálculo: ${V.fora.map(esc).join("; ")}.</p>` : ""}
   <p class="nota-l">${esc(V.premissas)}</p>`;
 }
+/* obras lineares: vala pelo MOS, sondagem e pavimento calculados no Python (camadas/obras_lineares.py); aqui só a tabela */
+function htmlObrasLineares() {
+  const O = D.obras_lineares; if (!O) return "";
+  const n = (v, d = 0) => v == null ? "—" : fmt(v, d);
+  const PAV = ["grama", "asfalto", "concreto", "paver", "lajota", "terra"];
+  const pav = t => PAV.filter(p => t[`pav_${p}_m2`]).map(p => `${p} ${n(t[`pav_${p}_m2`], 1)}`).join(" · ") || "—";
+  const lin = O.trechos.map(t => `<tr><td class="d">${esc(t.local)}<span class="cod">${esc(t.material)} DN ${n(t.dn_mm)} · ${esc(t.metodo)} · ${n(t.comp_m, 1)} m · prof. ${n(t.prof_m, 2)} m · escoramento ${esc(t.escoramento)} · solo: ${esc(t.solos || "—")} · NA ${n(t.na_m, 2)} m${t.esgotamento_frac ? ` · <b>esgotamento ${n(t.esgotamento_frac * 100)}%</b>` : ""}</span><span class="cod">pavimento m²: ${esc(pav(t))}${t.caximbos ? ` · ${n(t.caximbos)} caximbos` : ""}</span>${t.confere_planilha ? `<span class="cod" style="color:#b45309">planilha: ${esc(t.confere_planilha)}</span>` : ""}${t.alertas ? `<span class="cod" style="color:#dc2626">${esc(t.alertas)}</span>` : ""}</td><td>${n(t.largura_m, 2)}</td><td>${n(t.escavacao_m3, 1)}</td><td>${n(t.reaterro_m3, 1)}</td><td>${n(t.bota_fora_m3, 1)}</td><td>${n(t.supressao_m2, 1)}</td></tr>`).join("");
+  const soma = k => O.trechos.reduce((s, t) => s + (t[k] || 0), 0);
+  const conc = O.conciliacao.map(c => `<tr><td class="d">${esc(c.item)} ${esc(c.descricao)}<span class="cod">${esc(c.trechos || "—")}${c.prancha ? " · " + esc(c.prancha) : ""}</span></td><td>${n(c.custo_civil_m, 1)}</td><td>${n(c.obras_lineares_m, 1)}</td><td class="d">${esc(c.situacao)}</td></tr>`).join("");
+  return `<h2>Obras lineares ${esc(O.unidade)} (calculado)</h2>
+  <p class="aviso" style="margin-left:0">Vala pelo MOS Sanepar (L = D + SL + X + Y), escoramento acima de 1,25 m, solo e NA pela sondagem, pavimento por tipo — geometria e serviço associado, sem preço. ${esc(O.fonte)}.</p>
+  <div style="overflow:auto"><table class="esc compacta" id="olTab" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:44px"><col style="width:56px"><col style="width:56px"><col style="width:52px"><col style="width:56px"></colgroup>
+  <thead><tr><th>Trecho</th><th>L m</th><th>Escavação m³</th><th>Reaterro m³</th><th>Bota-fora m³</th><th>Supressão m²</th></tr></thead>
+  <tbody>${lin}<tr><td class="d"><b>Total</b> · ${n(soma("comp_m"), 1)} m</td><td></td><td><b>${n(soma("escavacao_m3"), 1)}</b></td><td><b>${n(soma("reaterro_m3"), 1)}</b></td><td><b>${n(soma("bota_fora_m3"), 1)}</b></td><td><b>${n(soma("supressao_m2"), 1)}</b></td></tr></tbody></table></div>
+  <h3 style="margin:10px 0 2px">CUSTO CIVIL × aba Obras Lineares</h3>
+  <div style="overflow:auto"><table class="esc compacta" id="olConc" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:54px"><col style="width:54px"><col style="width:120px"></colgroup>
+  <thead><tr><th>Item</th><th>Custo civil m</th><th>Obras lin. m</th><th>Situação</th></tr></thead><tbody>${conc}</tbody></table></div>
+  <details><summary class="nota-l">MND (método não destrutivo / HDD): orientações</summary><ul class="nota-l">${O.mnd.map(m => `<li>${esc(m)}</li>`).join("")}</ul></details>
+  <p class="nota-l">${esc(O.premissas)}</p>`;
+}
 /* fichas de prancha (identidade → vistas → tabelas → elementos → vínculos → serviços), lidas no Python
    (camadas/prancha.py); aqui só exibição */
 function htmlFichas() {
@@ -3157,7 +3177,7 @@ function htmlFichas() {
   <p class="aviso" style="margin-left:0">Cada prancha lida em camadas: identidade → vistas → tabelas → elementos (layer ou geometria) → vínculos → serviços. Classes de elemento em conceitos/elementos.json.</p>
   ${F.map(ficha).join("")}`;
 }
-$("#aba-info").innerHTML = htmlInventario() + htmlFichas() + htmlEscavacao() + htmlValas() + `<h2>Levantamento e georreferenciamento</h2>
+$("#aba-info").innerHTML = htmlInventario() + htmlFichas() + htmlEscavacao() + htmlValas() + htmlObrasLineares() + `<h2>Levantamento e georreferenciamento</h2>
   <table class="info">${(D.info || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
   <h2>Como as medidas são calculadas</h2>
   <p>Distâncias e áreas são calculadas no plano ${esc(D.crs.nome)}, o mesmo das pranchas. Para a distância no terreno (topográfica), divida pelo fator k = ${D.crs.k.toFixed(5)}.</p>

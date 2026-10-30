@@ -22,13 +22,13 @@ estavam na listagem como PDFs acima de 5 MB, não baixados.
 | # | Passo | Quem | Estado |
 |---|---|---|---|
 | 1 | Listagem recursiva do Drive: todo arquivo, de qualquer tipo (pasta não) | Haiku (conector) | feito |
-| 2 | Download em lotes paralelos; o que passa do limite do conector vai para a lista de download manual | Haiku + você | feito |
+| 2 | Download dos pendentes pelo link direto, conferindo `%PDF` e tamanho; arquivo privado fica como falha, com o motivo, para você liberar | código (`camadas/drive.py`) | feito |
 | 3 | Loop em todos os arquivos com o leitor do tipo: PDF (formato, layers, código, carimbo), planilha (abas, inclusive ocultas), zip (conteúdo sem extrair); o resto fica "sem leitor", à vista | código (`inventario.ler_arquivo`) | feito |
 | 4 | Situação final de cada arquivo: no disco e lido · lido com erro · sem leitor · falhou · não tentado | código | feito |
 | 5 | Ausência só por consulta: `inventario.procurar(inv, padrão)` busca nome, pasta e título do carimbo em qualquer situação e separa "existe, não lido" de "não existe" | código | feito |
 | 6 | O que cada arquivo entrega: arquivo → sistema × disciplina × conteúdo (planta, forma, armadura, locação, memorial…) pelo código Sanepar, pelo carimbo e pelos termos da EAP | código | a fazer |
 | 7 | Esperado × encontrado: para cada sistema, os documentos que a tipologia exige (forma, armadura, locação e cargas, fundação) → achado ou falta, pela busca do passo 5 | código | a fazer |
-| 8 | Índices cruzados: cada desenho citado na Relação de Desenhos e nos anexos do edital casa com um arquivo; citado e não achado vira alerta | código | a fazer |
+| 8 | Índices cruzados: cada desenho citado na Relação de Desenhos e nos anexos do edital casa com um arquivo; citado e não achado vira alerta (Foz: 58 dos 104 desenhos da Relação do PBES não estão no Drive, rodada 18) | código | a fazer |
 | 9 | PDF com várias folhas: carimbo e título de cada página, não só da primeira | código | a fazer |
 
 O G0 fecha quando 100 % dos arquivos têm situação final e o relatório "esperado × encontrado" foi gerado. Os agentes
@@ -134,20 +134,20 @@ O script reprova em três casos:
 
 **Base (Foz, 30/10/2026):**
 
-| Medida | Código | IA | Índice |
-|---|---:|---:|---:|
-| Etapas do processo | 12 | 9 | **57,1 %** |
-| Registros (PDFs, itens, estacas, furos…) | 2 518 | 952 | 72,6 % |
+| Medida | Base | Após a rodada 18 | |
+|---|---:|---:|---|
+| Etapas do processo (código / IA) | 12 / 9 = **57,1 %** | 13 / 8 = **61,9 %** | o download passou a código (`camadas/drive.py`) |
+| Registros (PDFs, itens, estacas, furos…) | 2 518 / 952 = 72,6 % | 2 684 / 791 = 77,2 % | |
 
-As 9 etapas de IA, por papel:
-- **operação** (2): listar e baixar o Drive;
+As 8 etapas que ainda são de IA, por papel:
+- **operação** (1): listar o Drive (conector);
 - **julgamento** (3): afim da GEOPLANTA, 7 afins coladas, conferência visual;
 - **leitura** (2): sondagens e estacas;
 - **configuração** (2): configuração por prancha e sistemas da obra.
 
 Houve 1 decisão humana: o módulo de filtros fora do escopo.
 
-**Meta:** 85 % das etapas em código, com +5 p.p. por rodada: são 6 rodadas a partir da base. As próximas etapas a
+**Meta:** 85 % das etapas em código, com +5 p.p. por rodada: são 5 rodadas a partir de hoje. As próximas etapas a
 virar código são as de menor esforço:
 1. as 7 afins coladas → irmã CAD × CAD da GEOPLANTA no build;
 2. a afim da GEOPLANTA → ajuste no build pelas sondagens;
