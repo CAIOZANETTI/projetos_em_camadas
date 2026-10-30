@@ -50,6 +50,9 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
    **Aba Obra** (`camadas/construtivos.py`): o que já é vetor vira elemento construtivo pesquisável — unidades e
    sistemas em `conceitos/unidades_construtivas.json` (sigla sem nome no projeto fica com o código, estado premissa);
    rede = um trecho por folha, linha clicável com DN, extensão e contrato × desenho.
+   **Escopo** (`camadas/escopo_obra.py`): cada unidade dentro/fora/a definir pela convenção do desenho de etapas
+   (`escopo_unidades` no obra.json) ou manual com a fonte; decomposição por tipologia (`conceitos/construcao_civil.json`)
+   com evidências determinísticas e link do Drive — lacuna aparece como "sem evidência", não se esconde.
 8. **Conferência visual (Opus)** — sobreponha cada prancha aceita à ortofoto em zoom alto; marque
    no obra.json como pendente o que não convencer. Nunca aceite georreferência só pelo número.
 
