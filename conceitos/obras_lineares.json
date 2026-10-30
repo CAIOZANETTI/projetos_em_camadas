@@ -1,0 +1,100 @@
+{
+ "metadata": {
+  "fonte": "MOS Sanepar (largura de vala L = D + SL + X + Y e Tabela I de sobrelargura), planilha '211 - SAA Foz do Iguaçu' (aba Obras Lineares, colunas V–BC: premissas de caximbo, empolamento, fórmula de escoramento) e NR-18",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Obra linear = trecho de tubo com DN, material, profundidade média, comprimento e método construtivo (VCA = vala a céu aberto; MND = método não destrutivo, escolhido pelo usuário). VCA: largura pelo MOS, escavação = comprimento × largura × profundidade, reaterro = escavação − volume do tubo (π·DN²/4, como na planilha; o DE daria um pouco menos), bota-fora = volume do tubo × empolamento, pavimento demolido e recomposto = comprimento do tipo × largura, supressão vegetal = área da vala × fração vegetada. Solo e lençol pela sondagem que cobre cada metro (a mais próxima dentro do raio de influência; sem geometria, metade do trecho na sondagem inicial e metade na final). NA mais raso que o fundo da vala = esgotamento. MND: sem vala; só os caximbos (poços de entrada/saída) escavam e demolem."
+ },
+ "largura_vala": {
+  "X_escoramento_m": 0.10,
+  "Y_por_metro_m": 0.10,
+  "Y_a_partir_de_m": 2.0,
+  "estado": "confirmado",
+  "fonte": "MOS Sanepar: L = D + SL + X + Y; X = 0,10 m só em vala escorada; Y = 0,10 m por metro ou fração que exceder 2 m de profundidade. Confere com a planilha: FD DN1000 escorado a 2,40 m = 1,0 + 0,90 + 0,10 + 0,10 = 2,10 m; FD DN200 = 0,75 m; FD DN300 = 0,85 m"
+ },
+ "sobrelargura": {
+  "estado": "confirmado",
+  "fonte": "MOS Sanepar, Tabela I — Sobrelargura de valas (SL)",
+  "tabela": [
+   {"material": "CERAMICO", "junta": "elastica", "dn_min": 0, "dn_max": 9999, "sl_m": 0.45},
+   {"material": "PVC|RPVC", "junta": "elastica", "dn_min": 0, "dn_max": 9999, "sl_m": 0.35},
+   {"material": "CONCRETO", "junta": "elastica", "dn_min": 0, "dn_max": 500, "sl_m": 0.60},
+   {"material": "CONCRETO", "junta": "elastica", "dn_min": 600, "dn_max": 800, "sl_m": 0.80},
+   {"material": "CONCRETO", "junta": "elastica", "dn_min": 900, "dn_max": 1200, "sl_m": 1.00},
+   {"material": "CONCRETO", "junta": "elastica", "dn_min": 1500, "dn_max": 1500, "sl_m": 1.10},
+   {"material": "CONCRETO", "junta": "macho_femea", "dn_min": 400, "dn_max": 800, "sl_m": 0.65},
+   {"material": "FD|PRFV|FOFO", "junta": "elastica", "dn_min": 0, "dn_max": 300, "sl_m": 0.35},
+   {"material": "FD|PRFV|FOFO", "junta": "elastica", "dn_min": 350, "dn_max": 600, "sl_m": 0.45},
+   {"material": "FD|PRFV|FOFO", "junta": "elastica", "dn_min": 700, "dn_max": 1200, "sl_m": 0.90},
+   {"material": "ACO", "junta": "elastica", "dn_min": 0, "dn_max": 300, "sl_m": 0.30},
+   {"material": "ACO", "junta": "elastica", "dn_min": 350, "dn_max": 900, "sl_m": 0.40},
+   {"material": "ACO", "junta": "elastica", "dn_min": 1000, "dn_max": 1200, "sl_m": 0.60},
+   {"material": "PEAD", "junta": "soldada_barras", "dn_min": 0, "dn_max": 9999, "sl_m": 0.35},
+   {"material": "PEAD", "junta": "soldada_rolo_manual", "dn_min": 0, "dn_max": 9999, "sl_m": 0.30},
+   {"material": "PEAD", "junta": "soldada_rolo_mecanica", "dn_min": 0, "dn_max": 9999, "sl_m": 0.20}
+  ],
+  "junta_padrao": {"PEAD": "soldada_barras", "outros": "elastica"}
+ },
+ "escoramento": {
+  "valor": 1.25,
+  "estado": "confirmado",
+  "fonte": "planilha, coluna AD: =SE(AC>1,25;\"sim\";\"não\"); NR-18: escavação com mais de 1,25 m de profundidade precisa de escoramento (ou talude estável)"
+ },
+ "empolamento": {
+  "valor": 1.3,
+  "estado": "confirmado",
+  "fonte": "planilha, coluna AK (argila)"
+ },
+ "caximbo": {
+  "a_cada_m": 80,
+  "area_m2": 4.5,
+  "estado": "confirmado",
+  "fonte": "planilha, aba Obras Lineares, PREMISSAS: caximbo 1 a cada 80 m, área 4,5 m²"
+ },
+ "raio_influencia_m": {
+  "valor": 60.0,
+  "estado": "calibrar",
+  "fonte": "metro de tubo além disso de qualquer furo fica 'sem sondagem' (a malha de Foz tem furos a 30–80 m); conferir com o geotécnico"
+ },
+ "solos": {
+  "estado": "premissa",
+  "fonte": "descrição da camada da sondagem (NBR 6484); a 1ª palavra que casa decide; categoria de escavação Sanepar: 1ª = solo, 2ª = rocha branda/alterada, 3ª = rocha sã",
+  "classes": [
+   {"classe": "aterro", "regex": "ATERRO|ENTULHO", "categoria": "1ª categoria"},
+   {"classe": "rocha_alterada", "regex": "ALTERA|BRANDA|SAPROL|MATAC", "categoria": "2ª categoria"},
+   {"classe": "rocha", "regex": "ROCHA|BASALTO|IMPENETR", "categoria": "3ª categoria"},
+   {"classe": "argila", "regex": "ARGIL", "categoria": "1ª categoria"},
+   {"classe": "silte", "regex": "SILT", "categoria": "1ª categoria"},
+   {"classe": "areia", "regex": "AREI", "categoria": "1ª categoria"},
+   {"classe": "pedregulho", "regex": "PEDREG|CASCALH", "categoria": "1ª categoria"}
+  ]
+ },
+ "pavimentos": {
+  "estado": "premissa",
+  "fonte": "planilha (grama, asfalto, concreto, paver, lajota) e cor da ortofoto ou do satélite: verde = grama (e supressão vegetal), preto = asfalto, cinza claro = calçada/concreto; paver e lajota só pelo usuário",
+  "tipos": {
+   "grama": {"nome": "Grama", "supressao": true},
+   "asfalto": {"nome": "Asfalto", "supressao": false},
+   "concreto": {"nome": "Concreto / calçada", "supressao": false},
+   "paver": {"nome": "Paver", "supressao": false},
+   "lajota": {"nome": "Lajota", "supressao": false},
+   "terra": {"nome": "Solo exposto", "supressao": false}
+  },
+  "da_ortofoto": {"vegetacao": "grama", "solo": "terra", "sem_ortofoto": null},
+  "asfalto_v_max": 90,
+  "estado_cor": "calibrar",
+  "fonte_cor": "pavimentado com brilho (máximo de B, G, R) até 90 = asfalto, acima = concreto/calçada; separa o preto do cinza claro da ortofoto de Foz, conferir em campo"
+ },
+ "mnd": {
+  "estado": "premissa",
+  "fonte": "práticas usuais de perfuração direcional (HDD/MND); dimensionamento final do executor",
+  "orientacoes": [
+   "HDD (perfuração horizontal direcional): furo piloto, alargamento e puxada do tubo; o tubo usual é PEAD soldado (rolo ou barras) ou FD com junta travada",
+   "furo alargado com 1,2 a 1,5 × DE do tubo",
+   "raio de curvatura do PEAD: no mínimo 25 a 40 × DE; travessias longas pedem canteiro de puxada do comprimento do trecho",
+   "recobrimento: no mínimo 1,5 m sob pavimento e abaixo das interferências cadastradas",
+   "solo argiloso de Foz favorece o HDD; rocha basáltica (impenetrável na sondagem) encarece ou inviabiliza",
+   "sem vala: não há escoramento, reaterro, demolição nem recomposição ao longo do trecho, só nos caximbos"
+  ]
+ }
+}
