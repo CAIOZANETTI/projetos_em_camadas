@@ -714,7 +714,7 @@ def _reavaliar(inv: dict, out: Path) -> dict:
     de folhas incompletas; grava `pendencias.json` (a lista que abre a próxima rodada) e o registro `extracao.jsonl`."""
     p = extracao.pendencias(inv)
     extracao.registrar(p["avaliacoes"], out / "extracao.jsonl", passe="build", executor="código")
-    resumo = {k: p[k] for k in ("por_estado", "por_classe", "completas_por_codigo", "series")}
+    resumo = {k: p[k] for k in ("por_estado", "por_classe", "fracao_completa", "series", "fora_do_escopo")}
     (out / "pendencias.json").write_text(json.dumps({**resumo, "pendencias": p["pendencias"]}, ensure_ascii=False,
                                                     indent=1), encoding="utf-8")
     _log(f"Extração: {p['por_estado']}; {len(p['pendencias'])} pendência(s), {len(p['series'])} série(s) incompleta(s)")

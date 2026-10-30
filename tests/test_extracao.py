@@ -45,8 +45,8 @@ def test_serie_de_folhas_aponta_as_que_faltam():
     itens = [_item(f"{n:03d}-SAA-0017-8820-PBGE-DE-0000ETA01X{n}-R2.pdf", "PBGE", carimbo={"folha": f"{n:02d}/05"})
              for n in (1, 2, 4)]
     itens.append(_item("001-SAA-0017-7471-PBHI-DE-0001A-R1.pdf", "PBHI", carimbo={"folha": "01/01"}))
-    assert extracao.series(itens) == [{"pasta_drive": "PBGE", "disciplina": "PBGE", "total": 5, "presentes": 3,
-                                       "faltam": ["03/05", "05/05"]}]
+    assert extracao.series(itens) == [{"pasta_drive": "PBGE", "disciplina": "PBGE", "unidade": "0017-8820", "total": 5,
+                                       "presentes": 3, "faltam": ["03/05", "05/05"], "fora_do_disco_na_pasta": 0}]
 
 
 def test_pendencias_e_registro_so_quando_muda(tmp_path):
@@ -54,7 +54,9 @@ def test_pendencias_e_registro_so_quando_muda(tmp_path):
                      _item("Planilha.xlsx", leitor="ler_planilha", abas=[{"aba": "A"}])]}
     p = extracao.pendencias(inv)
     assert [a["arquivo"] for a in p["pendencias"]] == ["Memorial.docx"]          # cotação fica fora do escopo
-    assert p["por_estado"] == {"sem leitor": 1, "fora do disco": 1, "completa": 1} and p["completas_por_codigo"] == 0.333
+    assert p["por_estado"] == {"sem leitor": 1, "fora do disco": 1, "completa": 1} and p["fracao_completa"] == 0.5
+    assert p["fora_do_escopo"] == [{"arquivo": "proposta.pdf", "pasta_drive": "04. COTAÇÕES", "classe": "cotacao",
+                                    "fora_do_escopo": "preço"}]                       # listada à parte, não some
     registro = tmp_path / "extracao.jsonl"
     assert extracao.registrar(p["avaliacoes"], registro, "P1") == 3
     assert extracao.registrar(p["avaliacoes"], registro, "P1") == 0                 # nada mudou, nada novo
@@ -62,3 +64,34 @@ def test_pendencias_e_registro_so_quando_muda(tmp_path):
     assert extracao.registrar(resolvido, registro, "P2", "Sonnet") == 1
     ultima = json.loads(registro.read_text(encoding="utf-8").splitlines()[-1])
     assert (ultima["passe"], ultima["executor"], ultima["estado"]) == ("P2", "Sonnet", "completa")
+    menos_falta = [{**p["avaliacoes"][2], "estado": "completa", "faltando": ["x"]}]
+    assert extracao.registrar(menos_falta, registro, "P3") == 1                    # mesmo estado, falta outra coisa
+
+
+def test_casos_reais_da_revisao_independente():
+    """Casos apontados pelo Fable (30/10): termo sem fronteira, pasta mandando mais que o nome, classe sem exigência
+    saindo completa sem nada lido, foto mandada para a IA mais cara."""
+    cl = lambda nome, pasta="": extracao.classe(_item(nome, pasta))
+    assert cl("Informacoes complementares ao edital.pdf", "EDITAL") == "edital"          # FORMA não casa INFORMAÇÕES
+    assert cl("Perfil de sondagem SP-01.pdf", "GEOTECNIA") == "laudo"
+    assert cl("Memorial descritivo hidraulico.pdf", "PROJETOS/PLANTAS") == "memorial"
+    assert cl("004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES-R5.pdf", "OBRA/ORDENS DE SERVIÇO") == "projeto"
+    assert cl("004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES-R5.pdf", "04. COTAÇÕES") == "projeto"
+    assert cl("Atas de reuniao.pdf", "OBRA/ATAS") == "documento_obra"
+    assert cl("Relatorio de medicao 03.pdf") == "documento_obra"
+    assert cl("Planilha do contrato.pdf") == "planilha"
+    os_escaneada = _item("OS 015-2027.pdf", leitor="ler_pdf", texto="pouco ou nenhum (traço/SHX ou imagem)")
+    assert (extracao.avaliar(os_escaneada)["estado"], extracao.avaliar(os_escaneada)["situacao"]) == ("parcial", "sem texto")
+    foto = extracao.avaliar(_item("DJI_0249.JPG", "fotos_drone", leitor=None))
+    assert (foto["estado"], foto["proximo"]) == ("completa", None)
+    vazia = extracao.avaliar(_item("Quantitativos.xlsx", leitor="ler_planilha", abas=[]))
+    assert (vazia["situacao"], vazia["proximo"]) == ("leitura incompleta", "código")
+
+
+def test_series_por_unidade_e_com_aviso_de_fora_do_disco():
+    a = _item("001-SAA-0017-8820-PBGE-DE-0000X-R2.pdf", "PBGE", carimbo={"folha": "01/02"})
+    b = _item("001-SAA-0017-7471-PBGE-DE-0000Y-R2.pdf", "PBGE", carimbo={"folha": "01/02"})   # outra unidade
+    c = _item("002-SAA-0017-7471-PBGE-DE-0000Z-R2.pdf", "PBGE", situacao="não tentado")
+    s = extracao.series([a, b, c])
+    assert [(x["unidade"], x["faltam"], x["fora_do_disco_na_pasta"]) for x in s] == \
+        [("0017-7471", ["02/02"], 1), ("0017-8820", ["02/02"], 1)]

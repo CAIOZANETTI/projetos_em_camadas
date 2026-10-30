@@ -75,17 +75,35 @@ O loop para em dois casos:
 - tudo completo;
 - a escada esgotou: aí vira pendência sua, com o motivo.
 
-O índice `completas_por_codigo` (fração dos arquivos completos sem nenhum passe de IA) mede o progresso.
+A `fracao_completa` (arquivos completos ÷ arquivos no escopo; cotação fica fora e é listada à parte) mede o
+progresso da obra.
 
 **Ausência só por consulta.** `inventario.procurar(inv, padrão)` busca no nome, na pasta e no carimbo, em qualquer
 situação, e separa "existe, não lido" de "não existe". A forma do Actiflo 360 foi dada como inexistente e existia
 (lição L008).
 
-**Ainda a fazer no ciclo:**
-- papel por pasta;
-- carimbo de todas as páginas;
-- esperado × encontrado por sistema (forma, armadura, locação e cargas, fundação);
-- os passes de código alternativo (OCR do carimbo em 300 dpi, OCR de página inteira, extrair o zip).
+**O que falta para o loop fechar sozinho** (revisão independente do Fable, 30/10, em ordem de prioridade):
+1. **Um executor da escada**: hoje ninguém lê o `pendencias.json`, e o segundo passe é manual. Falta um comando que
+   leia as pendências e chame o degrau certo, como `camadas/drive.py` para "fora do disco".
+2. **O cache não pode impedir a repetição**: o inventário guarda também o erro e o carimbo incompleto pela
+   assinatura do arquivo (tamanho + data). Falta invalidar o cache pelo que faltou, ou pôr o passe na assinatura.
+3. **Os degraus de código alternativo**: OCR do carimbo em 300 dpi e em todas as páginas, OCR de página inteira,
+   extrair o zip. Falta também um contador de tentativas por degrau: "o código esgotou" é o que manda subir para o
+   Haiku.
+4. **Contrato de retorno da IA**: o resultado do Haiku ou do Sonnet volta ao item do inventário e ao registro com o
+   executor certo. Hoje o build sempre grava "código".
+5. **Papel por pasta, esperado × encontrado por sistema** (forma, armadura, locação e cargas, fundação) e **carimbo de
+   todas as páginas**; o `texto` do PDF também precisa olhar além da 1ª página.
+
+Já corrigido a partir da mesma revisão (lição L012):
+- o nome do arquivo vale mais que a pasta;
+- os termos têm fronteira de palavra (FORMA não casa INFORMAÇÕES);
+- laudo vem antes de projeto (perfil de sondagem é laudo);
+- toda classe que lê PDF exige texto, então a OS escaneada não sai completa;
+- foto dispensa leitura e não vai para a IA;
+- as séries de folhas separam por unidade e avisam quando há arquivos fora do disco na pasta;
+- o registro grava qualquer mudança de classe, estado ou do que falta;
+- a cotação é listada à parte.
 
 ## 3. Fontes de evidência: o que cada documento entrega
 
@@ -253,4 +271,5 @@ A reavaliação do inventário entrou como etapa de código. Antes, essa confer�
 4. configuração por prancha;
 5. **leitor de laudo de sondagem** (geotecnia, §5).
 
-O segundo índice, `completas_por_codigo` (§2), mede o mesmo por arquivo: quantos saem completos sem passe de IA.
+Por arquivo, a `fracao_completa` (§2) mede quanto da obra já foi extraído. Quando o retorno da IA entrar no registro
+(§2, item 4), dá para separar o que saiu só por código do que precisou de um passe de IA.

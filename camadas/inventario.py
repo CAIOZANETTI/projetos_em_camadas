@@ -55,8 +55,8 @@ def codigo_sanepar(nome: str) -> dict | None:
                  r"(?P<desc>.+?)-R(?P<rev>\d+)", Path(nome).stem.upper())
     if not m:
         return None
-    return {"sequencia": m["seq"], "disciplina": m["disc"], "tipo": m["tipo"] or "DE", "descricao": m["desc"],
-            "revisao": int(m["rev"])}
+    return {"sequencia": m["seq"], "unidade": f"{m['u1']}-{m['u2']}", "disciplina": m["disc"], "tipo": m["tipo"] or "DE",
+            "descricao": m["desc"], "revisao": int(m["rev"])}
 
 
 def _vogais(s: str) -> float:

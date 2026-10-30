@@ -10,8 +10,12 @@
   fato, a interpretação dos projetos pelo carimbo, a geotecnia como disciplina independente (modelo geotécnico único
   no lugar dos dois interpretadores divergentes) e os agentes por degrau da escada.
 - **A regra da lição vale para qualquer sessão**: cada versão do CHANGELOG desde a 0.19.0 precisa de uma lição em
-  `pdca/licoes.jsonl` (teste). Lições L010 (rodada 19) e L011 (esta). Índice de determinismo: 63,6 % das etapas em
+  `pdca/licoes.jsonl` (teste). Lições L010 (rodada 19), L011 e L012. Índice de determinismo: 63,6 % das etapas em
   código.
+- **Revisão independente (Fable)** antes do PR: nome vale mais que a pasta, termos com fronteira de palavra, laudo
+  antes de projeto, OS escaneada não sai completa, foto dispensa leitura, séries por unidade com aviso de arquivo fora
+  do disco, registro de qualquer mudança e cotação listada à parte. O que falta para o loop fechar sozinho está em
+  `docs/ARQUITETURA.md` §2.
 
 ## 0.20.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
 - **Unidades da Relação na aba Obra** (regra código do desenho → sistema em `conceitos/unidades_construtivas.json`):
