@@ -63,7 +63,22 @@ def test_inventario_nao_perde_pdf(tmp_path):
                         "UNIDADE 01;Duplicado.pdf;b;application/pdf;pdf;10;x\n"
                         "UNIDADE 01;Grande.PDF;c;application/pdf;pdf;9000000;x\n"
                         "ANEXO B;Caderno.pdf;d;application/pdf;pdf;10;x\n"
-                        "UNIDADE 01;pasta;e;application/vnd.google-apps.folder;;;x\n", encoding="utf-8")
+                        "UNIDADE 01;pasta;e;application/vnd.google-apps.folder;;;x\n"
+                        "ORCAMENTO;211.xlsx;f;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;xlsx;10;x\n"
+                        "UNIDADE 01;formas.zip;g;application/zip;zip;10;x\n"
+                        "UNIDADE 01;planta.dwg;h;image/vnd.dwg;dwg;10;x\n"
+                        "PBES/ACTIFLO 360;012-SAA-0017-8820-PBES-DE-0000ACT360FORMA1-R1.pdf;i;application/pdf;pdf;7000000;x\n",
+                        encoding="utf-8")
+    import openpyxl, zipfile
+    (pasta / "ORCAMENTO").mkdir()
+    wb = openpyxl.Workbook()
+    wb.active.title = "MATS E EQUIP"
+    wb.create_sheet("Relação de Materiais").sheet_state = "hidden"
+    wb.save(pasta / "ORCAMENTO" / "211.xlsx")
+    with zipfile.ZipFile(pasta / "UNIDADE 01" / "formas.zip", "w") as z:
+        z.writestr("ACT360/forma1.pdf", "x")
+        z.writestr("ACT360/armadura1.pdf", "x")
+    (pasta / "UNIDADE 01" / "planta.dwg").write_bytes(b"AC1027")
     baixados = tmp_path / "baixados.csv"
     baixados.write_text("caminho;titulo;id;bytes;ok\nUNIDADE 01/PBGE;006;a;10;true\nUNIDADE 01;Grande.PDF;c;;false\n",
                         encoding="utf-8")
@@ -71,12 +86,33 @@ def test_inventario_nao_perde_pdf(tmp_path):
            "pranchas": [{"id": "es1", "pdf": "x/006-SAA-0017-8820-PBGE-DE-0000ETA01ESCAVACAO1-R2.pdf"}]}
     r = inventario.inventario(cfg, tmp_path / "cache.json", ocr=False, log=lambda *a: None)
     por = {i["arquivo"]: i for i in r["itens"]}
-    assert len(r["itens"]) == 4                                       # só PDFs, e todos eles
+    assert len(r["itens"]) == 8                                       # todo arquivo da listagem; pasta não
+    assert r["totais"]["pdfs"] == 5 and r["totais"]["por_extensao"][".xlsx"] == 1 and r["totais"]["sem_leitor"] == 1
+    assert por["211.xlsx"]["abas"][1] == {"aba": "Relação de Materiais", "estado": "hidden", "linhas": 1, "colunas": 1}
+    assert por["formas.zip"]["arquivos_dentro"] == 2 and por["formas.zip"]["por_extensao"] == {".pdf": 2}
+    assert por["planta.dwg"]["situacao"] == "no disco" and por["planta.dwg"]["leitor"] is None
     assert [por[k]["situacao"] for k in ("006-SAA-0017-8820-PBGE-DE-0000ETA01ESCAVACAO1-R2.pdf", "Duplicado.pdf",
                                          "Grande.PDF", "Caderno.pdf")] == \
         ["no disco", "no disco (mesmo nome em outra pasta)", "falhou no download", "não tentado"]
     e = por["006-SAA-0017-8820-PBGE-DE-0000ETA01ESCAVACAO1-R2.pdf"]
     assert e["formato"] == "A1" and e["tipo"] == "planta" and e["no_mapa"] == "es1"
     assert (e["carimbo"]["folha"], e["carimbo"]["titulo"], e["carimbo"]["escala"]) == ("06/14", "PLANTA DE ESCAVAÇÃO", "1:100")
-    assert sum(l["total"] for l in r["resumo"]) == 4 and sum(l["fora_do_disco"] for l in r["resumo"]) == 2
+    assert sum(l["total"] for l in r["resumo"]) == 8 and sum(l["fora_do_disco"] for l in r["resumo"]) == 3
     assert inventario.inventario(cfg, tmp_path / "cache.json", ocr=False, log=lambda *a: None)["itens"][0]["carimbo"] == e["carimbo"]
+
+
+def test_ausencia_so_por_consulta_ao_inventario():
+    """Lição do Actiflo 360: a forma existia e foi dada como inexistente (em Foz, as formas dos Actiflo estavam na
+    listagem como PDFs acima de 5 MB, não baixados). "Não baixado" não é "não existe": `procurar` acha o arquivo em
+    qualquer situação e diz qual."""
+    inv = {"fonte": "listagem.csv", "itens": [
+        {"arquivo": "012-SAA-0017-8820-PBES-DE-0000ACT360FORMA1-R1.pdf", "pasta_drive": "PBES/ACTIFLO 360", "mb": 7.0,
+         "situacao": "não tentado", "tipo": "detalhe"},
+        {"arquivo": "003-FUNDACAO1-R2.pdf", "pasta_drive": "PBGE", "mb": 1.0, "situacao": "no disco", "tipo": "planta",
+         "carimbo": {"titulo": "PLANTA DE FUNDAÇÃO - ACTIFLO 600"}}]}
+    r = inventario.procurar(inv, "ACT.?360.*FORMA")
+    assert [a["arquivo"] for a in r["achados"]] == ["012-SAA-0017-8820-PBES-DE-0000ACT360FORMA1-R1.pdf"]
+    assert "fora do disco (não tentado): existem, não foram lidos" in r["resposta"]
+    assert inventario.procurar(inv, "fundação.*actiflo 600")["achados"][0]["situacao"] == "no disco"   # pelo carimbo
+    assert inventario.procurar(inv, "ARMADURA")["resposta"] == \
+        "nenhum dos 2 arquivos da listagem (listagem.csv) casa com 'ARMADURA'"
