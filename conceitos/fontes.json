@@ -3,7 +3,7 @@
   "fonte": "pedido do Caio (30/10/2026): saber de onde veio cada fato (projeto, documento, folha de dados, ordem de serviço…) e o que cada arquivo entrega; reavaliar o inventário e repetir a extração do que não saiu ou saiu insatisfatória",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Classe da fonte = o que o arquivo é como evidência. Passadas, da mais segura à mais fraca: tipo do código Sanepar (DE, MD, RT…); termos das classes com `prioridade` (cotação, documento de obra) no NOME e no título do carimbo; extensão; termos no nome e no título; por fim, os mesmos termos no caminho da pasta. Dentro de cada passada, a primeira classe da lista vence (laudo antes de projeto: 'perfil de sondagem' é laudo). Termos com fronteira de palavra (FORMA não casa INFORMACAO). Cotação entra no inventário e fica fora do escopo (preço), listada à parte. `satisfatoria` = campos que a leitura precisa ter para contar como completa; classe sem exigência só se completa se `dispensa_leitura` (foto). `escada` = próximo passe para cada situação, do mais barato ao mais caro."
+  "observacoes": "Classe da fonte = o que o arquivo é como evidência. Passadas, da mais segura à mais fraca: tipo do código Sanepar (DE, MD, RT…); termos das classes com `prioridade` (cotação, documento de obra) no NOME e no título do carimbo; extensão; termos no nome e no título; por fim, os mesmos termos no caminho da pasta. Dentro de cada passada, a primeira classe da lista vence (laudo antes de projeto: 'perfil de sondagem' é laudo). Termos com fronteira de palavra (FORMA não casa INFORMACAO). Cotação entra no inventário e fica fora do escopo (preço), listada à parte. `satisfatoria` = campos que a leitura precisa ter para contar como completa; classe sem exigência só se completa se `dispensa_leitura` (foto). `escada` = próximo passe para cada situação, do mais barato ao mais caro. `retorno` = campos que um agente (Haiku, Sonnet) pode devolver para o arquivo, conferidos por `extracao.aplicar_retornos`; vale também para arquivo sem leitor."
  },
  "classes": [
   {
@@ -24,7 +24,13 @@
     "pdf": [
      "texto"
     ]
-   }
+   },
+   "retorno": [
+    "texto",
+    "numero",
+    "data",
+    "assunto"
+   ]
   },
   {
    "id": "folha_de_dados",
@@ -35,7 +41,11 @@
     "pdf": [
      "texto"
     ]
-   }
+   },
+   "retorno": [
+    "texto",
+    "equipamento"
+   ]
   },
   {
    "id": "laudo",
@@ -49,7 +59,11 @@
     "pdf": [
      "texto"
     ]
-   }
+   },
+   "retorno": [
+    "texto",
+    "furos"
+   ]
   },
   {
    "id": "projeto",
@@ -69,7 +83,13 @@
      "carimbo.folha",
      "carimbo.escala"
     ]
-   }
+   },
+   "retorno": [
+    "carimbo.titulo",
+    "carimbo.folha",
+    "carimbo.escala",
+    "carimbo.data"
+   ]
   },
   {
    "id": "memorial",
@@ -86,7 +106,10 @@
     "pdf": [
      "texto"
     ]
-   }
+   },
+   "retorno": [
+    "texto"
+   ]
   },
   {
    "id": "lista",
@@ -103,7 +126,11 @@
     "pdf": [
      "texto"
     ]
-   }
+   },
+   "retorno": [
+    "texto",
+    "itens"
+   ]
   },
   {
    "id": "edital",
@@ -114,7 +141,10 @@
     "pdf": [
      "texto"
     ]
-   }
+   },
+   "retorno": [
+    "texto"
+   ]
   },
   {
    "id": "planilha",
@@ -134,7 +164,10 @@
      "texto"
     ]
    },
-   "termos": "\\bPLANILHA|\\bQUANTITATIVO"
+   "termos": "\\bPLANILHA|\\bQUANTITATIVO",
+   "retorno": [
+    "abas"
+   ]
   },
   {
    "id": "imagem",
@@ -163,7 +196,10 @@
     "zip": [
      "arquivos_dentro"
     ]
-   }
+   },
+   "retorno": [
+    "arquivos_dentro"
+   ]
   },
   {
    "id": "outro",
@@ -173,7 +209,11 @@
     "pdf": [
      "texto"
     ]
-   }
+   },
+   "retorno": [
+    "classe",
+    "texto"
+   ]
   }
  ],
  "escada": [

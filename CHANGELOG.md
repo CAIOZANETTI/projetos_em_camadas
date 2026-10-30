@@ -16,6 +16,10 @@
   antes de projeto, OS escaneada não sai completa, foto dispensa leitura, séries por unidade com aviso de arquivo fora
   do disco, registro de qualquer mudança e cotação listada à parte. O que falta para o loop fechar sozinho está em
   `docs/ARQUITETURA.md` §2.
+- **Arquitetura R8** (§10, PDCA com gerente): cada rodada tem plano com entregas e verificação. O Fable aprova o plano,
+  aceita ou devolve cada entrega e escreve a entrega final; o Opus executa; Sonnet e Haiku implementam contra um
+  contrato fixo. PR na `main` só com testes, aferição, determinismo verdes e o aceite. Plano da rodada 20
+  (`docs/plano/2026-10-30_rodada20.md`) e o campo `retorno` por classe em `conceitos/fontes.json`.
 
 ## 0.20.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
 - **Unidades da Relação na aba Obra** (regra código do desenho → sistema em `conceitos/unidades_construtivas.json`):

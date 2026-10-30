@@ -1,4 +1,4 @@
-# Arquitetura — projetos em camadas (R7, 30/10/2026)
+# Arquitetura — projetos em camadas (R8, 30/10/2026)
 
 Diagrama, cenário de mesa e índice: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
 
@@ -273,3 +273,39 @@ A reavaliação do inventário entrou como etapa de código. Antes, essa confer�
 
 Por arquivo, a `fracao_completa` (§2) mede quanto da obra já foi extraído. Quando o retorno da IA entrar no registro
 (§2, item 4), dá para separar o que saiu só por código do que precisou de um passe de IA.
+
+## 10. Como o trabalho anda: PDCA com gerente
+
+Toda implementação segue um plano em `docs/plano/<data>_rodada<N>.md`. O plano tem uma tabela de entregas, cada uma
+com a verificação que a aceita, e o estado de cada entrega anda `pendente` → `feito` → `verificado`.
+
+| Fase | O que acontece | Quem |
+|---|---|---|
+| **P**lano | entregas, contrato de cada uma (arquivos, funções, schema), verificação e agente | Opus escreve; Fable aprova o plano |
+| **D**o | implementação em Python no estilo do repositório; lotes em paralelo sem sobreposição de arquivos | Sonnet (código), Haiku (braçal) |
+| **C**heck | `pytest`, `scripts/afericao.py`, `scripts/determinismo.py`; depois a revisão da entrega contra o plano: **aceita** ou **revisar**, com motivos | código, depois Fable |
+| **A**ct | aceita: PR na `main` com merge automático, plano atualizado, lição em `pdca/licoes.jsonl`. Revisar: volta ao implementador com os motivos | Opus executa; Fable decide |
+
+**Papéis.**
+- **Fable é o gerente da rodada.** Aprova o plano, aceita ou devolve cada entrega e escreve a entrega final para o
+  Caio: o prometido × o entregue, o que ficou de fora e por quê.
+- **Opus é quem executa.** Abre os agentes, integra os ramos, roda os testes, abre o PR e faz o merge depois do aceite.
+- **Sonnet e Haiku implementam** contra um contrato fixo: arquivos, funções, schema e testes esperados.
+- **O Caio** recebe a entrega final e verifica.
+
+**Regras.**
+- Uma entrega só vai para a `main` com os três verdes (testes, aferição, determinismo) **e** o aceite do Fable.
+- Cada PR sobe a versão, tem entrada no CHANGELOG e uma lição. O teste da lição reprova versão sem lição.
+- Depois de cada entrega, o plano é revisitado: a entrega cumpriu a verificação prometida? O estado só vira
+  `verificado` com a evidência escrita na linha do plano (números, testes, arquivos).
+- Uma entrega devolvida duas vezes vira pendência explícita do plano, com o motivo, em vez de ser aceita pela metade.
+- Sem os dados da obra (`dados/` fica fora do git), a verificação usa arquivos sintéticos nos testes. O build real de
+  Foz fica como verificação do Caio, listada na entrega final.
+
+**Estilo do código** (o mesmo dos módulos vizinhos):
+- Python em português: nomes, docstrings e mensagens;
+- dict puro e funções curtas (até 60 linhas, a aferição reprova a piora);
+- regras e premissas em `conceitos/*.json`, com `fonte` e `estado`;
+- `metadados()` em cada módulo;
+- teste para cada regra;
+- sem preço e sem prazo.
