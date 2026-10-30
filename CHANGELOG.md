@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.17.0 — 2026-10-30 · Foz, rodada 17: obras lineares dentro da ETA (demandas da Giselle)
+- **Obras lineares da Unidade 1** (`camadas/obras_lineares.py`, `conceitos/obras_lineares.json`): os trechos de tubo
+  da ETA (entrada de água bruta, interligações com os Actiflo 360/600, saída e retorno de lodo) não são AAT; cada
+  trecho tem DN, material, profundidade média, comprimento e método (VCA ou MND, escolhido pelo usuário).
+- **Vala pelo MOS Sanepar**: L = D + SL + X + Y, com a Tabela I de sobrelargura, X = 0,10 m se escorado e Y = 0,10 m
+  por metro ou fração acima de 2 m; escoramento acima de 1,25 m (NR-18; fórmula da coluna AD). Escavação, reaterro
+  (− π·DN²/4), bota-fora (empolamento 1,3), escoramento, pavimento demolido/recomposto por tipo (grama, asfalto,
+  concreto, paver, lajota) e supressão vegetal. MND: só os caximbos (1 a cada 80 m, 4,5 m²) e orientações de HDD.
+- **Sondagem no trecho**: cada metro do eixo na sondagem mais próxima dentro do raio de influência (60 m, calibrar)
+  ou metade inicial/metade final pelos ids da planilha; solo e categoria de escavação pela descrição das camadas até
+  o fundo da vala; NA mais raso que o fundo = esgotamento de vala.
+- **Pavimento pela ortofoto** no eixo desenhado: verde = grama (e supressão), preto = asfalto, cinza claro =
+  concreto/calçada (limiar de brilho a calibrar).
+- **Conferência e conciliação** da planilha `211 - SAA Foz do Iguaçu`: o cálculo reproduz as linhas 4 a 8 da aba
+  Obras Lineares; acusa a supressão de 66 % nas linhas do lodo (sem observação), a linha 9 sem profundidade
+  (reaterro −0,49 m³) e concilia os itens em metro do CUSTO CIVIL (1.2, 1.3, 1.4, 1.7 e 1.8 batem; 1.5 e 1.6 são
+  aéreos; 1.9 drenagem do Actiflo 600 sem comprimento nem trecho).
+- **No build e no HTML**: `obras_lineares` no obra.json (planilha, unidade, método por trecho escolhido pelo
+  usuário) → etapa com as sondagens da obra (ids tolerantes: SP-02 = SPT-2) → `obras_lineares.csv` e
+  `obras_lineares_conciliacao.csv` em `saida/` e tabela "Obras lineares" na aba Projeto (trecho, L, volumes,
+  supressão, pavimentos, solo, NA, esgotamento, conferência com a planilha, alertas, orientações de MND).
+- **Tubos da ETA na Unidade 1**: sistemas `AB_ENTRADA`, `AB_INTERLIG`, `LODO_SAIDA`, `LODO_RETORNO` (tipologia
+  `rede_eta`); o perfil hidráulico da ETA (`ETAVILACPERFILHIDRAU`) deixa de ser classificado como obra linear.
+- Referência `referencias/sanepar/MOS_largura_de_vala_tabela_I.png` e skill `obras-lineares`.
+
 ## 0.16.0 — 2026-10-30 · Foz, rodada 16: aba Obra como determinação de escopo
 - **Escopo por unidade construtiva** (`camadas/escopo_obra.py`): dentro / fora / a definir pela convenção do desenho
   004 (regra do `Escopo_1etapa_PBES.pdf`, manchas lidas da f004), pelo contrato (redes) ou manual
