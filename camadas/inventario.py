@@ -24,6 +24,8 @@ from . import pdf_cad
 # séries ISO 216 em mm (lado maior, lado menor)
 FORMATOS_MM = {"A0": (1189, 841), "A1": (841, 594), "A2": (594, 420), "A3": (420, 297), "A4": (297, 210)}
 CARIMBO_MM = (200, 115)          # largura e altura da região do carimbo, a partir do canto inferior direito
+LEITURA_VERSAO = 2               # sobe quando o leitor muda: o cache antigo deixa de valer e o arquivo é relido
+LIMIAR_PALAVRAS = 20             # página com ao menos isto de palavras tem texto
 MESES = "JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ"
 # fonte ArialMT sem ToUnicode das pranchas Sanepar: caracteres acima do deslocamento de 29, lidos nas próprias folhas
 # ('*(27e&1,&2' = 'GEOTÉCNICO', 'FUNDAd­O' = 'FUNDAÇÃO', 'ÈREA' = 'ÁREA', 'MÏD' = 'MÓD', '081,&Ë3,2' = 'MUNICÍPIO')
@@ -145,14 +147,8 @@ def campos_carimbo(texto: str) -> dict:
             "data": data.group(0).upper() if data else None, "titulo": titulo}
 
 
-def ler_pdf(caminho: str | Path, ocr: bool = True) -> dict:
-    """Metadados de um PDF: páginas, formato da 1ª folha, layers, se tem texto, e o carimbo (texto ou OCR)."""
-    import pymupdf
-    doc = pymupdf.open(caminho)
-    pg = doc[0]
-    n_palavras = len(pg.get_text("words"))
-    meta = {"paginas": len(doc), **formato_folha(pg.rect.width, pg.rect.height), "layers": len(doc.get_ocgs() or {}),
-            "texto": "sim" if n_palavras >= 20 else "pouco ou nenhum (traço/SHX ou imagem)"}
+def _carimbo_da_pagina(pg, ocr: bool) -> dict:
+    """Campos do carimbo de uma página: texto do PDF e, só se faltar texto e `ocr`, OCR (nunca derruba a leitura)."""
     texto, reparado = texto_carimbo(pg)
     fonte = "texto do PDF" + (" (fonte embaralhada, reparada)" if reparado else "")
     if len(texto.split()) < 8 and ocr:
@@ -160,7 +156,33 @@ def ler_pdf(caminho: str | Path, ocr: bool = True) -> dict:
             texto, fonte = ocr_carimbo(pg), "OCR (carimbo em traço)"
         except ImportError:
             fonte = "sem texto e sem OCR (pip install pytesseract + tesseract-ocr-por)"
-    return {**meta, "carimbo": {**campos_carimbo(texto), "fonte": fonte, "texto": texto[:600]}}
+    return {**campos_carimbo(texto), "fonte": fonte, "texto": texto[:600]}
+
+
+def ler_pdf(caminho: str | Path, ocr: bool = True, max_paginas: int = 20) -> dict:
+    """Metadados de um PDF: páginas, formato da 1ª folha, layers, texto e carimbos. Lê até `max_paginas` porque a
+    capa sem texto não pode decidir pelo documento todo: `texto` é "sim" se ≥ 50 % das páginas lidas têm texto."""
+    import pymupdf
+    doc = pymupdf.open(caminho)
+    lidas = min(len(doc), max_paginas)
+    com_texto, carimbos = 0, []
+    for n in range(lidas):
+        pg = doc[n]
+        com_texto += len(pg.get_text("words")) >= LIMIAR_PALAVRAS
+        carimbos.append({"pagina": n + 1, **_carimbo_da_pagina(pg, ocr)})
+    pg = doc[0]
+    return {"paginas": len(doc), **formato_folha(pg.rect.width, pg.rect.height), "layers": len(doc.get_ocgs() or {}),
+            "texto": "sim" if lidas and com_texto / lidas >= 0.5 else "pouco ou nenhum (traço/SHX ou imagem)",
+            "paginas_com_texto": com_texto, "carimbo": {k: v for k, v in carimbos[0].items() if k != "pagina"},
+            "carimbos": carimbos}
+
+
+def reler_carimbo(caminho: str | Path, dpi: int = 300) -> dict:
+    """Degrau alternativo da escada: carimbo da 1ª página por OCR em `dpi` (o padrão de 200 dpi falha em traço fino).
+    Devolve os campos de `campos_carimbo` + fonte."""
+    import pymupdf
+    texto = ocr_carimbo(pymupdf.open(caminho)[0], dpi=dpi)
+    return {**campos_carimbo(texto), "fonte": f"OCR {dpi} dpi (carimbo em traço)", "texto": texto[:600]}
 
 
 def ler_planilha(caminho: str | Path) -> dict:
@@ -247,11 +269,23 @@ def _totais(itens: list) -> dict:
     return totais
 
 
-def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print) -> dict:
+def _leitura(memo: dict, p: Path, ocr: bool, reler: set) -> dict:
+    """Leitura básica do arquivo, do cache quando vale. Assinatura = tamanho + mtime + `LEITURA_VERSAO`; entrada com
+    `erro` ou caminho em `reler` é lida de novo (erro não é leitura definitiva). O cache não guarda complementos."""
+    assinatura = f"{p.stat().st_size}:{int(p.stat().st_mtime)}:v{LEITURA_VERSAO}"
+    antiga = memo.get(str(p), {})
+    if antiga.get("assinatura") != assinatura or "erro" in antiga or str(p) in reler:
+        memo[str(p)] = {"assinatura": assinatura, **ler_arquivo(p, ocr)}
+    return {k: v for k, v in memo[str(p)].items() if k != "assinatura"}
+
+
+def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print, reler: set | None = None) -> dict:
     """Loop determinístico sobre a listagem do Drive (`inventario.listagem` no obra.json) × arquivos em disco.
 
-    Cache por arquivo (tamanho + data de modificação) em `cache`, para não refazer OCR a cada build.
+    Cache por arquivo (tamanho + data de modificação + versão da leitura) em `cache`, para não refazer OCR a cada
+    build; `reler` é o conjunto de caminhos (str) que ignoram o cache.
     """
+    reler = reler or set()
     import pandas as pd
     c = cfg["inventario"]
     lista = pd.read_csv(c["listagem"], sep=";", dtype=str).fillna("")
@@ -277,11 +311,8 @@ def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print
                 "mb": round(float(r.tamanho_bytes or 0) / 1e6, 2), "codigo": codigo_sanepar(r.titulo)}
         if caminhos:
             p = caminhos[0]
-            assinatura = f"{p.stat().st_size}:{int(p.stat().st_mtime)}"
-            if memo.get(str(p), {}).get("assinatura") != assinatura:
-                memo[str(p)] = {"assinatura": assinatura, **ler_arquivo(p, ocr)}
             item.update({"situacao": "no disco" if p == exato else "no disco (mesmo nome em outra pasta)", "caminho": str(p),
-                         **{k: v for k, v in memo[str(p)].items() if k != "assinatura"}})
+                         **_leitura(memo, p, ocr, reler)})
         else:
             item["situacao"] = ("falhou no download" if r.id in falhas else
                                 "não tentado" if r.id not in tentados else "baixado mas não encontrado")
@@ -330,7 +361,8 @@ def metadados() -> dict:
         "modulo": "inventario",
         "descricao": "inventário determinístico de todos os arquivos da obra: listagem do Drive × disco, leitor por tipo "
                      "(PDF: formato, código, carimbo; planilha: abas e ocultas; zip: conteúdo), busca que prova ausência",
-        "funcoes": ["inventario", "ler_arquivo", "ler_pdf", "ler_planilha", "ler_zip", "procurar", "campos_carimbo",
+        "funcoes": ["inventario", "ler_arquivo", "ler_pdf", "reler_carimbo", "ler_planilha", "ler_zip", "procurar",
+                    "campos_carimbo",
                     "formato_folha", "codigo_sanepar", "tipo_documento", "desembaralhar", "resumo", "para_html"],
         "bibliografia": [
             {"obra": "ISO 216 / ABNT NBR 10068 — Folha de desenho: leiaute e dimensões", "ano": 1987,
@@ -348,6 +380,11 @@ def metadados() -> dict:
             {"aplicacao": {"procurar": ["ausência só por consulta à listagem inteira"], "inventario": ["todo arquivo, não só PDF"]},
              "fonte": "Caio, 30/10/2026: a forma e a armadura do Actiflo 360 foram dadas como inexistentes e existiam "
                       "(pdca/licoes.jsonl L008)"},
+            {"aplicacao": {"inventario": ["LEITURA_VERSAO na assinatura do cache", "erro no cache é relido", "reler"]},
+             "fonte": "plano rodada 20, E1"},
+            {"aplicacao": {"ler_pdf": ["max_paginas = 20", "LIMIAR_PALAVRAS = 20", "texto = sim se ≥ 50 % das páginas"],
+                           "reler_carimbo": ["300 dpi"]},
+             "fonte": "plano rodada 20, E2"},
         ],
         "ultima_revisao": "2026-10-30",
     }
