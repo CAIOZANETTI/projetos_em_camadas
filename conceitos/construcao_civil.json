@@ -1,0 +1,133 @@
+{
+ "metadata": {
+  "fonte": "Descritivo Técnico - Obra Civil ETA Vila C (06/04/2026), Descritivo Técnico - Obra Civil AAT06/AAT02/AAT Vila C (06/04/2026), Anexo A (Termo de Referência, R20, 25/05/2026), Escopo_1etapa_PBES (05/09/2023) e Relação de Desenhos do PBES (07/09/2022)",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "`contrato: true` na parte = os itens do contrato (tabelas ligadas ao sistema) também valem como evidência dela; nas demais o item de equipamento casaria por palavra solta ('VIGA I' de uma talha, 'GRADE DE PISO'). Decomposição de uma unidade construtiva em partes que se constroem. O nome de cada parte vem do próprio projeto quando um documento a nomeia (estado confirmado: a Relação de Desenhos lista 'ARMADURA DAS LAJES DO FUNDO', 'PAREDES', 'PASSARELA', 'ESCADA', 'PROJETO DE IMPERMEABILIZAÇÃO'; o Descritivo cita demolição, escavação, escoramento, reaterro, fundações, estrutura em concreto armado e revestimento); a escolha de qual tipologia vale para qual sistema e o agrupamento em grupos são convenção do Caio (estado premissa). As palavras são regex sobre o texto sem acento, em maiúsculas, com '_' lido como espaço: a parte só ganha evidência de documento quando a frase (ou o título da seção) também cita o sistema pelas `chaves` de unidades_construtivas.json. Evidência é trecho real, nunca deduzida: parte sem trecho nem geometria fica 'sem evidência'."
+ },
+ "escopo": {
+  "convencoes": {
+   "1ª etapa": "dentro",
+   "Existente a reestruturar": "dentro",
+   "2ª etapa": "fora",
+   "3ª etapa (futura)": "fora"
+  },
+  "estado": "confirmado",
+  "fonte": "Escopo_1etapa_PBES.pdf: 1ª etapa = convenções '1ª ETAPA', 'PARTE CIVIL DO MÓDULO DE TRATAMENTO DO MICRO AREIA (...) NA 1ª ETAPA' e 'EXISTENTE A REFORMAR/RESTAURAR EM 1ª ETAPA' do desenho 004; 2ª e 3ª etapas ficam fora da orçamentação da 1ª etapa",
+  "trecho_regra": "UNIDADES A EXECUTAR NA 1",
+  "pegada": {
+   "classes": ["estaca", "bloco", "pilar"],
+   "alternativa": ["cava"],
+   "folga_m": 0.5,
+   "estado": "premissa",
+   "fonte": "envoltória convexa das estacas, blocos e pilares do sistema; a cava só entra se o sistema não tiver nenhum desses (o talude da cava passa muito da estrutura e empata o módulo de filtros entre 1ª e 2ª etapa); folga de 0,5 m só quando a envoltória degenera (menos de 1 m²)"
+  },
+  "fracao_minima": {
+   "valor": 0.1,
+   "estado": "calibrar",
+   "fonte": "fração da pegada do sistema que a maior mancha de convenção precisa cobrir para valer; abaixo disso o sistema fica 'a definir'. Medido na Foz: ACT600 91 %, ACT360 85 %, ETL 100 %, EEE 89 %, filtros 87 %; guarita, depósito e torre do elevador 0 %"
+  },
+  "rede": {
+   "estado": "premissa",
+   "fonte": "rede (AAT, drenagem da ETA): 'dentro' quando o contrato tem tabela de itens ligada ao desenho da rede com quantidade na 1ª etapa (q1 > 0); 'fora' quando só tem quantidade na 2ª etapa; 'a definir' sem tabela. O contrato (planilha de materiais) é o escopo da obra linear, que não tem mancha de etapa no desenho 004"
+  },
+  "palavras_escopo": "ETAPA|ESCOPO|EXECUCAO DE|REFORMA|IMPLANTACAO|CONSTRUCAO"
+ },
+ "documentos": {
+  "memorial": "DESCRITIVO|MEMORIAL|TERMO DE REFERENCIA|ANEXO A|ESCOPO|MEMODESC|DESCR-",
+  "relacao": "RELACAO DE DESENHOS",
+  "ruido": "\\bMI0\\d\\b|(\\d+,\\d+ ?%.*){2}|TABELA DE MEDICAO E FATURAMENTO",
+  "ignorar": "SOND|ENSA|DEFORMADA|PERMEABILIDADE|QUEDATENS|QDCARGAS|LISTACA|DRIVERS|ENTSAID|RESOLUCAO|MATRIZ|FRACAO DO OBJETO|RESUMO DE MATERIAIS|RESUMO SONDAGEM"
+ },
+ "limites": {
+  "evidencias_por_parte": 8,
+  "relacao_por_parte": 5,
+  "trecho_caracteres": 200,
+  "titulo_blocos": 8
+ },
+ "partes": {
+  "canteiro": {"grupo": "Obras gerais", "nome": "Canteiro de obras", "classes_geometria": [], "palavras": "CANTEIRO", "estado": "confirmado", "fonte": "Descritivo Técnico, unidades 01 e 02: 'execução do canteiro de obra'"},
+  "demolicao": {"grupo": "Movimento de terra", "nome": "Demolição e retirada do pavimento existente", "classes_geometria": [], "palavras": "DEMOLICAO|RETIRADA DO PAVIMENTO|CORTE DO ASFALTO", "estado": "confirmado", "fonte": "Descritivo Técnico: 'demolição e retirada do pavimento existente'"},
+  "escavacao": {"grupo": "Movimento de terra", "nome": "Escavação (movimentação de solos)", "classes_geometria": ["cava"], "palavras": "ESCAVAC|MOVIMENTACAO DE SOLO|MOVIMENTO DE TERRA", "estado": "confirmado", "fonte": "Descritivo Técnico: 'movimentação de solos', 'escavações mecânicas e manuais'; PBGE ESCAVAÇÃO 1/2/3"},
+  "escoramento": {"grupo": "Movimento de terra", "nome": "Escoramento", "classes_geometria": [], "palavras": "ESCORAMENT", "estado": "confirmado", "fonte": "Descritivo Técnico: 'atentar ao escoramento, ao reaterro e à compactação'"},
+  "reaterro": {"grupo": "Movimento de terra", "nome": "Reaterro e compactação", "classes_geometria": [], "palavras": "REATERRO|COMPACTACAO", "estado": "confirmado", "fonte": "Descritivo Técnico: 'reaterro e compactação dos solos escavados'"},
+  "contencao": {"grupo": "Movimento de terra", "nome": "Contenção", "classes_geometria": [], "palavras": "CONTENCAO", "estado": "confirmado", "fonte": "desenhos PBGE ETA01CONTENCAO1 a 3"},
+  "terraplenagem": {"grupo": "Movimento de terra", "nome": "Cortes e terraplenagem", "classes_geometria": [], "palavras": "TERRAPLENAGEM|CORTES ?\\d|SUBLEITO", "estado": "confirmado", "fonte": "desenhos PBGE ETA01CORTES1 e 2; Descritivo Técnico, urbanização: 'regularização do subleito'"},
+  "fundacoes": {"grupo": "Fundação", "nome": "Fundações (descrição geral)", "classes_geometria": [], "palavras": "FUNDACAO|FUNDACOES", "estado": "confirmado", "fonte": "Descritivo Técnico: 'execução de fundações'; Termo de Referência: 'Execução de fundações e estruturas'"},
+  "estacas": {"grupo": "Fundação", "nome": "Estacas", "classes_geometria": ["estaca"], "palavras": "ESTACAS?\\b", "estado": "confirmado", "fonte": "desenhos PBGE ETA01FUNDACAO1 a 3 (estacas hélice contínua)"},
+  "blocos": {"grupo": "Fundação", "nome": "Blocos de coroamento", "classes_geometria": ["bloco"], "palavras": "BLOCOS?\\b", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'ARMADURA DOS BLOCOS'"},
+  "concreto_armado": {"grupo": "Estrutura", "nome": "Concreto armado (formas, armadura e concretagem)", "classes_geometria": [], "palavras": "CONCRETO ARMADO|\\bFCK\\b|\\bARMADURAS?\\b|\\bFORMAS?(,| E | DO | DA | DOS | DAS )", "estado": "confirmado", "fonte": "Descritivo Técnico: 'estrutura em concreto armado fck >= 40 MPa'; desenhos PBES FORMA e ARMADURA"},
+  "laje_fundo": {"grupo": "Estrutura", "nome": "Laje de fundo", "classes_geometria": [], "palavras": "LAJES? DO FUNDO|LAJE DE FUNDO|FORMA DO FUNDO|RADIER", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'ARMADURA DAS LAJES DO FUNDO', 'FORMA DO FUNDO'"},
+  "paredes_concreto": {"grupo": "Estrutura", "nome": "Paredes de concreto", "classes_geometria": [], "palavras": "PAREDES?:|\\bPAR ?\\d", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'ARMADURA DAS PAREDES: PAR1 a PAR9'"},
+  "pilares": {"grupo": "Estrutura", "nome": "Pilares", "classes_geometria": ["pilar"], "palavras": "\\bPILARES?\\b", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'ARMADURA DOS BLOCOS, PILARES e VIGAS'; forma MOD01FORMA"},
+  "vigas": {"grupo": "Estrutura", "nome": "Vigas", "classes_geometria": [], "palavras": "\\bVIGAS?\\b", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'ARMADURA DAS VIGAS: V1 a V11'"},
+  "laje_tampa": {"grupo": "Estrutura", "nome": "Laje de tampa", "classes_geometria": [], "palavras": "\\bTAMPAS?\\b", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'ARMADURA DAS LAJES DA TAMPA', 'FORMA DA TAMPA'"},
+  "lajes": {"grupo": "Estrutura", "nome": "Lajes (pavimentos e cobertura)", "classes_geometria": [], "palavras": "\\bLAJES?\\b", "estado": "confirmado", "fonte": "Relação de Desenhos PBES, ETL01: 'ARMADURA LAJES PAV. TÉRREO, COBERTURA, PLATIBANDA'"},
+  "escadas": {"grupo": "Estrutura", "nome": "Escadas", "classes_geometria": [], "contrato": true, "palavras": "\\bESCADAS?\\b", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'ARMADURA DAS LAJES DA TAMPA, PASSARELAS e ESCADAS'; contrato: escada PRFV"},
+  "passarelas": {"grupo": "Estrutura", "nome": "Passarelas", "classes_geometria": [], "contrato": true, "palavras": "\\bPASSARELAS?\\b", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'ARMADURA DAS LAJES DA TAMPA e PASSARELA'"},
+  "guarda_corpo": {"grupo": "Estrutura", "nome": "Guarda-corpo", "classes_geometria": [], "contrato": true, "palavras": "GUARDA.?CORPO", "estado": "confirmado", "fonte": "contrato: 'GUARDA CORPO PRFV' nas tabelas dos módulos"},
+  "impermeabilizacao": {"grupo": "Proteção e acabamento", "nome": "Impermeabilização", "classes_geometria": [], "palavras": "IMPERMEABILIZ", "estado": "confirmado", "fonte": "Relação de Desenhos PBES: 'PROJETO DE IMPERMEABILIZAÇÃO'"},
+  "revestimento": {"grupo": "Proteção e acabamento", "nome": "Revestimento e tratamento da superfície", "classes_geometria": [], "palavras": "REVESTIMENT|TRATAMENTO DA SUPERFICIE|CHAPISCO|EMBOCO|REBOCO|CONTRA ?PISO|\\bPISOS?\\b", "estado": "confirmado", "fonte": "Descritivo Técnico: 'revestimento e tratamento da superfície'; guarita: 'chapisco, emboço, reboco'"},
+  "pintura": {"grupo": "Proteção e acabamento", "nome": "Pintura", "classes_geometria": [], "palavras": "PINTURA|HIDROJATEAMENTO", "estado": "confirmado", "fonte": "Descritivo Técnico, guarita e urbanização: 'pintura'"},
+  "cobertura": {"grupo": "Vedação e cobertura", "nome": "Cobertura (estrutura metálica e telhas)", "classes_geometria": [], "palavras": "COBERTURA|TELHAS?\\b|ESTRUTURA METALICA", "estado": "confirmado", "fonte": "Descritivo Técnico, guarita: 'cobertura em estrutura metálica ... telha de fibrocimento'"},
+  "alvenaria": {"grupo": "Vedação e cobertura", "nome": "Alvenaria e paredes", "classes_geometria": [], "palavras": "ALVENARIA|SERVICOS DE FECHAMENTO", "estado": "confirmado", "fonte": "Descritivo Técnico, guarita: 'estrutura de concreto e alvenaria', 'fechamento tais como: paredes'"},
+  "esquadrias": {"grupo": "Vedação e cobertura", "nome": "Esquadrias (portas e janelas)", "classes_geometria": [], "contrato": true, "palavras": "ESQUADRIA|\\bPORTAS?\\b(?! TOALHA)|JANELA|VENEZIANA", "estado": "confirmado", "fonte": "Descritivo Técnico, edifício de lodo e guarita: 'esquadrias em alumínio anodizado'"},
+  "instalacoes_prediais": {"grupo": "Instalações", "nome": "Instalações prediais (água, esgoto, fossa e sumidouro)", "classes_geometria": [], "palavras": "INSTALACOES PREDIAIS|HIDROSSANITARI|FOSSA|SUMIDOURO|BACIA SANITARIA", "estado": "confirmado", "fonte": "Descritivo Técnico, guarita: 'instalações prediais de água, esgoto e pluviais ... fossa séptica e sumidouro'"},
+  "instalacoes_eletricas": {"grupo": "Instalações", "nome": "Instalações elétricas e SPDA", "classes_geometria": [], "palavras": "INSTALACOES ELETRICAS|ILUMINACAO|ELETRODUTO|ATERRAMENTO|SPDA", "estado": "premissa", "fonte": "Descritivo Técnico Elétrica (disciplina própria); entra na decomposição para mostrar se há trecho do sistema"},
+  "icamento": {"grupo": "Instalações", "nome": "Talha e elevador", "classes_geometria": [], "contrato": true, "palavras": "TALHA|TROLEY|ELEVADOR", "estado": "confirmado", "fonte": "Descritivo Técnico, edifício de lodo: 'talhas com troley'; sistema TORRE_ELEV"},
+  "urbanizacao": {"grupo": "Obras gerais", "nome": "Urbanização (acessos, pavimentação e paisagismo)", "classes_geometria": [], "palavras": "URBANIZACAO|ACESSOS|SUB-?BASE|PAISAGISMO|POSTES", "estado": "confirmado", "fonte": "Descritivo Técnico, 3.5 URBANIZAÇÃO"},
+  "berco": {"grupo": "Rede", "nome": "Berço de areia", "classes_geometria": [], "contrato": true, "palavras": "BERCO|ENVOLTORIA", "estado": "confirmado", "fonte": "Descritivo AAT: 'incluindo berço de areia'"},
+  "tubulacao": {"grupo": "Rede", "nome": "Tubulação (assentamento)", "classes_geometria": ["trecho"], "contrato": true, "palavras": "\\bTUBOS?\\b|TUBULACAO|ADUTORA|TERMOFUSAO", "estado": "confirmado", "fonte": "Descritivo AAT: 'assentamento de tubulação em PEAD via termofusão de topo'; contrato: tubos das tabelas"},
+  "conexoes": {"grupo": "Rede", "nome": "Curvas, tês e conexões", "classes_geometria": [], "contrato": true, "palavras": "\\bCURVAS?\\b|\\bTES?\\b|REDUCAO|\\bLUVAS?\\b|FLANGE|CONEXO|ACESSORIO|ADAPTADOR|COLAR DE", "estado": "confirmado", "fonte": "Descritivo AAT: 'interligações, conexões e acessórios'; contrato: curvas PE injetadas"},
+  "orgaos": {"grupo": "Rede", "nome": "Válvulas, ventosas e descargas", "classes_geometria": [], "contrato": true, "palavras": "VALVULA|REGISTRO|VENTOSA|DESCARGA|MACROMEDIDOR|COMPORTA", "estado": "confirmado", "fonte": "contrato: tabelas 'VENTOSA 01', 'DESCARGA 01', 'MACROMEDIDOR - RAP'"},
+  "pocos_caixas": {"grupo": "Rede", "nome": "Poços e caixas (visita, boca de lobo, proteção)", "classes_geometria": [], "contrato": true, "palavras": "POCOS? DE VISITA|BOCA DE LOBO|TAMPAO|ANEIS? DE CONCRETO|\\bCAIXAS?\\b", "estado": "confirmado", "fonte": "contrato: tabelas 'POÇO DE VISITA' e 'DRENAGEM'"},
+  "blocos_ancoragem": {"grupo": "Rede", "nome": "Blocos de ancoragem", "classes_geometria": [], "contrato": true, "palavras": "ANCORAGEM", "estado": "confirmado", "fonte": "Descritivo AAT: 'blocos de ancoragem em concreto nas curvas'; desenho padrão BLANCORAGEMTIPO"},
+  "pavimento": {"grupo": "Rede", "nome": "Recomposição do pavimento", "classes_geometria": [], "palavras": "RECOMPOSICAO|PAVIMENT|CBUQ|MACADAME|\\bBGS\\b", "estado": "confirmado", "fonte": "Descritivo AAT: 'estrutura de recomposição do pavimento'"},
+  "ensaios": {"grupo": "Rede", "nome": "Teste de estanqueidade e cadastro", "classes_geometria": [], "palavras": "ESTANQUEIDADE|AS.?BUILT|CADASTRO", "estado": "confirmado", "fonte": "Descritivo AAT: 'teste de estanqueidade'; Termo de Referência: 'Cadastro as built e testes operacionais'"}
+ },
+ "tipologias": {
+  "estrutura_concreto": {
+   "nome": "Estrutura de concreto armado (tanques e módulos)",
+   "estado": "premissa",
+   "fonte": "módulos Actiflo, filtros e EEE são tanques de concreto com fundo, paredes e tampa nos desenhos PBES (Relação de Desenhos)",
+   "partes": ["demolicao", "escavacao", "escoramento", "reaterro", "fundacoes", "estacas", "blocos", "concreto_armado",
+              "laje_fundo", "paredes_concreto", "pilares", "vigas", "laje_tampa", "escadas", "passarelas", "guarda_corpo",
+              "impermeabilizacao", "revestimento"]
+  },
+  "edificacao": {
+   "nome": "Edificação",
+   "estado": "premissa",
+   "fonte": "guarita, depósito, edifício do lodo e torre do elevador: edificações com estrutura, vedação, cobertura e instalações (Descritivo Técnico, 3.1 e 3.2; PBES POR01, DEP01, ETL01)",
+   "partes": ["demolicao", "escavacao", "escoramento", "reaterro", "fundacoes", "estacas", "blocos", "concreto_armado",
+              "paredes_concreto", "pilares", "vigas", "lajes", "escadas", "cobertura", "alvenaria", "esquadrias", "revestimento", "pintura",
+              "instalacoes_prediais", "instalacoes_eletricas", "icamento"]
+  },
+  "geral": {
+   "nome": "Obras gerais da ETA",
+   "estado": "premissa",
+   "pegada": false,
+   "fonte": "o que não pertence a um módulo só: canteiro, demolição, escavação, contenção, cortes e urbanização (PBGE ETA01, Descritivo Técnico 3.5); sem pegada única, o estado fica 'a definir' (agrupa elementos de várias etapas)",
+   "partes": ["canteiro", "demolicao", "escavacao", "contencao", "terraplenagem", "urbanizacao"]
+  },
+  "rede": {
+   "nome": "Rede enterrada (adutora)",
+   "estado": "premissa",
+   "fonte": "Descritivo Técnico AAT06, AAT02 e AAT Vila C: corte do asfalto, escavação, berço, tubo PEAD, blocos de ancoragem, recomposição do pavimento e teste",
+   "partes": ["canteiro", "demolicao", "escavacao", "escoramento", "berco", "tubulacao", "conexoes", "orgaos",
+              "pocos_caixas", "blocos_ancoragem", "reaterro", "pavimento", "ensaios"]
+  },
+  "rede_eta": {
+   "nome": "Tubulação enterrada dentro da ETA",
+   "estado": "premissa",
+   "fonte": "aba Obras Lineares do protótipo 211 (Giselle, 30/10/2026): vala a céu aberto (VCA) ou MND, escoramento acima de 1,25 m, escavação, reaterro, bota-fora, supressão vegetal e recomposição do pavimento (grama, asfalto, concreto, paver, lajota); CUSTO CIVIL 1.2–1.8: blocos de ancoragem e caixas de interligação",
+   "partes": ["demolicao", "escavacao", "escoramento", "berco", "tubulacao", "conexoes", "pocos_caixas",
+              "blocos_ancoragem", "reaterro", "pavimento", "ensaios"]
+  },
+  "drenagem": {
+   "nome": "Drenagem pluvial da ETA",
+   "estado": "premissa",
+   "fonte": "contrato, tabela DRENAGEM: tubo de concreto DN300 e DN400, poço de visita e boca de lobo",
+   "partes": ["demolicao", "escavacao", "escoramento", "berco", "tubulacao", "pocos_caixas", "reaterro", "pavimento"]
+  }
+ }
+}

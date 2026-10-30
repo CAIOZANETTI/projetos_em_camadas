@@ -100,12 +100,27 @@ def test_propriedades_no_contrato():
     assert set(saida) == {"fonte", "classes", "arvore", "geojson"}
     for f in saida["geojson"]["features"]:
         p = f["properties"]
-        assert set(p) == {"id", "rotulo", "classe", "unidade", "sistema", "etapa", "atributos", "fonte"}
+        assert set(p) == {"id", "rotulo", "classe", "unidade", "sistema", "etapa", "atributos", "fonte", "doc"}
         assert p["classe"] in saida["classes"] and p["id"].startswith(p["sistema"])
         assert all(isinstance(par, list) and len(par) == 2 and par[1] is not None for par in p["atributos"])
     assert [u["id"] for u in saida["arvore"]] == ["u1", "u2"]
     assert saida["arvore"][1]["obra"] == "linear"
     assert {c["geometria"] for c in saida["classes"].values()} == {"ponto", "poligono", "linha"}
+
+
+def test_doc_de_origem_de_cada_elemento():
+    dados = _dados()
+    dados["pranchas"][0]["pdf"] = "009-SAA-AAT06PTPER-R1.pdf"
+    dados["pranchas"].append({"id": "es1", "nome": "Escavação 1", "pdf": "006-SAA-ETA01ESCAVACAO1-R2.pdf",
+                              "M": [1, 0, E0, 0, 1, N0], "clip_mapa": [0, 0, 100, 100]})
+    dados["vetores"][0]["geojson"]["features"][0]["properties"]["desenho_origem"] = "003-FUNDACAO1+005-FUNDACAO3"
+    por_id = _por_id(construtivos.montar(dados, CFG))
+    doc = {i: f["properties"]["doc"] for i, f in por_id.items()}
+    assert doc["u1-ACT600-estaca-ACT600-031"] == "003-FUNDACAO1"                   # estaca em dois desenhos: o primeiro
+    assert doc["u1-FILTROS-bloco-P5"] == doc["u1-FILTROS-pilar-P5"] == "001-MOD01FORMA-R1"      # a forma da ficha
+    assert doc["u2-AAT06-trecho-aat06_09"] == "009-SAA-AAT06PTPER-R1"
+    assert doc["u1-ACT600-cava-C01"] == "006-SAA-ETA01ESCAVACAO1-R2"              # a folha de escavação que contém a cava
+    assert doc["u1-ETA-cava-C02"] == "006-SAA-ETA01ESCAVACAO1-R2"                  # fora das janelas: a primeira folha de escavação
 
 
 def test_trecho_de_rede_com_contrato_e_desenho():

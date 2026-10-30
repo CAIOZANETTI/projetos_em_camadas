@@ -336,16 +336,21 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
 
 /* ---------- v4: aba Obra (navegar por elemento construtivo) ---------- */
 .ob-busca{position:sticky;top:-4px;z-index:2;background:var(--painel);padding:8px 0 4px;margin-top:-4px}
-.ob-opc{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;font-size:12px}
+.ob-opc{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin-top:6px;font-size:12px}
 .ob-opc label{display:flex;align-items:center;gap:6px;cursor:pointer}
 .ob-opc .nota-l{font-family:var(--f-dado)}
 .ob-ficha{margin:8px 0 10px;padding:10px 12px;border:1px solid var(--linha);border-left:3px solid var(--acento);border-radius:6px;background:var(--papel)}
+#obFicha{scroll-margin-top:96px;outline:0}
 .ob-tit{display:flex;align-items:center;gap:8px;font:600 16px/1.2 var(--f-titulo);margin-bottom:4px;overflow-wrap:anywhere}
 .ob-tit .sw,.ob-el .sw,.ob-cls .sw{width:12px;height:12px;flex:none;border-color:var(--mut)}   /* classes quase pretas (pilar) somem no tema escuro sem o contorno */
 .ob-sec{font:600 10.5px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:10px 0 2px}
-.ob-pop{max-height:calc(var(--mapa-h,500px) * .45);overflow-y:auto}
-.ob-pop table.info td,.ob-ficha table.info td{padding:4px 0;font-size:12px}
+.ob-pop{max-width:260px}
+.ob-pop .ob-tit{font-size:14px;margin-bottom:2px}
+.ob-pop .nota-l{overflow-wrap:anywhere}
+.ob-pop .acoes{margin-top:6px}
+.ob-ficha table.info td{padding:4px 0;font-size:12px;vertical-align:top}
 .ob-ficha .acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ob-aviso{margin:6px 0 0;padding:5px 8px;border-left:3px solid var(--aberta);background:color-mix(in srgb,var(--aberta) 12%,transparent);font-size:12px}
 .ob-res{display:flex;flex-direction:column;margin-top:2px}
 .ob-el{display:grid;grid-template-columns:12px 1fr auto;gap:1px 8px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--linha);padding:7px 6px;cursor:pointer}
 .ob-el:hover{background:var(--realce)}
@@ -353,11 +358,10 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
 .ob-el .r{font-weight:600;min-width:0;overflow-wrap:anywhere}
 .ob-el .c{font:11px var(--f-dado);color:var(--mut);white-space:nowrap}
 .ob-el .s{grid-column:2/4;color:var(--mut);font-size:11.5px;overflow-wrap:anywhere}
-.ob-un>summary .nota,.ob-sis>summary .nota{margin-left:auto;font:11px var(--f-dado);color:var(--mut);font-weight:400}
+.ob-el.fora{opacity:.55}
+.ob-un>summary .nota{margin-left:auto;font:11px var(--f-dado);color:var(--mut);font-weight:400}
 .ob-un>summary .gn{min-width:0;overflow-wrap:anywhere}
 .ob-un>summary .badge-g{font-weight:400;flex:none}
-.ob-sis{margin-left:14px}
-.ob-sis>summary .badge-g{margin-left:6px}
 .ob-cls{display:grid;grid-template-columns:12px 1fr auto 10px;gap:8px;align-items:center;width:100%;text-align:left;background:none;border:0;padding:5px 4px 5px 18px;cursor:pointer;min-height:28px}
 .ob-cls:hover{background:var(--realce)}
 .ob-cls .n{font:11.5px var(--f-dado);color:var(--mut)}
@@ -366,6 +370,63 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
 .ob-els{margin:0 0 6px 18px;border-left:1px solid var(--linha)}
 .ob-els .ob-el{padding-left:10px}
 .ob-els .nota-l{padding:4px 10px}
+/* escopo por unidade construtiva: resumo, controle por sistema, origem e decomposição */
+.ob-resumo{margin:6px 0 4px;padding:8px 0 6px;border-bottom:1px solid var(--linha)}
+.ob-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px}
+.ob-chip{display:inline-flex;gap:4px;align-items:baseline;padding:3px 8px;border:1px solid currentColor;border-radius:999px;white-space:nowrap}
+.ob-chip b{font:600 13px var(--f-dado)}
+.ob-chip[data-e="dentro"],.ob-est[data-e="dentro"]{color:var(--ok)}
+.ob-chip[data-e="fora"],.ob-est[data-e="fora"]{color:var(--mut)}
+.ob-chip[data-e="fora"]{border-style:dashed}
+.ob-chip[data-e="a definir"],.ob-est[data-e="a definir"]{color:var(--aberta)}
+.ob-chips .alt{color:var(--acento);font-weight:600}
+.ob-resumo .acoes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ob-resumo .btn:disabled{opacity:.45;cursor:default}
+.ob-regra{margin-top:6px;font-size:12px}
+.ob-regra>summary{cursor:pointer;color:var(--mut)}
+.ob-regra p{margin:4px 0}
+.ob-sis{margin-left:14px;border-top:1px solid var(--linha)}
+.ob-sis-h{display:flex;align-items:center;gap:6px;width:100%;min-height:28px;padding:5px 0;background:none;border:0;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.ob-sis-h::before{content:"";width:5px;height:5px;flex:none;border-right:1.5px solid var(--mut);border-bottom:1.5px solid var(--mut);transform:rotate(-45deg);transition:transform .15s}
+.ob-sis-h[aria-expanded="true"]::before{transform:rotate(45deg)}
+.ob-sis-h .gn{font-weight:500;min-width:0;overflow-wrap:anywhere}
+.ob-sis-h .badge-g{margin-left:6px;font-weight:400;flex:none}
+.ob-sis-h .nota{margin-left:auto;font:11px var(--f-dado);color:var(--mut);white-space:nowrap}
+.ob-esc-l{display:flex;align-items:flex-start;gap:8px;padding:0 0 6px 11px;font-size:11.5px}
+.ob-sw{display:inline-flex;align-items:center;gap:5px;flex:none;cursor:pointer;font-weight:600;font-size:12px;padding:2px 0}
+.ob-sw input{width:16px;height:16px;margin:0;accent-color:var(--ok);cursor:pointer}
+.ob-orig{min-width:0;color:var(--mut);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ob-est{font-weight:600}
+.ob-alt-l{padding:0 0 6px 11px;font-size:11.5px;color:var(--mut)}
+.ob-alt{display:inline-block;padding:1px 6px;margin-right:4px;border-radius:3px;background:var(--acento);color:var(--acento-tinta);font-weight:600;font-size:10.5px}
+.ob-alt-l .btn{margin-left:4px}
+.ob-sis[data-escopo="fora"] .ob-sis-h{opacity:.55}
+.ob-sis[data-escopo="fora"] .ob-corpo>.ob-cls,.ob-sis[data-escopo="fora"] .ob-corpo>.ob-els{opacity:.6}
+.ob-sis[data-alterado="1"]{box-shadow:inset 3px 0 0 var(--acento);padding-left:6px;margin-left:8px}
+.ob-corpo{padding:0 0 6px 11px}
+.ob-corpo .nota-l{margin:2px 0}
+.ob-corpo ul{margin:2px 0 4px;padding-left:16px}
+.ob-corpo li{margin:3px 0;font-size:12px;overflow-wrap:anywhere}
+.ob-trecho{display:block;margin:1px 0 0;color:var(--mut);font-style:italic}
+.ob-grp{font:600 11.5px var(--f-titulo);margin:8px 0 2px;color:var(--tinta)}
+.ob-parte{border-top:1px dotted var(--linha)}
+.ob-pt{display:grid;grid-template-columns:14px 1fr auto 10px;gap:8px;align-items:center;width:100%;text-align:left;background:none;border:0;padding:5px 4px;cursor:pointer;min-height:28px;font:inherit;color:inherit}
+.ob-pt:hover{background:var(--realce)}
+.ob-pt .es{font:11px var(--f-dado);color:var(--mut);white-space:nowrap}
+.ob-pt::after{content:"";width:5px;height:5px;border-right:1.5px solid var(--mut);border-bottom:1.5px solid var(--mut);transform:rotate(-45deg);transition:transform .15s}
+.ob-pt[aria-expanded="true"]::after{transform:rotate(45deg)}
+.ob-mk{width:12px;height:12px;display:inline-block;border-radius:50%;box-sizing:border-box}
+.est-geo .ob-mk{background:var(--ok)}
+.est-doc .ob-mk{border:2px solid var(--medida);background:linear-gradient(90deg,var(--medida) 50%,transparent 50%)}
+.est-sem .ob-mk{border-radius:0;background:var(--aberta);clip-path:polygon(50% 0,100% 100%,0 100%)}
+.est-sem>.ob-pt{background:color-mix(in srgb,var(--aberta) 13%,transparent);box-shadow:inset 3px 0 0 var(--aberta)}
+.est-sem>.ob-pt .nm{font-weight:600}
+.est-sem>.ob-pt .es{color:var(--aberta);font-weight:700}
+.ob-pt-c{padding:2px 4px 8px 22px}
+.ob-pt-c .btn{margin:2px 0 4px}
+.ob-lacuna{margin:2px 0;color:var(--aberta);font-size:12px;font-weight:600}
+.ob-leg{display:flex;flex-wrap:wrap;gap:4px 12px;margin:4px 0 2px;font-size:11px;color:var(--mut)}
+.ob-leg span{display:inline-flex;align-items:center;gap:5px}
 .obra-pop .leaflet-popup-content{margin:8px 10px}
 
 @media (max-width:760px){
@@ -409,8 +470,8 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
   <main>
     <aside>
       <nav class="abas" role="tablist">
-        <button role="tab" id="t-camadas" aria-selected="true" aria-controls="aba-camadas" data-aba="camadas">Camadas</button>
         <button role="tab" id="t-obra" aria-selected="false" aria-controls="aba-obra" data-aba="obra" hidden>Obra</button>
+        <button role="tab" id="t-camadas" aria-selected="true" aria-controls="aba-camadas" data-aba="camadas">Camadas</button>
         <button role="tab" id="t-pranchas" aria-selected="false" aria-controls="aba-pranchas" data-aba="pranchas" hidden>Pranchas</button>
         <button role="tab" id="t-escopo" aria-selected="false" aria-controls="aba-escopo" data-aba="escopo" hidden>Etapas &amp; escopo</button>
         <button role="tab" id="t-anotacoes" aria-selected="false" aria-controls="aba-anotacoes" data-aba="anotacoes">Anotações <span class="badge" id="nAnot">0</span></button>
@@ -420,9 +481,15 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
       <div class="aba" id="aba-obra" hidden>
         <div class="ob-busca">
           <input type="search" id="obBusca" placeholder="Buscar: P5, pilar, AAT06, ACT600-031…" aria-label="Buscar elemento construtivo" autocomplete="off">
-          <div class="ob-opc"><label><input type="checkbox" id="obMapa"> Mostrar elementos no mapa</label><span class="nota-l" id="obN"></span></div>
+          <div class="ob-opc"><label><input type="checkbox" id="obMapa"> Mostrar elementos no mapa</label>
+            <label id="obSoEscopoL" hidden title="Esconde, no mapa e na busca, os sistemas marcados como fora do escopo"><input type="checkbox" id="obSoEscopo" checked> Só o escopo</label></div>
         </div>
-        <div id="obFicha" aria-live="polite"></div>
+        <div id="obEscopo" class="ob-resumo" hidden>
+          <div class="ob-chips" id="obResumo" role="status" aria-live="polite"></div>
+          <details class="ob-regra" id="obRegra"></details>
+          <div class="acoes"><button class="btn mini" data-ob-acao="exportar" id="obExp">Exportar escolhas de escopo</button><button class="btn mini" data-ob-acao="restaurar" id="obRest">Restaurar do projeto</button></div>
+        </div>
+        <div id="obFicha" aria-live="polite" tabindex="-1"></div>
         <div id="obRes" aria-live="polite" hidden></div>
         <div id="obArvore"></div>
         <p class="nota-l" id="obFonte"></p>
@@ -2433,19 +2500,62 @@ function iniciarV2() {
    Tudo vem pronto do Python; aqui só se busca, se enquadra e se exibe a ficha.
    ==================================================================== */
 const OB = D.construtivos && D.construtivos.geojson ? D.construtivos : null;
-const OBRA = {sel: null, itens: [], porId: new Map(), camada: new Map(), un: new Map(), sis: new Map(), geo: null, halo: L.layerGroup(), popup: null};
+const ES = OB && OB.escopo && OB.escopo.sistemas ? OB.escopo : null;   // escopo por sistema (opcional): sem ele a aba funciona como antes, sem os controles
+const OBRA = {sel: null, itens: [], porId: new Map(), camada: new Map(), un: new Map(), sis: new Map(), geo: null, halo: L.layerGroup(), popup: null,
+  manual: {}, soEscopo: true, ordem: [], aviso: ""};
 const OB_MAX = 50, OB_MAX_CLASSE = 300, OB_COR_PADRAO = "#64748b";
+const ESTADOS_ESC = ["dentro", "fora", "a definir"];
+const CHAVE_OBRA = "camadas:obra-escopo:" + D.id;
 const corObra = classe => OB.classes?.[classe]?.cor || OB_COR_PADRAO;
 const nomeClasseObra = classe => OB.classes?.[classe]?.nome || classe || "—";
 const natural = (a, b) => String(a).localeCompare(String(b), "pt-BR", {numeric: true});
 /* número com vírgula decimal; texto, booleano e vazio como estão (vazio = "—") */
 const fmtAtr = v => v == null || v === "" ? "—" : typeof v === "number" ? v.toLocaleString("pt-BR", {maximumFractionDigits: 3}) : typeof v === "boolean" ? (v ? "Sim" : "Não") : esc(v);
 
+/* ---- escopo: estado do projeto (vem do Python) + escolhas do usuário (localStorage, só neste navegador) ---- */
+const infoEscopo = id => ES?.sistemas?.[id] || {};
+const estadoProjeto = id => ESTADOS_ESC.includes(infoEscopo(id).estado) ? infoEscopo(id).estado : "a definir";
+const estadoSis = id => OBRA.manual[id]?.estado ?? estadoProjeto(id);
+const foraDoEscopo = it => !!ES && estadoSis(it.sis) === "fora";
+const visivelObra = it => !(OBRA.soEscopo && foraDoEscopo(it));
+const dataBr = d => d ? String(d).split("-").reverse().join("/") : "sem data";
+function carregarEscopoObra() {
+  if (!ES) return;
+  let m = {};
+  try { m = JSON.parse(localStorage.getItem(CHAVE_OBRA)) || {}; } catch (e) {}
+  for (const [id, v] of Object.entries(m))
+    if (OBRA.sis.has(id) && v && ESTADOS_ESC.includes(v.estado) && v.estado !== estadoProjeto(id)) OBRA.manual[id] = {estado: v.estado, origem: "manual", data: v.data ?? null};
+}
+function salvarEscopoObra() {
+  try { Object.keys(OBRA.manual).length ? localStorage.setItem(CHAVE_OBRA, JSON.stringify(OBRA.manual)) : localStorage.removeItem(CHAVE_OBRA); } catch (e) {}
+}
+function resumoEscopo() {
+  const r = {dentro: 0, fora: 0, "a definir": 0};
+  for (const id of OBRA.sis.keys()) r[estadoSis(id)]++;
+  return {...r, total: OBRA.sis.size, alterados: Object.keys(OBRA.manual).length};
+}
+function escolhasEscopo() { return Object.fromEntries(Object.keys(OBRA.manual).sort().map(k => [k, {...OBRA.manual[k]}])); }
+
+/* ---- documentos (fonte e evidências) ---- */
+const docObra = id => ES?.documentos?.[id] || null;
+const urlOk = u => typeof u === "string" && /^https?:\/\//i.test(u);
+/* título do documento como link (nova aba); a página só vira âncora em PDF direto — o Drive não pula página */
+function htmlDoc(id, pagina = null) {
+  const d = docObra(id);
+  if (!d) return `<span>${esc(id)}</span> <span class="nota-l">(documento fora do cadastro)</span>`;
+  const t = esc(d.titulo || d.arquivo || id), pdf = urlOk(d.link) && pagina != null && /\.pdf($|\?)/i.test(d.link) && !/drive\.google\./i.test(d.link);
+  return (urlOk(d.link) ? `<a href="${esc(d.link + (pdf ? "#page=" + encodeURIComponent(pagina) : ""))}" target="_blank" rel="noopener">${t}</a>`
+      : `<span title="${esc(d.arquivo || "")}">${t}</span> <span class="nota-l">(sem link)</span>`)
+    + (pagina != null ? ` <span class="nota-l">· p. ${esc(pagina)}</span>` : "")
+    + (d.prancha && prPorId(d.prancha) ? ` <button class="btn mini" data-ob-acao="prancha" data-prancha="${esc(d.prancha)}">ver na aba Pranchas</button>` : "");
+}
+const htmlEvidencia = ev => `<li>${htmlDoc(ev.doc, ev.pagina)}${ev.trecho ? `<span class="ob-trecho">“${esc(ev.trecho)}”</span>` : ""}</li>`;
+
 function estiloObra(f) {
-  const cor = corObra(f.properties.classe), t = f.geometry.type;
-  if (/Point/.test(t)) return {radius: 5, color: "#ffffff", weight: 1, fillColor: cor, fillOpacity: .95};
-  if (/Line/.test(t)) return {color: cor, weight: 4.5, opacity: .95, lineCap: "round", lineJoin: "round"};
-  return {color: cor, weight: 1.5, fillColor: cor, fillOpacity: .4};
+  const cor = corObra(f.properties.classe), t = f.geometry.type, it = OBRA.porId.get(String(f.properties.id)), fora = !!it && foraDoEscopo(it);   // fora do escopo: esmaecido
+  if (/Point/.test(t)) return {radius: 5, color: "#ffffff", weight: 1, opacity: fora ? .35 : 1, fillColor: cor, fillOpacity: fora ? .22 : .95};
+  if (/Line/.test(t)) return {color: cor, weight: 4.5, opacity: fora ? .3 : .95, lineCap: "round", lineJoin: "round"};
+  return {color: cor, weight: fora ? 1 : 1.5, opacity: fora ? .35 : 1, fillColor: cor, fillOpacity: fora ? .08 : .4};
 }
 function indexarObra() {
   for (const u of OB.arvore || []) { OBRA.un.set(u.id, u); for (const s of u.sistemas || []) OBRA.sis.set(s.id, {...s, un: u.id}); }
@@ -2466,8 +2576,10 @@ function ordemDesenhoObra(feats) {
   return feats.map(f => [chave(f), f]).sort((a, b) => a[0][0] - b[0][0] || a[0][1] - b[0][1]).map(x => x[1]);
 }
 function iniciarObra() {
-  indexarObra();
-  OBRA.geo = L.geoJSON({type: "FeatureCollection", features: ordemDesenhoObra(OB.geojson.features)}, {
+  indexarObra(); carregarEscopoObra();
+  const feats = ordemDesenhoObra(OB.geojson.features);
+  OBRA.ordem = feats.map(f => String(f.properties.id));
+  OBRA.geo = L.geoJSON({type: "FeatureCollection", features: feats}, {
     pane: "overlayPane", style: estiloObra, pointToLayer: (f, ll) => L.circleMarker(ll),
     onEachFeature: (f, l) => {
       const id = String(f.properties.id);
@@ -2475,42 +2587,96 @@ function iniciarObra() {
       l.bindTooltip(esc(f.properties.rotulo ?? id), {sticky: true, direction: "top", className: "rotulo"});
       l.on("click", ev => {
         if (ferramenta !== "navegar") return;   // medindo ou desenhando: o clique é do mapa
-        L.DomEvent.stopPropagation(ev); selecionarObra(id, {enquadrar: false, ll: ev.latlng});
+        L.DomEvent.stopPropagation(ev); selecionarObra(id, {enquadrar: false, ll: ev.latlng, abrir: false});
       });
     }});
   camadasMapa.construtivos = {layer: OBRA.geo, nome: `Elementos construtivos (${fmt(OBRA.itens.length, 0)})`, grupo: "Obra", on: false, f4: 0};   // começa desligada: liga ao selecionar
+  aplicarEscopoMapa();
+}
+/* sistemas fora do escopo: esmaecidos; com "Só o escopo" saem do mapa. A camada é refeita na ordem de desenho para não trocar o que fica por cima */
+function aplicarEscopoMapa() {
+  OBRA.geo.clearLayers();
+  for (const id of OBRA.ordem) {
+    const it = OBRA.porId.get(id), l = OBRA.camada.get(id), est = estiloObra(l.feature);
+    L.setOptions(l, est);   // o estilo entra nas opções; a camada o desenha ao ser adicionada
+    if (visivelObra(it)) OBRA.geo.addLayer(l);
+  }
+  const sel = OBRA.porId.get(OBRA.sel);
+  if (sel) visivelObra(sel) ? destacarObra(OBRA.camada.get(sel.id)) : limparSelecaoObra();
 }
 
-function buscarObra(q) {
+function buscarObra(q, ignorarEscopo = false) {
   const ts = semAcento(q).split(/\s+/).filter(Boolean);
   if (!ts.length) return [];
   const nota = it => { const r = semAcento(it.rotulo), i = semAcento(it.id);
     return ts.every(t => r === t || i === t) ? 0 : ts.every(t => r.startsWith(t)) ? 1 : ts.every(t => r.includes(t) || i.includes(t)) ? 2 : 3; };
-  return OBRA.itens.filter(it => ts.every(t => it.txt.includes(t))).map(it => [nota(it), it])
+  return OBRA.itens.filter(it => (ignorarEscopo || visivelObra(it)) && ts.every(t => it.txt.includes(t))).map(it => [nota(it), it])
     .sort((a, b) => a[0] - b[0] || natural(a[1].rotulo, b[1].rotulo)).map(x => x[1]);
 }
-const htmlLinhaObra = (it, comSis = true) => `<button class="ob-el" data-ob-id="${esc(it.id)}" data-classe="${esc(it.classe)}" aria-current="${it.id === OBRA.sel}">
+const htmlLinhaObra = (it, comSis = true) => `<button class="ob-el${foraDoEscopo(it) ? " fora" : ""}" data-ob-id="${esc(it.id)}" data-classe="${esc(it.classe)}" aria-current="${it.id === OBRA.sel}">
   <span class="sw" style="background:${corObra(it.classe)}"></span><span class="r">${esc(it.rotulo)}</span><span class="c">${esc(it.classeNome)}</span>
-  ${comSis ? `<span class="s">${esc(it.sisNome)}${it.etapa ? " · " + esc(it.etapa) : ""}</span>` : ""}</button>`;
+  ${comSis ? `<span class="s">${esc(it.sisNome)}${it.etapa ? " · " + esc(it.etapa) : ""}${foraDoEscopo(it) ? " · fora do escopo" : ""}</span>` : ""}</button>`;
 function renderBuscaObra() {
   const q = $("#obBusca").value.trim(), box = $("#obRes");
   $("#obArvore").hidden = !!q; box.hidden = !q;
   if (!q) { box.innerHTML = ""; return; }
-  const r = buscarObra(q), vis = r.slice(0, OB_MAX);
-  box.innerHTML = `<p class="nota-l" role="status">${r.length ? `${fmt(r.length, 0)} resultado${r.length > 1 ? "s" : ""}${r.length > vis.length ? `; mostrando os ${vis.length} primeiros (refine a busca)` : ""}` : "Nenhum elemento encontrado."}</p>
+  const r = buscarObra(q), vis = r.slice(0, OB_MAX), ocultos = OBRA.soEscopo ? buscarObra(q, true).length - r.length : 0;
+  box.innerHTML = `<p class="nota-l" role="status">${r.length ? `${fmt(r.length, 0)} resultado${r.length > 1 ? "s" : ""}${r.length > vis.length ? `; mostrando os ${vis.length} primeiros (refine a busca)` : ""}` : "Nenhum elemento encontrado."}${ocultos ? ` ${fmt(ocultos, 0)} resultado${ocultos > 1 ? "s" : ""} em sistemas fora do escopo ${ocultos > 1 ? "ficam ocultos" : "fica oculto"} pelo filtro “Só o escopo”.` : ""}</p>
     <div class="ob-res">${vis.map(it => htmlLinhaObra(it)).join("")}</div>`;
 }
 
 const totalSis = s => Object.values(s.classes || {}).reduce((a, n) => a + n, 0);
+/* partes da decomposição ↔ elementos do mapa: pela lista `classes` da parte, se houver; senão pelo nome da classe no id/nome da parte
+   ("estacas" → estaca); se ainda não casar ("tubulacao" → trecho), pela única classe do sistema com exatamente `n_geometria` elementos */
+function elementosDaParte(sid, pt) {
+  const cs = OBRA.sis.get(sid)?.classes || {}, ks = Object.keys(cs), txt = semAcento(`${pt.id} ${pt.nome}`);
+  let cls = ks.filter(k => Array.isArray(pt.classes) ? pt.classes.includes(k) : txt.includes(semAcento(k)));
+  if (!cls.length && !Array.isArray(pt.classes) && pt.n_geometria > 0) { const iguais = ks.filter(k => cs[k] === pt.n_geometria); if (iguais.length === 1) cls = iguais; }
+  return OBRA.itens.filter(it => it.sis === sid && cls.includes(it.classe)).sort((a, b) => natural(a.rotulo, b.rotulo));
+}
+const MARCA_PARTE = {"geometria": "geo", "documento": "doc", "sem evidência": "sem"};
+function htmlParteObra(sid, pt) {
+  const est = pt.estado, mk = MARCA_PARTE[est] || "sem", evs = pt.evidencias || [], els = est === "geometria" ? elementosDaParte(sid, pt) : [];
+  const rot = est === "geometria" ? `geometria · ${fmt(pt.n_geometria ?? els.length, 0)}` : esc(est || "sem evidência");
+  return `<div class="ob-parte est-${mk}" data-parte="${esc(pt.id)}" data-estado="${esc(est)}">
+    <button class="ob-pt" aria-expanded="false"><span class="ob-mk" aria-hidden="true"></span><span class="nm">${esc(pt.nome)}</span><span class="es">${rot}</span></button>
+    <div class="ob-pt-c" hidden>
+      ${els.length ? `<button class="btn mini" data-ob-acao="parte-mapa" data-sis="${esc(sid)}" data-parte="${esc(pt.id)}">Ver no mapa (${fmt(els.length, 0)})</button>` : est === "geometria" ? `<p class="nota-l">Os elementos desta parte não foram localizados pela classe.</p>` : ""}
+      ${evs.length ? `<ul>${evs.map(htmlEvidencia).join("")}</ul>` : mk === "sem" ? `<p class="ob-lacuna">Lacuna: nenhum documento do projeto cita esta parte e não há geometria dela no mapa.</p>` : ""}
+      <div class="ob-els" hidden></div>
+    </div></div>`;
+}
+function htmlDecomposicao(sid) {
+  const D_ = infoEscopo(sid).decomposicao || [];
+  if (!D_.length) return "";
+  const n = e => D_.filter(p => p.estado === e).length, grupos = [...new Set(D_.map(p => p.grupo || "Outros"))];
+  return `<div class="ob-sec">Decomposição construtiva · ${fmt(D_.length, 0)} partes</div>
+    <div class="ob-leg"><span class="est-geo"><i class="ob-mk"></i>geometria ${n("geometria")}</span><span class="est-doc"><i class="ob-mk"></i>só em documento ${n("documento")}</span><span class="est-sem"><i class="ob-mk"></i>sem evidência ${n("sem evidência")}</span></div>`
+    + grupos.map(g => `<div class="ob-grp">${esc(g)}</div>` + D_.filter(p => (p.grupo || "Outros") === g).map(p => htmlParteObra(sid, p)).join("")).join("");
+}
+function htmlCorpoEscopo(sid) {
+  const e = infoEscopo(sid);
+  return `<p class="nota-l ob-motivo"></p>${e.tipologia ? `<p class="nota-l">Tipologia: ${esc(e.tipologia)}</p>` : ""}
+    ${(e.evidencias || []).length ? `<div class="ob-sec">Evidências do escopo</div><ul>${e.evidencias.map(htmlEvidencia).join("")}</ul>` : ""}
+    ${htmlDecomposicao(sid)}`;
+}
+function htmlSistemaObra(s) {
+  return `<div class="ob-sis" data-sis="${esc(s.id)}" data-escopo="${ES ? estadoSis(s.id) : "dentro"}" data-alterado="0">
+    <button class="ob-sis-h" aria-expanded="false"><span class="gn">${esc(s.nome)}</span><span class="badge-g ${s.estado === "confirmado" ? "ok" : s.estado ? "med" : "nao"}" title="Estado da regra de geometria">${esc(s.estado || "—")}</span><span class="nota">${fmt(totalSis(s), 0)}</span></button>
+    ${ES ? `<div class="ob-esc-l"><label class="ob-sw"><input type="checkbox" class="ob-esc-cb" data-sis="${esc(s.id)}"><span>No escopo</span></label><span class="ob-orig"></span></div><div class="ob-alt-l" hidden></div>` : ""}
+    <div class="ob-corpo" hidden>
+      ${ES ? htmlCorpoEscopo(s.id) : ""}
+      <div class="ob-sec">Elementos por classe</div>
+      ${Object.entries(s.classes || {}).map(([k, n]) => `<button class="ob-cls" data-sis="${esc(s.id)}" data-classe="${esc(k)}" aria-expanded="false"><span class="sw" style="background:${corObra(k)}"></span><span>${esc(nomeClasseObra(k))}</span><span class="n">${fmt(n, 0)}</span></button><div class="ob-els" hidden></div>`).join("")}
+    </div></div>`;
+}
 function htmlArvoreObra() {
   const U = OB.arvore || [];
   if (!U.length) return "";
-  return `<h2>Unidades e sistemas</h2>` + U.map(u => {
+  return `<h2>Unidades e sistemas <span class="nota-l" id="obN" style="text-transform:none;letter-spacing:0">· ${fmt(OBRA.itens.length, 0)} elementos</span></h2>` + U.map(u => {
     const S = u.sistemas || [];
     return `<details class="grupo ob-un" data-un="${esc(u.id)}" open><summary><span class="gn">${esc(u.nome)}</span><span class="badge-g nao" title="Tipo de obra">obra ${esc(u.obra || "—")}</span><span class="nota">${fmt(S.reduce((a, s) => a + totalSis(s), 0), 0)}</span></summary>
-      ${S.map(s => `<details class="gl-d ob-sis" data-sis="${esc(s.id)}"><summary><span class="gn">${esc(s.nome)}</span><span class="badge-g ${s.estado === "confirmado" ? "ok" : s.estado ? "med" : "nao"}" title="Estado da regra">${esc(s.estado || "—")}</span><span class="nota">${fmt(totalSis(s), 0)}</span></summary>
-        ${Object.entries(s.classes || {}).map(([k, n]) => `<button class="ob-cls" data-sis="${esc(s.id)}" data-classe="${esc(k)}" aria-expanded="false"><span class="sw" style="background:${corObra(k)}"></span><span>${esc(nomeClasseObra(k))}</span><span class="n">${fmt(n, 0)}</span></button><div class="ob-els" hidden></div>`).join("")}
-      </details>`).join("")}</details>`;
+      ${S.map(htmlSistemaObra).join("")}</details>`;
   }).join("");
 }
 function alternarClasseObra(btn) {
@@ -2522,22 +2688,81 @@ function alternarClasseObra(btn) {
     + (its.length > OB_MAX_CLASSE ? `<p class="nota-l">Mostrando ${OB_MAX_CLASSE} de ${fmt(its.length, 0)}; use a busca para os demais.</p>` : "") + (its.length ? "" : `<p class="nota-l">Nenhum elemento desta classe no mapa.</p>`);
   lista.dataset.ok = "1";
 }
+const alternarCaixa = (btn, caixa) => { const abrir = btn.getAttribute("aria-expanded") !== "true"; btn.setAttribute("aria-expanded", abrir); caixa.hidden = !abrir; };
 
-/* compacta (popup no celular): o mapa é baixo e a barra de ferramentas cobre o topo; atributos e fonte ficam na ficha da aba */
-function htmlFichaObra(it, compacta = false) {
+/* escolha do usuário: só vale a que difere do projeto; igual ao projeto = sem escolha */
+function definirEscopo(id, estado) {
+  if (!ES || !OBRA.sis.has(id) || !ESTADOS_ESC.includes(estado)) return;
+  if (estado === estadoProjeto(id)) delete OBRA.manual[id];
+  else OBRA.manual[id] = {estado, origem: "manual", data: new Date().toLocaleDateString("sv-SE")};
+  salvarEscopoObra(); atualizarEscopoUI();
+}
+function restaurarEscopoObra() { OBRA.manual = {}; salvarEscopoObra(); atualizarEscopoUI(); }
+function exportarEscopoObra() {
+  dialogo("Escolhas de escopo (colar em escopo_unidades.manual do obra.json)", JSON.stringify(escolhasEscopo(), null, 2), D.id + "-escopo-manual.json", "application/json");
+}
+function definirSoEscopo(on) {
+  OBRA.soEscopo = !!on; $("#obSoEscopo").checked = OBRA.soEscopo;
+  aplicarEscopoMapa(); renderBuscaObra();
+}
+const curto = (t, n) => t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t;
+const textoOrigem = (id, max = 1e6) => { const m = OBRA.manual[id], e = infoEscopo(id), est = estadoSis(id);
+  return m ? `<b class="ob-est" data-e="${est}">${est}</b> · manual (você, ${dataBr(m.data)})`
+    : `<b class="ob-est" data-e="${est}">${est}</b> · ${esc(e.origem || "sem regra")}${e.motivo ? " · " + esc(curto(e.motivo, max)) : ""}`; };
+function atualizarEscopoUI() {
+  if (!ES) return;
+  for (const div of document.querySelectorAll("#obArvore .ob-sis")) {
+    const id = div.dataset.sis, est = estadoSis(id), m = OBRA.manual[id], e = infoEscopo(id), cb = div.querySelector(".ob-esc-cb"), orig = div.querySelector(".ob-orig");
+    div.dataset.escopo = est; div.dataset.alterado = m ? "1" : "0";
+    cb.checked = est === "dentro"; cb.indeterminate = est === "a definir";
+    orig.innerHTML = textoOrigem(id, 160); orig.title = [est, m ? "manual (você)" : e.origem, m ? "" : e.motivo].filter(Boolean).join(" · ");
+    const alt = div.querySelector(".ob-alt-l"); alt.hidden = !m;
+    alt.innerHTML = m ? `<span class="ob-alt">alterado por você</span> projeto: ${estadoProjeto(id)}${e.origem ? " (" + esc(e.origem) + ")" : ""} <button class="btn mini" data-ob-acao="desfazer" data-sis="${esc(id)}">voltar ao projeto</button>` : "";
+    div.querySelector(".ob-motivo").innerHTML = `<b>Escopo:</b> ${textoOrigem(id)}${m && e.motivo ? `<br>Projeto: ${estadoProjeto(id)} · ${esc(e.origem || "sem regra")} · ${esc(e.motivo)}` : ""}`;
+  }
+  const r = resumoEscopo();
+  $("#obResumo").innerHTML = `<span>Sistemas:</span>` + ESTADOS_ESC.map(k => `<span class="ob-chip" data-e="${k}"><b>${fmt(r[k], 0)}</b> ${k}</span>`).join("")
+    + (r.alterados ? `<span class="alt">${fmt(r.alterados, 0)} alterado${r.alterados > 1 ? "s" : ""} por você</span>` : "");
+  $("#obRest").disabled = !r.alterados;
+  aplicarEscopoMapa(); renderBuscaObra(); renderFichaObra();
+}
+
+/* ficha completa: só no painel (o popup do mapa é mínimo) */
+const htmlEstadoEscopo = id => ES ? `<b class="ob-est" data-e="${estadoSis(id)}">${estadoSis(id)}</b>${OBRA.manual[id] ? ` <span class="ob-alt">alterado por você</span>` : ""} <span class="nota-l" title="${esc(infoEscopo(id).motivo || "")}">· ${OBRA.manual[id] ? "manual (você)" : esc(curto([infoEscopo(id).origem, infoEscopo(id).motivo].filter(Boolean).join(" · ") || "sem regra", 140))}</span>` : "";
+function htmlFonteObra(p) {
+  const texto = p.fonte ? `<div class="nota-l">${esc(p.fonte)}</div>` : "";
+  return ES && p.doc ? htmlDoc(p.doc) + texto : esc(p.fonte || OB.fonte || "—");
+}
+function htmlFichaObra(it) {
   const p = it.f.properties, atr = Array.isArray(p.atributos) ? p.atributos : Object.entries(p.atributos || {}), un = OBRA.un.get(it.un), s = OBRA.sis.get(it.sis);
   const linhas = [["Classe", esc(it.classeNome)],
     ["Sistema", esc(it.sisNome || "—") + (s?.estado ? ` <span class="nota-l">· ${esc(s.estado)}</span>` : "")],
+    ...(ES ? [["No escopo", htmlEstadoEscopo(it.sis)]] : []),
     ["Unidade", esc(it.unNome || "—") + (un?.obra ? ` <span class="nota-l">· obra ${esc(un.obra)}</span>` : "")],
     ["Etapa", it.etapa ? `<span class="sw" style="background:${ETAPA_COR[it.etapa] || "var(--mut)"}"></span> ${esc(it.etapa)}` : "—"],
-    ["Id", `<span class="coord">${esc(it.id)}</span>`]];
-  if (compacta) return `<div class="pop"><div class="ob-tit"><span class="sw" style="background:${corObra(it.classe)}"></span><span>${esc(it.rotulo)}</span></div>
-    <table class="info">${[linhas[0], linhas[1], ...(it.etapa ? [linhas[3]] : [])].map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")}</table>
-    <div class="nota-l">Atributos e fonte: ficha abaixo do mapa.</div></div>`;
-  return `<div class="pop"><div class="ob-tit"><span class="sw" style="background:${corObra(it.classe)}"></span><span>${esc(it.rotulo)}</span></div>
+    ["Id", `<span class="coord">${esc(it.id)}</span>`],
+    ["Fonte", htmlFonteObra(p)]];
+  return `<div class="ob-tit"><span class="sw" style="background:${corObra(it.classe)}"></span><span>${esc(it.rotulo)}</span></div>
+    ${OBRA.aviso ? `<p class="ob-aviso">${esc(OBRA.aviso)}</p>` : ""}
     <table class="info">${linhas.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")}</table>
-    ${atr.length ? `<div class="ob-sec">Atributos</div><table class="info">${atr.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${fmtAtr(v)}</td></tr>`).join("")}</table>` : ""}
-    <div class="nota-l" style="margin-top:6px">Fonte: ${esc(p.fonte || OB.fonte || "—")}</div></div>`;
+    ${atr.length ? `<div class="ob-sec">Atributos</div><table class="info">${atr.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${fmtAtr(v)}</td></tr>`).join("")}</table>` : ""}`;
+}
+function renderFichaObra() {
+  const it = OBRA.porId.get(OBRA.sel);
+  $("#obFicha").innerHTML = it ? `<div class="ob-ficha">${htmlFichaObra(it)}<div class="acoes"><button class="btn" data-ob-acao="enquadrar">Enquadrar no mapa</button><button class="btn" data-ob-acao="limpar">Limpar seleção</button></div></div>` : "";
+}
+/* popup do mapa: só o que identifica o elemento e o caminho para a ficha */
+function nodoPopupObra(it) {
+  const d = document.createElement("div"); d.className = "ob-pop";
+  d.innerHTML = `<div class="ob-tit"><span class="sw" style="background:${corObra(it.classe)}"></span><span>${esc(it.rotulo)}</span></div>
+    <div class="nota-l">${esc(it.classeNome)}</div><div class="nota-l">${esc(it.sisNome || "—")}${foraDoEscopo(it) ? " · fora do escopo" : ""}</div>
+    <div class="acoes"><button class="btn mini">Ver ficha</button></div>`;
+  d.querySelector("button").onclick = () => verFichaObra(it.id);
+  return d;
+}
+function verFichaObra(id) {
+  if (OBRA.sel !== id) selecionarObra(id, {enquadrar: false});
+  abrirAba("obra"); $("#aba-obra").scrollTop = 0; $("#obFicha").focus({preventScroll: true});
 }
 const ehPonto = l => l instanceof L.CircleMarker, ehPoligono = l => l instanceof L.Polygon;
 function ancoraObra(lay) {
@@ -2568,26 +2793,45 @@ function destacarObra(lay) {
   lay.setStyle(ehPonto(lay) ? {radius: 7, weight: 2} : ehPoligono(lay) ? {weight: 3, fillOpacity: .65} : {weight: 6});
   lay.bringToFront();
 }
-function selecionarObra(id, {enquadrar = true, ll = null} = {}) {
+/* selecionar um elemento de sistema fora do escopo desliga o filtro (e avisa na ficha): senão ele não apareceria no mapa */
+function garantirVisivel(its) {
+  if (!its.some(it => !visivelObra(it))) return "";
+  definirSoEscopo(false);
+  return "Filtro “Só o escopo” desligado: este sistema está fora do escopo e ficaria oculto no mapa.";
+}
+/* abrir: false = clique no mapa (não troca de aba; o popup leva à ficha); a ficha é atualizada de qualquer jeito */
+function selecionarObra(id, {enquadrar = true, ll = null, abrir = true} = {}) {
   const it = OBRA.porId.get(id), lay = OBRA.camada.get(id);
   if (!it || !lay) return;
+  const aviso = garantirVisivel([it]);
   ligarObraMapa(true);
   if (vista !== "mapa") mostrarVista("mapa");   // 3D ou folha inteira cobrem o mapa
   limparDestaqueObra();
-  OBRA.sel = id;
+  OBRA.sel = id; OBRA.aviso = aviso;
   destacarObra(lay);
   if (enquadrar) enquadrarObra(lay);
-  if (abaAtual !== "obra") abrirAba("obra");
-  $("#obFicha").innerHTML = `<div class="ob-ficha">${htmlFichaObra(it)}<div class="acoes"><button class="btn" data-ob-acao="enquadrar">Enquadrar no mapa</button><button class="btn" data-ob-acao="limpar">Limpar seleção</button></div></div>`;
+  if (abrir && abaAtual !== "obra") abrirAba("obra");
+  renderFichaObra();
   document.querySelectorAll("#aba-obra [data-ob-id]").forEach(b => b.setAttribute("aria-current", b.dataset.obId === id));
-  if (window.innerWidth <= 760) $("#aba-obra").scrollTop = 0;   // no celular a ficha completa fica no painel, sob o mapa
+  if (abaAtual === "obra") { if (window.innerWidth <= 760) $("#aba-obra").scrollTop = 0; else $("#obFicha").scrollIntoView({block: "nearest"}); }   // no celular a ficha fica no painel, sob o mapa
   OBRA.popup = L.popup({autoPan: !enquadrar, autoPanPaddingTopLeft: OPCOES_POPUP.autoPanPaddingTopLeft, autoPanPaddingBottomRight: OPCOES_POPUP.autoPanPaddingBottomRight,
-    maxWidth: 320, minWidth: 220, className: "obra-pop", offset: [0, -4]})
-    .setLatLng(ll || ancoraObra(lay)).setContent(`<div class="ob-pop">${htmlFichaObra(it, window.innerWidth <= 760)}</div>`).openOn(map);   // com enquadramento o mapa não se mexe: o elemento fica no centro
+    maxWidth: 260, minWidth: 160, className: "obra-pop", offset: [0, -4]})
+    .setLatLng(ll || ancoraObra(lay)).setContent(nodoPopupObra(it)).openOn(map);   // com enquadramento o mapa não se mexe: o elemento fica no centro
 }
 function limparSelecaoObra() {
-  limparDestaqueObra(); map.closePopup(OBRA.popup); $("#obFicha").innerHTML = "";
+  limparDestaqueObra(); map.closePopup(OBRA.popup); OBRA.aviso = ""; $("#obFicha").innerHTML = "";
   document.querySelectorAll("#aba-obra [data-ob-id]").forEach(b => b.setAttribute("aria-current", "false"));
+}
+/* parte da decomposição com geometria: liga a camada, enquadra os elementos dela e lista-os sob a parte */
+function verParteNoMapa(btn) {
+  const sid = btn.dataset.sis, pt = infoEscopo(sid).decomposicao.find(x => x.id === btn.dataset.parte), its = elementosDaParte(sid, pt);
+  const caixa = btn.closest(".ob-pt-c").querySelector(".ob-els"), aviso = garantirVisivel(its);
+  ligarObraMapa(true);
+  if (vista !== "mapa") mostrarVista("mapa");
+  if (its.length) map.fitBounds(L.featureGroup(its.map(it => OBRA.camada.get(it.id))).getBounds(), {padding: [70, 70], maxZoom: 21});
+  caixa.innerHTML = (aviso ? `<p class="ob-aviso">${esc(aviso)}</p>` : "") + its.slice(0, OB_MAX_CLASSE).map(it => htmlLinhaObra(it, false)).join("")
+    + (its.length > OB_MAX_CLASSE ? `<p class="nota-l">Mostrando ${OB_MAX_CLASSE} de ${fmt(its.length, 0)}; use a busca para os demais.</p>` : "");
+  caixa.hidden = false;
 }
 /* liga/desliga a camada e mantém as duas caixas (aba Obra e aba Camadas) e o destaque em sincronia */
 function ligarObraMapa(on) {
@@ -2600,24 +2844,46 @@ function sincObraCheck() {
   $("#obMapa").checked = on; const cb = porId("v-construtivos"); if (cb) cb.checked = on;
   if (OBRA.sel) on ? (map.hasLayer(OBRA.halo) || OBRA.halo.addTo(map)) : map.removeLayer(OBRA.halo);
 }
+function acaoObra(ac) {
+  const a = ac.dataset.obAcao;
+  if (a === "limpar") limparSelecaoObra();
+  else if (a === "enquadrar") enquadrarObra(OBRA.camada.get(OBRA.sel));
+  else if (a === "prancha") abrirFolha(ac.dataset.prancha);
+  else if (a === "parte-mapa") verParteNoMapa(ac);
+  else if (a === "desfazer") definirEscopo(ac.dataset.sis, estadoProjeto(ac.dataset.sis));
+  else if (a === "exportar") exportarEscopoObra();
+  else if (a === "restaurar") restaurarEscopoObra();
+}
 function montarObra() {
   $("#t-obra").hidden = false;
-  $("#obN").textContent = `${fmt(OBRA.itens.length, 0)} elementos`;
   $("#obArvore").innerHTML = htmlArvoreObra() || `<p class="vazio">Nenhum elemento construtivo neste projeto.</p>`;
   $("#obFonte").textContent = OB.fonte ? "Fonte: " + OB.fonte : "";
+  if (ES) {
+    $("#obEscopo").hidden = false; $("#obSoEscopoL").hidden = false;
+    $("#obRegra").innerHTML = ES.regra ? `<summary>Regra de escopo</summary><p>${esc(ES.regra)}</p>${ES.documento_regra ? `<p class="nota-l">Documento da regra: ${htmlDoc(ES.documento_regra)}</p>` : ""}` : "";
+    $("#obRegra").hidden = !ES.regra;
+    $("#obSoEscopo").onchange = e => definirSoEscopo(e.target.checked);
+    atualizarEscopoUI();
+  }
   $("#obBusca").addEventListener("input", renderBuscaObra);
   $("#obBusca").addEventListener("keydown", e => { if (e.key === "Enter") { const r = buscarObra(e.target.value)[0]; if (r) selecionarObra(r.id); } });
   $("#obMapa").onchange = e => ligarObraMapa(e.target.checked);
   $("#aba-camadas").addEventListener("change", e => { if (e.target.id === "v-construtivos") sincObraCheck(); });
+  $("#aba-obra").addEventListener("change", e => { const cb = e.target.closest(".ob-esc-cb"); if (cb) definirEscopo(cb.dataset.sis, cb.checked ? "dentro" : "fora"); });
   $("#aba-obra").addEventListener("click", e => {
-    const cls = e.target.closest(".ob-cls"), el = e.target.closest("[data-ob-id]"), ac = e.target.closest("[data-ob-acao]");
-    if (cls) alternarClasseObra(cls);
+    const ac = e.target.closest("[data-ob-acao]"), cls = e.target.closest(".ob-cls"), el = e.target.closest("[data-ob-id]"), sh = e.target.closest(".ob-sis-h"), pt = e.target.closest(".ob-pt");
+    if (ac) acaoObra(ac);
+    else if (cls) alternarClasseObra(cls);
+    else if (sh) alternarCaixa(sh, sh.parentElement.querySelector(".ob-corpo"));
+    else if (pt) alternarCaixa(pt, pt.nextElementSibling);
     else if (el) selecionarObra(el.dataset.obId);
-    else if (ac) ac.dataset.obAcao === "limpar" ? limparSelecaoObra() : enquadrarObra(OBRA.camada.get(OBRA.sel));
   });
   OBRA.halo.addTo(map);
-  window.__viz.obra = {OB, itens: OBRA.itens, camada: OBRA.camada, halo: OBRA.halo, buscar: buscarObra, selecionar: selecionarObra, limpar: limparSelecaoObra,
-    get sel() { return OBRA.sel; }, get popup() { return OBRA.popup; }};   // ganchos para scripts/testar_visualizador.py
+  window.__viz.obra = {OB, ES, itens: OBRA.itens, camada: OBRA.camada, halo: OBRA.halo, buscar: buscarObra, selecionar: selecionarObra, limpar: limparSelecaoObra,
+    estado: estadoSis, estadoProjeto, definirEscopo, restaurar: restaurarEscopoObra, resumo: resumoEscopo, escolhas: escolhasEscopo, visivel: visivelObra,
+    definirSoEscopo, elementosDaParte, chave: CHAVE_OBRA,
+    get sel() { return OBRA.sel; }, get popup() { return OBRA.popup; }, get soEscopo() { return OBRA.soEscopo; }, get manual() { return OBRA.manual; }};   // ganchos para scripts/testar_visualizador.py
+  abrirAba("obra");   // a aba mais importante abre primeiro; Camadas, Pranchas etc. seguem como itens secundários
 }
 if (OB) iniciarObra();
 
@@ -3093,6 +3359,26 @@ function htmlValas() {
   ${redes}${V.fora.length ? `<p class="nota-l">Fora do cálculo: ${V.fora.map(esc).join("; ")}.</p>` : ""}
   <p class="nota-l">${esc(V.premissas)}</p>`;
 }
+/* obras lineares: vala pelo MOS, sondagem e pavimento calculados no Python (camadas/obras_lineares.py); aqui só a tabela */
+function htmlObrasLineares() {
+  const O = D.obras_lineares; if (!O) return "";
+  const n = (v, d = 0) => v == null ? "—" : fmt(v, d);
+  const PAV = ["grama", "asfalto", "concreto", "paver", "lajota", "terra"];
+  const pav = t => PAV.filter(p => t[`pav_${p}_m2`]).map(p => `${p} ${n(t[`pav_${p}_m2`], 1)}`).join(" · ") || "—";
+  const lin = O.trechos.map(t => `<tr><td class="d">${esc(t.local)}<span class="cod">${esc(t.material)} DN ${n(t.dn_mm)} · ${esc(t.metodo)} · ${n(t.comp_m, 1)} m · prof. ${n(t.prof_m, 2)} m · escoramento ${esc(t.escoramento)} · solo: ${esc(t.solos || "—")} · NA ${n(t.na_m, 2)} m${t.esgotamento_frac ? ` · <b>esgotamento ${n(t.esgotamento_frac * 100)}%</b>` : ""}</span><span class="cod">pavimento m²: ${esc(pav(t))}${t.caximbos ? ` · ${n(t.caximbos)} caximbos` : ""}</span>${t.confere_planilha ? `<span class="cod" style="color:#b45309">planilha: ${esc(t.confere_planilha)}</span>` : ""}${t.alertas ? `<span class="cod" style="color:#dc2626">${esc(t.alertas)}</span>` : ""}</td><td>${n(t.largura_m, 2)}</td><td>${n(t.escavacao_m3, 1)}</td><td>${n(t.reaterro_m3, 1)}</td><td>${n(t.bota_fora_m3, 1)}</td><td>${n(t.supressao_m2, 1)}</td></tr>`).join("");
+  const soma = k => O.trechos.reduce((s, t) => s + (t[k] || 0), 0);
+  const conc = O.conciliacao.map(c => `<tr><td class="d">${esc(c.item)} ${esc(c.descricao)}<span class="cod">${esc(c.trechos || "—")}${c.prancha ? " · " + esc(c.prancha) : ""}</span></td><td>${n(c.custo_civil_m, 1)}</td><td>${n(c.obras_lineares_m, 1)}</td><td class="d">${esc(c.situacao)}</td></tr>`).join("");
+  return `<h2>Obras lineares ${esc(O.unidade)} (calculado)</h2>
+  <p class="aviso" style="margin-left:0">Vala pelo MOS Sanepar (L = D + SL + X + Y), escoramento acima de 1,25 m, solo e NA pela sondagem, pavimento por tipo — geometria e serviço associado, sem preço. ${esc(O.fonte)}.</p>
+  <div style="overflow:auto"><table class="esc compacta" id="olTab" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:44px"><col style="width:56px"><col style="width:56px"><col style="width:52px"><col style="width:56px"></colgroup>
+  <thead><tr><th>Trecho</th><th>L m</th><th>Escavação m³</th><th>Reaterro m³</th><th>Bota-fora m³</th><th>Supressão m²</th></tr></thead>
+  <tbody>${lin}<tr><td class="d"><b>Total</b> · ${n(soma("comp_m"), 1)} m</td><td></td><td><b>${n(soma("escavacao_m3"), 1)}</b></td><td><b>${n(soma("reaterro_m3"), 1)}</b></td><td><b>${n(soma("bota_fora_m3"), 1)}</b></td><td><b>${n(soma("supressao_m2"), 1)}</b></td></tr></tbody></table></div>
+  <h3 style="margin:10px 0 2px">CUSTO CIVIL × aba Obras Lineares</h3>
+  <div style="overflow:auto"><table class="esc compacta" id="olConc" style="min-width:0;width:100%;table-layout:fixed"><colgroup><col><col style="width:54px"><col style="width:54px"><col style="width:120px"></colgroup>
+  <thead><tr><th>Item</th><th>Custo civil m</th><th>Obras lin. m</th><th>Situação</th></tr></thead><tbody>${conc}</tbody></table></div>
+  <details><summary class="nota-l">MND (método não destrutivo / HDD): orientações</summary><ul class="nota-l">${O.mnd.map(m => `<li>${esc(m)}</li>`).join("")}</ul></details>
+  <p class="nota-l">${esc(O.premissas)}</p>`;
+}
 /* fichas de prancha (identidade → vistas → tabelas → elementos → vínculos → serviços), lidas no Python
    (camadas/prancha.py); aqui só exibição */
 function htmlFichas() {
@@ -3127,7 +3413,7 @@ function htmlFichas() {
   <p class="aviso" style="margin-left:0">Cada prancha lida em camadas: identidade → vistas → tabelas → elementos (layer ou geometria) → vínculos → serviços. Classes de elemento em conceitos/elementos.json.</p>
   ${F.map(ficha).join("")}`;
 }
-$("#aba-info").innerHTML = htmlInventario() + htmlFichas() + htmlEscavacao() + htmlValas() + `<h2>Levantamento e georreferenciamento</h2>
+$("#aba-info").innerHTML = htmlInventario() + htmlFichas() + htmlEscavacao() + htmlValas() + htmlObrasLineares() + `<h2>Levantamento e georreferenciamento</h2>
   <table class="info">${(D.info || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
   <h2>Como as medidas são calculadas</h2>
   <p>Distâncias e áreas são calculadas no plano ${esc(D.crs.nome)}, o mesmo das pranchas. Para a distância no terreno (topográfica), divida pelo fator k = ${D.crs.k.toFixed(5)}.</p>

@@ -433,6 +433,14 @@
   "catalogo": "referencias/sanepar/catalogo_materiais.jsonl.gz"
  },
  "sondagens": "dados/foz/geotec/sondagens.json",
+ "obras_lineares": {
+  "planilha": "dados/foz/orcamento/211 - SAA Foz do Iguaçú.xlsx",
+  "aba": "Obras Lineares",
+  "aba_custo": "CUSTO CIVIL",
+  "unidade": "UNIDADE 1",
+  "fonte": "protótipo 211 - SAA Foz do Iguaçu (Giselle, 30/10/2026): aba Obras Lineares (colunas V–BC) e itens em metro da Unidade 1 no CUSTO CIVIL; tubos dentro da ETA, não são AAT",
+  "metodo": {}
+ },
  "pendentes": {
   "Estrutura": [
    "Formas e armaduras dos módulos ACTIFLO 360/600 (PDFs > 5 MB, baixar manualmente)"
@@ -805,6 +813,13 @@
   "baixados": "dados/foz/projeto/_baixados.csv",
   "pasta": "dados/foz/projeto",
   "fonte": "listagem recursiva do Drive '211 - SAA Foz do Iguaçu' pelo conector (skill drive-ingestao)"
+ },
+ "escopo_unidades": {
+  "regra": "1ª etapa = unidades nas convenções '1ª ETAPA', 'parte civil do módulo de micro areia na 1ª etapa' e 'existente a reformar/restaurar em 1ª etapa' do desenho 004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES (Escopo_1etapa_PBES.pdf, 05/09/2023); manchas lidas da f004",
+  "documento_regra": "Escopo_1etapa_PBES.pdf",
+  "manual": {
+   "FILTROS": {"estado": "fora", "fonte": "Caio, 30/10/2026: o módulo de filtros não faz parte do escopo (o cliente mostrou em outro detalhe)"}
+  }
  },
  "area_obra": {
   "fontes": ["escavacao$", "valas$", "supressao$", "blocos_forma$", "f004-"],

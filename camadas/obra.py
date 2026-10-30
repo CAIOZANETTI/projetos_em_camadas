@@ -28,10 +28,12 @@ from . import (
     construtivos,
     eap,
     escavacao,
+    escopo_obra,
     evidencias,
     geo,
     georef_prancha,
     inventario,
+    obras_lineares,
     orcamento_sanepar,
     pdf_cad,
     prancha,
@@ -760,9 +762,10 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
 
 
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
-    """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas e inventário com a ficha em lote; e os
-    elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor, e a EAP
-    (`camadas.eap`), que dá código e quantidade a cada elemento, e o loop de evidências (`camadas.evidencias`)."""
+    """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
+    lote; os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor; a EAP
+    (`camadas.eap`), que dá código e quantidade a cada elemento; e o loop de evidências (`camadas.evidencias`)."""
+    pacotes["obras_lineares"] = obras_lineares.etapa(cfg, dados["sondagens"], out, log=_log)   # vala (MOS) da planilha
     if fichas:
         dados["fichas"] = prancha.para_html(fichas)
         if dados.get("vertical"):
@@ -776,6 +779,8 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
     dados["construtivos"] = construtivos.montar(dados, cfg)        # aba Obra: unidade > sistema > elemento
+    if dados["construtivos"]:                                       # escopo por unidade, decomposição e evidências
+        dados["construtivos"]["escopo"] = escopo_obra.montar(dados, cfg)
     dados["eap"] = eap.montar(dados, cfg)          # EAP: elemento → item (código) → quantidade com evidência
     dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
 
