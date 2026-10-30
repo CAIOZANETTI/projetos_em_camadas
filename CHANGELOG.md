@@ -26,21 +26,35 @@
   fonte única, conflito (todas as afirmações e a diferença %), só menção ou decidido. O código `*` compara o total
   de um documento com a soma dos sistemas de outro (300 estacas nas pranchas × 250 no memorial = conflito).
   Também gera a cobertura item × projeto/edital e o registro `evidencias.jsonl` sem duplicar.
-- **Serviços associados** (`camadas/associados.py`, `conceitos/servicos_associados.jsonl`): bloco → escavação,
+- **Serviços associados** (primeira versão, substituída abaixo pelas regras genéricas): bloco → escavação,
   reaterro, lastro, forma, concreto e armadura (taxa a calibrar); estaca → concreto e arrasamento; trecho → escavação,
   berço e reaterro de vala, demolição e recomposição de pavimento (premissas de `valas.json`); laje → escoramento;
   baldrame → escavação e reaterro. Fórmulas num avaliador restrito, com a memória de cálculo no trecho. Variável
   faltando vai para `sem_valor`, nunca para zero. `associados_x_edital` aponta o serviço associado que o edital não
   cita.
-- **Cálculo da vala** (`camadas/calculo_vala.py`, `conceitos/calculo_vala.json`): por segmento de superfície,
-  profundidade (recobrimento + DE + berço, ou a do perfil), escoramento pela profundidade (NR-18, 1,25 m) e pelos
-  agravantes (areia/aterro, NSPT < 4, abaixo do NA) e largura com o acréscimo do escoramento. Depois: corte,
-  demolição e recomposição pelo tipo de pavimento (asfalto → `CIV.PAV.REC`, calçada → `CIV.PAV.CAL`, item novo),
-  escavação abaixo do pavimento em solo e em rocha, berço, envoltória (tubo flexível), assentamento, reaterro com
-  reaproveitamento, bota-fora empolado e esgotamento ou ponteiras quando a vala atinge o NA. Solo, rocha e NA vêm
-  da sondagem mais próxima (raio 300 m, NA com margem de 0,5 m). Sem sondagem, nada disso é suposto e o resultado
-  leva alerta. Memória de cálculo passo a passo. Substitui as regras de vala por fórmula; serviços novos: corte de
-  pavimento, escavação em rocha, escoramento por tipo, envoltória e esgotamento.
+- **Serviços associados genéricos: elemento → dimensões → serviços.**
+  - `camadas/dimensoes.py` e `conceitos/dimensoes.json`: cada tipo (estaca, bloco, pilar, laje, viga, baldrame,
+    parede, vala) gera as dimensões padronizadas V, A_forma, A_fundo, A_escoramento, A_imperm e V_esc/V_reat. A
+    origem pode ser o elemento das pranchas, o `obra.json` (`elementos_declarados`) ou um fato consolidado.
+    Derivados: bloco → cava de fundação, baldrame → vala corrida, trecho → vala por superfície.
+  - `camadas/associados.py` e `conceitos/servicos_associados.jsonl`: uma regra por serviço, valendo para todos os
+    tipos que lista (forma = A_forma para bloco, pilar, laje, viga, baldrame e parede; lastro = A_fundo × 0,05;
+    escoramento; impermeabilização; armadura por taxa do tipo; escavação/reaterro de cava). Tem condição e modelos
+    de destino (`{item}`, `{item_pavimento}`, `escoramento_{tipo_escoramento}`).
+  - `camadas/formulas.py`: avaliador restrito com comparações e condicional, e `conferir` nas validações.
+- **A vala é só mais um tipo**. `dimensoes.dimensionar_vala` decide por segmento de superfície:
+  - profundidade (recobrimento + DE + berço, ou a do perfil);
+  - solo, rocha e NA da sondagem mais próxima (raio 300 m, NA com margem de 0,5 m);
+  - escoramento pela NR-18 (1,25 m) e pelos agravantes (areia/aterro, NSPT < 4, abaixo do NA);
+  - largura com o acréscimo do escoramento e tipo de pavimento.
+
+  Desses dados saem, pelas regras genéricas: corte, demolição e recomposição (asfalto → `CIV.PAV.REC`, calçada →
+  `CIV.PAV.CAL`, item novo), escavação em solo e em rocha, escoramento por tipo, berço, envoltória (tubo
+  flexível), assentamento, reaterro com reaproveitamento, bota-fora empolado e esgotamento ou ponteiras. Sem
+  sondagem, nada disso é suposto e o resultado leva alerta. Serviços novos: corte de pavimento, escavação em
+  rocha, escoramento por tipo, envoltória e esgotamento.
+- Dimensão que falta não vira zero: o serviço fica "sem valor" com a cadeia até a origem (`V ← h ← face`). O que
+  não depende dela sai normalmente (viga sem altura ainda dá o escoramento b × L).
 - Cadastro de materiais × EAP: 24,7 mil materiais balizam itens no escopo água e 29,6 mil no esgoto.
 - O build grava `dados.eap`, `dados.evidencias` e o código `eap` em cada elemento da aba Obra, além de
   `evidencias.jsonl`, `fatos.csv`, `cobertura.csv` e `associados.csv`. A aba EAP no HTML fica para a próxima rodada

@@ -125,12 +125,13 @@ def test_servicos_associados_por_formula():
     assert por[("U1.FILTROS.GEO.MOV.ESC", "")]["valor"] == pytest.approx(20.0, rel=1e-3)   # (16 + 0,5·16 + 1)·0,80
     assert por[("U1.FILTROS.GEO.MOV.REA", "")]["valor"] == pytest.approx(7.2, rel=1e-3)
     assert por[("U1.FILTROS.GEO.FUN.BLO", "forma")]["valor"] == pytest.approx(12.0, rel=1e-3)
-    # vala (camadas.calculo_vala): escavação abaixo dos 0,35 m de pavimento; demolição em b + 2 × 0,15
+    assert por[("U1.FILTROS.GEO.FUN.BLO", "lastro")]["valor"] == pytest.approx(16 * 0.05, rel=1e-3)   # área × e
+    # vala (camadas.dimensoes): escavação abaixo dos 0,35 m de pavimento; demolição em b + 2 × 0,15
     assert por[("U2.AAT06.GEO.MOV.VAL", "escavacao")]["valor"] == pytest.approx(1.23 * (1.73 - 0.35) * 180, rel=1e-3)
     assert por[("U2.AAT06.CIV.PAV.REC", "demolicao")]["valor"] == pytest.approx(180 * 1.53, rel=1e-3)
     assert por[("U2.AAT06.GEO.MOV.VAL", "escoramento_pontaleteamento")]["valor"] == pytest.approx(2 * 1.73 * 180, rel=1e-3)
-    assert "f=0.5" in por[("U1.FILTROS.GEO.MOV.ESC", "")]["trecho"]          # memória de cálculo
-    assert sem_valor == {}
+    assert "Af = A + f * P + 4 * f ** 2 = 25" in por[("U1.FILTROS.GEO.MOV.ESC", "")]["trecho"]   # memória de cálculo
+    assert "u1-FILTROS-pilar-P5 (falta A_forma ← h)" in sem_valor["forma"]            # o pilar não tem altura: não inventa
 
 
 def test_servico_associado_sem_atributo_nao_inventa_valor():
@@ -138,15 +139,16 @@ def test_servico_associado_sem_atributo_nao_inventa_valor():
     bloco = next(f for f in c["geojson"]["features"] if f["properties"]["classe"] == "bloco")
     bloco["properties"]["atributos"] = [a for a in bloco["properties"]["atributos"] if a[0] != "Face superior (cota, m)"]
     evs, sem_valor = associados.de_elementos(c, EPSG)
-    assert "u1-FILTROS-bloco-P5" in sem_valor["bloco_concreto"]
-    assert not any(e["localizador"] == "u1-FILTROS-bloco-P5" and e["regra"] == "bloco_concreto" for e in evs)
+    assert "u1-FILTROS-bloco-P5 (falta V ← h ← face)" in sem_valor["concreto"]
+    assert not any(e["localizador"] == "u1-FILTROS-bloco-P5" and e["regra"] == "concreto" for e in evs)
+    assert any(e["localizador"] == "u1-FILTROS-bloco-P5" and e["regra"] == "lastro" for e in evs)   # A_fundo não depende de h
 
 
 def test_laje_gera_escoramento_e_associado_nao_citado_no_edital_e_sinalizado():
     docs = [{**PROJETO, "id": "memorial.pdf", "paginas": ["Laje de cobertura: 120,00 m2"]},
             {**PROJETO, "id": "edital.pdf", "tipo": "edital", "paginas": ["Laje de cobertura com 120 m2 de área."]}]
     evs = evidencias.loop(docs)
-    esc = [e for e in evs if e["regra"] == "laje_escoramento"]
+    esc = [e for e in evs if e["regra"] == "escoramento"]
     assert len(esc) == 1 and esc[0]["codigo"] == "U1.*.CIV.EST.PIS" and esc[0]["valor"] == 120.0
     tabela = evidencias.associados_x_edital(evs)
     assert tabela.iloc[0]["situacao"] == "não citado no edital: incluir ou confirmar"
@@ -186,7 +188,7 @@ def test_etapa_grava_registro_e_tabelas(tmp_path):
     dados = _dados()
     dados["construtivos"] = construtivos.montar(dados, CFG)
     resumo = evidencias.etapa({}, tmp_path, dados, log=lambda *a: None)
-    assert {"fatos", "cobertura", "associados"} <= set(resumo) and resumo["n_evidencias"] > 0
+    assert {"fatos", "cobertura", "associados", "dimensoes"} <= set(resumo) and resumo["n_evidencias"] > 0
     json.loads(json.dumps(resumo, allow_nan=False))                     # vai para o dados.json do HTML
-    assert all((tmp_path / n).exists() for n in ("evidencias.jsonl", "fatos.csv", "cobertura.csv", "associados.csv"))
+    assert all((tmp_path / n).exists() for n in ("evidencias.jsonl", "fatos.csv", "cobertura.csv", "associados.csv", "dimensoes.csv"))
     assert all(evidencias.validar_evidencia(e) == [] for e in evidencias.ler(tmp_path / "evidencias.jsonl"))

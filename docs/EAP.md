@@ -34,8 +34,8 @@ conceitos/
                              filtro no cadastro de materiais, classes construtivas, layers, medições
   servicos.jsonl             banco de serviços: escavação, reaterro, forma, concreto, armadura, escoramento… (termos)
   sinonimos.json             abreviações (EST. → ESTACA), sinônimos (CIMBRAMENTO → ESCORAMENTO), unidades e conversões
-  servicos_associados.jsonl  serviço que a execução exige: base (elemento ou fato), destino, variáveis, premissas,
-                             fórmula
+  dimensoes.json             tipos de elemento → dimensões padronizadas (V, A_forma, A_fundo…) e derivados; vala
+  servicos_associados.jsonl  serviço que a execução exige: tipos, condição, destino, premissas, fórmula
   evidencia.schema.json      JSON Schema de uma evidência (uma linha do registro)
   unidades_construtivas.json unidades (obra localizada/linear, escopo) e sistemas (ACT600, AAT06…)
 ```
@@ -187,37 +187,96 @@ de serviços, dos sinônimos e da planilha CUSTO CIVIL.
 
 O trecho da evidência é sempre a linha original. O vocabulário ajuda a achar, mas não reescreve o documento.
 
-## 7. Serviços associados (`camadas/associados.py`, `conceitos/servicos_associados.jsonl`)
+## 7. Serviços associados: elemento → dimensões → serviços
 
-Cada regra tem:
-- **base**: classe do elemento construtivo, ou fato consolidado;
-- **destino**: item EAP + serviço;
-- **variáveis**: atributo, geometria em UTM ou valor do fato;
-- **premissas**, com fonte e estado, ou uma referência a outro conceito (`valas.json#berco_m.valor`);
-- **cálculos intermediários** e a **fórmula**.
+A EAP recebe dois tipos de serviço:
+- os **declarados**, que estão nos documentos;
+- os **associados**, que a execução de cada elemento exige, citados ou não no escopo.
 
-| Base | Serviço | Fórmula (resumo) |
-|---|---|---|
-| bloco (área A, perímetro P, face e arrasamento) | escavação (GEO.MOV.ESC) | (A + f·P + 4f²)·(h + e), h = face − arrasamento + embutimento |
-| bloco | reaterro, lastro, forma, concreto, armadura | (Af − A)(h+e) · A·e · P·h · A·h · taxa·A·h (taxa a calibrar) |
-| estaca (d, L) | concreto do fuste, arrasamento | π d²/4 · L · 1 un |
-| trecho de rede | vala completa (§7.1) | `camadas/calculo_vala.py`, com a sondagem mais próxima |
-| fato laje (m²) | escoramento | A |
-| fato viga baldrame (m) | escavação e reaterro | L(b + 2f)(h + e) · L·2f·(h + e) (seção a conferir) |
+Por exemplo:
+- todo bloco precisa de lastro, forma, escavação e reaterro;
+- toda laje suspensa precisa de escoramento;
+- toda parede de tanque precisa de impermeabilização;
+- toda rede precisa de vala, pavimento, escoramento e, às vezes, esgotamento.
 
-Como as fórmulas são calculadas e usadas:
-- **Avaliador restrito**: números, + − × ÷ **, max, min e pi. Nenhum código arbitrário roda.
-- **Variável faltando** e sem padrão: o elemento vai para `sem_valor`, nunca para zero.
-- **Memória de cálculo**: cada resultado vira evidência `associado`, com o cálculo no trecho. Exemplo: `Escavação
-  para o bloco: Af * (h + e) = 20 m³ (f=0.5, emb=0.05, e=0.05, A=16, P=16, …) · premissa`.
-- **Fatos em conflito** não geram serviço associado: primeiro se resolve o conflito.
-- **`associados_x_edital`** lista o serviço associado que nenhum documento do edital cita: `não citado no edital:
-  incluir ou confirmar`. É a pergunta "o escoramento da laje está no orçamento?".
+O cálculo é genérico e tem três camadas, cada uma num arquivo:
 
-### 7.1 Cálculo da vala (`camadas/calculo_vala.py`, `conceitos/calculo_vala.json`)
+```
+conceitos/dimensoes.json ─ camadas/dimensoes.py      cada TIPO de elemento gera DIMENSÕES padronizadas
+                                                     (V, A_forma, A_fundo, A_escoramento, A_imperm, V_esc…)
+                                                     + derivados: bloco → cava; baldrame → vala corrida; trecho → vala
+conceitos/servicos_associados.jsonl ─ camadas/associados.py   REGRAS sobre as dimensões, para os tipos listados
+camadas/formulas.py                                  avaliador restrito (+ − × ÷ **, comparações, a if c else b,
+                                                     max, min, pi) e premissas com fonte ou referência a outro conceito
+```
 
-O cálculo da rede fica num arquivo próprio. Ele é feito **por segmento de superfície** do trecho (pista, calçada,
-fora da via…), e cada segmento tem a sua profundidade, largura, escoramento e pavimento. Os passos:
+**De onde vêm os elementos**: elementos construtivos lidos das pranchas (estaca, bloco, pilar, trecho), elementos
+declarados no `obra.json` (laje, viga, parede, baldrame com as dimensões do projeto) e fatos consolidados (laje
+120 m² → laje com A; baldrame 80 m → baldrame com L).
+
+```json
+"elementos_declarados": [
+  {"id": "ACT600-laje-cobertura", "tipo": "laje", "unidade": "U1", "sistema": "ACT600",
+   "dimensoes": {"A": 320.0, "e": 0.25, "P": 72.0}, "fonte": "forma ACT600 folha 3"},
+  {"id": "ACT600-tanque", "tipo": "parede", "unidade": "U1", "sistema": "ACT600",
+   "dimensoes": {"L": 48.0, "h": 5.2, "e": 0.30}}
+]
+```
+
+**Dimensões padronizadas por tipo** (`dimensoes.json`):
+
+| Tipo | Origem | V | A_forma | A_fundo (lastro) | A_escoramento | A_imperm | Derivado |
+|---|---|---|---|---|---|---|---|
+| estaca | d, L | π d²/4 · L | — | — | — | — | — |
+| bloco | área, perímetro, face − arrasamento + 5 cm | A·h | P·h | A | — | — | cava de fundação |
+| pilar | lado a, altura h | a²·h | 4a·h | — | — | — | — |
+| laje | A, e, P, suspensa (1), imperm (0) | A·e | A·suspensa + P·e | A·(1 − suspensa) | A·suspensa | A·imperm | — |
+| viga | b, h, L | b·h·L | (2h + b)·L | — | b·L | — | — |
+| baldrame | L (b 0,20 e h 0,40 por premissa) | b·h·L | 2h·L | b·L | — | (2h + b)·L | vala corrida |
+| parede | L, h, e, faces (1) | L·h·e | 2·L·h | — | — | L·h·faces | — |
+| cava de fundação | A, P, h do pai; folga 0,5; lastro 0,05 | V_esc = (A + fP + 4f²)(h + e) · V_reat = V_esc − A(h + e) | | | | | |
+| vala | `dimensionar_vala` (§7.1) | V_solo, V_rocha, A_demol, V_berço, V_env, V_reat, V_bota, A_escoramento | | | | | |
+
+**Regras** (`servicos_associados.jsonl`): uma regra só, para todos os tipos que a listam.
+
+| Regra | Tipos | Fórmula | Destino |
+|---|---|---|---|
+| concreto | estaca, bloco, pilar, laje, viga, baldrame, parede | V | `{item}` · concreto |
+| forma | bloco, pilar, laje, viga, baldrame, parede | A_forma | `{item}` · forma |
+| armadura | idem + estaca | taxa(tipo) · V (40–120 kg/m³, a calibrar) | `{item}` · armadura |
+| lastro | bloco, baldrame, laje | A_fundo · 0,05 | `{item}` · lastro |
+| escoramento | laje, viga | A_escoramento | `{item}` · escoramento |
+| impermeabilização | parede, laje, baldrame | A_imperm | `{item}` · impermeabilização |
+| arrasamento | estaca | 1 | `{item}` · arrasamento |
+| escavação / reaterro | cava de fundação, vala corrida | V_esc · V_reat | GEO.MOV.ESC · GEO.MOV.REA |
+| vala (15 regras) | vala | corte, demolição, recomposição (condição: há pavimento), escavação solo/rocha, escoramento `escoramento_{tipo}` (condição: escorada), berço, envoltória, assentamento, reaterro, bota-fora, esgotamento ou ponteiras (condição: água) | `{item_pavimento}`, GEO.MOV.VAL, HID.TUB.RED |
+
+`{item}` é o item EAP do próprio elemento (bloco → GEO.FUN.BLO, laje → CIV.EST.PIS). Para acrescentar um serviço,
+basta uma linha no JSONL. Exemplo: "chapisco = A_forma · 1" para paredes. Para acrescentar um tipo de elemento,
+basta declarar as dimensões dele no `dimensoes.json`. Nenhum dos dois casos exige código novo.
+
+Regras de segurança:
+- **Faltou dimensão, não sai o serviço**, e o motivo fica registrado com a cadeia até a origem. Exemplos:
+  - `pilar P5 (falta A_forma ← h)`: o pilar não tem altura;
+  - `bloco (falta V ← h ← face)`.
+- **O que não depende da dimensão faltante sai**: a viga sem altura ainda dá o escoramento b × L, e o bloco sem a
+  face ainda dá o lastro pela área.
+- **Memória de cálculo**: cada evidência `associado` leva a regra, a fórmula e a cadeia das dimensões do elemento.
+  Exemplo: `f = 0.5 (premissa); Af = A + f * P + 4 * f ** 2 = 25; h_esc = 0.8; V_esc = 20`.
+- **Fatos em conflito** não viram elemento: primeiro se resolve o conflito.
+- **`validar()`** reprova:
+  - fórmula com construção proibida;
+  - destino fora da EAP ou serviço não admitido no item;
+  - regra que usa uma dimensão que o tipo não produz.
+- **`associados_x_edital`** aponta o serviço associado que o edital não cita (`não citado no edital: incluir ou
+  confirmar`).
+- **Saídas**: `dimensoes.csv` (a memória por elemento) e `associados.csv` vão para `saida/<obra>/`.
+
+### 7.1 A vala: o único tipo com dimensionamento próprio (`dimensoes.dimensionar_vala`, `dimensoes.json#vala`)
+
+A vala depende de **decisões**, e não só de contas: profundidade, solo, rocha, NA, tipo de escoramento e tipo de
+pavimento. Por isso ela tem um dimensionador. Ele gera um elemento `vala` **por segmento de superfície** do trecho
+(pista, calçada, fora da via…). Os serviços saem das regras genéricas acima. Os passos do dimensionamento:
 
 | # | Passo | Regra |
 |---|---|---|
@@ -233,7 +292,7 @@ fora da via…), e cada segmento tem a sua profundidade, largura, escoramento e 
 | 10 | Água | vala abaixo do NA: até 0,5 m de água em solo coesivo → bomba submersível (h); senão ou em areia/aterro → ponteiras (m + h); horas = L / avanço por DE × 10 h/dia |
 
 Para quem usa o resultado:
-- **Memória de cálculo**: cada passo tem fórmula, valores, resultado e fonte.
+- **Memória de cálculo**: cada decisão (h, solo, escoramento, b, pavimento, rocha, água) e cada cálculo do tipo.
 - **Detalhes**: o volume demolido, as camadas e o reaterro importado ficam na memória, mas não viram evidência.
 - **Itens EAP de destino**:
   - corte, demolição e recomposição vão para `CIV.PAV.REC` (asfalto) ou `CIV.PAV.CAL` (calçada);
@@ -243,7 +302,7 @@ Para quem usa o resultado:
 - **Sem sondagem no raio**: nada de rocha nem de NA é suposto, e o resultado leva o alerta.
 - **Terreno**: sem a cota do trecho, o terreno fica na cota da boca do furo, também com alerta.
 
-Exemplo (`calcular_trecho`): AAT06, DE 630 PEAD, 120 m em pista e 30 m em calçada. O furo SP-07 está a 80 m, com
+Exemplo (`dimensionar_vala` + `associados.aplicar`): AAT06, DE 630 PEAD, 120 m em pista e 30 m em calçada. O furo SP-07 está a 80 m, com
 aterro e argila siltosa, NSPT 5–9, NA a 1,9 m e impenetrável a 2,3 m.
 
 | Passo (pista) | Fórmula | Resultado |
@@ -303,8 +362,8 @@ com as afirmações, cobertura e associados × edital) e o código `eap` em cada
 | c | Skill de leitura por IA: lê os documentos e escreve `evidencias_ia.jsonl` com trecho literal | `.claude/skills/eap-evidencias` |
 | d | Medir vigas, paredes e lajes nas formas (comprimento/área por layer já calculados em `pdf_cad.quantitativos`) | `pdf_cad`, `prancha.ficha_estrutura` |
 | e | Calibrar premissas (taxa de armadura, embutimento, seção de baldrame) com projetos de armação | `servicos_associados.jsonl` |
-| f | Vala pelo perfil longitudinal: profundidade e cota do terreno por estaca do perfil, trecho dividido entre sondagens | `calculo_vala.py`, leitura do perfil nas pranchas AAT |
-| g | Tipo de pavimento real (cadastro viário da prefeitura ou ortofoto) no lugar de "pista = asfalto" | `calculo_vala.json` (`superficie_tipo`) |
+| f | Vala pelo perfil longitudinal: profundidade e cota do terreno por estaca do perfil, trecho dividido entre sondagens | `dimensoes.dimensionar_vala`, leitura do perfil nas pranchas AAT |
+| g | Tipo de pavimento real (cadastro viário da prefeitura ou ortofoto) no lugar de "pista = asfalto" | `dimensoes.json` (`vala.pavimentos.superficie_tipo`) |
 
 ## 11. Decisões em aberto (Caio)
 

@@ -54,6 +54,10 @@
   "pilar": {"nome": "Pilar", "cor": "#1c1917", "geometria": "poligono"},
   "cava": {"nome": "Cava de escavação", "cor": "#92400e", "geometria": "poligono"},
   "estrutura": {"nome": "Estrutura (mancha de etapa)", "cor": "#0b6fde", "geometria": "poligono"},
-  "trecho": {"nome": "Trecho de rede", "cor": "#dc2626", "geometria": "linha"}
+  "trecho": {"nome": "Trecho de rede", "cor": "#dc2626", "geometria": "linha"},
+  "laje": {"nome": "Laje / piso", "cor": "#0ea5e9", "geometria": "poligono"},
+  "viga": {"nome": "Viga", "cor": "#334155", "geometria": "linha"},
+  "baldrame": {"nome": "Viga baldrame", "cor": "#78716c", "geometria": "linha"},
+  "parede": {"nome": "Parede de concreto", "cor": "#475569", "geometria": "linha"}
  }
 }
