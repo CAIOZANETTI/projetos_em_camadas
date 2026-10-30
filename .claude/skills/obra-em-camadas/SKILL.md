@@ -89,6 +89,10 @@ varrerem a mesma pasta `tool-results/` (um recolhe os downloads do outro).
   (tubo, válvula, bloco…), exibido na árvore de layers e pesquisável no filtro.
 
 ## Regras que valem ouro
+- **Inventário primeiro, de todos os arquivos** (`camadas/inventario.py`): PDF, planilha (abas ocultas inclusive),
+  zip (conteúdo), DWG e o que mais vier; o que não tem leitor fica "sem leitor", à vista. **Nunca diga que um
+  documento não existe sem `inventario.procurar(inv, padrao)`**: a resposta cita a listagem e separa "existe, não
+  lido" de "não existe" (lição L008: a forma do Actiflo 360 existia).
 - **Mantenha o vetor.** PDF de prancha tem layers CAD, textos e quantidades: nada de rasterizar
   para o HTML (`pdf_cad.pacote_vetorial`).
 - Coordenadas sempre em SIRGAS 2000 / UTM no Python; o navegador só converte para exibir.

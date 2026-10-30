@@ -1,4 +1,4 @@
-# Arquitetura — projetos em camadas (R4, 30/10/2026)
+# Arquitetura — projetos em camadas (R6, 30/10/2026)
 
 Diagrama e cenário de mesa: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
 
@@ -10,10 +10,31 @@ Diagrama e cenário de mesa: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (
    (`docs/EAP.md`).
 3. **Um arquivo HTML** é a entrega e a memória da obra: os dados, os fatos e as decisões moram dentro dele.
 4. **Código para a certeza, IA para a dúvida.** O código extrai, mede e confere. A IA trabalha só no que o código não
-   resolve e sempre com citação conferida. Cada dúvida resolvida vira regra com teste (§7).
+   resolve e sempre com citação conferida. Cada dúvida resolvida vira regra com teste (§8).
 5. **A decisão do engenheiro prevalece sobre a evidência**, sem apagá-la.
 
-## 2. Camadas
+## 2. Inventário primeiro (portão G0)
+
+Nada se lê antes de existir o inventário de **todos** os arquivos, e nada se afirma ausente sem consultá-lo. Lição
+L008: a forma e a armadura do Actiflo 360 foram dadas como inexistentes e existiam. Em Foz, as formas dos Actiflo
+estavam na listagem como PDFs acima de 5 MB, não baixados.
+
+| # | Passo | Quem | Estado |
+|---|---|---|---|
+| 1 | Listagem recursiva do Drive: todo arquivo, de qualquer tipo (pasta não) | Haiku (conector) | feito |
+| 2 | Download em lotes paralelos; o que passa do limite do conector vai para a lista de download manual | Haiku + você | feito |
+| 3 | Loop em todos os arquivos com o leitor do tipo: PDF (formato, layers, código, carimbo), planilha (abas, inclusive ocultas), zip (conteúdo sem extrair); o resto fica "sem leitor", à vista | código (`inventario.ler_arquivo`) | feito |
+| 4 | Situação final de cada arquivo: no disco e lido · lido com erro · sem leitor · falhou · não tentado | código | feito |
+| 5 | Ausência só por consulta: `inventario.procurar(inv, padrão)` busca nome, pasta e título do carimbo em qualquer situação e separa "existe, não lido" de "não existe" | código | feito |
+| 6 | O que cada arquivo entrega: arquivo → sistema × disciplina × conteúdo (planta, forma, armadura, locação, memorial…) pelo código Sanepar, pelo carimbo e pelos termos da EAP | código | a fazer |
+| 7 | Esperado × encontrado: para cada sistema, os documentos que a tipologia exige (forma, armadura, locação e cargas, fundação) → achado ou falta, pela busca do passo 5 | código | a fazer |
+| 8 | Índices cruzados: cada desenho citado na Relação de Desenhos e nos anexos do edital casa com um arquivo; citado e não achado vira alerta | código | a fazer |
+| 9 | PDF com várias folhas: carimbo e título de cada página, não só da primeira | código | a fazer |
+
+O G0 fecha quando 100 % dos arquivos têm situação final e o relatório "esperado × encontrado" foi gerado. Os agentes
+só entram nos arquivos sem leitor, e cada um vira candidato a leitor novo (regra da lição, §8).
+
+## 3. Camadas
 
 | # | Camada | Quem | Saída |
 |---|---|---|---|
@@ -36,7 +57,7 @@ corte): ancorado ao elemento, nunca georreferenciado. Documento: texto e tabelas
 - Elétrica: pranchas PBEA com texto real, listas de materiais e de cabos, quadros de carga e cadastro elétrico.
   Hoje só termos; o leitor de listas é lacuna.
 
-## 3. Decisões: ida e volta
+## 4. Decisões: ida e volta
 
 Schema único: `{id, alvo (prefixo da EAP), estado (executar | nao_executar | a_definir), motivo, autor, data,
 supera[]}`. O build aplica as decisões **antes** dos cálculos e elas descem para os filhos e os serviços associados.
@@ -44,7 +65,7 @@ Exemplo: sem drenagem urbana, também não há vala nem pavimento da drenagem. O
 riscado, fora da soma. Ao gravar, o navegador gera uma nova versão do arquivo com o bloco de decisões. O build
 seguinte lê esse bloco. Um teste de ida e volta garante que nada se perde.
 
-## 4. Quem faz o quê
+## 5. Quem faz o quê
 
 | Executor | Papel |
 |---|---|
@@ -61,11 +82,11 @@ Regras do paralelismo:
 - a prancha não vai inteira para a IA;
 - cada agente devolve schema + dúvidas, nunca texto livre.
 
-## 5. Processo (portões)
+## 6. Processo (portões)
 
 | Portão | O que fecha |
 |---|---|
-| G0 | inventário com tipo, disciplina e orçamento de MB por bloco |
+| G0 | inventário de todos os arquivos com situação final, esperado × encontrado e orçamento de MB por bloco |
 | G1 | EAP da obra com os sistemas confirmados |
 | G2 | extração por perfil, com as dúvidas na fila |
 | G3 | georreferência e âncoras (drone opcional) |
@@ -74,7 +95,7 @@ Regras do paralelismo:
 | G6 | serviços associados, com um motor por assunto |
 | G7 | caderno HTML dentro do orçamento de tamanho |
 
-## 6. O que o cenário de mesa mostrou (obra nova: elevatória + 3 km de rede de esgoto)
+## 7. O que o cenário de mesa mostrou (obra nova: elevatória + 3 km de rede de esgoto)
 
 Trava em cinco pontos. As correções da R4 são estas:
 
@@ -87,7 +108,7 @@ Trava em cinco pontos. As correções da R4 são estas:
    Correção: um dimensionador, com o MOS Sanepar como padrão.
 5. **Decisões**: a exportação do navegador usa outra chave e fica fora do HTML. Correção: o schema único do §3.
 
-## 7. Regra da lição aprendida e índice de determinismo
+## 8. Regra da lição aprendida e índice de determinismo
 
 **Regra.** Toda rodada com a IA deixa ao menos uma lição formalizada em código: uma regra em `conceitos/` ou uma
 função, e um teste. As lições ficam em `pdca/licoes.jsonl`, com `licao`, `antes`, `formalizada_em`, `teste` e
