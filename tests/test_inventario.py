@@ -118,3 +118,77 @@ def test_ausencia_so_por_consulta_ao_inventario():
     assert inventario.procurar(inv, "fundação.*actiflo 600")["achados"][0]["situacao"] == "no disco"   # pelo carimbo
     assert inventario.procurar(inv, "ARMADURA")["resposta"] == \
         "nenhum dos 2 arquivos da listagem (listagem.csv) casa com 'ARMADURA'"
+
+
+def _cfg_um_pdf(tmp_path):
+    """Obra mínima com um PDF (`a.pdf`) na listagem e no disco."""
+    pasta = tmp_path / "projeto"
+    pasta.mkdir()
+    _prancha(pasta / "a.pdf")
+    listagem = tmp_path / "listagem.csv"
+    listagem.write_text("caminho;titulo;id;mimeType;extensao;tamanho_bytes;modificado\n"
+                        ";a.pdf;a;application/pdf;pdf;10;x\n", encoding="utf-8")
+    return {"inventario": {"listagem": str(listagem), "pasta": str(pasta)}, "pranchas": []}, pasta / "a.pdf"
+
+
+def _rodar(cfg, cache, monkeypatch, **kw):
+    """Roda o inventário contando quantas vezes `ler_arquivo` foi chamado."""
+    chamadas = []
+    original = inventario.ler_arquivo
+    monkeypatch.setattr(inventario, "ler_arquivo", lambda p, ocr=True: chamadas.append(str(p)) or original(p, ocr))
+    r = inventario.inventario(cfg, cache, ocr=False, log=lambda *a: None, **kw)
+    return r, chamadas
+
+
+def test_cache_erro_reler_e_versao(tmp_path, monkeypatch):
+    cfg, pdf = _cfg_um_pdf(tmp_path)
+    cache = tmp_path / "cache.json"
+    assert len(_rodar(cfg, cache, monkeypatch)[1]) == 1
+    assert _rodar(cfg, cache, monkeypatch)[1] == []                                  # cache vale
+    assert _rodar(cfg, cache, monkeypatch, reler={str(pdf)})[1] == [str(pdf)]        # `reler` força a leitura
+    memo = json.loads(cache.read_text(encoding="utf-8"))
+    assert memo[str(pdf)]["assinatura"].endswith(f":v{inventario.LEITURA_VERSAO}")
+    memo[str(pdf)]["erro"] = "OSError: falha momentânea"                             # erro não é leitura definitiva
+    cache.write_text(json.dumps(memo), encoding="utf-8")
+    r, chamadas = _rodar(cfg, cache, monkeypatch)
+    assert chamadas == [str(pdf)] and "erro" not in r["itens"][0]
+    assert _rodar(cfg, cache, monkeypatch)[1] == []
+    monkeypatch.setattr(inventario, "LEITURA_VERSAO", inventario.LEITURA_VERSAO + 1)  # versão nova invalida o cache
+    assert _rodar(cfg, cache, monkeypatch)[1] == [str(pdf)]
+
+
+def _pdf_tres_paginas(caminho):
+    """Capa sem texto + 2 páginas de corpo com texto e carimbo (a 2ª com título próprio)."""
+    doc = pymupdf.open()
+    doc.new_page(width=2384, height=1684)
+    for titulo in ("PLANTA DE ESCAVAÇÃO", "CORTE A-A"):
+        pg = doc.new_page(width=2384, height=1684)
+        for k, t in enumerate(["PROJETO / UNIDADE CONSTRUTIVA: DATA: OUTUBRO/2025", titulo, "ESCALA: 1:100",
+                               "FOLHA N°: 02/03", "Companhia de Saneamento do Paraná"]):
+            pg.insert_text((1864, 1424 + 30 * k), t, fontsize=10)
+        pg.insert_text((100, 100), "texto de desenho " * 10, fontsize=8)
+    doc.save(caminho)
+
+
+def test_pdf_lido_inteiro_e_carimbo_por_pagina(tmp_path):
+    _pdf_tres_paginas(tmp_path / "t.pdf")
+    r = inventario.ler_pdf(tmp_path / "t.pdf", ocr=False)
+    assert r["paginas"] == 3 and r["texto"] == "sim" and r["paginas_com_texto"] == 2
+    assert [c["pagina"] for c in r["carimbos"]] == [1, 2, 3]
+    assert r["carimbos"][1]["titulo"] == "PLANTA DE ESCAVAÇÃO" and r["carimbos"][2]["titulo"] == "CORTE A-A"
+    assert r["carimbo"]["titulo"] is None and "pagina" not in r["carimbo"]        # `carimbo` segue sendo o da 1ª
+    assert inventario.ler_pdf(tmp_path / "t.pdf", ocr=False, max_paginas=1)["texto"].startswith("pouco")
+    item = {"arquivo": "t.pdf", "carimbo": r["carimbo"], "carimbos": r["carimbos"]}
+    html = inventario.para_html({"resumo": [], "totais": {}, "fora_da_listagem": [], "fonte": "x", "itens": [item]})
+    assert "carimbos" not in html["itens"][0]
+
+
+def test_reler_carimbo_300_dpi(tmp_path, monkeypatch):
+    _pdf_tres_paginas(tmp_path / "t.pdf")
+    dpis = []
+    monkeypatch.setattr(inventario, "ocr_carimbo",
+                        lambda pg, dpi=200: dpis.append(dpi) or "FOLHA N°: 01/03 ABASTECIMENTO DE ÁGUA OUTUBRO/2025 "
+                        "PLANTA GERAL DA ETA ESCALA: 1:200")
+    r = inventario.reler_carimbo(tmp_path / "t.pdf")
+    assert dpis == [300] and (r["folha"], r["escala"], r["titulo"]) == ("01/03", "1:200", "PLANTA GERAL DA ETA")
+    assert "300" in r["fonte"]
