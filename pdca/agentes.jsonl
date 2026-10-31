@@ -11,3 +11,4 @@
 {"rodada": "rodada 20", "data": "2026-10-31", "modelo": "sonnet", "papel": "implementador", "tarefa": "E5 (retorno da IA no registro)", "tokens": 87643, "segundos": 115, "ferramentas": 20, "resultado": "entregue para aceite"}
 {"rodada": "rodada 20", "data": "2026-10-31", "modelo": "sonnet", "papel": "implementador", "tarefa": "E4 (executor da escada)", "tokens": 103540, "segundos": 170, "ferramentas": 23, "resultado": "entregue para aceite"}
 {"rodada": "rodada 20", "data": "2026-10-31", "modelo": "fable", "papel": "gerente", "tarefa": "aceite de E4, E5, E6", "tokens": 99429, "segundos": 143, "ferramentas": 11, "resultado": "E4 e E5 aceitas; E6 revisar (escalada da IA nunca subia)"}
+{"rodada": "rodada 20", "data": "2026-10-31", "modelo": "fable", "papel": "gerente", "tarefa": "2º aceite da E6 e entrega final", "tokens": 112793, "segundos": 56, "ferramentas": 3, "resultado": "E4, E5, E6 aceitas; entrega final escrita"}

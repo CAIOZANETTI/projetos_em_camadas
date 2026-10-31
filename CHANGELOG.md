@@ -13,6 +13,8 @@
 - Teste de integração do ciclo inteiro: lote do Sonnet → retorno → a volta seguinte fecha o item e registra "Sonnet".
 - Índice de determinismo: 66,7 % das etapas em código (a escolha do próximo passe e a conferência do retorno deixaram
   de ser da IA na sessão). Lição L014.
+- Aceite do Fable no 2º julgamento da E6: a escalada da IA não subia (chaves diferentes para a mesma tentativa; o
+  retorno recusado não contava). Corrigido, e toda escada termina em "você" (lição L015).
 
 ## 0.22.0 — 2026-10-31 · Rodada 20, PR 2: releitura, PDF inteiro, papel por pasta e esperado × encontrado
 - **Releitura sem o cache travar** (`inventario.py`): `LEITURA_VERSAO` na assinatura, `reler` força a leitura e erro
