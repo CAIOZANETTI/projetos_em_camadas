@@ -3,7 +3,7 @@
   "fonte": "pedido do Caio (30/10/2026): saber de onde veio cada fato (projeto, documento, folha de dados, ordem de serviço…) e o que cada arquivo entrega; reavaliar o inventário e repetir a extração do que não saiu ou saiu insatisfatória",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Classe da fonte = o que o arquivo é como evidência. Passadas, da mais segura à mais fraca: tipo do código Sanepar (DE, MD, RT…); termos das classes com `prioridade` (cotação, documento de obra) no NOME e no título do carimbo; extensão; termos no nome e no título; por fim, os mesmos termos no caminho da pasta. Dentro de cada passada, a primeira classe da lista vence (laudo antes de projeto: 'perfil de sondagem' é laudo). Termos com fronteira de palavra (FORMA não casa INFORMACAO). Cotação entra no inventário e fica fora do escopo (preço), listada à parte. `satisfatoria` = campos que a leitura precisa ter para contar como completa; classe sem exigência só se completa se `dispensa_leitura` (foto). `escada` = próximo passe para cada situação, do mais barato ao mais caro. `retorno` = campos que um agente (Haiku, Sonnet) pode devolver para o arquivo, conferidos por `extracao.aplicar_retornos`; vale também para arquivo sem leitor."
+  "observacoes": "Classe da fonte = o que o arquivo é como evidência. Passadas, da mais segura à mais fraca: tipo do código Sanepar (DE, MD, RT…); termos das classes com `prioridade` (cotação, documento de obra) no NOME e no título do carimbo; extensão; termos no nome e no título; por fim, os mesmos termos no caminho da pasta. Dentro de cada passada, a primeira classe da lista vence (laudo antes de projeto: 'perfil de sondagem' é laudo). Termos com fronteira de palavra (FORMA não casa INFORMACAO). Cotação entra no inventário e fica fora do escopo (preço), listada à parte. `satisfatoria` = campos que a leitura precisa ter para contar como completa; classe sem exigência só se completa se `dispensa_leitura` (foto). `escada` = próximo passe para cada situação, do mais barato ao mais caro. `retorno` = campos que um agente (Haiku, Sonnet) pode devolver para o arquivo, conferidos por `extracao.aplicar_retornos`; vale também para arquivo sem leitor. Degrau de IA tem `funcao: \"retorno\"`: a tentativa é contada com a mesma chave (`Haiku:retorno`) quando o retorno chega, aceito ou recusado, e esgotado o `max_tentativas` a pendência sobe para o próximo agente."
  },
  "classes": [
   {
@@ -246,6 +246,11 @@
     },
     {
      "executor": "Haiku",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
      "funcao": null,
      "max_tentativas": 1
     }
@@ -258,6 +263,11 @@
    "degraus": [
     {
      "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
      "funcao": null,
      "max_tentativas": 1
     }
@@ -269,12 +279,12 @@
    "acao": "OCR de página inteira; persistindo, Sonnet lê a imagem com citação",
    "degraus": [
     {
-     "executor": "código",
-     "funcao": "reler",
+     "executor": "Sonnet",
+     "funcao": "retorno",
      "max_tentativas": 1
     },
     {
-     "executor": "Sonnet",
+     "executor": "você",
      "funcao": null,
      "max_tentativas": 1
     }
@@ -297,11 +307,16 @@
     },
     {
      "executor": "Haiku",
-     "funcao": null,
+     "funcao": "retorno",
      "max_tentativas": 1
     },
     {
      "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
      "funcao": null,
      "max_tentativas": 1
     }
@@ -319,6 +334,11 @@
     },
     {
      "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
      "funcao": null,
      "max_tentativas": 1
     }
@@ -331,6 +351,11 @@
    "degraus": [
     {
      "executor": "Haiku",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
      "funcao": null,
      "max_tentativas": 1
     }
@@ -348,6 +373,11 @@
     },
     {
      "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
      "funcao": null,
      "max_tentativas": 1
     }

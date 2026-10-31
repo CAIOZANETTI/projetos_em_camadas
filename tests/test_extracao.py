@@ -224,7 +224,11 @@ def test_trecho_errado_e_arquivo_fora_do_inventario_sao_recusados(tmp_path):
     rel = extracao.aplicar_retornos(tmp_path, _inv(item))
     assert rel["aceitos"] == 0
     assert [r["motivo"] for r in rel["recusados"]] == ["trecho não está na página 1", "arquivo fora do inventário"]
-    assert not (tmp_path / "complementos.json").exists()
+    (entrada,) = _complementos(tmp_path).values()                 # o recusado conta a tentativa e não grava campo
+    assert entrada["campos"] == {} and entrada["tentativas"] == {"Sonnet:retorno": 1}
+    sem_executor = {**_linha(item), "executor": None}
+    _retornar(tmp_path, sem_executor)
+    assert extracao.aplicar_retornos(tmp_path, _inv(item))["recusados"][-1]["motivo"] == "retorno sem executor"
 
 
 def test_campo_fora_do_retorno_da_classe_e_ignorado_e_anotado(tmp_path):

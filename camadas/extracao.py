@@ -265,24 +265,23 @@ def _aninhar(campos: dict) -> dict:
 
 
 def _um_retorno(linha: dict, item: dict | None, out: Path, rel: dict) -> None:
-    """Confere e grava uma linha de retorno, anotando recusa ou campo ignorado em `rel`."""
-    arquivo = linha.get("arquivo")
-    if item is None:
-        rel["recusados"].append({"arquivo": arquivo, "motivo": "arquivo fora do inventário"})
+    """Confere e grava uma linha de retorno, anotando recusa ou campo ignorado em `rel`. Aceito ou recusado, o retorno
+    conta uma tentativa do agente (`<executor>:retorno`, a chave do degrau na escada): sem isso a pendência ficaria
+    pedida ao mesmo agente para sempre."""
+    arquivo, executor = linha.get("arquivo"), linha.get("executor")
+    if item is None or not executor:
+        rel["recusados"].append({"arquivo": arquivo, "motivo": "arquivo fora do inventário" if item is None
+                                 else "retorno sem executor"})
         return
     permitidos = next(c for c in FONTES["classes"] if c["id"] == classe(item)).get("retorno") or []
     campos = {k: v for k, v in (linha.get("campos") or {}).items() if k in permitidos}
     rel["ignorados"] += [{"arquivo": arquivo, "campo": k} for k in (linha.get("campos") or {}) if k not in permitidos]
-    if not campos:
-        rel["recusados"].append({"arquivo": arquivo, "motivo": "nenhum campo de retorno da classe"})
-        return
-    ok, nota = _confere_citacao(item, linha.get("citacao") or {})
+    ok, nota = _confere_citacao(item, linha.get("citacao") or {}) if campos else (False, "nenhum campo de retorno da classe")
+    gravar_complemento(out / "complementos.json", item, _aninhar(campos) if ok else {}, executor, f"{executor}:retorno",
+                       marca=_marca(linha))
     if not ok:
         rel["recusados"].append({"arquivo": arquivo, "motivo": nota})
         return
-    executor = linha["executor"]
-    gravar_complemento(out / "complementos.json", item, _aninhar(campos), executor, f"{executor}:retorno",
-                       marca=_marca(linha))
     rel["aceitos"] += 1
     rel["citacoes"].append({"arquivo": arquivo, "citacao": nota})
 

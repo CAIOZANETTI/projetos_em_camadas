@@ -137,8 +137,8 @@ def test_proximo_degrau_pelas_tentativas():
     assert escada.proximo_degrau(av, None) == {"executor": "código", "funcao": "reler", "max_tentativas": 1}
     assert escada.proximo_degrau(av, {"tentativas": {"código:reler": 1}})["funcao"] == "reler_carimbo"
     assert escada.proximo_degrau(av, {"tentativas": {"código:reler": 1, "código:reler_carimbo": 1}})["executor"] == "Haiku"
-    tudo = {"código:reler": 1, "código:reler_carimbo": 1, "Haiku:None": 1, "Sonnet:None": 1}
-    assert escada.proximo_degrau(av, {"tentativas": tudo}) is None
+    tudo = {"código:reler": 1, "código:reler_carimbo": 1, "Haiku:retorno": 1, "Sonnet:retorno": 1}
+    assert escada.proximo_degrau(av, {"tentativas": tudo})["executor"] == "você"     # nada para em silêncio
     assert escada.proximo_degrau({"situacao": None}, None) is None
     assert escada.metadados()["modulo"] == "escada"
 
@@ -159,3 +159,27 @@ def test_ciclo_completo_lote_da_ia_volta_e_fecha(tmp_path):
     assert r["lotes"] == {} and r["por_estado"] == {"completa": 1}
     ultima = json.loads((out / "extracao.jsonl").read_text(encoding="utf-8").splitlines()[-1])
     assert (ultima["estado"], ultima["executor"]) == ("completa", "Sonnet")
+
+
+def _retorno(out, nome, executor, campos, trecho):
+    """Grava (sobrescreve) o arquivo de retornos de um agente, como o agente faria depois de ler o lote."""
+    (out / "retornos").mkdir(exist_ok=True)
+    (out / "retornos" / f"{executor}.jsonl").write_text(json.dumps(
+        {"arquivo": nome, "pasta_drive": "UNIDADE 01", "executor": executor, "campos": campos,
+         "citacao": {"pagina": 1, "trecho": trecho}}, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def test_retorno_recusado_ou_insuficiente_sobe_haiku_sonnet_voce(tmp_path, monkeypatch):
+    """Revisão do Fable (31/10): a tentativa do agente tem a chave do degrau (`Haiku:retorno`) e conta também quando o
+    retorno é recusado; esgotado, a pendência sobe para o próximo agente e por fim para você."""
+    cfg, pasta, out = _obra(tmp_path, [("UNIDADE 01", NOME, "abc")])
+    _prancha(pasta / "UNIDADE 01" / NOME, escala=False)
+    monkeypatch.setattr(inventario, "reler_carimbo", lambda caminho, dpi=300: {"folha": None, "escala": None,
+                                                                              "data": None, "titulo": None})
+    assert escada.executar(cfg, out)["lotes"] == {"Haiku": 1}
+    _retorno(out, NOME, "Haiku", {"carimbo.escala": "1:100"}, "trecho que não está na folha")       # recusado
+    assert escada.executar(cfg, out)["lotes"] == {"Sonnet": 1}
+    _retorno(out, NOME, "Sonnet", {"carimbo.data": "OUTUBRO/2025"}, "PLANTA DE ESCAVAÇÃO")        # aceito, insuficiente
+    assert escada.executar(cfg, out)["lotes"] == {"você": 1}
+    tent = extracao.ler_complementos(out / "complementos.json")[f"UNIDADE 01/{NOME}"]["tentativas"]
+    assert tent == {"código:reler": 1, "código:reler_carimbo": 1, "Haiku:retorno": 1, "Sonnet:retorno": 1}
