@@ -220,42 +220,138 @@
   {
    "situacao": "fora do disco",
    "proximo": "código",
-   "acao": "baixar pelo link direto (python -m camadas.drive); arquivo privado: você libera"
+   "acao": "baixar pelo link direto (python -m camadas.drive); arquivo privado: você libera",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "baixar",
+     "max_tentativas": 2
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "falhou",
    "proximo": "código",
-   "acao": "repetir a leitura; persistindo, Haiku diz o que o arquivo é (protegido, corrompido, digitalizado)"
+   "acao": "repetir a leitura; persistindo, Haiku diz o que o arquivo é (protegido, corrompido, digitalizado)",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "reler",
+     "max_tentativas": 2
+    },
+    {
+     "executor": "Haiku",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "sem leitor",
    "proximo": "Sonnet",
-   "acao": "ler e devolver no schema da classe, com citação; o leitor em código vira candidato a lição"
+   "acao": "ler e devolver no schema da classe, com citação; o leitor em código vira candidato a lição",
+   "degraus": [
+    {
+     "executor": "Sonnet",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "sem texto",
    "proximo": "código",
-   "acao": "OCR de página inteira; persistindo, Sonnet lê a imagem com citação"
+   "acao": "OCR de página inteira; persistindo, Sonnet lê a imagem com citação",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "reler",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Sonnet",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "carimbo incompleto",
    "proximo": "código",
-   "acao": "OCR do carimbo em todas as páginas e em 300 dpi; persistindo, Haiku lê o recorte do canto inferior direito"
+   "acao": "OCR do carimbo em todas as páginas e em 300 dpi; persistindo, Haiku lê o recorte do canto inferior direito",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "reler",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "código",
+     "funcao": "reler_carimbo",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Haiku",
+     "funcao": null,
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Sonnet",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "conteúdo não inventariado",
    "proximo": "código",
-   "acao": "extrair e inventariar o conteúdo do compactado"
+   "acao": "extrair e inventariar o conteúdo do compactado",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "extrair_zip",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Sonnet",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "classe desconhecida",
    "proximo": "Haiku",
-   "acao": "dizer a classe pelo nome, pela pasta e pela 1ª página; a resposta vira termo novo nesta lista"
+   "acao": "dizer a classe pelo nome, pela pasta e pela 1ª página; a resposta vira termo novo nesta lista",
+   "degraus": [
+    {
+     "executor": "Haiku",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "leitura incompleta",
    "proximo": "código",
-   "acao": "reler com o leitor do tipo; persistindo, Sonnet lê e devolve no schema da classe"
+   "acao": "reler com o leitor do tipo; persistindo, Sonnet lê e devolve no schema da classe",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "reler",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Sonnet",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   }
  ]
 }
