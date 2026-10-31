@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.23.0 — 2026-10-31 · Rodada 20, PR 3: o loop de extração fecha sozinho
+- **Executor da escada** (`camadas/escada.py`, `python -m camadas.escada <obra.json>`): cada pendência sobe pelos
+  `degraus` de `conceitos/fontes.json` (código: baixar, reler, carimbo em 300 dpi, extrair o zip; depois Haiku, Sonnet,
+  você), com `max_tentativas` em todo degrau; repete até não haver degrau de código; o resto vai para
+  `saida/<obra>/lotes/<executor>.jsonl` (sobrescrito a cada rodada). O conteúdo dos zips vira itens filhos
+  inventariados.
+- **Retorno da IA conferido** (`extracao.aplicar_retornos`): o agente grava em `saida/<obra>/retornos/`; entram só os
+  campos de `retorno` da classe e só se o trecho citado está na página (imagem: "não conferível", anotado); retorno
+  repetido não conta duas vezes. O registro grava quem completou (`registrar_por_executor`), no build e na escada.
+  O esperado × encontrado usa os itens já complementados.
+- Teste de integração do ciclo inteiro: lote do Sonnet → retorno → a volta seguinte fecha o item e registra "Sonnet".
+- Índice de determinismo: 66,7 % das etapas em código (a escolha do próximo passe e a conferência do retorno deixaram
+  de ser da IA na sessão). Lição L014.
+- Aceite do Fable no 2º julgamento da E6: a escalada da IA não subia (chaves diferentes para a mesma tentativa; o
+  retorno recusado não contava). Corrigido, e toda escada termina em "você" (lição L015).
+
 ## 0.22.0 — 2026-10-31 · Rodada 20, PR 2: releitura, PDF inteiro, papel por pasta e esperado × encontrado
 - **Releitura sem o cache travar** (`inventario.py`): `LEITURA_VERSAO` na assinatura, `reler` força a leitura e erro
   é relido em toda rodada. O resultado dos degraus e da IA fica em `saida/<obra>/complementos.json`, com executor e

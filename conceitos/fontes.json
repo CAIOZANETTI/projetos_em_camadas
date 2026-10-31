@@ -3,7 +3,7 @@
   "fonte": "pedido do Caio (30/10/2026): saber de onde veio cada fato (projeto, documento, folha de dados, ordem de serviço…) e o que cada arquivo entrega; reavaliar o inventário e repetir a extração do que não saiu ou saiu insatisfatória",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Classe da fonte = o que o arquivo é como evidência. Passadas, da mais segura à mais fraca: tipo do código Sanepar (DE, MD, RT…); termos das classes com `prioridade` (cotação, documento de obra) no NOME e no título do carimbo; extensão; termos no nome e no título; por fim, os mesmos termos no caminho da pasta. Dentro de cada passada, a primeira classe da lista vence (laudo antes de projeto: 'perfil de sondagem' é laudo). Termos com fronteira de palavra (FORMA não casa INFORMACAO). Cotação entra no inventário e fica fora do escopo (preço), listada à parte. `satisfatoria` = campos que a leitura precisa ter para contar como completa; classe sem exigência só se completa se `dispensa_leitura` (foto). `escada` = próximo passe para cada situação, do mais barato ao mais caro. `retorno` = campos que um agente (Haiku, Sonnet) pode devolver para o arquivo, conferidos por `extracao.aplicar_retornos`; vale também para arquivo sem leitor."
+  "observacoes": "Classe da fonte = o que o arquivo é como evidência. Passadas, da mais segura à mais fraca: tipo do código Sanepar (DE, MD, RT…); termos das classes com `prioridade` (cotação, documento de obra) no NOME e no título do carimbo; extensão; termos no nome e no título; por fim, os mesmos termos no caminho da pasta. Dentro de cada passada, a primeira classe da lista vence (laudo antes de projeto: 'perfil de sondagem' é laudo). Termos com fronteira de palavra (FORMA não casa INFORMACAO). Cotação entra no inventário e fica fora do escopo (preço), listada à parte. `satisfatoria` = campos que a leitura precisa ter para contar como completa; classe sem exigência só se completa se `dispensa_leitura` (foto). `escada` = próximo passe para cada situação, do mais barato ao mais caro. `retorno` = campos que um agente (Haiku, Sonnet) pode devolver para o arquivo, conferidos por `extracao.aplicar_retornos`; vale também para arquivo sem leitor. Degrau de IA tem `funcao: \"retorno\"`: a tentativa é contada com a mesma chave (`Haiku:retorno`) quando o retorno chega, aceito ou recusado, e esgotado o `max_tentativas` a pendência sobe para o próximo agente."
  },
  "classes": [
   {
@@ -220,42 +220,168 @@
   {
    "situacao": "fora do disco",
    "proximo": "código",
-   "acao": "baixar pelo link direto (python -m camadas.drive); arquivo privado: você libera"
+   "acao": "baixar pelo link direto (python -m camadas.drive); arquivo privado: você libera",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "baixar",
+     "max_tentativas": 2
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "falhou",
    "proximo": "código",
-   "acao": "repetir a leitura; persistindo, Haiku diz o que o arquivo é (protegido, corrompido, digitalizado)"
+   "acao": "repetir a leitura; persistindo, Haiku diz o que o arquivo é (protegido, corrompido, digitalizado)",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "reler",
+     "max_tentativas": 2
+    },
+    {
+     "executor": "Haiku",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "sem leitor",
    "proximo": "Sonnet",
-   "acao": "ler e devolver no schema da classe, com citação; o leitor em código vira candidato a lição"
+   "acao": "ler e devolver no schema da classe, com citação; o leitor em código vira candidato a lição",
+   "degraus": [
+    {
+     "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "sem texto",
    "proximo": "código",
-   "acao": "OCR de página inteira; persistindo, Sonnet lê a imagem com citação"
+   "acao": "OCR de página inteira; persistindo, Sonnet lê a imagem com citação",
+   "degraus": [
+    {
+     "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "carimbo incompleto",
    "proximo": "código",
-   "acao": "OCR do carimbo em todas as páginas e em 300 dpi; persistindo, Haiku lê o recorte do canto inferior direito"
+   "acao": "OCR do carimbo em todas as páginas e em 300 dpi; persistindo, Haiku lê o recorte do canto inferior direito",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "reler",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "código",
+     "funcao": "reler_carimbo",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Haiku",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "conteúdo não inventariado",
    "proximo": "código",
-   "acao": "extrair e inventariar o conteúdo do compactado"
+   "acao": "extrair e inventariar o conteúdo do compactado",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "extrair_zip",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "classe desconhecida",
    "proximo": "Haiku",
-   "acao": "dizer a classe pelo nome, pela pasta e pela 1ª página; a resposta vira termo novo nesta lista"
+   "acao": "dizer a classe pelo nome, pela pasta e pela 1ª página; a resposta vira termo novo nesta lista",
+   "degraus": [
+    {
+     "executor": "Haiku",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   },
   {
    "situacao": "leitura incompleta",
    "proximo": "código",
-   "acao": "reler com o leitor do tipo; persistindo, Sonnet lê e devolve no schema da classe"
+   "acao": "reler com o leitor do tipo; persistindo, Sonnet lê e devolve no schema da classe",
+   "degraus": [
+    {
+     "executor": "código",
+     "funcao": "reler",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "Sonnet",
+     "funcao": "retorno",
+     "max_tentativas": 1
+    },
+    {
+     "executor": "você",
+     "funcao": null,
+     "max_tentativas": 1
+    }
+   ]
   }
  ]
 }
