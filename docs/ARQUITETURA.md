@@ -31,7 +31,7 @@ pastas da obra ─► P0 inventário ─► P1 código ─► reavaliação ─�
 - obra/execução: ordens de serviço, folhas de dados, projeto executivo, atas;
 - referências.
 
-O papel da pasta vai para o `obra.json` (`inventario.pastas`, **a fazer**) e orienta a classe da fonte. A listagem
+O papel da pasta vai para o `obra.json` (`inventario.pastas`, prefixo mais longo vence; feito na 0.22.0) e entra na avaliação de cada arquivo. A listagem
 recursiva traz todo arquivo, de qualquer tipo (`camadas/inventario.py`). O download dos pendentes é feito por
 `camadas/drive.py`, pelo link direto.
 
@@ -309,3 +309,41 @@ com a verificação que a aceita, e o estado de cada entrega anda `pendente` →
 - `metadados()` em cada módulo;
 - teste para cada regra;
 - sem preço e sem prazo.
+
+## 11. Observatório entre repositórios (proposta)
+
+O Caio mantém vários repositórios de extração de dados (`ialocal.extrair.dados`, `ialocal.extrair.dossie-licitacao`,
+`ialocal.orcamento`, `ialocal.gis.fontes`, `planejamento.obras`, `doc_to_dados`…). Este repositório passa a
+acompanhá-los com análise crítica, para que todos evoluam no mesmo ritmo, com qualidade, determinismo e uso racional
+de tokens.
+
+**Contrato comum** (o mesmo `pdca/` deste repositório, copiado como kit, como a aferição já veio do `ialocal.gis.fontes`):
+
+| Arquivo | O que mostra |
+|---|---|
+| `pdca/afericao.jsonl` | saúde do código: funções, órfãs, duplicatas, longas |
+| `pdca/determinismo.json(l)` | etapas de código × IA e índice por rodada |
+| `pdca/licoes.jsonl` | lições formalizadas em código, com teste |
+| `pdca/agentes.jsonl` | custo por agente: modelo, tarefa, tokens, tempo, resultado (aceito ou revisar) |
+| `docs/plano/*.md` | prometido × entregue por rodada |
+| `CHANGELOG.md` | versão e o que entrou |
+
+**Observatório** (a fazer): um script lê esse contrato de cada repositório da lista (`pdca/repositorios.json`) e monta
+um relatório comparado:
+- tendência do índice de determinismo;
+- lições por versão;
+- piora da aferição;
+- tokens por entrega aceita e por modelo;
+- taxa de devolução do gerente;
+- planos com entregas paradas.
+
+Repositório sem o contrato aparece como "sem PDCA", à vista. O Fable lê o relatório e escreve a análise crítica; uma
+lição que vale para todos vira mudança no kit, propagada por PR em cada repositório.
+
+**Uso racional de tokens:**
+- o custo por entrega aceita é medido (`pdca/agentes.jsonl`);
+- o modelo grande fica no julgamento (aceitar, devolver, decidir);
+- o volume vai para os menores;
+- uma devolução é custo dobrado, então o contrato de cada entrega precisa ser claro antes de abrir o agente. A
+  devolução da E1 na rodada 20 veio de um prompt contraditório.
+

@@ -64,3 +64,11 @@ def test_cada_versao_desde_a_0_19_deixa_uma_licao():
     exigidas = {'.'.join(v) for v in versoes if tuple(map(int, v)) >= (0, 19, 0)}
     _, licoes, _ = determinismo.carregar(raiz)
     assert exigidas - {l.get('versao') for l in licoes} == set()
+
+
+def test_custo_de_agentes_por_modelo_sem_medicao_a_parte(tmp_path):
+    (tmp_path / 'pdca').mkdir()
+    linhas = [{'modelo': 'fable', 'tokens': 100}, {'modelo': 'fable', 'tokens': 50}, {'modelo': 'sonnet', 'tokens': None}]
+    (tmp_path / 'pdca' / 'agentes.jsonl').write_text(''.join(json.dumps(l) + '\n' for l in linhas), encoding='utf-8')
+    assert determinismo.custo_agentes(tmp_path) == {'fable': {'chamadas': 2, 'tokens': 150, 'sem_medicao': 0},
+                                                     'sonnet': {'chamadas': 1, 'tokens': 0, 'sem_medicao': 1}}
