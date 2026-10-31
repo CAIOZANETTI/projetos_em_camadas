@@ -1,0 +1,131 @@
+{
+  "metadata": {
+    "fonte": "Relação de Desenhos do PBES (07/09/2022): cada estrutura de concreto lista locação, forma e armadura (ex.: BLO01, MOD01); convenção do Caio para o que cada tipologia exige (rede e drenagem: planta e perfil; edificação: arquitetura, forma, armadura, fundação)",
+    "estado": "premissa",
+    "data_referencia": "2026-10",
+    "observacoes": "Documento esperado = o que um sistema da tipologia precisa ter na pasta do projeto para ser orçado e executado. `termos` são regex sobre o texto sem acento, em maiúsculas (nome, pasta e título do carimbo); o arquivo só conta para o sistema se também casa as `chaves` de unidades_construtivas.json (e não casa `exclui`). Uma planta e perfil única satisfaz planta e perfil. Todas as tipologias de construcao_civil.json têm entrada; `geral` fica sem exigência (lista vazia) porque reúne obras sem desenho próprio. O termo PERFIL também casa 'perfil de sondagem' (aceito: a chave do sistema já restringe o arquivo). Ausência só vale como afirmação quando a listagem inteira foi conferida (inventario.procurar); 'fora do disco' = existe, não foi lido. Fronteira de palavra = sem letra colada (lookaround), não \\b: nomes de desenho colam letra e número (MOD01FORMA), e INFORMACOES não pode casar FORMA."
+  },
+  "tipologias": {
+    "estrutura_concreto": {
+      "estado": "premissa",
+      "fonte": "Relação de Desenhos PBES: locação e cargas, forma, armadura e fundação de cada módulo de concreto",
+      "documentos": [
+        {
+          "id": "forma",
+          "nome": "Forma",
+          "termos": "(?<![A-Z])FORMAS?(?![A-Z])"
+        },
+        {
+          "id": "armadura",
+          "nome": "Armadura",
+          "termos": "(?<![A-Z])ARMAD[A-Z]*|(?<![A-Z])ARMACAO(?![A-Z])"
+        },
+        {
+          "id": "locacao_cargas",
+          "nome": "Locação e cargas",
+          "termos": "(?<![A-Z])LOCACAO(?![A-Z])|(?<![A-Z])CARGAS?(?![A-Z])"
+        },
+        {
+          "id": "fundacao",
+          "nome": "Fundação",
+          "termos": "(?<![A-Z])FUNDACAO(?![A-Z])|(?<![A-Z])FUNDACOES(?![A-Z])|(?<![A-Z])ESTACAS?(?![A-Z])"
+        }
+      ]
+    },
+    "bloco_concreto": {
+      "estado": "premissa",
+      "fonte": "Relação de Desenhos PBES, BLO01: forma e armadura (a locação vem da planta geral)",
+      "documentos": [
+        {
+          "id": "forma",
+          "nome": "Forma",
+          "termos": "(?<![A-Z])FORMAS?(?![A-Z])"
+        },
+        {
+          "id": "armadura",
+          "nome": "Armadura",
+          "termos": "(?<![A-Z])ARMAD[A-Z]*|(?<![A-Z])ARMACAO(?![A-Z])"
+        }
+      ]
+    },
+    "edificacao": {
+      "estado": "premissa",
+      "fonte": "Descritivo Técnico 3.1 e 3.2; PBES POR01, DEP01, ETL01: arquitetura, estrutura (forma, armadura) e fundação; convenção do Caio",
+      "documentos": [
+        {
+          "id": "arquitetura",
+          "nome": "Arquitetura (planta)",
+          "termos": "(?<![A-Z])ARQUITET[A-Z]*|(?<![A-Z])PLANTA(?![A-Z])|(?<![A-Z])FACHADAS?(?![A-Z])"
+        },
+        {
+          "id": "forma",
+          "nome": "Forma",
+          "termos": "(?<![A-Z])FORMAS?(?![A-Z])"
+        },
+        {
+          "id": "armadura",
+          "nome": "Armadura",
+          "termos": "(?<![A-Z])ARMAD[A-Z]*|(?<![A-Z])ARMACAO(?![A-Z])"
+        },
+        {
+          "id": "fundacao",
+          "nome": "Fundação",
+          "termos": "(?<![A-Z])FUNDACAO(?![A-Z])|(?<![A-Z])FUNDACOES(?![A-Z])|(?<![A-Z])ESTACAS?(?![A-Z])"
+        }
+      ]
+    },
+    "geral": {
+      "estado": "premissa",
+      "fonte": "obras gerais sem desenho próprio por sistema: sem exigência (convenção do Caio)",
+      "documentos": []
+    },
+    "rede": {
+      "estado": "premissa",
+      "fonte": "obra linear: planta e perfil da tubulação (convenção do Caio; MOS Sanepar para a vala)",
+      "documentos": [
+        {
+          "id": "planta",
+          "nome": "Planta",
+          "termos": "(?<![A-Z])PLANTA(?![A-Z])"
+        },
+        {
+          "id": "perfil",
+          "nome": "Perfil",
+          "termos": "(?<![A-Z])PERFIL(?![A-Z])|(?<![A-Z])PERFIS(?![A-Z])"
+        }
+      ]
+    },
+    "rede_eta": {
+      "estado": "premissa",
+      "fonte": "tubulação dentro da ETA: planta e perfil (convenção do Caio)",
+      "documentos": [
+        {
+          "id": "planta",
+          "nome": "Planta",
+          "termos": "(?<![A-Z])PLANTA(?![A-Z])"
+        },
+        {
+          "id": "perfil",
+          "nome": "Perfil",
+          "termos": "(?<![A-Z])PERFIL(?![A-Z])|(?<![A-Z])PERFIS(?![A-Z])"
+        }
+      ]
+    },
+    "drenagem": {
+      "estado": "premissa",
+      "fonte": "drenagem: planta e perfil da rede (convenção do Caio)",
+      "documentos": [
+        {
+          "id": "planta",
+          "nome": "Planta",
+          "termos": "(?<![A-Z])PLANTA(?![A-Z])"
+        },
+        {
+          "id": "perfil",
+          "nome": "Perfil",
+          "termos": "(?<![A-Z])PERFIL(?![A-Z])|(?<![A-Z])PERFIS(?![A-Z])"
+        }
+      ]
+    }
+  }
+}

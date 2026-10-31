@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.22.0 — 2026-10-31 · Rodada 20, PR 2: releitura, PDF inteiro, papel por pasta e esperado × encontrado
+- **Releitura sem o cache travar** (`inventario.py`): `LEITURA_VERSAO` na assinatura, `reler` força a leitura e erro
+  é relido em toda rodada. O resultado dos degraus e da IA fica em `saida/<obra>/complementos.json`, com executor e
+  tentativas, mesclado por `extracao.pendencias` (o cache guarda só a leitura básica).
+- **PDF lido inteiro**: `texto` pela fração de páginas com texto (até 20), carimbo de cada página e `reler_carimbo`
+  em 300 dpi como degrau alternativo.
+- **Papel por pasta e esperado × encontrado** (`extracao.papel`, `extracao.esperado_x_encontrado`,
+  `conceitos/documentos_esperados.json`): cada sistema confere os documentos que a tipologia exige (forma, armadura,
+  locação e cargas, fundação; planta e perfil nas redes). Vai para `pendencias.json` (`esperado`, `por_papel`).
+- **Custo dos agentes** (`pdca/agentes.jsonl`, resumo por modelo em `scripts/determinismo.py`) e a **proposta do
+  observatório entre repositórios** (`docs/ARQUITETURA.md` §11).
+- PDCA: implementado por três Sonnet (dois em paralelo, um na revisão), julgado pelo Fable. E1 e E3 foram devolvidas
+  uma vez e aceitas na revisão. A aferição deixou de varrer `.claude/` (os worktrees dos agentes duplicavam o código).
+
 ## 0.21.0 — 2026-10-30 · Arquitetura R7: ciclo de extração, fontes de evidência e geotecnia separada
 - **Reavaliação do inventário a cada build** (`camadas/extracao.py`, `conceitos/fontes.json`): classe da fonte de
   cada arquivo (projeto, memorial, laudo, lista, edital, planilha, folha de dados, documento de obra, cotação fora do

@@ -54,6 +54,21 @@ def conferir_licoes(licoes, raiz=RAIZ):
     return erros
 
 
+def custo_agentes(raiz=RAIZ):
+    """Tokens por modelo a partir de pdca/agentes.jsonl: quanto cada degrau da escada custa, para gastar o modelo
+    grande só onde ele decide. Linha sem medição (sessão reiniciada) conta à parte, não como zero."""
+    caminho = raiz / 'pdca' / 'agentes.jsonl'
+    linhas = [json.loads(l) for l in caminho.read_text(encoding='utf-8').splitlines() if l.strip()] \
+        if caminho.exists() else []
+    por_modelo = {}
+    for l in linhas:
+        m = por_modelo.setdefault(l['modelo'], {'chamadas': 0, 'tokens': 0, 'sem_medicao': 0})
+        m['chamadas'] += 1
+        m['tokens'] += l['tokens'] or 0
+        m['sem_medicao'] += l['tokens'] is None
+    return por_modelo
+
+
 def tendencia(atual, meta):
     """Rodadas até a meta no passo combinado (+5 p.p. por rodada), a partir do índice atual."""
     alvo, passo = meta['indice_etapas']['alvo'], meta['indice_etapas']['passo_por_rodada']
@@ -78,6 +93,7 @@ def medir(raiz=RAIZ, registrar=False):
               'licoes': len(licoes),
               'licoes_com_teste': sum(1 for l in licoes if l['estado'] == 'formalizada' and l.get('teste'))}
     medida['tendencia'] = tendencia(medida['indice_etapas'], base['meta'])
+    medida['agentes'] = custo_agentes(raiz)
     motivos = julgar(medida, licoes, historico[-1] if historico else None, conferir_licoes(licoes, raiz))
     if registrar and not motivos:
         with (raiz / 'pdca' / 'determinismo.jsonl').open('a', encoding='utf-8') as arquivo:

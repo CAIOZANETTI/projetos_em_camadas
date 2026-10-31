@@ -21,6 +21,8 @@ from . import inventario, pdf_cad
 
 FONTES = json.loads((pdf_cad.CONCEITOS / "fontes.json").read_text(encoding="utf-8"))
 ESCADA = {d["situacao"]: d for d in FONTES["escada"]}
+ESPERADOS = json.loads((pdf_cad.CONCEITOS / "documentos_esperados.json").read_text(encoding="utf-8"))["tipologias"]
+SISTEMAS = json.loads((pdf_cad.CONCEITOS / "unidades_construtivas.json").read_text(encoding="utf-8"))["sistemas"]
 
 
 def classe(item: dict) -> str:
@@ -54,8 +56,19 @@ def _faltando(item: dict, exige: dict) -> list[str]:
     return faltam
 
 
-def avaliar(item: dict) -> dict:
-    """Estado da extração do arquivo e a situação que decide o próximo passe da escada."""
+def papel(item: dict, pastas: dict | None) -> str | None:
+    """Papel da pasta raiz do arquivo (licitacao, orcamento, obra, referencia) pelo prefixo MAIS LONGO de
+    `pasta_drive`, sem acento e sem caixa: '01. RECEBIDOS/ORDENS' vale mais que '01. RECEBIDOS'. O prefixo só casa
+    em limite de pasta ('01. REC' não casa '01. RECEBIDOS'); prefixo vazio casa qualquer pasta e perde para qualquer prefixo mais longo. Sem casar, None: a pasta não tem papel declarado."""
+    pasta = inventario.normalizar(item.get("pasta_drive") or "").strip("/")
+    achados = [(len(chave), valor) for prefixo, valor in (pastas or {}).items()
+               for chave in [inventario.normalizar(prefixo).strip("/")]
+               if not chave or pasta == chave or pasta.startswith(chave + "/")]
+    return max(achados)[1] if achados else None
+
+
+def avaliar(item: dict, pastas: dict | None = None) -> dict:
+    """Estado da extração do arquivo e a situação que decide o próximo passe da escada; `pastas` acrescenta o papel."""
     cl = next(c for c in FONTES["classes"] if c["id"] == classe(item))
     if not item["situacao"].startswith("no disco"):
         estado, situacao, faltam = "fora do disco", "fora do disco", []
@@ -77,7 +90,8 @@ def avaliar(item: dict) -> dict:
     passo = ESCADA.get(situacao) if situacao else None
     return {"arquivo": item["arquivo"], "pasta_drive": item.get("pasta_drive"), "id_drive": item.get("id_drive"),
             "classe": cl["id"], "fora_do_escopo": cl.get("fora_do_escopo"), "estado": estado, "faltando": faltam,
-            "situacao": situacao, "proximo": passo and passo["proximo"], "acao": passo and passo["acao"]}
+            "situacao": situacao, "proximo": passo and passo["proximo"], "acao": passo and passo["acao"],
+            **({"papel": papel(item, pastas)} if pastas is not None else {})}
 
 
 def series(itens: list) -> list[dict]:
@@ -100,9 +114,46 @@ def series(itens: list) -> list[dict]:
             for (p, d, u, m), ns in sorted(grupos.items(), key=str) if len(ns) < m]
 
 
-def pendencias(inv: dict) -> dict:
-    """A lista que abre cada rodada: tudo que não está completo, com o próximo passe, e as séries incompletas."""
-    av = [avaliar(i) for i in inv["itens"]]
+def ler_complementos(caminho: str | Path) -> dict:
+    """`complementos.json` da obra: {"<pasta_drive>/<arquivo>": {campos, executor, degrau, tentativas}}; vazio se não existe."""
+    caminho = Path(caminho)
+    return json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {}
+
+
+def _mesclar(base: dict, campos: dict) -> dict:
+    """Cópia de `base` com `campos` por cima; dict dentro de dict (carimbo.escala) é mesclado, não substituído."""
+    novo = dict(base)
+    for k, v in campos.items():
+        novo[k] = _mesclar(novo[k], v) if isinstance(v, dict) and isinstance(novo.get(k), dict) else v
+    return novo
+
+
+def gravar_complemento(caminho: str | Path, item: dict, campos: dict, executor: str, degrau: str) -> dict:
+    """Acrescenta/atualiza a entrada do item em `complementos.json`: mescla `campos`, soma 1 em `tentativas[degrau]` e
+    guarda `executor` e `degrau` da última vez. O cache do inventário não é tocado. Devolve a entrada gravada."""
+    caminho = Path(caminho)
+    todos = ler_complementos(caminho)
+    chave = f"{item.get('pasta_drive')}/{item['arquivo']}"
+    antigo = todos.get(chave, {})
+    tentativas = {**antigo.get("tentativas", {})}
+    tentativas[degrau] = tentativas.get(degrau, 0) + 1
+    todos[chave] = {"campos": _mesclar(antigo.get("campos", {}), campos), "executor": executor, "degrau": degrau,
+                    "tentativas": tentativas}
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text(json.dumps(todos, ensure_ascii=False, indent=1), encoding="utf-8")
+    return todos[chave]
+
+
+def pendencias(inv: dict, pastas: dict | None = None, complementos: dict | None = None) -> dict:
+    """A lista que abre cada rodada: tudo que não está completo, com o próximo passe, e as séries incompletas;
+    com `pastas`, conta também os arquivos por papel; com `complementos` (`ler_complementos`), cada item recebe os
+    campos já complementados antes de avaliar e a avaliação traz `complementado_por`."""
+    complementos = complementos or {}
+    itens, av = [], []
+    for i in inv["itens"]:
+        c = complementos.get(f"{i.get('pasta_drive')}/{i['arquivo']}")
+        itens.append(_mesclar(i, c["campos"]) if c else i)
+        av.append({**avaliar(itens[-1], pastas), **({"complementado_por": c["executor"]} if c else {})})
     abertas = [a for a in av if a["estado"] != "completa" and not a["fora_do_escopo"]]
     fora_do_escopo = [{k: a[k] for k in ("arquivo", "pasta_drive", "classe", "fora_do_escopo")} for a in av
                       if a["fora_do_escopo"]]
@@ -113,9 +164,51 @@ def pendencias(inv: dict) -> dict:
     por_classe = {}
     for a in av:
         por_classe[a["classe"]] = por_classe.get(a["classe"], 0) + 1
-    return {"avaliacoes": av, "pendencias": abertas, "fora_do_escopo": fora_do_escopo, "series": series(inv["itens"]),
+    por_papel = {}
+    for a in av if pastas is not None else []:
+        rotulo = a["papel"] or "sem papel"
+        por_papel[rotulo] = por_papel.get(rotulo, 0) + 1
+    return {"avaliacoes": av, "pendencias": abertas, "fora_do_escopo": fora_do_escopo, "series": series(itens),
             "por_estado": contagem, "por_classe": por_classe,
+            **({"por_papel": por_papel} if pastas is not None else {}),
             "fracao_completa": round(sum(a["estado"] == "completa" for a in no_escopo) / max(len(no_escopo), 1), 3)}
+
+
+def _texto(item: dict) -> str:
+    """O que `inventario.procurar` olha em cada arquivo: pasta, nome e título do carimbo, sem acento."""
+    return inventario.normalizar(f"{item['pasta_drive']} {item['arquivo']} {(item.get('carimbo') or {}).get('titulo') or ''}")
+
+
+def _do_sistema(item: dict, sistema: dict) -> bool:
+    """O arquivo pertence ao sistema: casa uma das `chaves` (o '~' inicial só marca chave fraca) e nenhum `exclui`."""
+    texto = _texto(item)
+    chaves = "|".join(f"(?:{c.lstrip('~')})" for c in sistema["chaves"])
+    exclui = "|".join(f"(?:{e})" for e in sistema.get("exclui", []))
+    return bool(re.search(chaves, texto, re.IGNORECASE)) and not (exclui and re.search(exclui, texto, re.IGNORECASE))
+
+
+def _situacao_do_documento(achados: list, doc: dict, listagem: dict) -> tuple[str, str]:
+    """no disco | fora do disco | não achado, e a resposta que cita a listagem inteira (como `procurar`)."""
+    if not achados:
+        return "não achado", (f"nenhum dos {len(listagem['itens'])} arquivos da listagem ({listagem['fonte']}) casa "
+                              f"com o sistema e '{doc['termos']}': ausência conferida na listagem inteira")
+    if any(i["situacao"].startswith("no disco") for i in achados):
+        return "no disco", f"{len(achados)} arquivo(s) casam"
+    return "fora do disco", f"{len(achados)} arquivo(s) casam, todos fora do disco: existem, não foram lidos"
+
+
+def esperado_x_encontrado(inv: dict, sistemas: dict | None = None) -> list[dict]:
+    """Para cada sistema e cada documento que a tipologia exige (`documentos_esperados.json`), o que a listagem
+    inteira tem: arquivos do sistema (chaves) que também casam os termos do documento. Uma linha por par."""
+    linhas = []
+    for chave, sis in (SISTEMAS if sistemas is None else sistemas).items():
+        do_sistema = [i for i in inv["itens"] if _do_sistema(i, sis)]
+        for doc in ESPERADOS.get(sis["tipologia"], {}).get("documentos", []):
+            achados = [i for i in do_sistema if re.search(doc["termos"], _texto(i), re.IGNORECASE)]
+            situacao, resposta = _situacao_do_documento(achados, doc, inv)
+            linhas.append({"sistema": chave, "nome": sis["nome"], "tipologia": sis["tipologia"], "documento": doc["id"],
+                           "situacao": situacao, "arquivos": [i["arquivo"] for i in achados], "resposta": resposta})
+    return linhas
 
 
 def registrar(avaliacoes: list, caminho: Path, passe: str, executor: str = "código") -> int:
@@ -142,7 +235,16 @@ def metadados() -> dict:
     """Rastreabilidade das regras da reavaliação (regra 9 do estilo)."""
     return {"modulo": "extracao",
             "descricao": "classe da fonte, estado da extração, próximo passe da escada, séries de folhas e registro",
-            "funcoes": ["classe", "avaliar", "series", "pendencias", "registrar"],
+            "funcoes": ["classe", "papel", "avaliar", "series", "ler_complementos", "gravar_complemento", "pendencias", "esperado_x_encontrado", "registrar"],
             "premissas": [{"aplicacao": {"classe": ["conceitos/fontes.json classes"], "avaliar": ["satisfatoria", "escada"]},
-                           "fonte": FONTES["metadata"]["fonte"]}],
+                           "fonte": FONTES["metadata"]["fonte"]},
+                          {"aplicacao": {"esperado_x_encontrado": ["conceitos/documentos_esperados.json tipologias",
+                                                                    "conceitos/unidades_construtivas.json chaves, exclui"]},
+                           "fonte": "documentos_esperados.json (estado premissa)"},
+                          {"aplicacao": {"ler_complementos": ["saida/<obra>/complementos.json"],
+                                         "gravar_complemento": ["tentativas por degrau", "campos aninhados mesclados"],
+                                         "pendencias": ["complementos mesclados sobre o item antes de avaliar"]},
+                           "fonte": "plano rodada 20, E1 (o cache guarda só a leitura básica)"},
+                          {"aplicacao": {"papel": ["obra.json inventario.pastas: prefixo de pasta mais longo"]},
+                           "fonte": "convenção do Caio (docs/ARQUITETURA.md §2)"}],
             "ultima_revisao": "2026-10-30"}
