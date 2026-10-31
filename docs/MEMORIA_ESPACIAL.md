@@ -1,6 +1,7 @@
-# Memória espacial: de-para do documento à EAP (v0.2, 31/10/2026)
+# Memória espacial: de-para do documento à EAP (v0.3, 31/10/2026)
 
-Status: arquitetura conceitual do MVP. Complementa `docs/ARQUITETURA.md` sem substituí-lo.
+Status: MVP em código (0.24.0): `conceitos/gavetas.json`, os três `conceitos/de_para_*.json` e `camadas/gavetas.py`.
+Complementa `docs/ARQUITETURA.md` sem substituí-lo.
 
 ## 1. A ideia em uma frase
 
@@ -28,9 +29,9 @@ de cada etapa: um agente ou um leitor em código só pode gravar numa gaveta que
 
 | De-para | De | Para | Onde mora (proposta) |
 |---|---|---|---|
-| 1 | classe de documento + elemento lido (ex.: prancha de perfil → tubo, cota de geratriz, estaca) | gaveta da base (tabela + campos obrigatórios) | `conceitos/de_para_extracao.json` |
-| 2 | gavetas necessárias (tubo + terreno + solo + NA + pavimento) | regra de serviço (vala, escoramento, reaterro…) | `conceitos/de_para_servicos.json`, usando `valas.json`, `obras_lineares.json` |
-| 3 | serviço calculado | nó da EAP (código, unidade de medida) | `conceitos/de_para_eap.json` |
+| 1 | classe de documento + elemento lido (ex.: prancha de perfil → tubo, cota de geratriz, estaca) | gaveta da base (tabela + campos obrigatórios) | `conceitos/de_para_extracao.json` (feito) |
+| 2 | gavetas necessárias (tubo + terreno + solo + NA + pavimento) | regra de serviço (vala, escoramento, reaterro…) | `conceitos/de_para_servicos.json` (feito), usando `obras_lineares.json` |
+| 3 | serviço calculado | nó da EAP (código, unidade de medida) | `conceitos/de_para_eap.json` (feito, códigos provisórios) |
 
 Regras:
 - **O que não tem gaveta vira pendência**, não texto solto. Uma gaveta nova é decisão de arquitetura (Opus/Caio),
@@ -42,8 +43,34 @@ Regras:
 
 ## 3. Etapa 1: extrair e guardar
 
-O ciclo já existente (inventário → extração → reavaliação → escada) continua igual. Muda o destino: cada fato sai
-do leitor direto para a sua gaveta.
+### 3.0 Inventário primeiro, em loop, e escada de executores
+
+Para não haver alucinação, nada é lido antes do **inventário de todos os documentos**, e a extração é um **loop
+sobre o inventário**, nunca uma leitura livre. A IA aciona o código Python, que percorre os arquivos; ela só entra
+onde o código não resolveu. O ciclo já existe (`ARQUITETURA.md` §2, `camadas/inventario.py`, `camadas/extracao.py`,
+`camadas/escada.py`); muda o destino: cada fato sai do leitor direto para a sua gaveta.
+
+```
+inventário ─► loop nos arquivos ─► leitor em código ─► gaveta ─► reavaliação ─► completo? ─ não ─► próximo degrau
+                    ▲                                                                                  │
+                    └──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+A escada sobe por **complexidade do documento** ou por **ineficiência do código** (o leitor tentou e não extraiu):
+
+| Degrau | Quem | Quando |
+|---|---|---|
+| 1 | código Python | sempre primeiro: leitor da classe, releitura, OCR em 300 dpi, extrair o zip |
+| 2 | Haiku | arquivos simples e trabalho braçal: dizer a classe, ler um carimbo recortado, conferir contagens |
+| 3 | Sonnet | leitura técnica: arquivo sem leitor, laudo, memorial, lista, prancha escaneada (com citação) |
+| 4 | Opus | conflito entre fontes, georreferência difícil, julgamento; o que for regra vira `conceitos/` |
+| 5 | Fable | verificação independente: audita uma amostra e as pendências sem ver a conclusão de quem extraiu |
+| 6 | você | arquivo privado, decisão de engenharia, regra nova |
+
+Os degraus e o `max_tentativas` de cada um estão em `conceitos/fontes.json` (`escada`). Cada agente só devolve as
+propriedades que o de-para 1 lista para aquele documento, e o retorno é conferido em código
+(`extracao.aplicar_retornos`: o trecho citado precisa estar na página). Toda evidência grava o `executor`, então se
+sabe o que saiu por código e o que precisou de IA.
 
 ### 3.1 Gavetas da base (esquema mínimo)
 
@@ -54,9 +81,26 @@ do leitor direto para a sua gaveta.
 | `fatos` | uma propriedade de um objeto | `objeto_id`, `propriedade`, `valor`, `unidade`, `natureza` (observado, projetado, inferido, decidido) |
 | `evidencias` | de onde o fato veio | formato do `ARQUITETURA.md` §3: classe, documento, revisão, localizador (página, bbox, layer, ids), trecho literal, método, passe, executor |
 | `pendencias` | o que faltou ou conflitou | gaveta, objeto, motivo, próximo passe da escada |
+| `servicos` | uma quantidade calculada (Etapa 2) | objeto, regra, versão da regra, saída, valor, unidade, `fatos` usados |
 
 A identidade (`objeto_id`) é separada do endereço espacial. Um objeto pode ocupar vários trechos ou células; um
 trecho pode conter vários objetos.
+
+### 3.1.1 Tipo da gaveta (formato físico): experimento, não decisão
+
+O contrato das gavetas é **lógico** (nomes, campos, valores permitidos em `conceitos/gavetas.json`). O formato do
+arquivo é testado e escolhido por métrica, da forma mais determinística possível (experimento G05 nos 5 km e G08 na
+carga sintética de 100 km):
+
+| Candidato | Situação |
+|---|---|
+| JSONL | atual do MVP: legível, diff no git, mesmo estilo de `extracao.jsonl` |
+| CSV | implementado; listas e dicionários vão em JSON na célula (ida e volta conferida em teste) |
+| Parquet / GeoParquet, DuckDB, SQLite/SpatiaLite, PostGIS | candidatos, a implementar quando o teste pedir |
+
+Métricas: ida e volta sem perda, tamanho em disco, tempo de gravação e leitura, p50/p95 de consulta por objeto e por
+trecho, RAM máxima, auditabilidade e dependências extras. `gavetas.gravar` e `gavetas.ler` são o único ponto que
+conhece o formato: trocá-lo não muda os de-para nem os cálculos.
 
 ### 3.2 Endereço espacial
 
@@ -79,7 +123,13 @@ trecho pode conter vários objetos.
 
 ## 4. Etapa 2: serviços complementares
 
-Lê só da base; nunca do documento.
+Só depois do georreferenciamento. Lê só da base, nunca do documento. Serviços do MVP: escavação, escoramento,
+reaterro, bota-fora, supressão, demolição e recomposição de pavimento (vala aberta) e caximbos (MND).
+
+**Sondagens no local.** O furo é um objeto com geometria de ponto. Cada metro do eixo do tubo pega o furo mais
+próximo dentro do raio de influência (`obras_lineares.json`), e é daí que saem o solo, a categoria de escavação, o
+NA e o esgotamento. O trecho fora do raio de qualquer furo vira pendência. O fato do furo usado entra na memória de
+cálculo do serviço.
 
 1. O engenheiro escolhe ou confirma o método executivo por trecho (decisão no formato do `ARQUITETURA.md` §6).
 2. O de-para 2 seleciona a regra e os fatos de que ela depende.
@@ -89,6 +139,10 @@ Lê só da base; nunca do documento.
    regra, recalcula só o que dependia dele.
 
 A IA pode apontar requisitos ou alternativas, mas não cria medida nem substitui o cálculo.
+
+**Memória de cálculo lastreada.** Cada serviço (`gavetas.calcular`) grava a regra, a versão da regra e os
+`fato_id` de que depende (do tubo e dos furos); cada fato aponta para a evidência e a evidência para o documento,
+a página e o recorte. A mesma base com a mesma versão das regras dá sempre a mesma EAP: a entrega é determinística.
 
 ## 5. Etapa 3: EAP e HTML
 
@@ -102,11 +156,11 @@ A IA pode apontar requisitos ou alternativas, mas não cria medida nem substitui
 
 | Passo | Entrega | Verificação |
 |---|---|---|
-| 1 | esquema das gavetas (§3.1) e os três de-para para **um** tipo de elemento: trecho de tubo de adutora | schema validado em teste com dados sintéticos |
+| 1 | esquema das gavetas (§3.1) e os três de-para para **um** tipo de elemento: trecho de tubo de adutora | **feito (0.24.0)**: `tests/test_gavetas.py` |
 | 2 | leitor atual de prancha (perfil/planta) gravando nas gavetas, com evidência | todo fato com evidência recuperável; o que não coube vira pendência |
-| 3 | vala aberta de um trecho curto calculada só a partir da base | bate com o cálculo atual de `obras_lineares.py` no mesmo trecho |
+| 3 | vala aberta de um trecho curto calculada só a partir da base | **feito em dados sintéticos**: bate com `obras_lineares.quantificar`; falta o trecho real |
 | 4 | serviços pendurados na EAP e mostrados no HTML com o caminho até a prancha | clique na quantidade chega ao recorte da prancha |
-| 5 | trocar o método do trecho (vala → MND) sem reler a prancha | só os serviços do trecho mudam |
+| 5 | trocar o método do trecho (vala → MND) sem reler a prancha | **feito em dados sintéticos**: a decisão MND troca a regra sem reler documento |
 
 Persistência no MVP: JSONL por gaveta em `saida/<obra>/base/`, no mesmo estilo de `extracao.jsonl` (dict puro,
 reprodutível, fácil de auditar). GeoParquet/DuckDB ou PostGIS só depois de medir volume e consulta na adutora de

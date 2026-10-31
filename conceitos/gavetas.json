@@ -1,0 +1,47 @@
+{
+ "metadata": {
+  "fonte": "pedido do Caio (31/10/2026): cada informação extraída tem um lugar certo para ser guardada, georreferenciada e com evidência; os serviços são calculados dessa base e a entrega é a EAP (docs/MEMORIA_ESPACIAL.md)",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Contrato LÓGICO das gavetas: nomes, campos obrigatórios e valores permitidos. O formato físico (JSONL, CSV, Parquet…) é experimento (G05): o mesmo contrato vale para qualquer formato, e `camadas.gavetas` grava e lê pelos formatos de `formato.implementados`. Um fato só entra se a propriedade estiver em `propriedades` e se apontar para uma evidência existente; o que não cabe vira pendência."
+ },
+ "formato": {
+  "atual": "jsonl",
+  "estado": "premissa",
+  "implementados": ["jsonl", "csv"],
+  "candidatos": ["jsonl", "csv", "parquet", "geoparquet", "duckdb", "sqlite/spatialite", "postgis"],
+  "metricas": ["ida e volta sem perda (tipos, listas, dicionários)", "tamanho em disco por obra", "tempo de gravação e de leitura", "p50/p95 de consulta por objeto e por trecho", "RAM máxima", "legibilidade para auditoria (diff no git)", "dependências extras"],
+  "experimento": "G05 (5 km reais) e G08 (carga sintética de 100 km); a troca do formato não muda nenhum outro arquivo"
+ },
+ "naturezas": ["observado", "projetado", "inferido", "decidido"],
+ "prioridade_natureza": ["decidido", "observado", "projetado", "inferido"],
+ "executores": ["código", "Haiku", "Sonnet", "Opus", "Fable", "você"],
+ "gavetas": {
+  "objetos": {"chave": "objeto_id", "obrigatorios": ["objeto_id", "classe"],
+              "descricao": "uma coisa física: trecho de tubo, furo de sondagem, bloco, peça"},
+  "geometria": {"chave": "objeto_id", "obrigatorios": ["objeto_id", "tipo", "coords", "crs_h", "datum_v"],
+                "descricao": "forma do objeto em SIRGAS 2000/UTM; obra linear também com eixo_id e progressivas"},
+  "fatos": {"chave": "fato_id", "obrigatorios": ["fato_id", "objeto_id", "propriedade", "valor", "natureza", "evidencia_id"],
+            "descricao": "uma propriedade de um objeto, com a unidade de `propriedades`"},
+  "evidencias": {"chave": "evidencia_id", "obrigatorios": ["evidencia_id", "classe", "documento", "localizador", "metodo", "executor"],
+                 "descricao": "de onde o fato veio (ARQUITETURA.md §3): classe da fonte, documento, revisão, localizador, trecho, método, passe, executor"},
+  "pendencias": {"chave": null, "obrigatorios": ["objeto_id", "motivo"],
+                 "descricao": "o que faltou ou não coube; volta para a escada (conceitos/fontes.json)"},
+  "servicos": {"chave": "servico_id", "obrigatorios": ["servico_id", "objeto_id", "regra", "versao_regra", "saida", "valor", "unidade", "fatos"],
+               "descricao": "quantidade calculada, com os fatos e a versão da regra de que depende (memória de cálculo)"}
+ },
+ "tipos_geometria": ["ponto", "linha", "poligono"],
+ "propriedades": {
+  "dn_mm": {"unidade": "mm", "tipo": "numero"},
+  "material": {"unidade": null, "tipo": "texto"},
+  "junta": {"unidade": null, "tipo": "texto"},
+  "comp_m": {"unidade": "m", "tipo": "numero", "obs": "verdadeira grandeza (inclinado), não comprimento na grade UTM"},
+  "prof_m": {"unidade": "m", "tipo": "numero", "obs": "profundidade média do fundo da vala em relação ao terreno"},
+  "metodo": {"unidade": null, "tipo": "texto", "obs": "VCA ou MND; normalmente natureza 'decidido'"},
+  "pavimentos": {"unidade": "m", "tipo": "dicionario", "obs": "metros de trecho em cada superfície (grama, asfalto, calçada…)"},
+  "supressao_frac": {"unidade": "fração", "tipo": "numero"},
+  "na_m": {"unidade": "m", "tipo": "numero", "obs": "profundidade do nível d'água a partir da boca do furo"},
+  "camadas": {"unidade": "m", "tipo": "lista", "obs": "[{de, ate, descricao, classe}] do perfil de sondagem"},
+  "cota_boca_m": {"unidade": "m", "tipo": "numero"}
+ }
+}

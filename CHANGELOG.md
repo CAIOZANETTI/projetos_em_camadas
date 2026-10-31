@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.24.0 — 2026-10-31 · Memória espacial: gavetas e os três de-para
+- **Gavetas** (`conceitos/gavetas.json`, `camadas/gavetas.py`): objetos, geometria, fatos, evidências, pendências e
+  serviços, com campos obrigatórios e valores permitidos. Um fato só entra com propriedade declarada, natureza
+  (observado, projetado, inferido, decidido) e evidência existente (`conferir_base`).
+- **Três de-para**: documento → gaveta (`de_para_extracao.json`), gaveta → serviço (`de_para_servicos.json`) e
+  serviço → EAP (`de_para_eap.json`); `conferir_de_para` reprova propriedade, função ou nó inexistente.
+- **Serviços só das gavetas** (`calcular`): vala aberta e MND pelo `obras_lineares.quantificar`, com a sondagem
+  colocada pela posição (furo mais próximo de cada metro do eixo, no raio de influência). Cada serviço guarda os
+  fatos e a versão da regra (memória de cálculo); fato obrigatório faltando vira pendência e nenhum serviço. A decisão
+  do método troca a regra sem reler documento.
+- **EAP lastreada** (`para_eap`): soma por nó com os serviços e objetos que a sustentam.
+- **Formato físico como experimento**: JSONL (atual) e CSV com ida e volta sem perda; Parquet, DuckDB e os demais
+  candidatos ficam para G05/G08, com as métricas listadas em `gavetas.json`.
+- `docs/MEMORIA_ESPACIAL.md` v0.3: formato das gavetas, inventário e escada de executores, sondagens e memória de
+  cálculo. Lição L016.
+
 ## 0.23.0 — 2026-10-31 · Rodada 20, PR 3: o loop de extração fecha sozinho
 - **Executor da escada** (`camadas/escada.py`, `python -m camadas.escada <obra.json>`): cada pendência sobe pelos
   `degraus` de `conceitos/fontes.json` (código: baixar, reler, carimbo em 300 dpi, extrair o zip; depois Haiku, Sonnet,

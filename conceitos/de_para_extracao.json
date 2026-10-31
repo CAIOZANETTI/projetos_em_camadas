@@ -1,0 +1,23 @@
+{
+ "metadata": {
+  "fonte": "de-para 1 de docs/MEMORIA_ESPACIAL.md: documento → gaveta",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Para cada classe de fonte (conceitos/fontes.json) e elemento lido: a classe do objeto, as propriedades que a leitura pode gravar e o leitor. O primeiro executor é sempre código; o que o código não lê sobe pela escada de fontes.json (Haiku → Sonnet → Opus → você) e o Fable audita o fechamento. Um agente só devolve as propriedades listadas aqui. MVP: trecho de tubo de adutora e furo de sondagem."
+ },
+ "entradas": [
+  {"classe_fonte": "projeto", "vista": "planta", "objeto": "trecho_tubo", "geometria": "linha",
+   "propriedades": ["dn_mm", "material"], "leitor": "camadas.pdf_cad + camadas.georef_prancha", "estado": "a ligar"},
+  {"classe_fonte": "projeto", "vista": "perfil", "objeto": "trecho_tubo", "geometria": null,
+   "propriedades": ["prof_m", "comp_m", "dn_mm", "material"], "leitor": "camadas.prancha (perfil)", "estado": "a implementar"},
+  {"classe_fonte": "planilha", "vista": "aba Obras Lineares", "objeto": "trecho_tubo", "geometria": null,
+   "propriedades": ["dn_mm", "material", "junta", "prof_m", "comp_m", "pavimentos", "supressao_frac"],
+   "leitor": "camadas.obras_lineares.ler_obras_lineares", "estado": "a ligar"},
+  {"classe_fonte": "laudo", "vista": "sondagem SPT", "objeto": "furo_sondagem", "geometria": "ponto",
+   "propriedades": ["na_m", "camadas", "cota_boca_m"], "leitor": "camadas.obras_lineares.ler_furos (módulo geotecnia a fazer)", "estado": "a ligar"},
+  {"classe_fonte": "ortofoto", "vista": "mosaico do drone", "objeto": "trecho_tubo", "geometria": null,
+   "propriedades": ["pavimentos", "supressao_frac"], "leitor": "camadas.obras_lineares.pavimentos_ortofoto, camadas.supressao", "estado": "a ligar"},
+  {"classe_fonte": "decisao", "vista": "decisão do engenheiro", "objeto": "trecho_tubo", "geometria": null,
+   "propriedades": ["metodo"], "leitor": "bloco de decisões do HTML (ARQUITETURA.md §6)", "estado": "a ligar"}
+ ]
+}
