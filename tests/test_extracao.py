@@ -174,3 +174,105 @@ def test_complemento_completa_o_item_e_sobrevive_a_nova_volta(tmp_path):
         assert p["avaliacoes"][0]["estado"] == "completa" and p["avaliacoes"][0]["complementado_por"] == "Sonnet"
     assert inv["itens"][0]["carimbo"] == {"titulo": "LAYOUT"}   # o item do inventário não é alterado
     assert "extracao.jsonl" not in [x.name for x in tmp_path.rglob("*")]
+
+
+# ---- E5: retorno da IA no registro -------------------------------------------------------------------------
+def _pdf(caminho, texto):
+    import pymupdf
+    doc = pymupdf.open()
+    pagina = doc.new_page()
+    if texto:
+        pagina.insert_text((72, 72), texto)
+    doc.save(str(caminho))
+    return str(caminho)
+
+
+def _retornar(out, *linhas, nome="sonnet.jsonl"):
+    (out / "retornos").mkdir(parents=True, exist_ok=True)
+    (out / "retornos" / nome).write_text("\n".join(json.dumps(l, ensure_ascii=False) for l in linhas), encoding="utf-8")
+
+
+def _projeto_parcial(tmp_path, texto="ESCALA 1:100 - LAYOUT GERAL"):
+    nome = "004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES-R5.pdf"
+    return _item(nome, leitor="ler_pdf", texto="sim", carimbo={"titulo": "LAYOUT", "folha": "01/01"},
+                 caminho=_pdf(tmp_path / "p.pdf", texto))
+
+
+def _linha(item, campos=None, trecho="escala 1:100", executor="Sonnet", pagina=1):
+    return {"arquivo": item["arquivo"], "pasta_drive": item["pasta_drive"], "executor": executor,
+            "campos": campos or {"carimbo.escala": "1:100"}, "citacao": {"pagina": pagina, "trecho": trecho}}
+
+
+def _complementos(tmp_path):
+    return extracao.ler_complementos(tmp_path / "complementos.json")
+
+
+def test_retorno_com_trecho_certo_completa_o_item(tmp_path):
+    item = _projeto_parcial(tmp_path)
+    inv = _inv(item)
+    assert extracao.pendencias(inv)["avaliacoes"][0]["estado"] == "parcial"
+    _retornar(tmp_path, _linha(item))
+    rel = extracao.aplicar_retornos(tmp_path, inv)
+    assert rel["aceitos"] == 1 and rel["recusados"] == [] and rel["ignorados"] == []
+    a = extracao.pendencias(inv, complementos=_complementos(tmp_path))["avaliacoes"][0]
+    assert (a["estado"], a["complementado_por"]) == ("completa", "Sonnet")
+
+
+def test_trecho_errado_e_arquivo_fora_do_inventario_sao_recusados(tmp_path):
+    item = _projeto_parcial(tmp_path)
+    _retornar(tmp_path, _linha(item, trecho="escala 1:500"), {**_linha(item), "arquivo": "outro.pdf"})
+    rel = extracao.aplicar_retornos(tmp_path, _inv(item))
+    assert rel["aceitos"] == 0
+    assert [r["motivo"] for r in rel["recusados"]] == ["trecho não está na página 1", "arquivo fora do inventário"]
+    assert not (tmp_path / "complementos.json").exists()
+
+
+def test_campo_fora_do_retorno_da_classe_e_ignorado_e_anotado(tmp_path):
+    item = _projeto_parcial(tmp_path)
+    _retornar(tmp_path, _linha(item, {"carimbo.escala": "1:100", "furos": 3}))
+    rel = extracao.aplicar_retornos(tmp_path, _inv(item))
+    assert rel["aceitos"] == 1 and rel["ignorados"] == [{"arquivo": item["arquivo"], "campo": "furos"}]
+    campos = _complementos(tmp_path)[f"{item['pasta_drive']}/{item['arquivo']}"]["campos"]
+    assert campos == {"carimbo": {"escala": "1:100"}}
+
+
+def test_pagina_sem_texto_aceita_sem_conferir(tmp_path):
+    img = _item("Relatorio sondagem.pdf", leitor="ler_pdf", texto="pouco ou nenhum (traço/SHX ou imagem)",
+                caminho=_pdf(tmp_path / "i.pdf", ""))
+    _retornar(tmp_path, _linha(img, {"texto": "SP-01 areia", "furos": 1}, trecho="areia"))
+    rel = extracao.aplicar_retornos(tmp_path, _inv(img))
+    assert rel["aceitos"] == 1 and rel["citacoes"][0]["citacao"] == "não conferível (imagem ou sem texto)"
+    a = extracao.pendencias(_inv(img), complementos=_complementos(tmp_path))["avaliacoes"][0]
+    assert a["estado"] == "completa" and a["complementado_por"] == "Sonnet"
+
+
+def test_docx_sem_leitor_completa_com_o_texto_do_retorno(tmp_path):
+    docx = _item("Memorial descritivo.docx", leitor=None)
+    inv = _inv(docx)
+    assert extracao.avaliar(docx)["estado"] == "sem leitor"
+    _retornar(tmp_path, _linha(docx, {"texto": "O memorial descreve a ETA."}, trecho="descreve"))
+    assert extracao.aplicar_retornos(tmp_path, inv)["aceitos"] == 1
+    a = extracao.pendencias(inv, complementos=_complementos(tmp_path))["avaliacoes"][0]
+    assert (a["estado"], a["complementado_por"]) == ("completa", "Sonnet")
+
+
+def test_mesmo_arquivo_de_retornos_duas_vezes_nao_duplica_tentativas(tmp_path):
+    item = _projeto_parcial(tmp_path)
+    inv = _inv(item)
+    _retornar(tmp_path, _linha(item))
+    assert extracao.aplicar_retornos(tmp_path, inv)["aceitos"] == 1
+    assert extracao.aplicar_retornos(tmp_path, inv)["aceitos"] == 0
+    e = _complementos(tmp_path)[f"{item['pasta_drive']}/{item['arquivo']}"]
+    assert e["tentativas"] == {"Sonnet:retorno": 1} and len(e["retornos_aplicados"]) == 1
+
+
+def test_esperado_x_encontrado_enxerga_titulo_vindo_de_retorno(tmp_path):
+    item = _item("001-SAA-0017-8820-PBES-DE-0000X-R1.pdf", "PBES", leitor="ler_pdf", texto="sim", carimbo={},
+                 caminho=_pdf(tmp_path / "c.pdf", "MOD01 FORMA"))
+    inv = _inv(item)
+    achar = lambda itens: next(l for l in extracao.esperado_x_encontrado({"itens": itens}, _sis()) if l["documento"] == "forma")
+    assert achar(inv["itens"])["situacao"] == "não achado"
+    _retornar(tmp_path, _linha(item, {"carimbo.titulo": "MOD01 FORMA"}, trecho="mod01 forma"))
+    extracao.aplicar_retornos(tmp_path, inv)
+    p = extracao.pendencias(inv, complementos=_complementos(tmp_path))
+    assert achar(p["itens"])["situacao"] == "no disco"
