@@ -12,6 +12,7 @@ Rodar de novo é seguro e desejado: o inventário tem cache por arquivo e o regi
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import time
@@ -43,17 +44,23 @@ def classe(item: dict) -> str:
     return "outro"
 
 
-def _faltando(item: dict, exige: dict) -> list[str]:
-    """Campos exigidos pela classe que a leitura não trouxe (carimbo.titulo, texto, abas…)."""
+def _ausentes(item: dict, campos: list) -> list[str]:
+    """Campos (com ponto para o aninhado: carimbo.escala) que o item não tem; `texto` só vale com 'sim' ou com o texto
+    devolvido por retorno (qualquer coisa que não seja o aviso de pouco texto)."""
     faltam = []
-    for campo in exige.get({"ler_pdf": "pdf", "ler_planilha": "planilha", "ler_zip": "zip"}.get(item.get("leitor"), ""), []):
+    for campo in campos:
         raiz, _, sub = campo.partition(".")
         valor = (item.get(raiz) or {}).get(sub) if sub else item.get(raiz)
-        if raiz == "texto" and valor != "sim":
+        if raiz == "texto" and (not isinstance(valor, str) or valor.startswith("pouco ou nenhum")):
             valor = None
         if not valor:
             faltam.append(campo)
     return faltam
+
+
+def _faltando(item: dict, exige: dict) -> list[str]:
+    """Campos exigidos pela classe que a leitura não trouxe (carimbo.titulo, texto, abas…)."""
+    return _ausentes(item, exige.get({"ler_pdf": "pdf", "ler_planilha": "planilha", "ler_zip": "zip"}.get(item.get("leitor"), ""), []))
 
 
 def papel(item: dict, pastas: dict | None) -> str | None:
@@ -77,7 +84,12 @@ def avaliar(item: dict, pastas: dict | None = None) -> dict:
     elif cl.get("dispensa_leitura"):
         estado, situacao, faltam = "completa", None, []
     elif not item.get("leitor"):
-        estado, situacao, faltam = "sem leitor", "sem leitor", []
+        retorno = cl.get("retorno") or []          # sem leitor: só a IA completa, pelos campos de `retorno` da classe
+        faltam = _ausentes(item, retorno) if retorno else []
+        if retorno and not faltam:
+            estado, situacao = "completa", None
+        else:
+            estado, situacao, faltam = "sem leitor", "sem leitor", []
     else:
         faltam = _faltando(item, cl.get("satisfatoria", {}))
         situacao = ("sem texto" if "texto" in faltam else
@@ -128,17 +140,20 @@ def _mesclar(base: dict, campos: dict) -> dict:
     return novo
 
 
-def gravar_complemento(caminho: str | Path, item: dict, campos: dict, executor: str, degrau: str) -> dict:
+def gravar_complemento(caminho: str | Path, item: dict, campos: dict, executor: str, degrau: str,
+                       marca: str | None = None) -> dict:
     """Acrescenta/atualiza a entrada do item em `complementos.json`: mescla `campos`, soma 1 em `tentativas[degrau]` e
-    guarda `executor` e `degrau` da última vez. O cache do inventário não é tocado. Devolve a entrada gravada."""
+    guarda `executor` e `degrau` da última vez; `marca` (hash de um retorno aplicado) entra em `retornos_aplicados`.
+    O cache do inventário não é tocado. Devolve a entrada gravada."""
     caminho = Path(caminho)
     todos = ler_complementos(caminho)
     chave = f"{item.get('pasta_drive')}/{item['arquivo']}"
     antigo = todos.get(chave, {})
     tentativas = {**antigo.get("tentativas", {})}
     tentativas[degrau] = tentativas.get(degrau, 0) + 1
-    todos[chave] = {"campos": _mesclar(antigo.get("campos", {}), campos), "executor": executor, "degrau": degrau,
-                    "tentativas": tentativas}
+    aplicados = antigo.get("retornos_aplicados", []) + ([marca] if marca else [])
+    todos[chave] = {**antigo, "campos": _mesclar(antigo.get("campos", {}), campos), "executor": executor,
+                    "degrau": degrau, "tentativas": tentativas, **({"retornos_aplicados": aplicados} if aplicados else {})}
     caminho.parent.mkdir(parents=True, exist_ok=True)
     caminho.write_text(json.dumps(todos, ensure_ascii=False, indent=1), encoding="utf-8")
     return todos[chave]
@@ -147,7 +162,7 @@ def gravar_complemento(caminho: str | Path, item: dict, campos: dict, executor: 
 def pendencias(inv: dict, pastas: dict | None = None, complementos: dict | None = None) -> dict:
     """A lista que abre cada rodada: tudo que não está completo, com o próximo passe, e as séries incompletas;
     com `pastas`, conta também os arquivos por papel; com `complementos` (`ler_complementos`), cada item recebe os
-    campos já complementados antes de avaliar e a avaliação traz `complementado_por`."""
+    campos já complementados antes de avaliar e a avaliação traz `complementado_por`; `itens` devolve os itens mesclados."""
     complementos = complementos or {}
     itens, av = [], []
     for i in inv["itens"]:
@@ -168,7 +183,7 @@ def pendencias(inv: dict, pastas: dict | None = None, complementos: dict | None 
     for a in av if pastas is not None else []:
         rotulo = a["papel"] or "sem papel"
         por_papel[rotulo] = por_papel.get(rotulo, 0) + 1
-    return {"avaliacoes": av, "pendencias": abertas, "fora_do_escopo": fora_do_escopo, "series": series(itens),
+    return {"itens": itens, "avaliacoes": av, "pendencias": abertas, "fora_do_escopo": fora_do_escopo, "series": series(itens),
             "por_estado": contagem, "por_classe": por_classe,
             **({"por_papel": por_papel} if pastas is not None else {}),
             "fracao_completa": round(sum(a["estado"] == "completa" for a in no_escopo) / max(len(no_escopo), 1), 3)}
@@ -190,7 +205,7 @@ def _do_sistema(item: dict, sistema: dict) -> bool:
 def _situacao_do_documento(achados: list, doc: dict, listagem: dict) -> tuple[str, str]:
     """no disco | fora do disco | não achado, e a resposta que cita a listagem inteira (como `procurar`)."""
     if not achados:
-        return "não achado", (f"nenhum dos {len(listagem['itens'])} arquivos da listagem ({listagem['fonte']}) casa "
+        return "não achado", (f"nenhum dos {len(listagem['itens'])} arquivos da listagem ({listagem.get('fonte', 'itens mesclados')}) casa "
                               f"com o sistema e '{doc['termos']}': ausência conferida na listagem inteira")
     if any(i["situacao"].startswith("no disco") for i in achados):
         return "no disco", f"{len(achados)} arquivo(s) casam"
@@ -209,6 +224,86 @@ def esperado_x_encontrado(inv: dict, sistemas: dict | None = None) -> list[dict]
             linhas.append({"sistema": chave, "nome": sis["nome"], "tipologia": sis["tipologia"], "documento": doc["id"],
                            "situacao": situacao, "arquivos": [i["arquivo"] for i in achados], "resposta": resposta})
     return linhas
+
+
+def _norm(texto: str) -> str:
+    """Sem acento, minúsculas e espaços colapsados: a forma em que o trecho citado é comparado com a página."""
+    return " ".join(inventario.normalizar(texto or "").lower().split())
+
+
+def _confere_citacao(item: dict, citacao: dict) -> tuple[bool, str]:
+    """(aceita, nota): PDF no disco com texto na página exige o trecho nela; imagem, SHX ou outro formato não se confere."""
+    caminho = item.get("caminho")
+    if not caminho or Path(caminho).suffix.lower() != ".pdf" or not Path(caminho).exists():
+        return True, "não conferível (imagem ou sem texto)"
+    import pymupdf
+    pagina = int(citacao.get("pagina") or 1)
+    with pymupdf.open(caminho) as doc:
+        texto = doc[pagina - 1].get_text() if 1 <= pagina <= len(doc) else ""
+    if not texto.strip():
+        return True, "não conferível (imagem ou sem texto)"
+    if _norm(citacao.get("trecho", "")) and _norm(citacao["trecho"]) in _norm(texto):
+        return True, f"conferida na página {pagina}"
+    return False, f"trecho não está na página {pagina}"
+
+
+def _marca(linha: dict) -> str:
+    """Hash da linha de retorno: identifica a mesma linha numa rodada seguinte."""
+    return hashlib.sha1(json.dumps(linha, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def _aninhar(campos: dict) -> dict:
+    """{'carimbo.escala': '1:100'} vira {'carimbo': {'escala': '1:100'}}."""
+    saida = {}
+    for nome, valor in campos.items():
+        alvo = saida
+        *caminho, folha = nome.split(".")
+        for parte in caminho:
+            alvo = alvo.setdefault(parte, {})
+        alvo[folha] = valor
+    return saida
+
+
+def _um_retorno(linha: dict, item: dict | None, out: Path, rel: dict) -> None:
+    """Confere e grava uma linha de retorno, anotando recusa ou campo ignorado em `rel`."""
+    arquivo = linha.get("arquivo")
+    if item is None:
+        rel["recusados"].append({"arquivo": arquivo, "motivo": "arquivo fora do inventário"})
+        return
+    permitidos = next(c for c in FONTES["classes"] if c["id"] == classe(item)).get("retorno") or []
+    campos = {k: v for k, v in (linha.get("campos") or {}).items() if k in permitidos}
+    rel["ignorados"] += [{"arquivo": arquivo, "campo": k} for k in (linha.get("campos") or {}) if k not in permitidos]
+    if not campos:
+        rel["recusados"].append({"arquivo": arquivo, "motivo": "nenhum campo de retorno da classe"})
+        return
+    ok, nota = _confere_citacao(item, linha.get("citacao") or {})
+    if not ok:
+        rel["recusados"].append({"arquivo": arquivo, "motivo": nota})
+        return
+    executor = linha["executor"]
+    gravar_complemento(out / "complementos.json", item, _aninhar(campos), executor, f"{executor}:retorno",
+                       marca=_marca(linha))
+    rel["aceitos"] += 1
+    rel["citacoes"].append({"arquivo": arquivo, "citacao": nota})
+
+
+def aplicar_retornos(out: str | Path, inv: dict) -> dict:
+    """Aplica as linhas de `out/retornos/*.jsonl` ({arquivo, pasta_drive, executor, campos, citacao}) ao registro:
+    arquivo tem de estar no inventário, só entram campos de `retorno` da classe, e a citação é conferida na página
+    (PDF com texto). Linha já aplicada (hash em `retornos_aplicados`) é pulada. Devolve aceitos, recusados, ignorados."""
+    out = Path(out)
+    rel = {"aceitos": 0, "recusados": [], "ignorados": [], "citacoes": []}
+    por_chave = {(i.get("pasta_drive"), i["arquivo"]): i for i in inv["itens"]}
+    for arq in sorted((out / "retornos").glob("*.jsonl")):
+        for texto in arq.read_text(encoding="utf-8").splitlines():
+            if not texto.strip():
+                continue
+            linha = json.loads(texto)
+            item = por_chave.get((linha.get("pasta_drive"), linha.get("arquivo")))
+            antigo = ler_complementos(out / "complementos.json").get(f"{linha.get('pasta_drive')}/{linha.get('arquivo')}", {})
+            if _marca(linha) not in antigo.get("retornos_aplicados", []):
+                _um_retorno(linha, item, out, rel)
+    return rel
 
 
 def registrar(avaliacoes: list, caminho: Path, passe: str, executor: str = "código") -> int:
@@ -235,7 +330,7 @@ def metadados() -> dict:
     """Rastreabilidade das regras da reavaliação (regra 9 do estilo)."""
     return {"modulo": "extracao",
             "descricao": "classe da fonte, estado da extração, próximo passe da escada, séries de folhas e registro",
-            "funcoes": ["classe", "papel", "avaliar", "series", "ler_complementos", "gravar_complemento", "pendencias", "esperado_x_encontrado", "registrar"],
+            "funcoes": ["classe", "papel", "avaliar", "series", "ler_complementos", "gravar_complemento", "aplicar_retornos", "pendencias", "esperado_x_encontrado", "registrar"],
             "premissas": [{"aplicacao": {"classe": ["conceitos/fontes.json classes"], "avaliar": ["satisfatoria", "escada"]},
                            "fonte": FONTES["metadata"]["fonte"]},
                           {"aplicacao": {"esperado_x_encontrado": ["conceitos/documentos_esperados.json tipologias",
@@ -245,6 +340,10 @@ def metadados() -> dict:
                                          "gravar_complemento": ["tentativas por degrau", "campos aninhados mesclados"],
                                          "pendencias": ["complementos mesclados sobre o item antes de avaliar"]},
                            "fonte": "plano rodada 20, E1 (o cache guarda só a leitura básica)"},
+                          {"aplicacao": {"aplicar_retornos": ["saida/<obra>/retornos/*.jsonl", "retorno por classe em fontes.json",
+                                                               "citação conferida no texto da página (pymupdf)"],
+                                         "avaliar": ["arquivo sem leitor: completo se tem os campos de retorno da classe"]},
+                           "fonte": "plano rodada 20, E5 (a IA devolve campos com citação; o código confere)"},
                           {"aplicacao": {"papel": ["obra.json inventario.pastas: prefixo de pasta mais longo"]},
                            "fonte": "convenção do Caio (docs/ARQUITETURA.md §2)"}],
             "ultima_revisao": "2026-10-30"}
