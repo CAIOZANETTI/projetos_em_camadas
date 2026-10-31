@@ -141,3 +141,21 @@ def test_proximo_degrau_pelas_tentativas():
     assert escada.proximo_degrau(av, {"tentativas": tudo}) is None
     assert escada.proximo_degrau({"situacao": None}, None) is None
     assert escada.metadados()["modulo"] == "escada"
+
+
+def test_ciclo_completo_lote_da_ia_volta_e_fecha(tmp_path):
+    """Integração E4 + E5: o arquivo sem leitor vai para o lote do Sonnet; o Sonnet devolve o retorno; a volta
+    seguinte aplica, o item fecha, o lote some e o registro diz quem resolveu."""
+    cfg, pasta, out = _obra(tmp_path, [("MEMORIAIS", "Memorial descritivo.docx", "m1")])
+    (pasta / "MEMORIAIS").mkdir()
+    (pasta / "MEMORIAIS" / "Memorial descritivo.docx").write_bytes(b"PK")
+    assert escada.executar(cfg, out)["lotes"] == {"Sonnet": 1}
+    (out / "retornos").mkdir()
+    (out / "retornos" / "sonnet.jsonl").write_text(json.dumps(
+        {"arquivo": "Memorial descritivo.docx", "pasta_drive": "MEMORIAIS", "executor": "Sonnet",
+         "campos": {"texto": "Memorial das obras civis da ETA."}, "citacao": {"pagina": 1, "trecho": "Memorial"}},
+        ensure_ascii=False) + "\n", encoding="utf-8")
+    r = escada.executar(cfg, out)
+    assert r["lotes"] == {} and r["por_estado"] == {"completa": 1}
+    ultima = json.loads((out / "extracao.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert (ultima["estado"], ultima["executor"]) == ("completa", "Sonnet")

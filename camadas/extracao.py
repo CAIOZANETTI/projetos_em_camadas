@@ -326,6 +326,14 @@ def registrar(avaliacoes: list, caminho: Path, passe: str, executor: str = "cód
     return len(novas)
 
 
+def registrar_por_executor(avaliacoes: list, caminho: Path, passe: str) -> int:
+    """Registra cada avaliação com quem a completou (`complementado_por`, senão "código"): o histórico mostra o que saiu
+    só por código e o que precisou de IA. Usado pelo build e pelo executor da escada."""
+    quem = lambda a: a.get("complementado_por") or "código"
+    return sum(registrar([a for a in avaliacoes if quem(a) == q], caminho, passe=passe, executor=q)
+               for q in sorted({quem(a) for a in avaliacoes}))
+
+
 def metadados() -> dict:
     """Rastreabilidade das regras da reavaliação (regra 9 do estilo)."""
     return {"modulo": "extracao",

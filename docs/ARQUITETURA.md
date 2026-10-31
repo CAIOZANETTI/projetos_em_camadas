@@ -82,18 +82,23 @@ progresso da obra.
 situação, e separa "existe, não lido" de "não existe". A forma do Actiflo 360 foi dada como inexistente e existia
 (lição L008).
 
-**O que falta para o loop fechar sozinho** (revisão independente do Fable, 30/10, em ordem de prioridade):
-1. **Um executor da escada**: hoje ninguém lê o `pendencias.json`, e o segundo passe é manual. Falta um comando que
-   leia as pendências e chame o degrau certo, como `camadas/drive.py` para "fora do disco".
-2. **O cache não pode impedir a repetição**: o inventário guarda também o erro e o carimbo incompleto pela
-   assinatura do arquivo (tamanho + data). Falta invalidar o cache pelo que faltou, ou pôr o passe na assinatura.
-3. **Os degraus de código alternativo**: OCR do carimbo em 300 dpi e em todas as páginas, OCR de página inteira,
-   extrair o zip. Falta também um contador de tentativas por degrau: "o código esgotou" é o que manda subir para o
-   Haiku.
-4. **Contrato de retorno da IA**: o resultado do Haiku ou do Sonnet volta ao item do inventário e ao registro com o
-   executor certo. Hoje o build sempre grava "código".
-5. **Papel por pasta, esperado × encontrado por sistema** (forma, armadura, locação e cargas, fundação) e **carimbo de
-   todas as páginas**; o `texto` do PDF também precisa olhar além da 1ª página.
+**O loop fecha sozinho** (rodada 20, 0.22.0 e 0.23.0). Os cinco pontos da revisão independente foram resolvidos:
+
+| Ponto | Como ficou |
+|---|---|
+| executor da escada | `camadas/escada.py`: `python -m camadas.escada <obra.json> [--voltas 3]` lê as pendências, executa os degraus de código (baixar, reler, carimbo em 300 dpi, extrair o zip), reavalia e repete até não haver degrau de código; o que sobra vai para `saida/<obra>/lotes/<executor>.jsonl` |
+| cache × repetição | `LEITURA_VERSAO` na assinatura, `reler`, erro relido; o resultado de degrau e de IA mora em `complementos.json`, fora do cache |
+| degraus de código e tentativas | `degraus` por situação em `conceitos/fontes.json`, com `max_tentativas` em todo degrau; esgotou o código, sobe para Haiku, depois Sonnet, depois você |
+| retorno da IA | o agente grava em `saida/<obra>/retornos/*.jsonl`; `extracao.aplicar_retornos` só aceita os campos de `retorno` da classe e confere o trecho citado na página; o registro grava o executor que completou |
+| papel, esperado × encontrado, páginas | `inventario.pastas`, `conceitos/documentos_esperados.json`, carimbo e texto de todas as páginas (até 20) |
+
+O ciclo de uma rodada fica assim:
+1. Rodar `python -m camadas.escada <obra.json>`.
+2. Os agentes leem os lotes e gravam os retornos.
+3. Rodar a escada de novo: os retornos entram e o que fechou sai dos lotes.
+4. Rodar o build.
+
+O build não chama a escada: o build é reprodutível offline e não baixa nada da rede por conta própria.
 
 Já corrigido a partir da mesma revisão (lição L012):
 - o nome do arquivo vale mais que a pasta;

@@ -714,9 +714,7 @@ def _reavaliar(inv: dict, out: Path, cfg: dict) -> dict:
     de folhas incompletas; grava `pendencias.json` (a lista que abre a próxima rodada) e o registro `extracao.jsonl`."""
     rel = extracao.aplicar_retornos(out, inv)                      # retornos da IA entram antes da avaliação
     p = extracao.pendencias(inv, cfg["inventario"].get("pastas"), extracao.ler_complementos(out / "complementos.json"))
-    for quem in {a.get("complementado_por", "código") for a in p["avaliacoes"]}:       # quem completou, registra
-        extracao.registrar([a for a in p["avaliacoes"] if a.get("complementado_por", "código") == quem],
-                           out / "extracao.jsonl", passe="build", executor=quem)
+    extracao.registrar_por_executor(p["avaliacoes"], out / "extracao.jsonl", passe="build")
     resumo = {k: p[k] for k in ("por_estado", "por_classe", "fracao_completa", "series", "fora_do_escopo")}
     resumo.update({k: p[k] for k in ("por_papel",) if k in p})
     (out / "pendencias.json").write_text(json.dumps({**resumo, "esperado": extracao.esperado_x_encontrado({"itens": p["itens"]}),

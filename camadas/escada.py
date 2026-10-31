@@ -141,6 +141,7 @@ def _avaliar(cfg: dict, out: Path, reler: set, memo: dict) -> tuple[dict, dict, 
     inv = inventario.inventario(cfg, out / "inventario_cache.json", log=lambda *_: None, reler=set(reler))
     reler.clear()
     inv = itens_do_zip(cfg, inv, memo)
+    extracao.aplicar_retornos(out, inv)              # o que a IA devolveu entra na volta, como qualquer complemento
     compl = extracao.ler_complementos(out / "complementos.json")
     p = extracao.pendencias(inv, cfg["inventario"].get("pastas"), compl)
     return inv, _zips_extraidos(cfg, p), compl
@@ -167,7 +168,7 @@ def executar(cfg: dict, out: str | Path, voltas: int = 3, baixar=None) -> dict:
     reler, memo, feitas = set(), {}, 0
     for n in range(1, voltas + 2):                     # a última avaliação só confere o que a última volta fez
         inv, p, compl = _avaliar(cfg, out, reler, memo)
-        extracao.registrar(p["avaliacoes"], out / "extracao.jsonl", passe=f"V{n}", executor="código")
+        extracao.registrar_por_executor(p["avaliacoes"], out / "extracao.jsonl", passe=f"V{n}")
         if n > voltas:
             break
         por_chave = {(i["pasta_drive"], i["arquivo"]): i for i in inv["itens"]}
