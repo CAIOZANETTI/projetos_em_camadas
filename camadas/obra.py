@@ -213,7 +213,7 @@ def referencia_cad(base: dict, pasta: Path, filtro: str, res: float = 0.10) -> P
     """Raster georreferenciado (preto sobre branco) das linhas de referência de uma prancha
     já georreferenciada — serve de "ortofoto" para registrar as pranchas irmãs."""
     import hashlib
-    caminho = pasta / f"_ref_{base['id']}_{hashlib.md5(f'{filtro}|{res}'.encode()).hexdigest()[:6]}.png"
+    caminho = pasta / f"_ref_{base['id']}_{hashlib.md5(f'{filtro}|{res}'.encode(), usedforsecurity=False).hexdigest()[:6]}.png"
     if caminho.exists():
         return caminho
     tr = pdf_cad.extrair(base["pdf"], clip=base.get("clip"))

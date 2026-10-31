@@ -247,6 +247,7 @@ def test_numero_do_balao_em_fonte():
 
 def test_escala_em_fonte_acima_da_vista():
     """Contenção de Foz: o título ("… ESC 1:50") é texto de fonte e fica acima da vista; abaixo vale primeiro."""
+    pytest.importorskip("pymupdf")
     class Pagina:
         rect = type("R", (), {"height": 1000.0})()
     textos = [(130.0, 122.0, "ESC"), (150.0, 122.0, "1:50"), (900.0, 122.0, "ESC"), (920.0, 122.0, "1:20")]

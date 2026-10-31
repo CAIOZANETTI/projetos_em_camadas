@@ -56,6 +56,7 @@ def _georef(caminho, e0, n1, res, extra=None):
 
 
 def test_supressao_so_dentro_da_faixa_e_so_vegetacao_alta(tmp_path):
+    pytest.importorskip("rasterio")
     res, n = 0.25, 200                                   # 50 × 50 m
     img = np.full((n, n, 3), (90, 90, 90), np.uint8)    # asfalto
     img[:, 100:140] = (40, 160, 40)                     # faixa verde (árvores em parte, grama no resto)

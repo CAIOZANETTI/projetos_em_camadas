@@ -22,6 +22,7 @@ def _cava_padrao():
 
 def test_volume_tronco_de_piramide():
     """Base 10×10, 2 m de profundidade, folga 0,5 m, talude 1,5:1: volume = h·A' + P'·h·r/2 + π·r²·h/3."""
+    pytest.importorskip("pymupdf")
     h, t, f = 2.0, escavacao.VALOR["talude_h_v"], escavacao.VALOR["folga_m"]
     a, r = 10 + 2 * f, h * t
     esperado = h * a * a + 4 * a * h * r / 2 + math.pi * r * r * h / 3
@@ -36,6 +37,7 @@ def test_volume_tronco_de_piramide():
 
 
 def test_crista_desenhada_e_edificacao_limitam_a_cava():
+    pytest.importorskip("pymupdf")
     base, marca = _cava_padrao()
     livre = escavacao.calcular(base, marca, [], _grade())["cavas"][0]
     crista = [LineString([(43, 43), (57, 43), (57, 57), (43, 57), (43, 43)])]   # crista a 2 m da base
@@ -49,6 +51,7 @@ def test_crista_desenhada_e_edificacao_limitam_a_cava():
 
 
 def test_marcas_impossiveis_e_topo_ficam_de_fora():
+    pytest.importorskip("pymupdf")
     g = _grade()
     ms = [{"utm": [50, 50], "cota": 8.0}, {"utm": [50, 50], "cota": 38.75},           # dígito perdido no OCR
           {"utm": [50, 50], "cota": 9.5, "topo": True}, {"utm": [500, 50], "cota": 8.0}, {"utm": [50, 50], "cota": None}]
