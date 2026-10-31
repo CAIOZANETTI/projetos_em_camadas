@@ -709,14 +709,16 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
     ]
 
 
-def _reavaliar(inv: dict, out: Path) -> dict:
+def _reavaliar(inv: dict, out: Path, cfg: dict) -> dict:
     """Reavaliação do inventário (`camadas.extracao`): classe de cada fonte, estado da extração, próximo passe e séries
     de folhas incompletas; grava `pendencias.json` (a lista que abre a próxima rodada) e o registro `extracao.jsonl`."""
-    p = extracao.pendencias(inv)
+    p = extracao.pendencias(inv, cfg["inventario"].get("pastas"), extracao.ler_complementos(out / "complementos.json"))
     extracao.registrar(p["avaliacoes"], out / "extracao.jsonl", passe="build", executor="código")
     resumo = {k: p[k] for k in ("por_estado", "por_classe", "fracao_completa", "series", "fora_do_escopo")}
-    (out / "pendencias.json").write_text(json.dumps({**resumo, "pendencias": p["pendencias"]}, ensure_ascii=False,
-                                                    indent=1), encoding="utf-8")
+    resumo.update({k: p[k] for k in ("por_papel",) if k in p})
+    (out / "pendencias.json").write_text(json.dumps({**resumo, "esperado": extracao.esperado_x_encontrado(inv),
+                                                     "pendencias": p["pendencias"]}, ensure_ascii=False, indent=1),
+                                         encoding="utf-8")
     _log(f"Extração: {p['por_estado']}; {len(p['pendencias'])} pendência(s), {len(p['series'])} série(s) incompleta(s)")
     return {**resumo, "pendencias": p["pendencias"]}
 
@@ -735,7 +737,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     if cfg.get("inventario"):                         # todos os arquivos da listagem do Drive, com o carimbo
         inv = inventario.inventario(cfg, out / "inventario_cache.json", log=_log)
         dados["inventario"] = inventario.para_html(inv)
-        dados["inventario"]["extracao"] = _reavaliar(inv, out)
+        dados["inventario"]["extracao"] = _reavaliar(inv, out, cfg)
         fl = prancha.lote(cfg, escopo, out, log=_log)                  # ficha leve de cada desenho no disco
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))

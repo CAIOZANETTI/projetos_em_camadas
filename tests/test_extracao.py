@@ -148,3 +148,29 @@ def test_papel_pelo_prefixo_mais_longo_sem_acento():
     assert av["papel"] == "orcamento" and "papel" not in extracao.avaliar(_item("a.pdf"))
     p = extracao.pendencias(_inv(_item("a.pdf", "05. ORÇAMENTO"), _item("b.pdf", "X")), pastas)
     assert p["por_papel"] == {"orcamento": 1, "sem papel": 1}
+
+
+def test_papel_prefixo_vazio_casa_tudo_e_perde_para_o_mais_longo():
+    pastas = {"": "licitacao", "05. ORÇAMENTO": "orcamento"}
+    papel = lambda pasta: extracao.papel(_item("a.pdf", pasta), pastas)
+    assert papel("UNIDADE 01") == "licitacao" and papel("ANEXO A/sub") == "licitacao" and papel("") == "licitacao"
+    assert papel("05. ORCAMENTO/x") == "orcamento"
+
+
+def test_complemento_completa_o_item_e_sobrevive_a_nova_volta(tmp_path):
+    inv = _inv(_item("004-SAA-0017-7471-PBHI-DE-0001ETAVILACLAYOUTPROCES-R5.pdf", leitor="ler_pdf", texto="sim",
+                     carimbo={"titulo": "LAYOUT"}))
+    caminho = tmp_path / "saida" / "complementos.json"
+    assert extracao.ler_complementos(caminho) == {}
+    antes = extracao.pendencias(inv, complementos=extracao.ler_complementos(caminho))["avaliacoes"][0]
+    assert antes["estado"] == "parcial" and "complementado_por" not in antes
+    item = inv["itens"][0]
+    extracao.gravar_complemento(caminho, item, {"carimbo": {"escala": "1:100"}}, "Haiku", "ia")
+    e = extracao.gravar_complemento(caminho, item, {"carimbo": {"folha": "01/01"}}, "Sonnet", "ia")
+    assert e["tentativas"] == {"ia": 2} and e["executor"] == "Sonnet"
+    assert e["campos"] == {"carimbo": {"escala": "1:100", "folha": "01/01"}}
+    for _ in range(2):                                       # nova volta com o mesmo inventário
+        p = extracao.pendencias(inv, complementos=extracao.ler_complementos(caminho))
+        assert p["avaliacoes"][0]["estado"] == "completa" and p["avaliacoes"][0]["complementado_por"] == "Sonnet"
+    assert inv["itens"][0]["carimbo"] == {"titulo": "LAYOUT"}   # o item do inventário não é alterado
+    assert "extracao.jsonl" not in [x.name for x in tmp_path.rglob("*")]

@@ -59,11 +59,11 @@ def _faltando(item: dict, exige: dict) -> list[str]:
 def papel(item: dict, pastas: dict | None) -> str | None:
     """Papel da pasta raiz do arquivo (licitacao, orcamento, obra, referencia) pelo prefixo MAIS LONGO de
     `pasta_drive`, sem acento e sem caixa: '01. RECEBIDOS/ORDENS' vale mais que '01. RECEBIDOS'. O prefixo só casa
-    em limite de pasta ('01. REC' não casa '01. RECEBIDOS'). Sem casar, None: a pasta não tem papel declarado."""
+    em limite de pasta ('01. REC' não casa '01. RECEBIDOS'); prefixo vazio casa qualquer pasta e perde para qualquer prefixo mais longo. Sem casar, None: a pasta não tem papel declarado."""
     pasta = inventario.normalizar(item.get("pasta_drive") or "").strip("/")
     achados = [(len(chave), valor) for prefixo, valor in (pastas or {}).items()
                for chave in [inventario.normalizar(prefixo).strip("/")]
-               if pasta == chave or pasta.startswith(chave + "/")]
+               if not chave or pasta == chave or pasta.startswith(chave + "/")]
     return max(achados)[1] if achados else None
 
 
@@ -114,10 +114,46 @@ def series(itens: list) -> list[dict]:
             for (p, d, u, m), ns in sorted(grupos.items(), key=str) if len(ns) < m]
 
 
-def pendencias(inv: dict, pastas: dict | None = None) -> dict:
+def ler_complementos(caminho: str | Path) -> dict:
+    """`complementos.json` da obra: {"<pasta_drive>/<arquivo>": {campos, executor, degrau, tentativas}}; vazio se não existe."""
+    caminho = Path(caminho)
+    return json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {}
+
+
+def _mesclar(base: dict, campos: dict) -> dict:
+    """Cópia de `base` com `campos` por cima; dict dentro de dict (carimbo.escala) é mesclado, não substituído."""
+    novo = dict(base)
+    for k, v in campos.items():
+        novo[k] = _mesclar(novo[k], v) if isinstance(v, dict) and isinstance(novo.get(k), dict) else v
+    return novo
+
+
+def gravar_complemento(caminho: str | Path, item: dict, campos: dict, executor: str, degrau: str) -> dict:
+    """Acrescenta/atualiza a entrada do item em `complementos.json`: mescla `campos`, soma 1 em `tentativas[degrau]` e
+    guarda `executor` e `degrau` da última vez. O cache do inventário não é tocado. Devolve a entrada gravada."""
+    caminho = Path(caminho)
+    todos = ler_complementos(caminho)
+    chave = f"{item.get('pasta_drive')}/{item['arquivo']}"
+    antigo = todos.get(chave, {})
+    tentativas = {**antigo.get("tentativas", {})}
+    tentativas[degrau] = tentativas.get(degrau, 0) + 1
+    todos[chave] = {"campos": _mesclar(antigo.get("campos", {}), campos), "executor": executor, "degrau": degrau,
+                    "tentativas": tentativas}
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text(json.dumps(todos, ensure_ascii=False, indent=1), encoding="utf-8")
+    return todos[chave]
+
+
+def pendencias(inv: dict, pastas: dict | None = None, complementos: dict | None = None) -> dict:
     """A lista que abre cada rodada: tudo que não está completo, com o próximo passe, e as séries incompletas;
-    com `pastas`, conta também os arquivos por papel."""
-    av = [avaliar(i, pastas) for i in inv["itens"]]
+    com `pastas`, conta também os arquivos por papel; com `complementos` (`ler_complementos`), cada item recebe os
+    campos já complementados antes de avaliar e a avaliação traz `complementado_por`."""
+    complementos = complementos or {}
+    itens, av = [], []
+    for i in inv["itens"]:
+        c = complementos.get(f"{i.get('pasta_drive')}/{i['arquivo']}")
+        itens.append(_mesclar(i, c["campos"]) if c else i)
+        av.append({**avaliar(itens[-1], pastas), **({"complementado_por": c["executor"]} if c else {})})
     abertas = [a for a in av if a["estado"] != "completa" and not a["fora_do_escopo"]]
     fora_do_escopo = [{k: a[k] for k in ("arquivo", "pasta_drive", "classe", "fora_do_escopo")} for a in av
                       if a["fora_do_escopo"]]
@@ -132,7 +168,7 @@ def pendencias(inv: dict, pastas: dict | None = None) -> dict:
     for a in av if pastas is not None else []:
         rotulo = a["papel"] or "sem papel"
         por_papel[rotulo] = por_papel.get(rotulo, 0) + 1
-    return {"avaliacoes": av, "pendencias": abertas, "fora_do_escopo": fora_do_escopo, "series": series(inv["itens"]),
+    return {"avaliacoes": av, "pendencias": abertas, "fora_do_escopo": fora_do_escopo, "series": series(itens),
             "por_estado": contagem, "por_classe": por_classe,
             **({"por_papel": por_papel} if pastas is not None else {}),
             "fracao_completa": round(sum(a["estado"] == "completa" for a in no_escopo) / max(len(no_escopo), 1), 3)}
@@ -199,12 +235,16 @@ def metadados() -> dict:
     """Rastreabilidade das regras da reavaliação (regra 9 do estilo)."""
     return {"modulo": "extracao",
             "descricao": "classe da fonte, estado da extração, próximo passe da escada, séries de folhas e registro",
-            "funcoes": ["classe", "papel", "avaliar", "series", "pendencias", "esperado_x_encontrado", "registrar"],
+            "funcoes": ["classe", "papel", "avaliar", "series", "ler_complementos", "gravar_complemento", "pendencias", "esperado_x_encontrado", "registrar"],
             "premissas": [{"aplicacao": {"classe": ["conceitos/fontes.json classes"], "avaliar": ["satisfatoria", "escada"]},
                            "fonte": FONTES["metadata"]["fonte"]},
                           {"aplicacao": {"esperado_x_encontrado": ["conceitos/documentos_esperados.json tipologias",
                                                                     "conceitos/unidades_construtivas.json chaves, exclui"]},
                            "fonte": "documentos_esperados.json (estado premissa)"},
+                          {"aplicacao": {"ler_complementos": ["saida/<obra>/complementos.json"],
+                                         "gravar_complemento": ["tentativas por degrau", "campos aninhados mesclados"],
+                                         "pendencias": ["complementos mesclados sobre o item antes de avaliar"]},
+                           "fonte": "plano rodada 20, E1 (o cache guarda só a leitura básica)"},
                           {"aplicacao": {"papel": ["obra.json inventario.pastas: prefixo de pasta mais longo"]},
                            "fonte": "convenção do Caio (docs/ARQUITETURA.md §2)"}],
             "ultima_revisao": "2026-10-30"}

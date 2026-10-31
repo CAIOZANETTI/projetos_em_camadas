@@ -491,6 +491,7 @@
   "listagem": "dados/foz/projeto/_listagem_drive.csv",
   "baixados": "dados/foz/projeto/_baixados.csv",
   "pasta": "dados/foz/projeto",
+  "pastas": {"": "licitacao"},
   "fonte": "listagem recursiva do Drive '211 - SAA Foz do Iguaçu' pelo conector (skill drive-ingestao)"
  },
  "escopo_unidades": {
