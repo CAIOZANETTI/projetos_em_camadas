@@ -16,6 +16,9 @@ Diagrama, cenário de mesa e índice: https://claude.ai/artifact/ESsAkB2JX7JZgBd
    maiores. Cada dúvida resolvida vira regra com teste (§9).
 6. **A decisão do engenheiro prevalece sobre a evidência**, sem apagá-la (§6).
 7. **Um arquivo HTML** é a entrega e a memória da obra: dados, fatos, pendências e decisões moram dentro dele.
+8. **Cada informação tem uma gaveta.** A extração grava fatos georreferenciados, com evidência, numa base
+   intermediária; os serviços são calculados dessa base e pendurados na EAP pelos três de-para
+   (`docs/MEMORIA_ESPACIAL.md`).
 
 ## 2. O ciclo de extração: inventário → extração → reavaliação → loop
 
