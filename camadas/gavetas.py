@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import importlib
 import json
 import re
@@ -410,7 +411,8 @@ def entrada(base: dict, objeto: dict) -> dict:
     else:                                        # sem eixo: os furos citados em sond_ini/sond_fim (como `cobertura`)
         citados = {ol.id_furo(dados[p]) for p in ("sond_ini", "sond_fim") if dados.get(p)}
         ids = {f["id"] for f in fs if ol.id_furo(f["id"]) in citados}
-    return {"regra": nome, "dados": dados, "furos": fs, "pts": pts, "faltam": [p for p in r["exige"] if p not in fatos],
+    return {"regra": nome, "dados": dados, "furos": fs, "pts": pts, "furos_usados": [f for f in fs if f["id"] in ids],
+            "faltam": [p for p in r["exige"] if p not in fatos],
             "fatos": [fatos[p]["fato_id"] for p in usados] + [i for f in fs if f["id"] in ids for i in f["fatos"]]}
 
 
@@ -430,9 +432,39 @@ def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict
     return linhas
 
 
-def calcular(base: dict) -> tuple[list[dict], list[dict]]:
-    """Serviços de todos os objetos com regra; faltou fato obrigatório: pendência e nenhum serviço do objeto."""
-    servicos, pendencias = [], []
+def chave_servico(regra: str, versao: str, dados: dict, fatos_usados: list[str], furos_usados: list[dict],
+                  pts: np.ndarray | None = None) -> str:
+    """sha1 curto (12 hex) de regra + versão + dados da regra + fato_id usados + furos usados (e os pontos do eixo)."""
+    pontos = None if pts is None else np.round(np.asarray(pts, float), 3).tolist()
+    corpo = {"regra": regra, "versao": versao, "dados": dados, "fatos": list(fatos_usados),
+             "furos": furos_usados, "pts": pontos}
+    return hashlib.sha1(json.dumps(corpo, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:12]
+
+
+def _reaproveitavel(anterior: list[dict], objeto_id: str, regra: str, chave: str) -> list[dict] | None:
+    """Serviços do `anterior` do mesmo objeto e regra, se todos têm a mesma chave; senão None."""
+    antigos = [s for s in anterior if s["objeto_id"] == objeto_id and s["regra"] == regra]
+    return antigos if antigos and all(s.get("chave_calculo") == chave for s in antigos) else None
+
+
+def _calcular_objeto(o: dict, e: dict, chave: str) -> tuple[list[dict], list[dict]]:
+    """Chama a função da regra; devolve os serviços (com `chave_calculo` e os alertas no 1º) e as pendências."""
+    modulo, _, funcao = SERVICOS["regras"][e["regra"]]["funcao"].rpartition(".")
+    q = getattr(importlib.import_module(modulo), funcao)(e["dados"], e["furos"], e["pts"])
+    linhas = _servicos(o["objeto_id"], e["regra"], q, e["fatos"])
+    alertas = list(q.get("alertas", []))
+    for i, linha in enumerate(linhas):
+        linha["chave_calculo"] = chave
+        if alertas and i == 0:
+            linha["alertas"] = alertas
+    return linhas, [{"objeto_id": o["objeto_id"], "regra": e["regra"], "motivo": a} for a in alertas]
+
+
+def calcular_incremental(base: dict, anterior: list[dict] | None = None) -> tuple[list[dict], list[dict], dict]:
+    """Como `calcular`, mais {recalculados, reaproveitados} por objeto. Serviços do `anterior` com a mesma
+    `chave_calculo` (e os alertas guardados no 1º serviço) voltam sem chamar a função da regra.
+    O campo `chave` do serviço já é a subchave do dicionário (pavimento); o hash fica em `chave_calculo`."""
+    servicos, pendencias, est = [], [], {"recalculados": 0, "reaproveitados": 0}
     for o in base.get("objetos", []):
         e = entrada(base, o)
         if e["regra"] is None:
@@ -441,11 +473,25 @@ def calcular(base: dict) -> tuple[list[dict], list[dict]]:
             pendencias.append({"objeto_id": o["objeto_id"], "regra": e["regra"],
                                "motivo": "faltam fatos obrigatórios: " + ", ".join(e["faltam"])})
             continue
-        modulo, _, funcao = SERVICOS["regras"][e["regra"]]["funcao"].rpartition(".")
-        q = getattr(importlib.import_module(modulo), funcao)(e["dados"], e["furos"], e["pts"])
-        servicos += _servicos(o["objeto_id"], e["regra"], q, e["fatos"])
-        pendencias += [{"objeto_id": o["objeto_id"], "regra": e["regra"], "motivo": a} for a in q.get("alertas", [])]
-    return servicos, pendencias
+        chave = chave_servico(e["regra"], SERVICOS["regras"][e["regra"]]["versao"], e["dados"], e["fatos"],
+                              e["furos_usados"], e["pts"])
+        antigos = _reaproveitavel(anterior or [], o["objeto_id"], e["regra"], chave)
+        if antigos is not None:
+            linhas = [dict(s) for s in antigos]
+            pends = [{"objeto_id": o["objeto_id"], "regra": e["regra"], "motivo": a}
+                     for s in linhas for a in s.get("alertas", [])]
+            est["reaproveitados"] += 1
+        else:
+            linhas, pends = _calcular_objeto(o, e, chave)
+            est["recalculados"] += 1
+        servicos += linhas
+        pendencias += pends
+    return servicos, pendencias, est
+
+
+def calcular(base: dict) -> tuple[list[dict], list[dict]]:
+    """Serviços de todos os objetos com regra; faltou fato obrigatório: pendência e nenhum serviço do objeto."""
+    return calcular_incremental(base)[:2]
 
 
 def _achatar(saidas: dict, nomes: list[str]) -> dict[tuple, float]:
@@ -537,7 +583,7 @@ def metadados() -> dict:
         "modulo": "gavetas",
         "descricao": "memória espacial: gavetas com evidência, serviços calculados só a partir delas e EAP lastreada",
         "funcoes": ["validar", "conferir_base", "conferir_de_para", "gravar", "ler", "fatos_do_objeto", "furos",
-                    "eixo", "regra_de", "entrada", "calcular", "paridade", "para_eap"],
+                    "eixo", "regra_de", "entrada", "chave_servico", "calcular", "calcular_incremental", "paridade", "para_eap"],
         "conceitos": ["gavetas.json", "de_para_extracao.json", "de_para_servicos.json", "de_para_eap.json"],
         "formato": REGRAS["formato"]["atual"],
         "estado": REGRAS["metadata"]["estado"],
