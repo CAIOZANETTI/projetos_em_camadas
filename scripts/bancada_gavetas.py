@@ -13,10 +13,10 @@ import argparse
 import importlib
 import json
 import statistics
+import subprocess
 import sys
 import tempfile
 import time
-import subprocess
 import tracemalloc
 from datetime import date
 from pathlib import Path
@@ -26,7 +26,7 @@ import numpy as np
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
-from camadas import gavetas, sintetico  # noqa: E402
+from camadas import gavetas, sintetico
 
 # Critério fixado ANTES de medir (não espalhar pelo código; mudar aqui exige mudar o plano).
 CRITERIO = {
@@ -128,8 +128,8 @@ def consultas_motor(formato: str, pasta: Path):
     if formato == "duckdb":
         con.execute(f"ATTACH '{pasta / 'base.duckdb'}' AS b (READ_ONLY)")
     txt = (lambda c: f"json_extract_string({c}, '$')") if formato == "csv" else (lambda c: c)
-    num = lambda c: f"TRY_CAST({c} AS DOUBLE)"  # noqa: E731
-    xy = lambda i: num(f"json_extract(CAST(coords AS JSON), '$[{i}]')")  # noqa: E731
+    num = lambda c: f"TRY_CAST({c} AS DOUBLE)"
+    xy = lambda i: num(f"json_extract(CAST(coords AS JSON), '$[{i}]')")
     F, G = _fonte(formato, pasta, "fatos"), _fonte(formato, pasta, "geometria")
     sql = {"fatos_objeto": f"SELECT * FROM {F} WHERE {txt('objeto_id')} = ?",
            "intervalo_prog": f"SELECT {txt('objeto_id')} FROM {G} WHERE {num('prog_ini_m')} < ? AND {num('prog_fim_m')} > ?",
@@ -226,7 +226,7 @@ def medir_consultas(base: dict, formato: str, pasta: Path, semente: int) -> dict
     saida = {"nativo": {n: cronometrar(nativas[n], sorteios[n]) for n in nativas}}
     try:
         saida["motor"] = {n: cronometrar(motor[n], sorteios[n]) for n in motor}
-    except Exception as erro:  # a leitura do formato pelo DuckDB falhou: fica registrado, a bancada segue
+    except Exception as erro:  # noqa: BLE001 — a leitura do formato pelo DuckDB falhou: fica registrado, a bancada segue
         saida["motor"], saida["erro_motor"] = None, f"{type(erro).__name__}: {str(erro)[:200]}"
     con.close()
     return saida

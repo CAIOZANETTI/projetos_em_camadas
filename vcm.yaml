@@ -1,0 +1,11 @@
+projeto: projetos_em_camadas
+pastas_fonte: [ camadas ]
+pasta_testes: tests
+referencia:
+  comando: [python, -m, camadas.referencia]
+  repeticoes: 5
+# Cobertura: amarelo a partir de 55% (linha de base 58%, em 31/10/2026); o balanço impede queda.
+limites:
+  cobertura_testes: {amarelo: 0.55}
+# Dependências opcionais usadas pelos testes (extras pdf e sig do pyproject).
+dependencias_extras: [pymupdf, rasterio, geopandas]

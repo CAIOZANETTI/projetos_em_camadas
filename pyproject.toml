@@ -1,0 +1,41 @@
+[project]
+name = "projetos-em-camadas"
+version = "0.1.0"
+description = "Projetos em camadas: mosaico de drone, pranchas CAD e visualizador HTML de obras"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "opencv-python-headless>=4.9",
+    "pillow>=10",
+    "pyproj>=3.6",
+    "pandas>=2.2",
+    "openpyxl>=3.1",
+    # geometria (camadas.obra importa valas/escavacao/prancha, que usam no topo; shapely 2: contains_xy, from_geojson)
+    "shapely>=2.0",
+    # formato atual das gavetas da memória espacial (camadas.gavetas; decisão da rodada 21)
+    "pyarrow>=15",
+]
+
+[project.optional-dependencies]
+# PDF vetorial (camadas.pdf_cad) -- pymupdf e AGPL
+pdf = ["pymupdf>=1.24"]
+# malha de coordenadas impressa (georef_prancha.registrar_malha); exige `apt-get install tesseract-ocr`
+ocr = ["pytesseract"]
+# GeoPackage (camadas.sig.geopackage) e GeoTIFF/recorte/mascara (camadas.sig.geotiff, camadas.supressao); rasterio usa GDAL; rasterio>=1.5 exige Python >=3.12 (marcador abaixo)
+sig = ["geopandas>=1.2", "rasterio>=1.5; python_version >= '3.12'"]
+# 3D/ortofoto (camadas.sfm), CPU
+3d = ["pycolmap>=4.0"]
+# DXF -> camadas vetoriais
+dxf = ["ezdxf"]
+# teste do visualizador (scripts/testar_visualizador.py); exige `playwright install chromium`
+visual = ["playwright>=1.40"]
+
+[dependency-groups]
+dev = ["pytest>=8", "duckdb>=1.0"]  # duckdb: formato duckdb das gavetas e motor comum da bancada
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

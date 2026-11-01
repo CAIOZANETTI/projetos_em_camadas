@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 import pytest
 
@@ -32,7 +34,7 @@ def test_comprimentos_e_progressivas(base5):
     assert sum(comps.values()) == pytest.approx(5000, abs=1e-6)
     assert all(c == pytest.approx(20, abs=1e-6) for c in comps.values())
     assert geoms[-1]["prog_fim_m"] == pytest.approx(5000, abs=1e-6)
-    assert geoms[0]["prog_ini_m"] == 0 and all(a["prog_fim_m"] == b["prog_ini_m"] for a, b in zip(geoms, geoms[1:]))
+    assert geoms[0]["prog_ini_m"] == 0 and all(a["prog_fim_m"] == b["prog_ini_m"] for a, b in itertools.pairwise(geoms))
     pavs = {f["objeto_id"]: f["valor"] for f in base5["fatos"] if f["propriedade"] == "pavimentos"}
     assert all(sum(p.values()) == pytest.approx(comps[o], abs=1e-6) for o, p in pavs.items())
 
@@ -56,7 +58,7 @@ def test_furos_ao_lado_do_eixo_com_camadas_contiguas(base5):
         if f["propriedade"] == "camadas":
             cs = f["valor"]
             assert 2 <= len(cs) <= 4 and cs[0]["de"] == 0
-            assert all(a["ate"] == b["de"] for a, b in zip(cs, cs[1:]))
+            assert all(a["ate"] == b["de"] for a, b in itertools.pairwise(cs))
         assert f["natureza"] == ("observado" if f["objeto_id"].startswith("SP") else "projetado")
 
 

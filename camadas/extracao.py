@@ -249,7 +249,9 @@ def _confere_citacao(item: dict, citacao: dict) -> tuple[bool, str]:
 
 def _marca(linha: dict) -> str:
     """Hash da linha de retorno: identifica a mesma linha numa rodada seguinte."""
-    return hashlib.sha1(json.dumps(linha, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    return hashlib.sha1(
+        json.dumps(linha, sort_keys=True, ensure_ascii=False).encode(), usedforsecurity=False
+    ).hexdigest()
 
 
 def _aninhar(campos: dict) -> dict:

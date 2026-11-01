@@ -10,7 +10,7 @@
 - **Decisão**: `formato.atual = parquet` (`conceitos/gavetas.json`, com a evidência). Em 100 km, 8× menor que o JSONL
   e consulta pelo motor comum 13× mais rápida; RAM maior (117 × 54 MB). Registros versionados no git continuam em
   JSONL. `pyarrow` passa a ser dependência obrigatória.
-- Lição L017.
+- Lição L019.
 
 ## 0.24.0 — 2026-10-31 · Memória espacial: gavetas e os três de-para
 - **Gavetas** (`conceitos/gavetas.json`, `camadas/gavetas.py`): objetos, geometria, fatos, evidências, pendências e
@@ -26,7 +26,7 @@
 - **Formato físico como experimento**: JSONL (atual) e CSV com ida e volta sem perda; Parquet, DuckDB e os demais
   candidatos ficam para G05/G08, com as métricas listadas em `gavetas.json`.
 - `docs/MEMORIA_ESPACIAL.md` v0.3: formato das gavetas, inventário e escada de executores, sondagens e memória de
-  cálculo. Lição L016.
+  cálculo. Lição L018.
 
 ## 0.23.0 — 2026-10-31 · Rodada 20, PR 3: o loop de extração fecha sozinho
 - **Executor da escada** (`camadas/escada.py`, `python -m camadas.escada <obra.json>`): cada pendência sobe pelos

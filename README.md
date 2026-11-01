@@ -50,6 +50,7 @@ satélite (opcional, online) ─────────────────
 ```bash
 pip install -r requirements.txt pycolmap pymupdf pytesseract   # + apt-get install tesseract-ocr (malha de coordenadas)
 python -m camadas.obra exemplos/foz/obra.json        # SfM + ortofoto + pranchas + escopo + HTML
+# alternativa com uv: uv sync --extra pdf --extra sig && uv run python -m camadas.obra exemplos/foz/obra.json   # extras: pdf ocr sig 3d dxf visual
 python scripts/testar_visualizador.py saida/foz/foz-vilac_camadas_v<versão>_<data>.html
 python scripts/afericao.py --registrar     # régua do código (estilo-caio-python, regra 17)
 ```

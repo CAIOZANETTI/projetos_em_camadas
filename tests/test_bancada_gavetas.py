@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-import bancada_gavetas as bg  # noqa: E402
+import bancada_gavetas as bg
 
 CHAVES = {"rodada", "data", "km", "formato", "ordem", "bytes", "gravar_s", "ler_s", "ida_e_volta", "ram_mb",
           "consultas", "pyarrow", "duckdb", "repeticoes", "semente"}
@@ -84,9 +84,10 @@ def test_decidir_sem_aprovado_nao_tem_vencedor():
 
 
 def test_ram_enxerga_a_memoria_nativa(tmp_path):
-    """L017: o pico de RSS vê o pool do pyarrow, que o tracemalloc não vê."""
+    """L019: o pico de RSS vê o pool do pyarrow, que o tracemalloc não vê."""
     pytest.importorskip("pyarrow")
     import tracemalloc
+
     from camadas import gavetas, sintetico
     gavetas.gravar(tmp_path, sintetico.base_linear(1), "parquet")
     tracemalloc.start()
