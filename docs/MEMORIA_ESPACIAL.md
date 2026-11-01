@@ -1,6 +1,7 @@
-# Memória espacial: de-para do documento à EAP (v0.3, 31/10/2026)
+# Memória espacial: de-para do documento à EAP (v0.4, 01/11/2026)
 
-Status: MVP em código (0.24.0): `conceitos/gavetas.json`, os três `conceitos/de_para_*.json` e `camadas/gavetas.py`.
+Status: implementado e testado em dados sintéticos nas rodadas 21 a 24 (0.25.0 a 0.30.0). Ligado ao build. Falta o build
+real de Foz (§8).
 Complementa `docs/ARQUITETURA.md` sem substituí-lo.
 
 ## 1. A ideia em uma frase
@@ -185,3 +186,32 @@ obrigatórios). A planilha do contrato serve de conferência, mas é estimativa 
 
 **Princípio:** primeiro o fato guardado no lugar certo, com evidência; depois o serviço calculado a partir dele;
 por fim a EAP, que é o que o usuário vê.
+
+## 8. Estado em 01/11/2026 (rodadas 21 a 24)
+
+| Peça | Onde | Estado |
+|---|---|---|
+| Gavetas, contrato e conferência | `conceitos/gavetas.json`, `camadas/gavetas.py` | feito; fato sem evidência ou fora do contrato é reprovado |
+| Formato físico | Parquet (`formato.decisao`) | medido na rodada 21 (8× menor que o JSONL em 100 km); JSONL para o que vai ao git |
+| De-para 1: documento → gaveta | `extrair_gavetas`: planilha Obras Lineares, sondagens, decisões, valas das redes, retornos da IA | ligado; valor vazio ou padrão do leitor não vira fato; IA entra como `inferido` com trecho |
+| De-para 2: gaveta → serviço | regras `vala_aberta`, `mnd` (`obras_lineares`) e `vala_rede` (`valas`) | feito; paridade com o cálculo atual sobre os serviços gravados |
+| De-para 3: serviço → EAP | `de_para_eap.json` (OL.01–07, RD.01–03, provisórios) | feito; a casar com a EAP do PR #18 |
+| EAP no HTML | `eap_html.py` + aba EAP | feito; nó → serviço → fato → evidência; o JS só apresenta |
+| Recálculo incremental | `calcular_incremental`, chave com a impressão da regra | feito; mudar um fato recalcula um objeto |
+| Escala | `scripts/bancada_calculo.py` | 100 km em 4,3 s; o 2º cálculo sem mudança reprovou no critério de 10 % |
+
+**O que a tese mostrou até aqui.** Com as gavetas e os três de-para, cada quantidade da EAP leva até o documento, e
+as revisões independentes do Fable acharam falhas concretas em cada rodada, corrigidas com teste: paridade cega ao
+método aplicado, padrão do leitor virando fato, chave do incremental sem as constantes do MOS. O cálculo pelas
+gavetas reproduz o atual em todos os testes. Nos dados sintéticos, a resposta é sim: o processo ficou mais orientado
+e rastreável, sem perder o resultado.
+
+**O que falta para fechar a tese:**
+1. o build real de Foz (`python -m camadas.obra exemplos/foz/obra.json`, com `dados/foz/`), com `paridade.json` vazio
+   e a aba EAP conferida pelo Caio;
+2. as cavas (`escavacao.py`): o volume sai de uma grade do MDS, então precisam de uma gaveta de superfície;
+3. os setores da ETA (G09);
+4. o casamento dos códigos OL e RD com a EAP do PR #18;
+5. uma chave barata para o 2º cálculo, se o custo fixo de 1,4 s em 100 km incomodar;
+6. o acesso do CI ao `vibe_code_metrics` (segredo `VCM_TOKEN`), para o balanço rodar no PR.
+
