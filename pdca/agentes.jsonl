@@ -43,3 +43,4 @@
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "sonnet", "papel": "implementador", "tarefa": "G2 e G3 (modelo geotécnico e conferências)", "tokens": 144694, "segundos": 380, "ferramentas": 32, "resultado": "entregue; hash igual"}
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "aceite do PR 3 (G2, G3, L2)", "tokens": 102653, "segundos": 104, "ferramentas": 7, "resultado": "G2 e G3 aceitas; L2 revisar (fundo da vala somava o berço)"}
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "2º aceite do L2", "tokens": 109092, "segundos": 18, "ferramentas": 2, "resultado": "L2 aceita"}
+{"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "aceite da correção da impressão da regra (gavetas)", "tokens": 122913, "segundos": 48, "ferramentas": 3, "resultado": "aceita"}

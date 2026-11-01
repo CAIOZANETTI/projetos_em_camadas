@@ -459,7 +459,8 @@ def test_incremental_ve_as_constantes_da_regra(monkeypatch):
     """Aceite da rodada 23: mudar uma constante do MOS (empolamento) muda a chave e recalcula, sem subir a versão."""
     base = _base()
     servicos, _, _ = gv.calcular_incremental(base)
-    # desde a rodada 25 o empolamento mora no modelo geotécnico (conceitos/geotecnia.json), de que o MOS depende
+    # desde a rodada 25 o empolamento mora no modelo geotécnico (conceitos/geotecnia.json), de que o MOS depende;
+    # PREMISSAS é lido do JSON no import, então trocar o atributo equivale a trocar o arquivo
     from camadas import geotecnia as geo
     premissas = copy.deepcopy(geo.PREMISSAS)
     premissas["empolamento"]["solo"] = premissas["empolamento"]["solo"] * 2

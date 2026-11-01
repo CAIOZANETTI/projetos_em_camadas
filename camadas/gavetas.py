@@ -434,7 +434,8 @@ def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict
 
 
 def impressao_regra(regra: str) -> str:
-    """sha1 curto do código do módulo da função da regra e das constantes dele (`REGRAS`, de `conceitos/`): mudar o
+    """sha1 curto do código e das constantes (`REGRAS`, `PREMISSAS`, de `conceitos/`) do módulo da função da regra e
+    dos módulos `camadas.*` que ele importa: mudar o
     empolamento, a Tabela I do MOS ou o próprio cálculo muda a chave, sem depender de alguém subir a `versao`."""
     if regra not in SERVICOS["regras"]:
         return ""
