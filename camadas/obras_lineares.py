@@ -29,6 +29,7 @@ import numpy as np
 import openpyxl
 import pandas as pd
 
+from . import geotecnia as geo
 from . import pdf_cad, valas
 
 REGRAS = json.loads((pdf_cad.CONCEITOS / "obras_lineares.json").read_text(encoding="utf-8"))
@@ -82,27 +83,13 @@ def largura(dn_mm: float, material: str, prof_m: float, escorado: bool, junta: s
 # --------------------------------------------------------------------------------------------------------------------
 
 def classe_solo(descricao: str, classe: str | None = None) -> dict:
-    """Classe e categoria de escavação de uma camada da sondagem pela descrição (ou pela classe já dada)."""
-    texto = norm(f"{classe or ''} {descricao or ''}")
-    for c in REGRAS["solos"]["classes"]:
-        if re.search(c["regex"], texto):
-            return c
-    return {"classe": "indefinido", "categoria": "a definir"}
+    """Classe e categoria de escavação de uma camada da sondagem (delega ao modelo geotécnico único)."""
+    return geo.classe_solo(descricao, classe)
 
 
 def solo_na_vala(furo: dict, prof_m: float) -> dict[str, float]:
-    """Fração da altura da vala (0 a prof_m) em cada classe de solo do furo."""
-    fatias: dict[str, float] = {}
-    for c in furo.get("camadas", []):
-        de, ate = c.get("de"), c.get("ate")
-        if de is None or ate is None or de >= prof_m:
-            continue
-        cl = classe_solo(c.get("descricao"), c.get("classe"))["classe"]
-        fatias[cl] = fatias.get(cl, 0.0) + (min(ate, prof_m) - de) / prof_m
-    resto = 1.0 - sum(fatias.values())
-    if resto > 1e-6:
-        fatias["indefinido"] = fatias.get("indefinido", 0.0) + resto
-    return fatias
+    """Fração da altura da vala (0 a prof_m) em cada classe de solo do furo (delega ao modelo geotécnico único)."""
+    return geo.solo_na_faixa(furo, 0.0, prof_m)
 
 
 def id_furo(texto) -> str:
@@ -113,14 +100,9 @@ def id_furo(texto) -> str:
 
 def furo_por_metro(pts: np.ndarray, furos: list[dict]) -> list[str | None]:
     """Id do furo mais próximo de cada ponto do eixo (UTM) dentro do raio de influência; None fora dele."""
-    com_xy = [f for f in furos if f.get("E") is not None and f.get("N") is not None]
-    if not com_xy:
-        return [None] * len(pts)
-    xy = np.array([[f["E"], f["N"]] for f in com_xy], float)
-    d = np.linalg.norm(pts[:, None, :] - xy[None, :, :], axis=2)
-    perto = d.argmin(axis=1)
-    raio = REGRAS["raio_influencia_m"]["valor"]
-    return [com_xy[k]["id"] if d[i, k] <= raio else None for i, k in enumerate(perto)]
+    indices, distancias_m = geo.furo_mais_proximo(pts, furos)
+    raio = geo.RAIO_INFLUENCIA_M
+    return [furos[k]["id"] if k >= 0 and d <= raio else None for k, d in zip(indices, distancias_m, strict=True)]
 
 
 def cobertura(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) -> dict[str | None, float]:
@@ -154,7 +136,7 @@ def geotecnia(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) ->
     if not nas and trecho.get("na_m") is not None:            # só o NA da planilha
         nas.append(trecho["na_m"])
         esgota = 1.0 - sem if prof and trecho["na_m"] < prof else 0.0
-    cat = {c["classe"]: c["categoria"] for c in REGRAS["solos"]["classes"]}
+    cat = geo.CATEGORIA_POR_CLASSE
     return {"solos": {k: round(v, 3) for k, v in solos.items()},
             "categorias": {c: round(sum(v for k, v in solos.items() if cat.get(k, "a definir") == c), 3)
                            for c in sorted({cat.get(k, "a definir") for k in solos})},
@@ -214,7 +196,7 @@ def vca(t: dict, larg: float) -> dict:
     esc = comp * larg * prof
     pav = {k: round(v * larg, 2) for k, v in (t.get("pavimentos") or {}).items() if v}
     return {"largura_m": larg, "area_m2": round(comp * larg, 3), "escavacao_m3": round(esc, 3),
-            "reaterro_m3": round(esc - tubo, 3), "bota_fora_m3": round(tubo * REGRAS["empolamento"]["valor"], 3),
+            "reaterro_m3": round(esc - tubo, 3), "bota_fora_m3": round(tubo * geo.EMPOLAMENTO_SOLO, 3),
             "escoramento_m2": round(2 * comp * prof, 2) if t["escorado"] else 0.0,
             "supressao_m2": round(comp * larg * (t.get("supressao_frac") or 0.0), 3),
             "pavimento_m2": pav, "caximbos": 0}
@@ -285,7 +267,9 @@ def _pavimentos(ws, r: int, pares: list) -> dict[str, float]:
 
 
 def ler_obras_lineares(caminho, aba: str = "Obras Lineares") -> list[dict]:
-    """Trechos da tabela 'OBRAS LINEARES' (colunas V–BC): dados de entrada e, à parte, os valores da planilha."""
+    """Trechos da tabela 'OBRAS LINEARES' (colunas V–BC): dados de entrada e, à parte, os valores da planilha.
+    `metodo_lido` (célula crua) e `supressao_lida` (havia % na observação) dizem o que a planilha trouxe de fato: o
+    `metodo` VCA e a `supressao_frac` 0 são padrões deste leitor, e a extração para as gavetas não os grava como fato."""
     ws = openpyxl.load_workbook(caminho, data_only=True)[aba]
     lin, col = _cabecalho(ws)
     trechos = []

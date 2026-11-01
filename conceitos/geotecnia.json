@@ -3,7 +3,7 @@
   "fonte": "nomes de campo já em uso por camadas/obra.py, sig.py, obras_lineares.py e extrair_gavetas.de_sondagens; premissas da decisão D1 da rodada 25 (planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares, e conceitos/obras_lineares.json)",
   "estado": "premissa",
   "data_referencia": "2026-11",
-  "observacoes": "Schema do furo canônico: formaliza os nomes em uso (sem sufixo SI; a troca fica para depois da rodada 24) e declara a unidade de cada um em `unidade`. As premissas `raio_influencia_m`, `margem_na_m` e `empolamento` são só declaradas aqui; quem as usa é o modelo geotécnico do G2."
+  "observacoes": "Schema do furo canônico: formaliza os nomes em uso (sem sufixo SI; a troca fica para depois da rodada 24) e declara a unidade de cada um em `unidade`. As premissas e as regras de `solos` (solo/rocha e categoria de escavação, movidas de `obras_lineares.json` no G2) são usadas por `camadas/geotecnia.py`, o modelo geotécnico único; `obras_lineares` delega a ele."
  },
  "schema_furo": {
   "id": {"tipo": "texto", "unidade": null, "obrigatorio": true, "descricao": "identificador do furo (SP-01, SPT-2, F-3)"},
@@ -27,10 +27,29 @@
  "tolerancia_profundidade_m": 0.01,
  "premissas": {
   "raio_influencia_m": {"valor": 60, "unidade": "m", "estado": "premissa",
-   "fonte": "planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares; conceitos/obras_lineares.json; decisão D1 (rodada 25)"},
+   "fonte": "planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares; conceitos/obras_lineares.json (lá constava 'calibrar': conferir com o geotécnico); decisão D1 (rodada 25)"},
   "margem_na_m": {"valor": 0, "unidade": "m", "estado": "premissa",
    "fonte": "planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares; conceitos/obras_lineares.json; decisão D1 (rodada 25)"},
   "empolamento": {"solo": 1.30, "rocha": 1.50, "unidade": "adimensional", "estado": "premissa",
-   "fonte": "planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares (colunas V–BC); conceitos/obras_lineares.json; decisão D1 (rodada 25)"}
+   "fonte": "planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares (colunas V–BC); conceitos/obras_lineares.json; decisão D1 (rodada 25)"},
+  "folga_na_sazonal_m": {"valor": 0.5, "unidade": "m", "estado": "premissa",
+   "fonte": "revisão do Fable (rodada 25): o NA é sazonal; alerta quando o fundo da escavação fica a menos desta folga do NA, sem mudar o cálculo (a margem do NA segue 0 m)"},
+  "tolerancia_conferencia_m": {"valor": 0.10, "unidade": "m", "estado": "premissa",
+   "fonte": "G3 (rodada 25): tolerância absoluta das conferências projeto × sondagem (ponta da estaca × impenetrável, fundo de cava × NA); conferir com o geotécnico"},
+  "passo_amostragem_m": {"valor": 1.0, "unidade": "m", "estado": "premissa",
+   "fonte": "G3 (rodada 25): espaçamento dos pontos amostrados no trecho para medir a fração sem furo no raio (o mesmo passo de 1 m de conceitos/valas.json)"}
+ },
+ "solos": {
+  "estado": "premissa",
+  "fonte": "descrição da camada da sondagem (NBR 6484); a 1ª palavra que casa decide; categoria de escavação Sanepar: 1ª = solo, 2ª = rocha branda/alterada, 3ª = rocha sã",
+  "classes": [
+   {"classe": "aterro", "regex": "ATERRO|ENTULHO", "categoria": "1ª categoria"},
+   {"classe": "rocha_alterada", "regex": "ALTERA|BRANDA|SAPROL|MATAC", "categoria": "2ª categoria"},
+   {"classe": "rocha", "regex": "ROCHA|BASALTO|IMPENETR", "categoria": "3ª categoria"},
+   {"classe": "argila", "regex": "ARGIL", "categoria": "1ª categoria"},
+   {"classe": "silte", "regex": "SILT", "categoria": "1ª categoria"},
+   {"classe": "areia", "regex": "AREI", "categoria": "1ª categoria"},
+   {"classe": "pedregulho", "regex": "PEDREG|CASCALH", "categoria": "1ª categoria"}
+  ]
  }
 }

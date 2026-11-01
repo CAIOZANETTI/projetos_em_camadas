@@ -734,6 +734,8 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     pacotes["obras_lineares"] = obras_lineares.etapa(cfg, dados["sondagens"], out, log=_log)   # vala (MOS) da planilha
     try:                                                       # a base das gavetas não pode derrubar o build
         dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log)
+        if dados["gavetas"]:                                    # aba EAP: só apresenta o que o Python montou
+            dados["eap"] = dados["gavetas"].pop("eap_html")
     except Exception as erro:  # noqa: BLE001 - a etapa nova nunca derruba o build
         _log(f"Gavetas: etapa não concluída ({type(erro).__name__}: {erro})")
     if fichas:
