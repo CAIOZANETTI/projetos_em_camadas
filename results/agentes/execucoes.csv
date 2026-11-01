@@ -33,3 +33,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 25,aceite da correção da impressão da regra,revisor (aceite),claude-fable-5-1,122913,3,48,True,nenhum,aceita
 2026-11-01,rodada 25,F (conferências geotécnicas no build),implementador,claude-sonnet-5-5,99250,24,179,True,nenhum,entregue; aguarda aceite
 2026-11-01,rodada25,L3a dimensionador único de vala,executor,opus,203073,52,3892,sim,0,"35 testes novos; gabaritos intactos; hash da referência igual; achado classe_solo areia fina argilosa"
+2026-11-01,rodada25,L3b valas pelo dimensionador (D2) e trechos,executor,sonnet,126484,35,246,sim,0,"hash muda só no caso_valas_por_classe (conferido caso a caso); D2 NBR 0,90→MOS 0,75"

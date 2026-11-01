@@ -46,3 +46,4 @@
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "aceite da correção da impressão da regra (gavetas)", "tokens": 122913, "segundos": 48, "ferramentas": 3, "resultado": "aceita"}
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "sonnet", "papel": "implementador", "tarefa": "F (conferências geotécnicas no build)", "tokens": 99250, "segundos": 179, "ferramentas": 24, "resultado": "entregue; aguarda aceite"}
 {"data": "2026-11-01", "rodada": 25, "tarefa": "L3a", "papel": "executor", "modelo": "opus", "tokens": 203073, "chamadas_ferramenta": 52, "duracao_s": 3892, "aprovado": true, "retrabalho_gerente": 0}
+{"data": "2026-11-01", "rodada": 25, "tarefa": "L3b", "papel": "executor", "modelo": "sonnet", "tokens": 126484, "chamadas_ferramenta": 35, "duracao_s": 246, "aprovado": true, "retrabalho_gerente": 0}
