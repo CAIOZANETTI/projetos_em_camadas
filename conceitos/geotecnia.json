@@ -36,6 +36,8 @@
    "fonte": "revisão do Fable (rodada 25): o NA é sazonal; alerta quando o fundo da escavação fica a menos desta folga do NA, sem mudar o cálculo (a margem do NA segue 0 m)"},
   "tolerancia_conferencia_m": {"valor": 0.10, "unidade": "m", "estado": "premissa",
    "fonte": "G3 (rodada 25): tolerância absoluta das conferências projeto × sondagem (ponta da estaca × impenetrável, fundo de cava × NA); conferir com o geotécnico"},
+  "tolerancia_boca_m": {"valor": 0.50, "unidade": "m", "estado": "premissa",
+   "fonte": "F (rodada 25): tolerância absoluta da cota da boca do furo (topográfica) contra o terreno do MDS do drone no mesmo ponto; maior que a das demais conferências (0,10 m) porque o MDS do drone tem incerteza vertical de decímetros e a boca pode estar sobre aterro ou copa; conferir com o topógrafo"},
   "passo_amostragem_m": {"valor": 1.0, "unidade": "m", "estado": "premissa",
    "fonte": "G3 (rodada 25): espaçamento dos pontos amostrados no trecho para medir a fração sem furo no raio (o mesmo passo de 1 m de conceitos/valas.json)"}
  },
