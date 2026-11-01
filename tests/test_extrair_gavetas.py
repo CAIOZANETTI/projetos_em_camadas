@@ -225,7 +225,8 @@ def test_rede_de_vala_passa_por_gavetas_e_paridade():
     assert gavetas.conferir_de_para() == []
     assert eg.paridade_valas(base, [{**rede, "peso": rede["peso"] * 1.5}])      # base defasada: a paridade acusa
     por_ortofoto = eg.de_valas([_rede_vala(criterio="ortofoto")])
-    assert {f["natureza"] for f in por_ortofoto["fatos"] if f["propriedade"] == "pesos_m"} == {"inferido"}
+    assert {f["natureza"] for f in por_ortofoto["fatos"] if f["propriedade"] == "classes_por_metro"} == {"inferido"}
+    assert {f["natureza"] for f in por_ortofoto["fatos"] if f["propriedade"] == "pesos_m"} == {"projetado"}
 
 
 def test_vala_pela_ortofoto_aponta_as_classes_para_a_evidencia_da_ortofoto():
@@ -236,9 +237,12 @@ def test_vala_pela_ortofoto_aponta_as_classes_para_a_evidencia_da_ortofoto():
     assert (orto["classe"], orto["documento"], orto["metodo"], orto["executor"]) == (
         "ortofoto", "saida/sfm/ortofoto.jpg", "geometria", "código")
     por_propriedade = {f["propriedade"]: f for f in base["fatos"]}
-    for propriedade in ("classes_por_metro", "pesos_m", "finais"):
-        assert por_propriedade[propriedade]["evidencia_id"] == "EV-RV-R1-ORTO"
-        assert por_propriedade[propriedade]["natureza"] == "inferido"
+    assert por_propriedade["classes_por_metro"]["evidencia_id"] == "EV-RV-R1-ORTO"   # só a classe vem da ortofoto
+    assert por_propriedade["classes_por_metro"]["natureza"] == "inferido"
+    for propriedade in ("pesos_m", "finais"):                    # pesos: traço do tubo; finais: prancha de urbanização
+        if propriedade in por_propriedade:
+            assert por_propriedade[propriedade]["evidencia_id"] == "EV-RV-R1"
+            assert por_propriedade[propriedade]["natureza"] == "projetado"
     for propriedade in ("de_mm", "extensao_m"):
         assert por_propriedade[propriedade]["evidencia_id"] == "EV-RV-R1"
     assert evidencias["EV-RV-R1"]["localizador"]["layers"] == ["TUBO", "LIMITE"]

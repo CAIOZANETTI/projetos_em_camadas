@@ -127,10 +127,10 @@ def _evidencia_da_ortofoto(rede: dict, ortofoto: str | Path | None) -> dict:
 def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path | None = None) -> dict:
     """Redes de `valas.rede` → objetos `rede_vala` `RV-<id>`, eixo em linha, fatos e evidência (pranchas, layers e critério).
 
-    `de_mm` e `extensao_m` são projetados e apontam para a evidência da prancha. Classe, peso e superfície final são
-    `projetado` quando o critério é o desenho (divisas, quadras, meio_fio), com a mesma evidência; quando é a ortofoto são
-    `inferido` e apontam para uma segunda evidência (classe "ortofoto", documento = `ortofoto`, método "geometria").
-    A rede guarda um só critério, não a origem de cada metro: a natureza vale para a rede inteira."""
+    `de_mm`, `extensao_m`, `pesos_m` (traço do tubo) e `finais` (prancha de urbanização) são projetados e apontam para a
+    evidência da prancha. A classe de cada metro é `projetado` quando o critério é o desenho (divisas, quadras, meio_fio);
+    quando é a ortofoto, é `inferido` e aponta para uma segunda evidência (classe "ortofoto", documento = `ortofoto`,
+    método "geometria"). A rede guarda um só critério, não a origem de cada metro: a natureza vale para a rede inteira."""
     base = _base_vazia()
     propriedades = _propriedades("eixo da rede")
     for rede in redes:
@@ -151,7 +151,7 @@ def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path 
         for propriedade in propriedades:
             if _vazio(dados.get(propriedade)):
                 continue
-            nasce_do_desenho = por_desenho or propriedade in ("de_mm", "extensao_m")
+            nasce_do_desenho = por_desenho or propriedade != "classes_por_metro"   # pesos: traço; finais: urbanização
             base["fatos"].append(_fato(objeto_id, propriedade, dados[propriedade],
                                        "projetado" if nasce_do_desenho else "inferido",
                                        evidencia_id if nasce_do_desenho else f"{evidencia_id}-ORTO"))
