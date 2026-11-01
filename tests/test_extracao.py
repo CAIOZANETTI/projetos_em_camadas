@@ -288,3 +288,33 @@ def test_esperado_x_encontrado_enxerga_titulo_vindo_de_retorno(tmp_path):
     extracao.aplicar_retornos(tmp_path, inv)
     p = extracao.pendencias(inv, complementos=_complementos(tmp_path))
     assert achar(p["itens"])["situacao"] == "no disco"
+
+
+def _retorno_ia(**extra):
+    return {"arquivo": "laudo.pdf", "pasta_drive": "SONDAGENS", "executor": "Sonnet", "classe": "laudo",
+            "campos": {}, "citacao": {"pagina": 2, "trecho": "N.A. a 1,80 m"},
+            "fatos": [{"objeto_id": "SP-01", "propriedade": "na_m", "valor": 1.8},
+                      {"objeto_id": "SP-01", "propriedade": "dn_mm", "valor": 300}], **extra}
+
+
+def test_fatos_do_retorno_so_propriedade_do_de_para_da_classe():
+    from camadas import gavetas
+    r = extracao.fatos_do_retorno(_retorno_ia())
+    assert len(r["fatos"]) == 1 and len(r["recusas"]) == 1 and r["recusas"][0]["propriedade"] == "dn_mm"
+    f, ev = r["fatos"][0], r["evidencias"][0]
+    assert (f["propriedade"], f["natureza"], f["executor"], f["fato_id"]) == ("na_m", "inferido", "Sonnet", "SP-01.na_m.ia")
+    assert f["evidencia_id"] == ev["evidencia_id"] and ev["evidencia_id"].startswith("EV-IA-")
+    assert (ev["trecho"], ev["metodo"], ev["classe"], ev["documento"]) == ("N.A. a 1,80 m", "IA", "laudo", "laudo.pdf")
+    assert ev["localizador"] == {"pagina": 2, "pasta_drive": "SONDAGENS"}
+    assert r["objetos"] == [{"objeto_id": "SP-01", "classe": "furo_sondagem"}]
+    assert extracao.fatos_do_retorno(_retorno_ia()) == r                      # ids determinísticos
+    base = {"fatos": r["fatos"], "evidencias": r["evidencias"], "objetos": r["objetos"], "pendencias": [], "servicos": []}
+    assert gavetas.conferir_base(base) == []
+
+
+def test_fatos_do_retorno_sem_trecho_recusa_tudo_e_classe_vem_da_avaliacao():
+    r = extracao.fatos_do_retorno(_retorno_ia(citacao={"pagina": 1, "trecho": ""}))
+    assert r["fatos"] == [] and {x["motivo"] for x in r["recusas"]} == {"sem trecho citado"} and len(r["recusas"]) == 2
+    sem_classe = {k: v for k, v in _retorno_ia().items() if k != "classe"}
+    assert len(extracao.fatos_do_retorno(sem_classe, {"classe": "laudo"})["fatos"]) == 1
+    assert extracao.fatos_do_retorno(sem_classe, {"classe": "memorial"})["fatos"] == []
