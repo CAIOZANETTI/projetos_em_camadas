@@ -285,7 +285,9 @@ def _pavimentos(ws, r: int, pares: list) -> dict[str, float]:
 
 
 def ler_obras_lineares(caminho, aba: str = "Obras Lineares") -> list[dict]:
-    """Trechos da tabela 'OBRAS LINEARES' (colunas V–BC): dados de entrada e, à parte, os valores da planilha."""
+    """Trechos da tabela 'OBRAS LINEARES' (colunas V–BC): dados de entrada e, à parte, os valores da planilha.
+    `metodo_lido` (célula crua) e `supressao_lida` (havia % na observação) dizem o que a planilha trouxe de fato: o
+    `metodo` VCA e a `supressao_frac` 0 são padrões deste leitor, e a extração para as gavetas não os grava como fato."""
     ws = openpyxl.load_workbook(caminho, data_only=True)[aba]
     lin, col = _cabecalho(ws)
     trechos = []

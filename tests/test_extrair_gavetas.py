@@ -60,7 +60,7 @@ def test_furos_com_e_sem_coordenadas():
     base = eg.de_sondagens(FUROS, "sondagens.json", executor="Sonnet")
     assert base["geometria"] == [{"objeto_id": "SP-02", "tipo": "ponto", "coords": [10.0, 20.0],
                                   "crs_h": "EPSG:31982", "datum_v": "ortométrico"}]
-    assert base["pendencias"] == [{"objeto_id": "SP-05", "motivo": "furo sem coordenadas: não entra pela posição"}]
+    assert base["pendencias"] == [{"objeto_id": "SP-05", "motivo": "furo sem coordenadas: entra só pelo nome citado na planilha, não pela posição no eixo"}]
     assert {e["executor"] for e in base["evidencias"]} == {"Sonnet"}
     assert base["evidencias"][0]["localizador"] == {"arquivo": "sondagens.json", "furo": "SP-02"}
     assert not any(f["objeto_id"] == "SP-05" and f["propriedade"] == "cota_boca_m" for f in base["fatos"])
@@ -119,6 +119,11 @@ def test_etapa_grava_base_paridade_e_resumo(tmp_path):
     assert resumo["fatos_por_natureza"]["decidido"] == 1 and resumo["erros_conferencia"] == []
     assert resumo["objetos_por_classe"] == {"trecho_tubo": 3, "furo_sondagem": 1}
     assert gavetas.conferir_base(gavetas.ler(out / "base")) == []
+    eap = resumo["eap_html"]                                   # rodada 23: o dados["eap"] da aba EAP
+    assert eap["nos"] and set(eap["resumo"]) == {"servicos", "nos", "pendencias", "diferencas_paridade",
+                                                  "recalculados", "reaproveitados"}
+    assert all(f["evidencia"]["onde"] for n in eap["nos"] for s in n["servicos"] for f in s["fatos"])
+    assert "eap_html" not in gravado and json.dumps(eap)       # o resumo.json fica leve; o HTML embute o eap
 
 
 def test_etapa_sem_planilha_devolve_none(tmp_path):
@@ -182,3 +187,13 @@ def test_etapa_com_gavetas_nulo_nao_quebra(tmp_path):
     out.mkdir()
     resumo = eg.etapa(_cfg(tmp_path, gavetas=None), [], out, log=lambda *_: None)
     assert resumo is not None
+
+
+def test_etapa_segunda_rodada_no_mesmo_out_nao_recalcula_nada(tmp_path):
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "out"
+    r1 = eg.etapa(cfg, [], out, log=lambda *_: None)
+    assert r1["recalculados"] > 0 and r1["reaproveitados"] == 0
+    r2 = eg.etapa(cfg, [], out, log=lambda *_: None)
+    assert r2["recalculados"] == 0 and r2["reaproveitados"] == r1["recalculados"]
+    assert json.loads((out / "resumo.json").read_text(encoding="utf-8"))["recalculados"] == 0
