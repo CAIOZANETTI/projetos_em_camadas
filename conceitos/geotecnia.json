@@ -1,0 +1,36 @@
+{
+ "metadata": {
+  "fonte": "nomes de campo já em uso por camadas/obra.py, sig.py, obras_lineares.py e extrair_gavetas.de_sondagens; premissas da decisão D1 da rodada 25 (planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares, e conceitos/obras_lineares.json)",
+  "estado": "premissa",
+  "data_referencia": "2026-11",
+  "observacoes": "Schema do furo canônico: formaliza os nomes em uso (sem sufixo SI; a troca fica para depois da rodada 24) e declara a unidade de cada um em `unidade`. As premissas `raio_influencia_m`, `margem_na_m` e `empolamento` são só declaradas aqui; quem as usa é o modelo geotécnico do G2."
+ },
+ "schema_furo": {
+  "id": {"tipo": "texto", "unidade": null, "obrigatorio": true, "descricao": "identificador do furo (SP-01, SPT-2, F-3)"},
+  "E": {"tipo": "numero", "unidade": "m", "obrigatorio": true, "descricao": "coordenada leste, SIRGAS 2000 / UTM"},
+  "N": {"tipo": "numero", "unidade": "m", "obrigatorio": true, "descricao": "coordenada norte, SIRGAS 2000 / UTM"},
+  "epsg": {"tipo": "inteiro", "unidade": null, "obrigatorio": false, "descricao": "código EPSG do E/N; `epsg_inferido` é aceito no lugar"},
+  "cota_boca": {"tipo": "numero", "unidade": "m", "obrigatorio": false, "descricao": "cota da boca do furo"},
+  "na_m": {"tipo": "numero", "unidade": "m", "obrigatorio": false, "descricao": "profundidade do nível d'água a partir da boca; null = não atingido"},
+  "profundidade_m": {"tipo": "numero", "unidade": "m", "obrigatorio": false, "descricao": "profundidade final do furo"},
+  "impenetravel": {"tipo": "booleano", "unidade": null, "obrigatorio": false, "descricao": "furo parou em material impenetrável ao amostrador"},
+  "camadas": {"tipo": "lista", "unidade": null, "obrigatorio": false, "descricao": "camadas em ordem crescente de profundidade",
+   "itens": {
+    "de": {"tipo": "numero", "unidade": "m", "obrigatorio": true, "descricao": "profundidade do topo da camada"},
+    "ate": {"tipo": "numero", "unidade": "m", "obrigatorio": true, "descricao": "profundidade da base da camada"},
+    "descricao": {"tipo": "texto", "unidade": null, "obrigatorio": true, "descricao": "descrição táctil-visual do laudo"},
+    "classe": {"tipo": "texto", "unidade": null, "obrigatorio": false, "descricao": "classe de solo ou rocha, se já dada"}
+   }},
+  "nspt": {"tipo": "lista de pares", "unidade": "m; golpes", "obrigatorio": false, "descricao": "[[profundidade_m, golpes], ...]"},
+  "fonte": {"tipo": "texto", "unidade": null, "obrigatorio": false, "descricao": "arquivo ou documento de onde o furo veio"}
+ },
+ "tolerancia_profundidade_m": 0.01,
+ "premissas": {
+  "raio_influencia_m": {"valor": 60, "unidade": "m", "estado": "premissa",
+   "fonte": "planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares; conceitos/obras_lineares.json; decisão D1 (rodada 25)"},
+  "margem_na_m": {"valor": 0, "unidade": "m", "estado": "premissa",
+   "fonte": "planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares; conceitos/obras_lineares.json; decisão D1 (rodada 25)"},
+  "empolamento": {"solo": 1.30, "rocha": 1.50, "unidade": "adimensional", "estado": "premissa",
+   "fonte": "planilha '211 - SAA Foz do Iguaçu', aba Obras Lineares (colunas V–BC); conceitos/obras_lineares.json; decisão D1 (rodada 25)"}
+ }
+}
