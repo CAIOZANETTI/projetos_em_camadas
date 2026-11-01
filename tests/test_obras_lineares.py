@@ -205,13 +205,13 @@ def _furo_por_metro_referencia(pts, furos):
     xy = np.array([[f["E"], f["N"]] for f in com_xy], float)
     d = np.linalg.norm(pts[:, None, :] - xy[None, :, :], axis=2)
     perto = d.argmin(axis=1)
-    raio = ol.REGRAS["raio_influencia_m"]["valor"]
+    raio = ol.geo.RAIO_INFLUENCIA_M
     return [com_xy[k]["id"] if d[i, k] <= raio else None for i, k in enumerate(perto)]
 
 
 def test_furo_por_metro_com_caixa_igual_a_referencia_em_casos_aleatorios():
     rng = np.random.default_rng(24)
-    raio = ol.REGRAS["raio_influencia_m"]["valor"]
+    raio = ol.geo.RAIO_INFLUENCIA_M
     for caso in range(300):
         n = int(rng.integers(0, 30))
         base = rng.uniform(0, 600, (n, 2)).round(int(rng.integers(0, 3)))
