@@ -1,0 +1,21 @@
+{"nos": [
+  {"eap": "OL.01", "descricao": "Escavação de vala", "unidade": "m³", "valor_txt": "1.234,56",
+   "servicos": [
+    {"servico_id": "s-001", "objeto_id": "OL-007", "local": "Entrada de água bruta", "regra": "vala_aberta", "versao_regra": "1", "valor_txt": "120,33",
+     "fatos": [
+      {"propriedade": "prof_m", "valor_txt": "2,40 m", "natureza": "projetado",
+       "evidencia": {"classe": "planilha", "documento": "obras_lineares.xlsx", "onde": "aba Obras Lineares, linha 7", "trecho": "Entrada de água bruta", "executor": "código"}},
+      {"propriedade": "comprimento_m", "valor_txt": "45,00 m", "natureza": "medido",
+       "evidencia": {"classe": "prancha", "documento": "CIV-012.pdf", "onde": "página 1", "trecho": "L = 45,00 m", "executor": "código"}}]},
+    {"servico_id": "s-002", "objeto_id": "OL-008", "local": "Saída de água tratada", "regra": "vala_aberta", "versao_regra": "1", "valor_txt": "98,10",
+     "fatos": [
+      {"propriedade": "prof_m", "valor_txt": "1,80 m", "natureza": "projetado",
+       "evidencia": {"classe": "planilha", "documento": "obras_lineares.xlsx", "onde": "aba Obras Lineares, linha 8", "trecho": "Saída de água tratada", "executor": "código"}}]}]},
+  {"eap": "OL.02", "descricao": "Escoramento de vala", "unidade": "m²", "valor_txt": "310,00",
+   "servicos": [
+    {"servico_id": "s-003", "objeto_id": "OL-007", "local": "Entrada de água bruta", "regra": "escoramento", "versao_regra": "2", "valor_txt": "310,00",
+     "fatos": [
+      {"propriedade": "solo", "valor_txt": "argila mole", "natureza": "medido",
+       "evidencia": {"classe": "sondagem", "documento": "SP-03.pdf", "onde": "arquivo SP-03.pdf, furo SP-03", "trecho": "argila siltosa mole", "executor": "Haiku"}}]}]}],
+ "pendencias": [{"objeto_id": "OL-009", "local": "Travessia do rio", "motivo": "faltam fatos obrigatórios: prof_m"}],
+ "resumo": {"servicos": 3, "nos": 2, "pendencias": 1, "diferencas_paridade": 0, "recalculados": 3, "reaproveitados": 0}}
