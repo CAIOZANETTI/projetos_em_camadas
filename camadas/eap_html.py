@@ -33,6 +33,9 @@ def valor_txt(propriedade: str, valor) -> str:
         return "—"
     if isinstance(valor, dict):
         return "; ".join(f"{k} {_com_unidade(br(v), unidade)}" for k, v in valor.items())
+    if isinstance(valor, (list, tuple)) and not all(isinstance(c, dict) for c in valor):
+        soma = f", {_com_unidade(br(sum(valor)), unidade)}" if unidade and all(isinstance(c, (int, float)) for c in valor) else ""
+        return f"{len(valor)} amostras{soma}"          # lista por metro (classes, pesos): resumo, não a lista
     if isinstance(valor, (list, tuple)):
         return "; ".join(f"{br(c['de'])}–{_com_unidade(br(c['ate']), unidade)} {c.get('descricao', '')}".rstrip() for c in valor)
     if isinstance(valor, str):

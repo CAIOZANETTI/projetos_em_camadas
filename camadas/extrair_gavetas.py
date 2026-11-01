@@ -10,7 +10,9 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from . import eap_html, gavetas
+import numpy as np
+
+from . import eap_html, gavetas, valas
 from . import obras_lineares as ol
 
 OBSERVADAS_NA_PLANILHA = ("na_m", "solo")      # transcritas do laudo para a planilha
@@ -111,6 +113,56 @@ def de_decisoes(metodo_por_local: dict, trechos: list[dict], documento: str) -> 
     return base
 
 
+CRITERIOS_DE_DESENHO = ("divisas", "quadras", "meio_fio")
+
+
+def de_valas(redes: list[dict], crs_h: str = "EPSG:31982") -> dict:
+    """Redes de `valas.rede` → objetos `rede_vala` `RV-<id>`, eixo em linha, fatos e evidência (pranchas e critério).
+
+    `de_mm` e `extensao_m` são projetados. Classe, peso e superfície final são `projetado` quando o critério é o
+    desenho (divisas, quadras, meio_fio) e `inferido` quando é a ortofoto. A rede guarda um só critério, não a
+    origem de cada metro: a natureza vale para a rede inteira."""
+    base = _base_vazia()
+    propriedades = _propriedades("eixo da rede")
+    for rede in redes:
+        objeto_id, evidencia_id = f"RV-{rede['id']}", f"EV-RV-{rede['id']}"
+        pranchas = list(rede.get("pranchas", []))
+        base["objetos"].append({"objeto_id": objeto_id, "classe": "rede_vala"})
+        base["geometria"].append({"objeto_id": objeto_id, "tipo": "linha", "coords": np.round(rede["pts"], 3).tolist(),
+                                  "crs_h": crs_h, "datum_v": "ortométrico"})
+        base["evidencias"].append({
+            "evidencia_id": evidencia_id, "classe": "projeto", "documento": ", ".join(pranchas) or str(rede["id"]),
+            "localizador": {"pranchas": pranchas, "criterio": rede["criterio"]}, "trecho": rede["id"],
+            "metodo": "geometria", "executor": "código"})
+        dados = {"de_mm": rede["de_mm"], "extensao_m": rede["extensao_m"], "classes_por_metro": list(rede["classes"]),
+                 "pesos_m": np.asarray(rede["peso"], float).tolist(), "finais": rede.get("finais")}
+        amostrado = "projetado" if rede["criterio"] in CRITERIOS_DE_DESENHO else "inferido"
+        for propriedade in propriedades:
+            if _vazio(dados.get(propriedade)):
+                continue
+            natureza = "projetado" if propriedade in ("de_mm", "extensao_m") else amostrado
+            base["fatos"].append(_fato(objeto_id, propriedade, dados[propriedade], natureza, evidencia_id))
+    return base
+
+
+def paridade_valas(base: dict, redes: list[dict], tol: float = 0.1) -> list[dict]:
+    """Diferenças entre os serviços `vala_rede` das gavetas e `valas.quantificar` de cada rede (`RV-<id>`)."""
+    servicos, _ = gavetas.calcular(base)
+    obtido: dict[str, dict] = {}
+    for s in servicos:
+        if s["regra"] == "vala_rede":
+            obtido.setdefault(s["objeto_id"], {})[(s["saida"], s.get("chave"))] = s["valor"]
+    difs = []
+    for rede in redes:
+        quadro = valas.quantificar(rede["classes"], np.asarray(rede["peso"], float), rede["de_mm"] / 1000,
+                                   rede.get("finais"))
+        esperado = {(nome, f"{q['classe']}/{q['final']}" if q["final"] else q["classe"]): q[nome]
+                    for q in quadro for nome in ("demolicao_m2", "recomposicao_m2", "volume_vala_m3")
+                    if q[nome] > 0 or nome == "volume_vala_m3"}
+        difs += gavetas._diferencas(f"RV-{rede['id']}", obtido.get(f"RV-{rede['id']}", {}), esperado, tol)
+    return difs
+
+
 def juntar(*bases: dict) -> dict:
     """Une as gavetas; chave repetida idêntica entra uma vez, com conteúdo diferente é `ValueError`."""
     unida = _base_vazia()
@@ -144,7 +196,7 @@ def _resumo(base: dict, erros: list[str], difs: list[dict], servicos: list[dict]
         "eap": gavetas.para_eap(servicos)}
 
 
-def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
+def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[dict] | None = None) -> dict | None:
     """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
     compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`. Devolve o resumo
     com `eap_html` (o `dados["eap"]` da aba EAP, montado e formatado em Python por `eap_html.montar`)."""
@@ -160,12 +212,13 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     doc_sond = cfg["sondagens"] if isinstance(cfg.get("sondagens"), str) else "sondagens"
     executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
     base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
-                  de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))))
+                  de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))),
+                  de_valas(redes_vala or []))
     erros = gavetas.conferir_base(base)
     pasta = Path(out) / "base"
     anterior = gavetas.ler(pasta)["servicos"] if (pasta / "servicos.parquet").exists() else None
     servicos, pend_calculo, est = gavetas.calcular_incremental(base, anterior)
-    difs = gavetas.paridade(base, aplicados, furos)
+    difs = gavetas.paridade(base, aplicados, furos) + paridade_valas(base, redes_vala or [])
     base["pendencias"] = base["pendencias"] + pend_calculo
     pasta.mkdir(parents=True, exist_ok=True)
     gavetas.gravar(pasta, {**base, "servicos": servicos})
@@ -183,6 +236,6 @@ def metadados() -> dict:
         "modulo": "extrair_gavetas",
         "descricao": "leitores (planilha de obras lineares, sondagens, decisões) gravam objetos, fatos e evidências "
                      "nas gavetas; valor ausente não vira fato",
-        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "juntar", "etapa"],
+        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "de_valas", "paridade_valas", "juntar", "etapa"],
         "conceitos": ["gavetas.json", "de_para_extracao.json"],
     }

@@ -204,6 +204,30 @@
    "unidade": null,
    "tipo": "texto",
    "obs": "solo digitado na planilha; usado só sem sondagem"
+  },
+  "de_mm": {
+   "unidade": "mm",
+   "tipo": "numero",
+   "obs": "diâmetro externo do tubo"
+  },
+  "extensao_m": {
+   "unidade": "m",
+   "tipo": "numero"
+  },
+  "classes_por_metro": {
+   "unidade": null,
+   "tipo": "lista",
+   "obs": "classe de superfície de cada amostra do eixo (conceitos/valas.json)"
+  },
+  "pesos_m": {
+   "unidade": "m",
+   "tipo": "lista",
+   "obs": "comprimento que cada amostra do eixo representa"
+  },
+  "finais": {
+   "unidade": null,
+   "tipo": "lista",
+   "obs": "superfície final de cada amostra pela urbanização, ou null"
   }
  }
 }

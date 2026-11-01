@@ -249,8 +249,22 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
         return None
     peso = np.concatenate(peso)
     return {"id": r["id"], "de_mm": r["de_mm"], "fonte_de": r.get("fonte_de", ""), "criterio": r["criterio"],
+            "pranchas": list(r["pranchas"]), "finais": finais if any(finais) else None,
             "extensao_m": round(float(peso.sum()), 1), "pts": np.vstack(pts), "tang": np.vstack(tang), "peso": peso,
             "classes": classes, "quadro": quantificar(classes, peso, r["de_mm"] / 1000, finais if any(finais) else None)}
+
+
+def quantificar_gavetas(dados: dict, furos=None, pts=None) -> dict:
+    """Regra `vala_rede` das gavetas: demolição, recomposição e volume de vala por classe (e superfície final)."""
+    quadro = quantificar(dados["classes_por_metro"], np.asarray(dados["pesos_m"], float), dados["de_mm"] / 1000,
+                         dados.get("finais"))
+    saida: dict = {"demolicao_m2": {}, "recomposicao_m2": {}, "volume_vala_m3": {}, "alertas": []}
+    for q in quadro:
+        chave = f"{q['classe']}/{q['final']}" if q["final"] else q["classe"]
+        for nome in ("demolicao_m2", "recomposicao_m2", "volume_vala_m3"):
+            if q[nome] > 0 or nome == "volume_vala_m3":
+                saida[nome][chave] = q[nome]
+    return saida
 
 
 def de_do_escopo(pranchas: list[str], tubo_x_desenho: list[dict]) -> tuple[int | None, str]:
@@ -263,8 +277,10 @@ def de_do_escopo(pranchas: list[str], tubo_x_desenho: list[dict]) -> tuple[int |
     return None, ""
 
 
-def etapa(cfg: dict, pranchas: list, lista: list, escopo: dict | None, out, epsg: int, log=print) -> dict | None:
-    """Etapa da obra: classifica as valas de cada rede declarada em `valas.redes` e devolve o pacote do HTML."""
+def etapa(cfg: dict, pranchas: list, lista: list, escopo: dict | None, out, epsg: int, log=print,
+          redes_saida: list | None = None) -> dict | None:
+    """Etapa da obra: classifica as valas de cada rede declarada em `valas.redes` e devolve o pacote do HTML.
+    `redes_saida`, se passada, recebe os dicts das redes calculadas (os de `rede`) para as gavetas."""
     c = cfg.get("valas")
     if not c:
         return None
@@ -287,6 +303,8 @@ def etapa(cfg: dict, pranchas: list, lista: list, escopo: dict | None, out, epsg
         if v:
             redes.append(v)
             log(f"Valas {v['id']} (DE {de}): " + "; ".join(f"{q['nome']} {q['extensao_m']:.0f} m" for q in v["quadro"]))
+    if redes_saida is not None:
+        redes_saida.extend(redes)
     return para_html(redes, c, final, epsg) if redes else None
 
 
@@ -319,7 +337,7 @@ def metadados() -> dict:
         "descricao": "classe da superfície em cada metro de tubo (desenho ou ortofoto) e o quadro de demolição, "
                      "recomposição e volume de vala por rede",
         "funcoes": ["amostras", "cruzamentos", "classe_divisas", "classe_quadras", "classe_meio_fio", "ortofoto", "classe_ortofoto",
-                    "urbanizacao", "secao", "quantificar", "classificar", "rede", "de_do_escopo", "etapa", "para_html"],
+                    "urbanizacao", "secao", "quantificar", "quantificar_gavetas", "classificar", "rede", "de_do_escopo", "etapa", "para_html"],
         "bibliografia": [
             {"obra": "ABNT NBR 12266 — Projeto e execução de valas para assentamento de tubulação de água, esgoto ou "
                      "drenagem urbana", "ano": 1992, "editora": "ABNT",
