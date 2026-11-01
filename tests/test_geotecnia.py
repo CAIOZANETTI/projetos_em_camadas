@@ -236,3 +236,302 @@ def test_preposicao_na_nao_vira_nivel_dagua():
     achou, na_m = geo._nivel_dagua(["NA: 2,40"])
     assert achou and na_m == pytest.approx(2.4, abs=0.001)
     assert geo._nivel_dagua(["LENÇOL FREÁTICO NÃO ATINGIDO"]) == (True, None)
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# G2: modelo geotécnico único
+# --------------------------------------------------------------------------------------------------------------------
+
+
+def _furo(**mudancas):
+    """Furo sintético: aterro 0-1, argila 1-3, areia 3-5, basalto alterado 5-6, rocha 6-8; NA a 2 m; boca na cota 100."""
+    furo = {
+        "id": "SP-01",
+        "E": 1000.0,
+        "N": 2000.0,
+        "cota_boca": 100.0,
+        "na_m": 2.0,
+        "profundidade_m": 8.0,
+        "camadas": [
+            {"de": 0.0, "ate": 1.0, "descricao": "Aterro de entulho"},
+            {"de": 1.0, "ate": 3.0, "descricao": "Argila siltosa vermelha"},
+            {"de": 3.0, "ate": 5.0, "descricao": "Areia fina"},
+            {"de": 5.0, "ate": 6.0, "descricao": "Basalto alterado"},
+            {"de": 6.0, "ate": 8.0, "descricao": "Basalto são"},
+        ],
+    }
+    return {**furo, **mudancas}
+
+
+def test_classe_solo_regras_vem_do_json():
+    assert geo.classe_solo("Argila siltosa")["classe"] == "argila"
+    assert (
+        geo.classe_solo("Aterro argiloso")["classe"] == "aterro"
+    )  # a 1ª regra que casa decide
+    alterado = geo.classe_solo("Basalto alterado")
+    assert (alterado["classe"], alterado["categoria"]) == (
+        "rocha_alterada",
+        "2ª categoria",
+    )
+    assert geo.classe_solo("Basalto são")["categoria"] == "3ª categoria"
+    assert geo.classe_solo("x", "AREIA")["classe"] == "areia"  # classe já dada
+    assert geo.classe_solo("") == {"classe": "indefinido", "categoria": "a definir"}
+    arquivo = json.loads(geo.CONCEITOS.read_text(encoding="utf-8"))
+    assert geo.REGRAS["solos"]["classes"] == arquivo["solos"]["classes"]
+
+
+def test_obras_lineares_nao_tem_regra_propria_de_solo():
+    from camadas import obras_lineares as ol
+
+    assert "solos" not in ol.REGRAS and "raio_influencia_m" not in ol.REGRAS
+    assert "empolamento" not in ol.REGRAS
+    assert ol.classe_solo("Areia fina") == geo.classe_solo("Areia fina")
+    assert ol.solo_na_vala(_furo(), 4.0) == geo.solo_na_faixa(_furo(), 0.0, 4.0)
+
+
+def test_solo_na_faixa_fracoes():
+    f = geo.solo_na_faixa(_furo(), 0.0, 4.0)
+    assert f["aterro"] == pytest.approx(0.25, abs=1e-9)
+    assert f["argila"] == pytest.approx(0.5, abs=1e-9)
+    assert f["areia"] == pytest.approx(0.25, abs=1e-9)
+    # faixa que não começa na boca
+    g = geo.solo_na_faixa(_furo(), 2.0, 4.0)
+    assert g == {"argila": pytest.approx(0.5), "areia": pytest.approx(0.5)}
+    # além do fim da sondagem: o resto é indefinido
+    h = geo.solo_na_faixa(_furo(), 6.0, 10.0)
+    assert h["rocha"] == pytest.approx(0.5, abs=1e-9)
+    assert h["indefinido"] == pytest.approx(0.5, abs=1e-9)
+    assert sum(h.values()) == pytest.approx(1.0, abs=1e-9)
+    assert geo.solo_na_faixa(_furo(), 3.0, 3.0) == {}
+
+
+def test_categoria_escavacao_fracoes():
+    c = geo.categoria_escavacao(_furo(), 0.0, 8.0)
+    assert c["1ª categoria"] == pytest.approx(5 / 8, abs=1e-9)
+    assert c["2ª categoria"] == pytest.approx(1 / 8, abs=1e-9)
+    assert c["3ª categoria"] == pytest.approx(2 / 8, abs=1e-9)
+    assert geo.categoria_escavacao(_furo(), 0.0, 10.0)["a definir"] == pytest.approx(
+        0.2, abs=1e-9
+    )
+
+
+def test_na_m_com_e_sem_margem_e_nao_atingido():
+    assert geo.na_m(_furo()) == pytest.approx(2.0, abs=1e-9)  # margem padrão 0 m
+    assert geo.na_m(_furo(), margem_m=0.5) == pytest.approx(1.5, abs=1e-9)
+    assert geo.na_m(_furo(), margem_m=5.0) == pytest.approx(0.0, abs=1e-9)
+    assert geo.na_m(_furo(na_m=None)) is None
+
+
+def test_topo_rocha_m():
+    assert geo.topo_rocha_m(_furo()) == pytest.approx(
+        6.0, abs=1e-9
+    )  # alterada não conta
+    sem_rocha = _furo(camadas=_furo()["camadas"][:3], profundidade_m=5.0)
+    assert geo.topo_rocha_m(sem_rocha) is None
+    assert geo.topo_rocha_m({**sem_rocha, "impenetravel": True}) == pytest.approx(
+        5.0, abs=1e-9
+    )
+    assert geo.topo_rocha_m({"camadas": [], "impenetravel": True}) is None
+    assert geo.topo_rocha_m({"id": "x"}) is None
+
+
+def test_perfil_em_vetorizado_e_raio():
+    furos = [_furo(), _furo(id="SP-02", E=1100.0, N=2000.0)]
+    p = geo.perfil_em(1010.0, 2000.0, furos)
+    assert p["furo"]["id"] == "SP-01"
+    assert p["distancia_m"] == pytest.approx(10.0, abs=1e-6)
+    assert p["dentro_do_raio"] and p["alerta"] is None
+    p = geo.perfil_em(1070.0, 2000.0, furos)  # SP-02 a 30 m
+    assert p["furo"]["id"] == "SP-02" and p["distancia_m"] == pytest.approx(
+        30.0, abs=1e-6
+    )
+    fora = geo.perfil_em(1000.0, 2200.0, furos)  # 200 m do SP-01
+    assert fora["furo"]["id"] == "SP-01" and not fora["dentro_do_raio"]
+    assert (
+        fora["distancia_m"] == pytest.approx(200.0, abs=1e-6)
+        and "raio" in fora["alerta"]
+    )
+    assert geo.perfil_em(0.0, 0.0, []) is None
+    assert geo.perfil_em(0.0, 0.0, [{"id": "sem coordenada"}]) is None
+    assert geo.perfil_em(1000.0, 2200.0, furos, raio_m=300.0)["dentro_do_raio"]
+
+
+def test_furo_mais_proximo_varios_pontos():
+    furos = [_furo(), _furo(id="SP-02", E=1100.0)]
+    indices, distancias_m = geo.furo_mais_proximo(
+        [[1000, 2000], [1090, 2000], [1500, 2000]], furos
+    )
+    assert list(indices) == [0, 1, 1]
+    assert distancias_m == pytest.approx([0.0, 10.0, 400.0], abs=1e-6)
+
+
+def test_alerta_na_sazonal():
+    f = _furo()  # NA a 2,0 m
+    assert geo.alerta_na(f, 1.4) is None  # 0,6 m acima do NA
+    assert geo.alerta_na(f, 1.5) is None  # exatamente na folga
+    assert "a menos de 0,5 m do NA" in geo.alerta_na(f, 1.8)
+    assert "abaixo do NA" in geo.alerta_na(f, 3.0)
+    assert geo.alerta_na(_furo(na_m=None), 5.0) is None  # NA não atingido
+    assert geo.alerta_na(f, 1.0, folga_m=1.5) is not None
+
+
+def test_validar_acusa_camadas_que_nao_e_lista():
+    validos, erros = geo.validar_furos(
+        [_furo(camadas="argila"), _furo(camadas={"de": 0})]
+    )
+    assert validos == [] and len(erros) == 2
+    assert all(e["motivo"] == "camadas não é uma lista" for e in erros)
+    validos, erros = geo.validar_furos([_furo(camadas=["argila"])])
+    assert validos == [] and "item" in erros[0]["motivo"]
+    assert geo.validar_furos([_furo()])[1] == []
+
+
+def test_metadados_citam_funcoes_existentes():
+    m = geo.metadados()
+    assert all(hasattr(geo, f) for f in m["funcoes"])
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# G3: conferências projeto × sondagem
+# --------------------------------------------------------------------------------------------------------------------
+# topo da rocha a 6 m de profundidade, boca na cota 100: cota do topo = 94; NA a 2 m: cota 98
+
+
+def _estaca(id_, ponta_m, E=1010.0, N=2000.0):
+    """Estaca com arrasamento na cota 99 e comprimento tal que a ponta fique na cota `ponta_m`."""
+    return {
+        "id": id_,
+        "E": E,
+        "N": N,
+        "cota_arrasamento": 99.0,
+        "comprimento_m": 99.0 - ponta_m,
+    }
+
+
+def test_conferir_estaca_nao_chega_e_passa_e_cala_no_caso_bom():
+    estacas = [
+        _estaca("E1", 95.0),
+        _estaca("E2", 92.5),
+        _estaca("E3", 94.05),
+        _estaca("E4", 93.95),
+    ]
+    r = geo.conferir([_furo()], estacas=estacas)
+    por_id = {o["objeto_id"]: o for o in r}
+    assert set(por_id) == {"E1", "E2"}  # E3 e E4 dentro de 0,10 m
+    assert (
+        por_id["E1"]["valores"]["situacao"] == "nao_chega"
+        and "não chega" in por_id["E1"]["mensagem"]
+    )
+    assert por_id["E1"]["valores"]["diferenca_m"] == pytest.approx(1.0, abs=1e-6)
+    assert (
+        por_id["E2"]["valores"]["situacao"] == "passa"
+        and "passa do impenetrável" in por_id["E2"]["mensagem"]
+    )
+    assert por_id["E2"]["valores"]["diferenca_m"] == pytest.approx(-1.5, abs=1e-6)
+    assert por_id["E1"]["valores"]["cota_topo_impenetravel_m"] == pytest.approx(
+        94.0, abs=1e-6
+    )
+    assert (
+        por_id["E1"]["tipo"] == "estaca_x_impenetravel"
+        and por_id["E1"]["furo"] == "SP-01"
+    )
+    assert por_id["E1"]["distancia_m"] == pytest.approx(10.0, abs=1e-3)
+
+
+def test_conferir_estaca_tolerancia_configuravel():
+    estaca = _estaca("E1", 94.5)  # 0,5 m acima do topo
+    assert geo.conferir([_furo()], estacas=[estaca]) != []
+    assert geo.conferir([_furo()], estacas=[estaca], tolerancia_m=0.6) == []
+    assert geo.TOLERANCIA_CONFERENCIA_M == pytest.approx(0.10, abs=1e-12)
+
+
+def test_conferir_estaca_usa_impenetravel_e_o_furo_mais_proximo():
+    impenetravel = _furo(
+        id="SP-02",
+        E=1100.0,
+        impenetravel=True,
+        profundidade_m=10.0,
+        camadas=_furo()["camadas"][:3],
+    )
+    estacas = [_estaca("E1", 90.0, E=1095.0)]  # topo em 90 (100 - 10): ponta no topo
+    assert geo.conferir([_furo(), impenetravel], estacas=estacas) == []
+    estacas = [_estaca("E1", 94.0, E=1095.0)]
+    r = geo.conferir([_furo(), impenetravel], estacas=estacas)
+    assert r[0]["furo"] == "SP-02" and r[0]["valores"]["situacao"] == "nao_chega"
+
+
+def test_conferir_estaca_sem_dados_ou_fora_do_raio():
+    sem_rocha = _furo(camadas=_furo()["camadas"][:3], profundidade_m=5.0)
+    assert (
+        geo.conferir([sem_rocha], estacas=[_estaca("E1", 95.0)]) == []
+    )  # sem rocha: nada a conferir
+    sem_cota = {k: v for k, v in _furo().items() if k != "cota_boca"}
+    assert geo.conferir([sem_cota], estacas=[_estaca("E1", 95.0)]) == []
+    r = geo.conferir([_furo()], estacas=[_estaca("E9", 95.0, E=1500.0)])  # a 500 m
+    assert [o["tipo"] for o in r] == ["sem_furo_no_raio"]
+    assert r[0]["distancia_m"] == pytest.approx(500.0, abs=1e-3)
+    assert geo.conferir([], estacas=[_estaca("E9", 95.0)])[0]["furo"] is None
+
+
+def test_conferir_cava_abaixo_do_na_pede_esgotamento():
+    cavas = [
+        {
+            "id": "C1",
+            "E_m": 1005.0,
+            "N_m": 2000.0,
+            "cota_fundo_m": 96.5,
+        },  # NA na cota 98: 1,5 m abaixo
+        {"id": "C2", "E_m": 1005.0, "N_m": 2000.0, "cota_fundo_m": 98.5},  # acima do NA
+        {
+            "id": "C3",
+            "E_m": 1005.0,
+            "N_m": 2000.0,
+            "cota_fundo_m": 97.95,
+        },  # 0,05 m abaixo: dentro da tolerância
+    ]
+    r = geo.conferir([_furo()], cavas=cavas)
+    assert [o["objeto_id"] for o in r] == ["C1"]
+    assert r[0]["tipo"] == "cava_x_na" and "esgotamento necessário" in r[0]["mensagem"]
+    assert r[0]["valores"]["diferenca_m"] == pytest.approx(1.5, abs=1e-6)
+    assert r[0]["valores"]["cota_na_m"] == pytest.approx(98.0, abs=1e-6)
+    assert r[0]["furo"] == "SP-01" and r[0]["distancia_m"] == pytest.approx(
+        5.0, abs=1e-3
+    )
+
+
+def test_conferir_cava_na_nao_atingido_ou_fora_do_raio():
+    cava = {"id": "C1", "E_m": 1005.0, "N_m": 2000.0, "cota_fundo_m": 90.0}
+    assert geo.conferir([_furo(na_m=None)], cavas=[cava]) == []
+    longe = {**cava, "id": "C2", "E_m": 1400.0}
+    assert [o["tipo"] for o in geo.conferir([_furo()], cavas=[longe])] == [
+        "sem_furo_no_raio"
+    ]
+
+
+def test_conferir_trecho_sem_furo_no_raio():
+    furos = [_furo()]  # em (1000, 2000), raio 60 m
+    dentro = {"id": "T1", "pontos_m": [[1000.0, 2000.0], [1050.0, 2000.0]]}
+    assert geo.conferir(furos, trechos=[dentro]) == []
+    # 200 m em linha reta a partir do furo: ~60 m de 200 m dentro do raio
+    longo = {"id": "T2", "pontos_m": [[1000.0, 2000.0], [1200.0, 2000.0]]}
+    r = geo.conferir(furos, trechos=[longo])
+    assert (
+        len(r) == 1 and r[0]["tipo"] == "trecho_sem_furo" and r[0]["objeto_id"] == "T2"
+    )
+    assert r[0]["valores"]["fracao_sem_furo"] == pytest.approx(0.7, abs=0.01)
+    assert r[0]["furo"] == "SP-01" and r[0]["distancia_m"] == pytest.approx(
+        200.0, abs=1e-3
+    )
+    # polilinha com curva e sem nenhum furo
+    sem = geo.conferir(
+        [], trechos=[{"id": "T3", "pontos_m": [[0, 0], [10, 0], [10, 10]]}]
+    )
+    assert sem[0]["valores"]["fracao_sem_furo"] == pytest.approx(1.0, abs=1e-9)
+    assert sem[0]["furo"] is None
+
+
+def test_conferir_sem_entradas_e_formato_da_ocorrencia():
+    assert geo.conferir([_furo()]) == []
+    o = geo.conferir([_furo()], estacas=[_estaca("E1", 95.0)])[0]
+    assert set(o) == {"tipo", "objeto_id", "furo", "distancia_m", "mensagem", "valores"}
+    json.dumps(o)  # serializável

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.29.0 — 2026-11-01 · Rodada 25, PR 3: modelo geotécnico único, conferências e leitor de perfil
+- **Modelo geotécnico único** (`camadas/geotecnia.py`): `classe_solo`, `solo_na_faixa`, `categoria_escavacao`,
+  `na_m`, `topo_rocha_m`, `perfil_em` (furo mais próximo, vetorizado, com a distância e o raio) e `alerta_na` (fundo
+  da vala a menos de 0,5 m do NA, porque o NA é sazonal; o alerta não muda o cálculo). As regras de solo, rocha e
+  categoria, o raio e o empolamento saíram de `obras_lineares`, que agora delega: uma só fonte, em
+  `conceitos/geotecnia.json`. O hash do conjunto de referência não mudou.
+- **Conferências projeto × sondagem** (`geotecnia.conferir`): estaca que não chega ao impenetrável ou passa dele,
+  cava abaixo do NA (esgotamento) e trecho de rede sem furo no raio, com tolerância absoluta de 0,10 m.
+- **Leitor do perfil longitudinal, piloto** (`lineares.ler_perfil`): pela grade sob o desenho, lê estaca, cota do
+  terreno, cota da geratriz inferior ou do fundo da vala e profundidade escrita. Profundidade = terreno − (geratriz −
+  berço), ou terreno − fundo. O que não sai vai para `nao_lidos`.
+- PDCA: G2/G3 e L2 feitos por dois Sonnet em paralelo. O Fable devolveu o L2 uma vez: o fundo da vala somava o berço e
+  deixava a vala 10 cm mais funda. O gerente corrigiu, e o L2 foi aceito no 2º julgamento. Lição L023.
+
 ## 0.28.0 — 2026-11-01 · Rodada 23 da memória espacial: EAP lastreada no HTML e recálculo incremental
 - **EAP montada em Python** (`camadas/eap_html.py`): cada nó leva aos serviços, cada serviço aos fatos usados e cada
   fato à evidência (documento, onde, trecho, executor). Os valores saem formatados no padrão brasileiro e com unidade

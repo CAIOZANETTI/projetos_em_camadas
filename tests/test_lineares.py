@@ -1,5 +1,7 @@
 """L1: eixo e estaqueamento da obra linear (tolerância absoluta de 1 mm)."""
 
+import shutil
+
 import numpy as np
 import pytest
 
@@ -146,3 +148,218 @@ def test_metadados():
     meta = lineares.metadados()
     assert meta["modulo"] == "lineares"
     assert all(p["estado"] == "premissa" for p in meta["premissas"])
+
+
+# ---------------------------------------------------------------- L2: leitor do perfil
+
+ESTACAS = ["0+00,00", "1+00,00", "2+00,00", "2+10,50", "4+00,00"]
+TERRENO = ["745,20", "744,80", "743,10", "742,95", "741,00"]
+GERATRIZ = ["743,90", "743,40", "741,60", "741,40", "739,50"]
+PROFUNDIDADE = ["1,50", "1,60", "1,60", "1,65", "1,60"]
+PROGRESSIVAS_M = [0.0, 20.0, 40.0, 50.5, 80.0]
+
+
+def _berco_m() -> float:
+    from camadas import valas
+
+    return float(valas.VALOR["berco_m"])
+
+
+def _pdf_perfil(caminho, linhas, tamanho_pt=9, so_imagem=False):
+    """PDF sintético: rótulos à esquerda e, na coluna de cada estaca, o valor centrado (None = célula vazia)."""
+    pymupdf = pytest.importorskip("pymupdf")
+    doc = pymupdf.open()
+    pagina = doc.new_page(width=842, height=595)
+    pagina.draw_line((30, 380), (800, 380))
+    for k, (rotulo, valores) in enumerate(linhas):
+        y = 400 + 22 * k
+        pagina.insert_text((30, y), rotulo, fontsize=tamanho_pt, fontname="helv")
+        for i, valor in enumerate(valores):
+            if valor is None:
+                continue
+            largura = pymupdf.get_text_length(valor, "helv", tamanho_pt)
+            pagina.insert_text(
+                (230 + 110 * i - largura / 2, y),
+                valor,
+                fontsize=tamanho_pt,
+                fontname="helv",
+            )
+    if so_imagem:
+        imagem = pagina.get_pixmap(dpi=200)
+        doc = pymupdf.open()
+        nova = doc.new_page(width=842, height=595)
+        nova.insert_image(nova.rect, pixmap=imagem)
+    doc.save(caminho)
+    doc.close()
+    return caminho
+
+
+def test_ler_perfil_texto_calcula_profundidade(tmp_path):
+    pdf = _pdf_perfil(
+        tmp_path / "perfil.pdf",
+        [
+            ("ESTACA", ESTACAS),
+            ("COTA DO TERRENO", TERRENO),
+            ("COTA DA GERATRIZ INFERIOR", GERATRIZ),
+        ],
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert perfil["fonte"] == "texto do PDF"
+    assert perfil["nao_lidos"] == []
+    assert len(perfil["pontos"]) == 5
+    for ponto, estaca, terr, ger, prog in zip(
+        perfil["pontos"], ESTACAS, TERRENO, GERATRIZ, PROGRESSIVAS_M
+    ):
+        terreno_m = float(terr.replace(",", "."))
+        geratriz_m = float(ger.replace(",", "."))
+        assert ponto["estaca"] == estaca
+        np.testing.assert_allclose(ponto["progressiva_m"], prog, atol=TOL_M)
+        np.testing.assert_allclose(ponto["cota_terreno_m"], terreno_m, atol=TOL_M)
+        np.testing.assert_allclose(ponto["cota_geratriz_m"], geratriz_m, atol=TOL_M)
+        np.testing.assert_allclose(
+            ponto["profundidade_m"], terreno_m - geratriz_m + _berco_m(), atol=TOL_M
+        )
+        assert ponto["fonte_profundidade"] == "terreno − geratriz + berço"
+
+
+def test_ler_perfil_usa_profundidade_escrita(tmp_path):
+    pdf = _pdf_perfil(
+        tmp_path / "perfil.pdf",
+        [
+            ("ESTAQUEAMENTO", ESTACAS),
+            ("TERRENO", TERRENO),
+            ("GERATRIZ INFERIOR", GERATRIZ),
+            ("PROFUNDIDADE", PROFUNDIDADE),
+        ],
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert len(perfil["pontos"]) == 5
+    for ponto, escrita in zip(perfil["pontos"], PROFUNDIDADE):
+        np.testing.assert_allclose(
+            ponto["profundidade_m"], float(escrita.replace(",", ".")), atol=TOL_M
+        )
+        assert ponto["fonte_profundidade"] == "escrita no perfil"
+
+
+def test_ler_perfil_sem_geratriz(tmp_path):
+    pdf = _pdf_perfil(
+        tmp_path / "perfil.pdf", [("ESTACA", ESTACAS), ("COTA DO TERRENO", TERRENO)]
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert perfil["pontos"] == []
+    assert len(perfil["nao_lidos"]) == 1
+    assert "geratriz" in perfil["nao_lidos"][0]["motivo"]
+
+
+def test_ler_perfil_geratriz_superior_nao_vale(tmp_path):
+    pdf = _pdf_perfil(
+        tmp_path / "perfil.pdf",
+        [
+            ("ESTACA", ESTACAS),
+            ("COTA DO TERRENO", TERRENO),
+            ("GERATRIZ SUPERIOR", GERATRIZ),
+        ],
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert perfil["pontos"] == []
+    assert "geratriz" in perfil["nao_lidos"][0]["motivo"]
+
+
+def test_ler_perfil_coluna_com_valor_faltando(tmp_path):
+    geratriz = list(GERATRIZ)
+    geratriz[2] = None
+    pdf = _pdf_perfil(
+        tmp_path / "perfil.pdf",
+        [("ESTACA", ESTACAS), ("COTA DO TERRENO", TERRENO), ("COTA DO TUBO", geratriz)],
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert [p["estaca"] for p in perfil["pontos"]] == [
+        e for i, e in enumerate(ESTACAS) if i != 2
+    ]
+    assert len(perfil["nao_lidos"]) == 1
+    assert perfil["nao_lidos"][0]["estaca"] == ESTACAS[2]
+    assert "geratriz" in perfil["nao_lidos"][0]["motivo"]
+
+
+def test_ler_perfil_progressiva_fora_de_ordem(tmp_path):
+    estacas = list(ESTACAS)
+    estacas[3] = "1+10,00"  # 30 m, depois da estaca 2+00 (40 m)
+    pdf = _pdf_perfil(
+        tmp_path / "perfil.pdf",
+        [
+            ("ESTACA", estacas),
+            ("COTA DO TERRENO", TERRENO),
+            ("COTA DO FUNDO", GERATRIZ),
+        ],
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert [p["estaca"] for p in perfil["pontos"]] == [
+        "0+00,00",
+        "1+00,00",
+        "2+00,00",
+        "4+00,00",
+    ]
+    assert perfil["nao_lidos"][0]["estaca"] == "1+10,00"
+    assert "fora de ordem" in perfil["nao_lidos"][0]["motivo"]
+
+
+@pytest.mark.parametrize(
+    "texto, esperado",
+    [("745,20", 745.2), ("1.234,56", 1234.56), ("745.20", 745.2), ("1.234", 1234.0)],
+)
+def test_numero_brasileiro(texto, esperado):
+    np.testing.assert_allclose(lineares.numero_brasileiro(texto), esperado, atol=TOL_M)
+    with pytest.raises(ValueError, match="número não reconhecido"):
+        lineares.numero_brasileiro("abc")
+
+
+def test_ler_perfil_ocr(tmp_path):
+    pytest.importorskip("pytesseract")
+    if shutil.which("tesseract") is None:
+        pytest.skip("binário do tesseract ausente")
+    pdf = _pdf_perfil(
+        tmp_path / "perfil_imagem.pdf",
+        [
+            ("ESTACA", ESTACAS),
+            ("COTA DO TERRENO", TERRENO),
+            ("COTA DA GERATRIZ INFERIOR", GERATRIZ),
+        ],
+        tamanho_pt=14,
+        so_imagem=True,
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert perfil["fonte"] == "OCR"
+    assert (
+        len(perfil["pontos"]) >= 3
+    )  # o OCR pode errar uma célula; o que sai tem que ser coerente
+    for ponto in perfil["pontos"]:
+        i = ESTACAS.index(ponto["estaca"])
+        np.testing.assert_allclose(
+            ponto["profundidade_m"],
+            float(TERRENO[i].replace(",", "."))
+            - float(GERATRIZ[i].replace(",", "."))
+            + _berco_m(),
+            atol=TOL_M,
+        )
+
+
+def test_cota_do_fundo_da_vala_nao_soma_o_berco(tmp_path):
+    """Revisão do Fable (rodada 25): "COTA DO FUNDO DA VALA" já é o fundo; profundidade = terreno − fundo, sem somar o
+    berço; a geratriz inferior é fundo + berço. Antes, o fundo caía como geratriz e a vala saía 10 cm mais funda."""
+    pdf = _pdf_perfil(
+        tmp_path / "perfil_fundo.pdf",
+        [
+            ("ESTACA", ESTACAS),
+            ("COTA DO TERRENO", TERRENO),
+            ("COTA DO FUNDO DA VALA", GERATRIZ),
+        ],
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert perfil["nao_lidos"] == [] and len(perfil["pontos"]) == 5
+    for ponto, terr, fundo in zip(perfil["pontos"], TERRENO, GERATRIZ):
+        terreno_m, fundo_m = (float(v.replace(",", ".")) for v in (terr, fundo))
+        assert ponto["profundidade_m"] == pytest.approx(terreno_m - fundo_m, abs=0.001)
+        assert ponto["cota_geratriz_m"] == pytest.approx(
+            fundo_m + _berco_m(), abs=0.001
+        )
+        assert ponto["fonte_profundidade"] == "terreno − fundo da vala"

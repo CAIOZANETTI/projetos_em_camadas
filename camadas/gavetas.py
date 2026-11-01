@@ -20,6 +20,7 @@ import hashlib
 import importlib
 import json
 import re
+import types
 from pathlib import Path
 
 import numpy as np
@@ -433,13 +434,20 @@ def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict
 
 
 def impressao_regra(regra: str) -> str:
-    """sha1 curto do código do módulo da função da regra e das constantes dele (`REGRAS`, de `conceitos/`): mudar o
+    """sha1 curto do código e das constantes (`REGRAS`, `PREMISSAS`, de `conceitos/`) do módulo da função da regra e
+    dos módulos `camadas.*` que ele importa: mudar o
     empolamento, a Tabela I do MOS ou o próprio cálculo muda a chave, sem depender de alguém subir a `versao`."""
     if regra not in SERVICOS["regras"]:
         return ""
     modulo = importlib.import_module(SERVICOS["regras"][regra]["funcao"].rpartition(".")[0])
-    corpo = Path(modulo.__file__).read_bytes() + json.dumps(getattr(modulo, "REGRAS", None), sort_keys=True,
-                                                            default=str).encode("utf-8")
+    # o módulo da regra e os módulos do projeto de que ele depende (ex.: obras_lineares → geotecnia, onde moram o
+    # empolamento e as regras de solo desde a rodada 25): constante mudada em qualquer um deles muda a chave
+    modulos = [modulo] + sorted((m for m in vars(modulo).values()
+                                 if isinstance(m, types.ModuleType) and m.__name__.startswith("camadas.")),
+                                key=lambda m: m.__name__)
+    corpo = b"".join(Path(m.__file__).read_bytes() + json.dumps(
+        [getattr(m, "REGRAS", None), getattr(m, "PREMISSAS", None)], sort_keys=True, default=str).encode("utf-8")
+        for m in modulos)
     return hashlib.sha1(corpo, usedforsecurity=False).hexdigest()[:12]   # identidade do cálculo, não segurança
 
 
