@@ -364,8 +364,10 @@ def _furo_do_objeto(o: dict, g: dict | None, fatos: dict) -> dict:
 
 def indice(base: dict) -> dict:
     """Monta uma vez o que `entrada` consulta por objeto: {"fatos": {objeto_id: vencedores por propriedade},
-    "geometria": {objeto_id: 1ª geometria}, "furos": {classe: furos no formato de `furos`}}. Passe-o como `ind`
-    a `fatos_do_objeto`, `furos`, `entrada` e `paridade`: o resultado é o mesmo, sem varrer a base a cada objeto."""
+    "geometria": {objeto_id: 1ª geometria}, "furos": {classe: furos no formato de `furos`}, "furos_xy": {classe:
+    `ol.furos_com_xy` dos furos}}. Passe-o como `ind`
+    a `fatos_do_objeto`, `furos`, `entrada` e `paridade`: o resultado é o mesmo, sem varrer a base a cada objeto.
+    Atenção: as listas e dicionários devolvidos com o índice são compartilhados, não cópias; não os altere."""
     por_objeto: dict[str, list[dict]] = {}
     for f in base.get("fatos", []):
         por_objeto.setdefault(f["objeto_id"], []).append(f)
@@ -379,7 +381,8 @@ def indice(base: dict) -> dict:
         if g and g["tipo"] != "ponto":
             continue
         por_classe.setdefault(o["classe"], []).append(_furo_do_objeto(o, g, fatos.get(o["objeto_id"], {})))
-    return {"fatos": fatos, "geometria": geometria, "furos": por_classe}
+    return {"fatos": fatos, "geometria": geometria, "furos": por_classe,
+            "furos_xy": {c: ol.furos_com_xy(lista) for c, lista in por_classe.items()}}
 
 
 def fatos_do_objeto(base: dict, objeto_id: str, ind: dict | None = None) -> dict[str, dict]:
@@ -439,7 +442,8 @@ def entrada(base: dict, objeto: dict, ind: dict | None = None) -> dict:
     fs = furos(base, r["sondagens"], ind) if r.get("sondagens") else []
     dados = {"local": objeto["objeto_id"], **{p: fatos[p]["valor"] for p in usados}}
     if pts is not None:                          # com eixo: o furo mais próximo de cada metro
-        perto = set(ol.furo_por_metro(pts, fs)) if fs else set()
+        prep = ind["furos_xy"].get(r["sondagens"]) if ind is not None else None
+        perto = set(ol.furo_por_metro(pts, fs, prep)) if fs else set()
         ids = {f["id"] for f in fs if f["id"] in perto}
     else:                                        # sem eixo: os furos citados em sond_ini/sond_fim (como `cobertura`)
         citados = {ol.id_furo(dados[p]) for p in ("sond_ini", "sond_fim") if dados.get(p)}
@@ -625,6 +629,7 @@ def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.
 def para_eap(servicos: list[dict]) -> list[dict]:
     """Soma por nó da EAP, com os serviços e objetos que a lastreiam (o caminho de volta até a evidência)."""
     nos: dict[str, dict] = {}
+    vistos: dict[str, set] = {}                    # objetos já listados por nó (ordem da 1ª aparição)
     for s in servicos:
         n = EAP["saidas"][s["saida"]]
         cod = f"{n['eap']}.{s['chave']}" if s.get("chave") else n["eap"]
@@ -632,7 +637,9 @@ def para_eap(servicos: list[dict]) -> list[dict]:
                                   "unidade": n["unidade"], "valor": 0.0, "servicos": [], "objetos": []})
         no["valor"] = round(no["valor"] + s["valor"], 3)
         no["servicos"].append(s["servico_id"])
-        no["objetos"] = list(dict.fromkeys(no["objetos"] + [s["objeto_id"]]))
+        if s["objeto_id"] not in vistos.setdefault(cod, set()):
+            vistos[cod].add(s["objeto_id"])
+            no["objetos"].append(s["objeto_id"])
     return [nos[k] for k in sorted(nos)]
 
 
