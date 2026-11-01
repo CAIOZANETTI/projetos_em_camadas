@@ -6,8 +6,18 @@
     progressiva_de       = projeção ortogonal de pontos no eixo: progressiva, afastamento e lado
     segmento             = a polilinha entre duas progressivas (o trecho)
     ler_perfil           = a grade do perfil longitudinal (estaca, terreno, geratriz) lida do PDF
+    dimensionar_vala     = a regra única de vala do trecho (L3a):
+        profundidade     = média do perfil ponderada pela extensão; sem perfil, `prof_m` do trecho (premissa, com
+                           alerta); sem nenhum, nada é calculado (alerta)
+        largura          = MOS (obras_lineares.largura); escorado = NR-18 (> 1,25 m, obras_lineares.escorar)
+        tipo_escoramento = faixa de profundidade, elevada a contínuo por solo não coesivo, solo mole, NSPT < 4 ou
+                           fundo abaixo do NA (modelo geotécnico único)
+        esgotamento      = fração do trecho com fundo abaixo do NA (geotecnia.na_m) e bomba × ponteiras
+        volumes          = obras_lineares.vca / mnd (fórmulas da planilha da Giselle)
 
 Premissas em `conceitos/lineares.json`. O eixo é uma polilinha: curvas entram como vértices próximos.
+`obras_lineares` importa este módulo no topo; este importa `obras_lineares` e `valas` tarde (dentro das funções), para
+não haver import circular.
 """
 
 from __future__ import annotations
@@ -20,12 +30,15 @@ from pathlib import Path
 
 import numpy as np
 
+from . import geotecnia as geo
+
 REGRAS = json.loads(
     (Path(__file__).resolve().parent.parent / "conceitos" / "lineares.json").read_text(
         encoding="utf-8"
     )
 )
 PERFIL = REGRAS["perfil"]
+VALA = REGRAS["vala"]
 PASSO_M = float(REGRAS["passo_estaca_m"])
 TOLERANCIA_M = float(REGRAS["tolerancia_m"])
 
@@ -365,23 +378,317 @@ def ler_perfil(caminho_pdf, pagina: int = 0, passo_m: float = PASSO_M) -> dict:
     return resultado
 
 
+# --------------------------------------------------------------------------------------------------------------------
+# Dimensionador único de vala (L3a)
+# --------------------------------------------------------------------------------------------------------------------
+
+
+def _virgula(valor: float) -> str:
+    """Número com 2 casas e vírgula decimal, para as mensagens."""
+    return f"{float(valor):.2f}".replace(".", ",")
+
+
+def profundidade_do_perfil(
+    perfil, p0_m: float | None = None, p1_m: float | None = None
+) -> float | None:
+    """Profundidade média (m) do perfil entre as progressivas `p0_m` e `p1_m`, ponderada pela extensão: integral da
+    interpolação linear dos pontos ÷ extensão, ao mm. `perfil` é o retorno de `ler_perfil` (ou a lista de pontos);
+    sem `p0_m`/`p1_m`, vale o perfil inteiro. None com menos de 2 pontos ou se o perfil não cobre o trecho
+    (tolerância absoluta `tolerancia_m`): nunca extrapola."""
+    pontos = (
+        perfil.get("pontos", []) if isinstance(perfil, dict) else list(perfil or [])
+    )
+    pares = sorted(
+        (float(p["progressiva_m"]), float(p["profundidade_m"]))
+        for p in pontos
+        if p.get("progressiva_m") is not None and p.get("profundidade_m") is not None
+    )
+    if len(pares) < 2:
+        return None
+    progressiva_m, profundidade_m = np.asarray(pares, dtype=np.float64).T
+    inicio_m = progressiva_m[0] if p0_m is None else float(p0_m)
+    fim_m = progressiva_m[-1] if p1_m is None else float(p1_m)
+    if (
+        fim_m - inicio_m <= TOLERANCIA_M
+        or inicio_m < progressiva_m[0] - TOLERANCIA_M
+        or fim_m > progressiva_m[-1] + TOLERANCIA_M
+    ):
+        return None
+    dentro = (progressiva_m > inicio_m) & (progressiva_m < fim_m)
+    x_m = np.concatenate([[inicio_m], progressiva_m[dentro], [fim_m]])
+    y_m = np.interp(x_m, progressiva_m, profundidade_m)
+    area_m2 = float(np.sum((y_m[1:] + y_m[:-1]) / 2 * np.diff(x_m)))
+    return round(area_m2 / (fim_m - inicio_m), 3)
+
+
+def _profundidade(trecho: dict, perfil) -> tuple[float | None, str, list[str]]:
+    """(profundidade_m, fonte, alertas): o perfil quando cobre o trecho; senão o `prof_m` do trecho (premissa, com
+    alerta); senão None e fonte 'ausente' (a falta já vira alerta nas quantidades)."""
+    nomes = VALA["progressivas"]
+    p0_m, p1_m = trecho.get(nomes["inicio"]), trecho.get(nomes["fim"])
+    alertas = []
+    if perfil is not None:
+        profundidade_m = profundidade_do_perfil(perfil, p0_m, p1_m)
+        if profundidade_m is not None:
+            return profundidade_m, "perfil longitudinal", []
+        alertas.append(
+            f"perfil longitudinal não cobre o trecho ({p0_m} a {p1_m} m) ou tem menos de 2 pontos"
+        )
+    prof_m = trecho.get("prof_m")
+    if prof_m:
+        alertas.append(
+            f"profundidade de premissa: prof_m do trecho ({_virgula(prof_m)} m), não do perfil longitudinal"
+        )
+        return float(prof_m), "premissa do trecho (prof_m)", alertas
+    return None, "ausente", alertas
+
+
+def _quantidades(t: dict, furos: list[dict], pts) -> dict:
+    """Escoramento (NR-18), largura (MOS), volumes do método (VCA ou MND), geotecnia e alertas: exatamente o que
+    `obras_lineares.quantificar` devolve (mesmos nomes e valores, gabarito da planilha da Giselle)."""
+    from . import obras_lineares as ol
+
+    prof_m, alertas = t.get("prof_m"), []
+    t["escorado"] = ol.escorar(prof_m)
+    geotec = ol.geotecnia(t, furos, pts)
+    if not prof_m:
+        alertas.append(
+            "sem profundidade média: largura, escoramento e volumes não calculados"
+        )
+    largura_m = (
+        ol.largura(t["dn_mm"], t["material"], prof_m, t["escorado"], t.get("junta"))
+        if prof_m
+        else None
+    )
+    if prof_m and largura_m is None:
+        alertas.append(
+            f"material {t['material']} DN {t['dn_mm']} fora da Tabela I do MOS"
+        )
+    q = ol.mnd(t) if t["metodo"] == "MND" else ol.vca(t, largura_m) if largura_m else {}
+    if geotec["esgotamento_frac"] > 0:
+        alertas.append(
+            f"NA ({geotec['na_min_m']} m) acima do fundo da vala ({prof_m} m): esgotamento de vala"
+        )
+    if geotec["sem_sondagem_frac"] > 0:
+        alertas.append(
+            f"{geotec['sem_sondagem_frac']:.0%} do trecho sem sondagem dentro do raio de influência"
+        )
+    soma_pav_m = sum((t.get("pavimentos") or {}).values())
+    if t["metodo"] == "VCA" and soma_pav_m and abs(soma_pav_m - t["comp_m"]) > 0.05:
+        alertas.append(
+            f"pavimentos somam {soma_pav_m:g} m e o trecho tem {t['comp_m']:g} m"
+        )
+    return {**t, **q, "geotecnia": geotec, "alertas": alertas}
+
+
+def _agravantes(
+    trecho: dict, furos: list[dict], profundidade_m: float, geotec: dict
+) -> list[str]:
+    """Motivos que pedem escoramento contínuo: solo não coesivo na vala, solo mole (designação do laudo ou NSPT
+    abaixo do mínimo até o fundo) e fundo abaixo do NA. `furos` = os que cobrem o trecho."""
+    from . import obras_lineares as ol
+
+    ag = VALA["agravantes"]
+    classes = sorted(
+        c for c, f in geotec["solos"].items() if f > 0 and c in ag["solos_nao_coesivos"]
+    )
+    descricoes = [
+        str(c.get("descricao") or "")
+        for f in furos
+        for c in f.get("camadas") or []
+        if c.get("de") is not None and c["de"] < profundidade_m
+    ]
+    if not furos and trecho.get("solo"):
+        descricoes.append(str(trecho["solo"]))
+    golpes = [
+        int(g)
+        for f in furos
+        for p_m, g in f.get("nspt") or []
+        if p_m <= profundidade_m + TOLERANCIA_M
+    ]
+    motivos = [f"solo não coesivo ({', '.join(classes)})"] if classes else []
+    if any(re.search(ag["regex_mole"], ol.norm(d)) for d in descricoes):
+        motivos.append("solo mole (designação do laudo)")
+    if golpes and min(golpes) < ag["nspt_min"]:
+        motivos.append(f"NSPT {min(golpes)} < {ag['nspt_min']}")
+    if geotec["esgotamento_frac"] > 0:
+        motivos.append("fundo abaixo do NA")
+    return motivos
+
+
+def tipo_escoramento(profundidade_m: float | None, agravantes=()) -> str:
+    """'nenhum' até o limite da NR-18 (`obras_lineares.escorar`, 1,25 m); acima, o tipo da faixa de profundidade
+    (`conceitos/lineares.json`, vala.escoramento), elevado ao `tipo_minimo` (contínuo) se houver agravante."""
+    from . import obras_lineares as ol
+
+    if not ol.escorar(profundidade_m):
+        return "nenhum"
+    faixas = VALA["escoramento"]["faixas"]
+    tipo = next(
+        f["tipo"] for f in faixas if f["ate_m"] is None or profundidade_m <= f["ate_m"]
+    )
+    ordem = [f["tipo"] for f in faixas]
+    minimo = VALA["agravantes"]["tipo_minimo"]
+    return minimo if agravantes and ordem.index(tipo) < ordem.index(minimo) else tipo
+
+
+def tipo_esgotamento(
+    esgotamento_frac: float, altura_agua_m: float, solo_nao_coesivo: bool = False
+) -> str:
+    """'nenhum' sem água na vala; 'ponteiras' com solo não coesivo na faixa submersa ou altura de água acima de
+    `altura_agua_max_bomba_m` (0,5 m); senão 'bomba' (submersível)."""
+    if esgotamento_frac <= 0 or altura_agua_m <= 0:
+        return "nenhum"
+    limite_m = VALA["esgotamento"]["altura_agua_max_bomba_m"]
+    return "ponteiras" if solo_nao_coesivo or altura_agua_m > limite_m else "bomba"
+
+
+def _submerso_nao_coesivo(
+    furos: list[dict], profundidade_m: float, geotec: dict
+) -> bool:
+    """Há solo não coesivo entre o NA de projeto e o fundo em algum furo do trecho (sem furo: o solo da planilha)."""
+    nao_coesivos = set(VALA["agravantes"]["solos_nao_coesivos"])
+    if not furos:
+        return geotec["esgotamento_frac"] > 0 and bool(
+            nao_coesivos & set(geotec["solos"])
+        )
+    return any(
+        nivel_m is not None
+        and nivel_m < profundidade_m
+        and bool(nao_coesivos & set(geo.solo_na_faixa(f, nivel_m, profundidade_m)))
+        for f in furos
+        for nivel_m in [geo.na_m(f)]
+    )
+
+
+def _alertas_na(trecho: dict, furos: list[dict], profundidade_m: float) -> list[str]:
+    """`geotecnia.alerta_na` de cada furo do trecho (NA sazonal); sem furo, o NA digitado na planilha."""
+    if not furos and isinstance(trecho.get("na_m"), (int, float)):
+        rotulo = f"{trecho.get('sond_ini') or 'sem id'} (NA da planilha)"
+        furos = [{"id": rotulo, "na_m": trecho["na_m"]}]
+    return list(
+        dict.fromkeys(a for f in furos if (a := geo.alerta_na(f, profundidade_m)))
+    )
+
+
+def _acrescimos(
+    t: dict, base: dict, furos: list[dict], profundidade_m, fonte: str
+) -> dict:
+    """O que o dimensionador acrescenta à saída de `obras_lineares.quantificar` (sem os alertas da profundidade)."""
+    geotec, vca = base["geotecnia"], t["metodo"] != "MND"
+    agravantes = _agravantes(t, furos, profundidade_m, geotec) if profundidade_m else []
+    tipo = (
+        tipo_escoramento(profundidade_m, agravantes) if vca and profundidade_m else None
+    )
+    na_min_m = geotec["na_min_m"]
+    altura_agua_m = (
+        round(max(0.0, profundidade_m - na_min_m), 3)
+        if profundidade_m and na_min_m is not None and geotec["esgotamento_frac"] > 0
+        else 0.0
+    )
+    alertas = _alertas_na(t, furos, profundidade_m) if profundidade_m else []
+    if tipo == "nenhum" and agravantes:
+        alertas.append(
+            f"vala de {_virgula(profundidade_m)} m, sem escoramento obrigatório pela NR-18, com "
+            + ", ".join(agravantes)
+            + ": conferir a estabilidade das paredes"
+        )
+    submerso = (
+        _submerso_nao_coesivo(furos, profundidade_m, geotec)
+        if profundidade_m
+        else False
+    )
+    return {
+        "largura_m": base.get("largura_m"),
+        "profundidade_m": profundidade_m,
+        "fonte_profundidade": fonte,
+        "escorado": base["escorado"],
+        "tipo_escoramento": tipo,
+        "agravantes_escoramento": agravantes,
+        "escoramento_m2": base.get("escoramento_m2"),
+        "esgotamento_frac": geotec["esgotamento_frac"],
+        "altura_agua_m": altura_agua_m,
+        "tipo_esgotamento": tipo_esgotamento(
+            geotec["esgotamento_frac"], altura_agua_m, submerso
+        )
+        if profundidade_m
+        else None,
+        "alertas": alertas,
+    }
+
+
+def vala_do_trecho(
+    trecho: dict,
+    furos: list[dict] | None = None,
+    perfil=None,
+    pts: np.ndarray | None = None,
+) -> tuple[dict, dict]:
+    """A regra única de vala: (saída no formato de `obras_lineares.quantificar`, acréscimos do dimensionador).
+
+    A profundidade vem do perfil (quando cobre o trecho), senão do `prof_m`; com o perfil, `prof_m` passa a ser a do
+    perfil. Sem `comp_m` e com `p0_m`/`p1_m`, o comprimento é p1_m − p0_m."""
+    from . import obras_lineares as ol
+
+    profundidade_m, fonte, alertas_prof = _profundidade(trecho, perfil)
+    t = {**trecho, "metodo": ol.norm(trecho.get("metodo") or "VCA")}
+    if fonte == "perfil longitudinal":
+        t["prof_m"] = profundidade_m
+    p0_m, p1_m = (trecho.get(VALA["progressivas"][k]) for k in ("inicio", "fim"))
+    if t.get("comp_m") is None and p0_m is not None and p1_m is not None:
+        t["comp_m"] = round(float(p1_m) - float(p0_m), 3)
+    base = _quantidades(t, furos or [], pts)
+    cobertos = [f for f, _ in ol.furos_do_trecho(t, furos or [], pts) if f is not None]
+    acrescimos = _acrescimos(t, base, cobertos, profundidade_m, fonte)
+    acrescimos["alertas"] = base["alertas"] + alertas_prof + acrescimos["alertas"]
+    return base, acrescimos
+
+
+def dimensionar_vala(
+    trecho: dict,
+    furos: list[dict] | None = None,
+    perfil=None,
+    pts: np.ndarray | None = None,
+) -> dict:
+    """Vala do trecho pela regra única: todas as chaves de `obras_lineares.quantificar` (mesmos nomes e valores) mais
+    largura_m, profundidade_m, fonte_profundidade, escorado, tipo_escoramento, agravantes_escoramento, escoramento_m2,
+    esgotamento_frac, altura_agua_m, tipo_esgotamento e alertas (os de `quantificar`, a profundidade de premissa e o
+    `geotecnia.alerta_na`).
+
+    `trecho` = o dict que `obras_lineares.quantificar` recebe (local, dn_mm, material, junta, prof_m, comp_m, metodo,
+    pavimentos, supressao_frac, sond_ini/sond_fim, na_m, solo; e, com perfil, p0_m/p1_m); `furos` no schema de
+    `conceitos/geotecnia.json`; `perfil` = retorno de `ler_perfil`; `pts` = eixo amostrado (UTM) para a sondagem de
+    cada metro. Profundidades e larguras em m, áreas em m², volumes em m³.
+    """
+    base, acrescimos = vala_do_trecho(trecho, furos, perfil, pts)
+    return {**base, **acrescimos}
+
+
+FUNCOES = (
+    "eixo",
+    "estaca_para_progressiva",
+    "progressiva_para_estaca",
+    "ponto_em",
+    "progressiva_de",
+    "segmento",
+    "numero_brasileiro",
+    "ler_perfil",
+    "profundidade_do_perfil",
+    "tipo_escoramento",
+    "tipo_esgotamento",
+    "vala_do_trecho",
+    "dimensionar_vala",
+    "metadados",
+)
+
+
 def metadados() -> dict:
     """Rastreabilidade do método e das premissas declaradas (regra 9 do estilo)."""
     meta = REGRAS["metadata"]
     return {
         "modulo": "lineares",
-        "descricao": "eixo e estaqueamento da obra linear: estaca <-> progressiva <-> E/N",
-        "funcoes": [
-            "eixo",
-            "estaca_para_progressiva",
-            "progressiva_para_estaca",
-            "ponto_em",
-            "progressiva_de",
-            "segmento",
-            "numero_brasileiro",
-            "ler_perfil",
-            "metadados",
-        ],
+        "descricao": "eixo e estaqueamento da obra linear (estaca <-> progressiva <-> E/N), leitor do perfil e "
+        "dimensionador único de vala",
+        "funcoes": list(FUNCOES),
         "bibliografia": [],
         "premissas": [
             {
@@ -410,6 +717,14 @@ def metadados() -> dict:
                 "fonte": PERFIL["fonte"],
                 "estado": PERFIL["estado"],
             },
+            *(
+                {
+                    "aplicacao": {"dimensionar_vala": [f"vala.{nome}"]},
+                    "fonte": VALA[nome]["fonte"],
+                    "estado": VALA[nome]["estado"],
+                }
+                for nome in ("progressivas", "escoramento", "agravantes", "esgotamento")
+            ),
         ],
         "ultima_revisao": meta["data_referencia"],
     }

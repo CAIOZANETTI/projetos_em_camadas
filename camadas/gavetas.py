@@ -435,16 +435,23 @@ def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict
 
 def impressao_regra(regra: str) -> str:
     """sha1 curto do código e das constantes (`REGRAS`, `PREMISSAS`, de `conceitos/`) do módulo da função da regra e
-    dos módulos `camadas.*` que ele importa: mudar o
-    empolamento, a Tabela I do MOS ou o próprio cálculo muda a chave, sem depender de alguém subir a `versao`."""
+    de todos os módulos `camadas.*` de que ele depende, direta ou indiretamente (fecho transitivo dos módulos
+    importados no topo, com conjunto de visitados, em ordem de nome): mudar o empolamento, a Tabela I do MOS, uma
+    premissa do dimensionador ou o próprio cálculo muda a chave, sem depender de alguém subir a `versao`."""
     if regra not in SERVICOS["regras"]:
         return ""
-    modulo = importlib.import_module(SERVICOS["regras"][regra]["funcao"].rpartition(".")[0])
-    # o módulo da regra e os módulos do projeto de que ele depende (ex.: obras_lineares → geotecnia, onde moram o
-    # empolamento e as regras de solo desde a rodada 25): constante mudada em qualquer um deles muda a chave
-    modulos = [modulo] + sorted((m for m in vars(modulo).values()
-                                 if isinstance(m, types.ModuleType) and m.__name__.startswith("camadas.")),
-                                key=lambda m: m.__name__)
+    # o grafo de módulos do projeto (ex.: obras_lineares → lineares → geotecnia; obras_lineares → valas → geo):
+    # constante mudada em qualquer um deles, a qualquer distância, muda a chave
+    visitados: dict[str, types.ModuleType] = {}
+    pendentes = [importlib.import_module(SERVICOS["regras"][regra]["funcao"].rpartition(".")[0])]
+    while pendentes:
+        modulo = pendentes.pop()
+        if modulo.__name__ in visitados:
+            continue
+        visitados[modulo.__name__] = modulo
+        pendentes += [m for m in vars(modulo).values()
+                      if isinstance(m, types.ModuleType) and m.__name__.startswith("camadas.")]
+    modulos = [visitados[nome] for nome in sorted(visitados)]
     corpo = b"".join(Path(m.__file__).read_bytes() + json.dumps(
         [getattr(m, "REGRAS", None), getattr(m, "PREMISSAS", None)], sort_keys=True, default=str).encode("utf-8")
         for m in modulos)

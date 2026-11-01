@@ -48,5 +48,38 @@
   "estado": "premissa",
   "fonte": "rodada 25, tarefa L2 (docs/plano/2026-11-01_rodada25.md): grade do perfil com linhas rotuladas e valores alinhados na mesma coluna (mesma abscissa) sob a estaca; rótulos sem acento e em maiúsculas; tolerâncias em pt da folha (distância entre centros de palavras); validado só em PDF sintético, o perfil real de Foz (AAT) fica para o Caio conferir",
   "observacao_fundo": "'fundo' é a cota do fundo da vala: a profundidade é terreno − fundo, sem somar o berço; a geratriz inferior é fundo + berço. Separado da geratriz na revisão do Fable (rodada 25): somar o berço a uma cota de fundo deixava a vala 10 cm mais funda."
+ },
+ "vala": {
+  "estado": "premissa",
+  "fonte": "rodada 25, tarefa L3a (docs/plano/2026-11-01_rodada25.md): dimensionador único de vala; largura pelo MOS e escoramento obrigatório acima de 1,25 m (NR-18) ficam em conceitos/obras_lineares.json; aqui só o que o dimensionador acrescenta",
+  "progressivas": {
+   "inicio": "p0_m",
+   "fim": "p1_m",
+   "estado": "premissa",
+   "fonte": "rodada 25, L3a: o trecho cobre o perfil entre as progressivas p0_m e p1_m (m, como os cortes de `trechos` da L3); sem elas, o perfil inteiro é o trecho. Profundidade = média de terreno − fundo ponderada pela extensão (integral da interpolação linear entre os pontos do perfil ÷ extensão), arredondada ao mm"
+  },
+  "escoramento": {
+   "faixas": [
+    {"ate_m": 2.0, "tipo": "pontaleteamento"},
+    {"ate_m": 3.0, "tipo": "descontinuo"},
+    {"ate_m": 4.5, "tipo": "continuo"},
+    {"ate_m": null, "tipo": "especial"}
+   ],
+   "estado": "premissa",
+   "fonte": "decisão D3 da rodada 25: faixas do `dimensionar_vala` do ramo claude/nifty-meitner-uqs554 (conceitos/dimensoes.json, vala.escoramento.profundidade_max_m), ali declaradas como prática de orçamento; abaixo do limite da NR-18 (1,25 m, conceitos/obras_lineares.json) o tipo é 'nenhum'. Conferir com o projetista da contenção"
+  },
+  "agravantes": {
+   "nspt_min": 4,
+   "solos_nao_coesivos": ["areia", "aterro"],
+   "regex_mole": "\\bMOLES?\\b|\\bFOFAS?\\b",
+   "tipo_minimo": "continuo",
+   "estado": "premissa",
+   "fonte": "decisão D3 da rodada 25 (ramo claude/nifty-meitner-uqs554, conceitos/dimensoes.json, vala.escoramento.agravantes): areia, aterro, solo mole (NSPT < 4) ou vala abaixo do NA pedem escoramento contínuo quando a vala passa de 1,25 m. Solo mole também pela designação do laudo (argila mole, areia fofa: NBR 6484, tabela de compacidade e consistência). Classes de `conceitos/geotecnia.json` na faixa 0 a profundidade da vala; NSPT medido até o fundo"
+  },
+  "esgotamento": {
+   "altura_agua_max_bomba_m": 0.5,
+   "estado": "premissa",
+   "fonte": "decisão D3 da rodada 25 (ramo claude/nifty-meitner-uqs554, conceitos/dimensoes.json, vala.lencol.metodo): altura de água na vala até 0,5 m em solo coesivo: bomba submersível; acima disso, ou solo não coesivo (areia, aterro) na faixa submersa (do NA ao fundo): ponteiras filtrantes. Altura de água = profundidade − NA de projeto mais raso dos furos do trecho (geotecnia.na_m, com a margem)"
+  }
  }
 }
