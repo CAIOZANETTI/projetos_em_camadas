@@ -151,7 +151,7 @@ def carregar(pasta: str | Path, lado: int = 1600, epsg: int | None = None, log=p
         fotos.append({"meta": m, "nome": a.name, "img": img, "escala": k,
                       "prior": np.vstack([np.c_[R, t], [0, 0, 1]]), "kp": None, "desc": None, "T": None})
     log(f"{len(fotos)} fotos carregadas; referencial EPSG:{epsg}; "
-        f"GSD pelo EXIF ≈ {np.median([m["gsd"] or np.nan for m in metas])*100:.2f} cm/px")
+        f"GSD pelo EXIF ≈ {np.median([m['gsd'] or np.nan for m in metas])*100:.2f} cm/px")
     return {"fotos": fotos, "pares": [], "relatorio": {"epsg": epsg}, "epsg": epsg, "E0": E0, "N0": N0, "log": log}
 
 
