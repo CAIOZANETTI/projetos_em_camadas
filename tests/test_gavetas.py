@@ -219,3 +219,9 @@ def test_ler_pasta_de_outro_formato_avisa_em_vez_de_devolver_vazio(tmp_path):
     with pytest.raises(ValueError, match="só em jsonl"):
         gv.ler(tmp_path, "parquet")
     assert gv.ler(tmp_path / "nao_existe", "parquet")["fatos"] == []
+
+
+def test_nome_de_tabela_so_de_gaveta_conhecida():
+    assert gv._tabela_sql("fatos") == '"fatos"'
+    with pytest.raises(ValueError):
+        gv._tabela_sql('fatos"; DROP TABLE objetos; --')

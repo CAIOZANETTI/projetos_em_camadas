@@ -18,6 +18,7 @@ import argparse
 import csv
 import importlib
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -254,6 +255,13 @@ def _ler_geoparquet(pasta: Path) -> dict:
     return _ler_parquet(pasta, geo=True)
 
 
+def _tabela_sql(gaveta: str) -> str:
+    """Nome de tabela seguro para o SQL: só gavetas de `conceitos/gavetas.json` (lista fechada, minúsculas e _)."""
+    if gaveta not in REGRAS["gavetas"] or not re.fullmatch(r"[a-z_]+", gaveta):
+        raise ValueError(f"gaveta {gaveta!r} não pode virar nome de tabela")
+    return f'"{gaveta}"'
+
+
 def _gravar_duckdb(pasta: Path, base: dict) -> list[Path]:
     """`base.duckdb`: uma tabela por gaveta (da mesma tabela arrow do parquet) e `_codificacao(gaveta, coluna)`."""
     import duckdb
@@ -262,12 +270,12 @@ def _gravar_duckdb(pasta: Path, base: dict) -> list[Path]:
     con.execute("DROP TABLE IF EXISTS _codificacao")
     con.execute("CREATE TABLE _codificacao (gaveta VARCHAR, coluna VARCHAR)")
     for gav in GAVETAS:
-        con.execute(f'DROP TABLE IF EXISTS "{gav}"')
+        con.execute(f"DROP TABLE IF EXISTS {_tabela_sql(gav)}")
         if not base.get(gav):
             continue
         tabela = _tabela(base[gav])
         con.register("_t", tabela)
-        con.execute(f'CREATE TABLE "{gav}" AS SELECT * FROM _t')
+        con.execute(f"CREATE TABLE {_tabela_sql(gav)} AS SELECT * FROM _t")  # nosec B608 — nome validado
         con.unregister("_t")
         em_json = json.loads(tabela.schema.metadata[b"gavetas"])["json"]
         for c in em_json:
@@ -289,7 +297,8 @@ def _ler_duckdb(pasta: Path) -> dict:
             base[gav] = []
             continue
         em_json = [c for (c,) in con.execute("SELECT coluna FROM _codificacao WHERE gaveta = ?", [gav]).fetchall()]
-        base[gav] = _registros(con.sql(f'SELECT * FROM "{gav}" ORDER BY rowid').to_arrow_table(), em_json)
+        consulta = f"SELECT * FROM {_tabela_sql(gav)} ORDER BY rowid"  # nosec B608 — nome validado por _tabela_sql
+        base[gav] = _registros(con.sql(consulta).to_arrow_table(), em_json)
     con.close()
     return base
 

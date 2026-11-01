@@ -1,0 +1,7 @@
+data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retrabalho_gerente,observacao
+2026-10-31,rodada 21,E0: repositórios no GitHub para a memória espacial (PESQUISA_REPOSITORIOS §6),pesquisador,claude-sonnet-5-5,74279,12,127,True,ajuste do gerente,entregue; G04/G07 corrigidos pelo Opus
+2026-11-01,rodada 21,E1 (gerador sintético de base linear),implementador,claude-sonnet-5-5,84272,19,132,True,nenhum,aceita pelo Opus (testes e aferição verdes)
+2026-11-01,rodada 21,"E2 (parquet, geoparquet e duckdb nas gavetas)",implementador,claude-sonnet-5-5,84734,12,170,True,nenhum,"aceita pelo Opus (29 testes, aferição ok, ida e volta conferida nos 5 km sintéticos)"
+2026-11-01,rodada 21,E3 (bancada de formatos e decidir),implementador,claude-sonnet-5-5,32490,16,261,True,ajuste do gerente,aceita pelo Opus com ajuste: RAM por pico de RSS em subprocesso (tracemalloc não via a memória nativa)
+2026-11-01,rodada 21,E4 (rodar a bancada 5 e 100 km e conferir quadro × jsonl),braçal,claude-haiku-5-5,62169,7,231,True,nenhum,"entregue; 20 linhas, 0 divergências; conferido por amostra pelo Opus"
+2026-11-01,rodada 21,aceite da rodada 21 (E1 a E5),gerente (aceite),claude-fable-5-1,111545,15,223,True,nenhum,"ACEITA; 5 riscos, 2 tratados na hora (critério 2 pelo motor, ler de outro formato)"
