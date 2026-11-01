@@ -9,7 +9,7 @@
   "folga_m": 0.6,
   "minimo_m": 0.6,
   "estado": "premissa",
-  "fonte": "b = DE + 0,60 m (0,30 m de cada lado para assentar e compactar), mínimo 0,60 m — NBR 12266; conferir no caderno de encargos Sanepar"
+  "fonte": "SÓ RESERVA (rodada 25, D2): a largura da vala vem do MOS Sanepar pelo dimensionador único (lineares.dimensionar_vala, L = D + SL + X + Y). Esta regra, b = DE + 0,60 m (NBR 12266), só vale quando a Tabela I do MOS não cobre o material e o DN, e a quantificação avisa"
  },
  "recobrimento_m": {
   "pista": 1.0,

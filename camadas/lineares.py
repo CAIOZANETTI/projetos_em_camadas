@@ -39,6 +39,7 @@ REGRAS = json.loads(
 )
 PERFIL = REGRAS["perfil"]
 VALA = REGRAS["vala"]
+TRECHOS = REGRAS["trechos"]
 PASSO_M = float(REGRAS["passo_estaca_m"])
 TOLERANCIA_M = float(REGRAS["tolerancia_m"])
 
@@ -663,6 +664,76 @@ def dimensionar_vala(
     return {**base, **acrescimos}
 
 
+def _fronteiras_m(comprimento_m: float, cortes: dict) -> np.ndarray:
+    """Progressivas (m) onde o eixo se parte: pontas, fronteiras de superfície, pontos médios entre furos
+    consecutivos e PVs. Ordenadas, sem repetição e sem vão menor que `trechos.comprimento_minimo_m`."""
+    minimo_m = float(TRECHOS["comprimento_minimo_m"])
+    candidatas = [np.zeros(1), np.full(1, comprimento_m)]
+    superficie = np.asarray(
+        [(p0, p1) for p0, p1, _ in cortes.get("superficie") or []], dtype=np.float64
+    )
+    candidatas.append(superficie.ravel())
+    furos_m = np.sort(
+        np.asarray([p for p, _ in cortes.get("furos") or []], dtype=np.float64)
+    )
+    candidatas.append((furos_m[1:] + furos_m[:-1]) / 2)
+    candidatas.append(np.asarray(cortes.get("pvs") or [], dtype=np.float64))
+    todas_m = np.sort(np.concatenate(candidatas))
+    interiores_m = todas_m[(todas_m > minimo_m) & (todas_m < comprimento_m - minimo_m)]
+    mantidas_m: list[float] = [0.0]
+    for p_m in interiores_m:
+        if p_m - mantidas_m[-1] >= minimo_m:
+            mantidas_m.append(float(p_m))
+    mantidas_m.append(float(comprimento_m))
+    return np.asarray(mantidas_m, dtype=np.float64)
+
+
+def trechos(eixo_: dict, cortes: dict | None = None) -> list[dict]:
+    """Segmenta o eixo em trechos homogêneos e devolve a lista de dicts, em ordem de progressiva.
+
+    `cortes = {"superficie": [(p0_m, p1_m, classe)], "furos": [(p_m, id)], "pvs": [p_m]}` (todas as chaves opcionais;
+    progressivas em m, como `estaca_para_progressiva`). O eixo parte-se:
+      - nas fronteiras de cada intervalo de superfície;
+      - no ponto médio entre furos consecutivos (cada trecho recebe o furo mais próximo do seu centro);
+      - em cada PV.
+    Fronteiras a menos de `trechos.comprimento_minimo_m` uma da outra ou das pontas se fundem; as que caem fora do
+    eixo são ignoradas. Cada trecho: {p0_m, p1_m, comp_m, superficie (classe que cobre o centro, ou None),
+    furo (id, ou None), estaca_inicial, estaca_final}, e sond_ini/sond_fim = furo quando há, para alimentar
+    `dimensionar_vala`. Determinístico; a soma de comp_m é o comprimento do eixo."""
+    cortes = cortes or {}
+    comprimento_m = float(eixo_["comprimento_m"])
+    limites_m = _fronteiras_m(comprimento_m, cortes)
+    inicio_m, fim_m = limites_m[:-1], limites_m[1:]
+    centro_m = (inicio_m + fim_m) / 2
+    classes = np.full(len(centro_m), None, dtype=object)
+    for p0_m, p1_m, classe in reversed(cortes.get("superficie") or []):
+        classes[(centro_m > p0_m) & (centro_m < p1_m)] = (
+            classe  # o primeiro intervalo declarado vence
+        )
+    furos = sorted(cortes.get("furos") or [], key=lambda f: f[0])
+    if furos:
+        furos_m = np.asarray([p for p, _ in furos], dtype=np.float64)
+        proximo = np.argmin(np.abs(centro_m[:, None] - furos_m[None, :]), axis=1)
+        ids = [furos[i][1] for i in proximo]
+    else:
+        ids = [None] * len(centro_m)
+    lista = []
+    for i in range(len(centro_m)):
+        trecho = {
+            "p0_m": float(inicio_m[i]),
+            "p1_m": float(fim_m[i]),
+            "comp_m": round(float(fim_m[i] - inicio_m[i]), 3),
+            "superficie": classes[i],
+            "furo": ids[i],
+            "estaca_inicial": progressiva_para_estaca(inicio_m[i]),
+            "estaca_final": progressiva_para_estaca(fim_m[i]),
+        }
+        if ids[i] is not None:
+            trecho["sond_ini"] = trecho["sond_fim"] = ids[i]
+        lista.append(trecho)
+    return lista
+
+
 FUNCOES = (
     "eixo",
     "estaca_para_progressiva",
@@ -677,6 +748,7 @@ FUNCOES = (
     "tipo_esgotamento",
     "vala_do_trecho",
     "dimensionar_vala",
+    "trechos",
     "metadados",
 )
 
@@ -716,6 +788,11 @@ def metadados() -> dict:
                 },
                 "fonte": PERFIL["fonte"],
                 "estado": PERFIL["estado"],
+            },
+            {
+                "aplicacao": {"trechos": ["trechos.comprimento_minimo_m"]},
+                "fonte": TRECHOS["fonte"],
+                "estado": TRECHOS["estado"],
             },
             *(
                 {

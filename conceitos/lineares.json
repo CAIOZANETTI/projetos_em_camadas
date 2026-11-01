@@ -49,6 +49,11 @@
   "fonte": "rodada 25, tarefa L2 (docs/plano/2026-11-01_rodada25.md): grade do perfil com linhas rotuladas e valores alinhados na mesma coluna (mesma abscissa) sob a estaca; rótulos sem acento e em maiúsculas; tolerâncias em pt da folha (distância entre centros de palavras); validado só em PDF sintético, o perfil real de Foz (AAT) fica para o Caio conferir",
   "observacao_fundo": "'fundo' é a cota do fundo da vala: a profundidade é terreno − fundo, sem somar o berço; a geratriz inferior é fundo + berço. Separado da geratriz na revisão do Fable (rodada 25): somar o berço a uma cota de fundo deixava a vala 10 cm mais funda."
  },
+ "trechos": {
+  "comprimento_minimo_m": 0.001,
+  "estado": "premissa",
+  "fonte": "rodada 25, tarefa L3b (docs/plano/2026-11-01_rodada25.md): fronteiras de superfície, pontos médios entre furos e PVs a menos deste vão (absoluto, m, igual a `tolerancia_m`) se fundem; não nasce trecho menor que ele"
+ },
  "vala": {
   "estado": "premissa",
   "fonte": "rodada 25, tarefa L3a (docs/plano/2026-11-01_rodada25.md): dimensionador único de vala; largura pelo MOS e escoramento obrigatório acima de 1,25 m (NR-18) ficam em conceitos/obras_lineares.json; aqui só o que o dimensionador acrescenta",
