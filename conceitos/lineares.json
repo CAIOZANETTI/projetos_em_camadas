@@ -1,0 +1,11 @@
+{
+ "metadata": {
+  "fonte": "convenção brasileira de estaqueamento de obras lineares: estaca inteira a cada 20 m, posição escrita 'N+DD,DD' (N estacas inteiras mais DD,DD metros); rodada 25, tarefa L1 (docs/plano/2026-11-01_rodada25.md)",
+  "estado": "premissa",
+  "data_referencia": "2026-11",
+  "observacoes": "Na obra linear a estaca (progressiva) é a coordenada; E/N servem só para desenhar. Exemplo: '12+10,00' = 12 x 20 + 10,00 = 250,00 m. A tolerância é absoluta, em metros (cotas e coordenadas). O passo de 20 m é convenção, não norma: projetos com estaca de 10 m ou 25 m declaram o passo na chamada."
+ },
+ "passo_estaca_m": 20,
+ "formato_estaca": "N+DD,DD",
+ "tolerancia_m": 0.001
+}

@@ -47,7 +47,7 @@ def _lote(out, executor):
 
 
 def test_fora_do_disco_baixa_e_completa_na_segunda_volta(tmp_path):
-    cfg, pasta, out = _obra(tmp_path, [("UNIDADE 01", NOME, "abc")])
+    cfg, _pasta, out = _obra(tmp_path, [("UNIDADE 01", NOME, "abc")])
     chamadas = []
 
     def baixar(file_id, destino, tamanho=None):
@@ -73,7 +73,7 @@ def test_carimbo_incompleto_sobe_para_haiku(tmp_path, monkeypatch):
     assert tent == {"código:reler": 1, "código:reler_carimbo": 1}
     assert r["lotes"] == {"Haiku": 1}
     assert _lote(out, "Haiku")[0]["faltando"] == ["carimbo.escala"]
-    assert _lote(out, "Haiku")[0]["retorno"] == [c for c in extracao.FONTES["classes"] if c["id"] == "projeto"][0]["retorno"]
+    assert _lote(out, "Haiku")[0]["retorno"] == next(c for c in extracao.FONTES["classes"] if c["id"] == "projeto")["retorno"]
 
 
 def test_reler_carimbo_com_sucesso_completa(tmp_path, monkeypatch):
@@ -93,7 +93,7 @@ def test_sem_leitor_vai_direto_ao_sonnet_com_retorno(tmp_path):
     assert r["voltas"] == 0 and r["lotes"] == {"Sonnet": 1}
     linha = _lote(out, "Sonnet")[0]
     assert (linha["arquivo"], linha["classe"], linha["situacao"]) == ("Memorial descritivo.docx", "memorial", "sem leitor")
-    assert linha["retorno"] == [c for c in extracao.FONTES["classes"] if c["id"] == "memorial"][0]["retorno"] and linha["retorno"]
+    assert linha["retorno"] == next(c for c in extracao.FONTES["classes"] if c["id"] == "memorial")["retorno"] and linha["retorno"]
     assert linha["caminho"].endswith("Memorial descritivo.docx")
     (pasta / "MEMORIAIS" / "Memorial descritivo.docx").unlink()          # lote é regravado: o que sumiu não fica
     escada.lotes(out, [], {})
@@ -116,7 +116,7 @@ def test_zip_extraido_vira_itens_filhos(tmp_path):
 
 
 def test_max_tentativas_impede_loop_e_sobe_para_voce(tmp_path):
-    cfg, pasta, out = _obra(tmp_path, [("UNIDADE 01", NOME, "abc"), ("UNIDADE 01", "planta.dwg", "d1")])
+    cfg, _pasta, out = _obra(tmp_path, [("UNIDADE 01", NOME, "abc"), ("UNIDADE 01", "planta.dwg", "d1")])
     chamadas = []
 
     def baixar(file_id, destino, tamanho=None):
