@@ -79,3 +79,16 @@ def test_decidir_desempate_por_menos_dependencias():
 def test_decidir_sem_aprovado_nao_tem_vencedor():
     r = bg.decidir([_linha("jsonl", ida=False)])
     assert r["vencedor"] is None and r["ranking"] == []
+
+
+def test_ram_enxerga_a_memoria_nativa(tmp_path):
+    """L017: o pico de RSS vê o pool do pyarrow, que o tracemalloc não vê."""
+    pytest.importorskip("pyarrow")
+    import tracemalloc
+    from camadas import gavetas, sintetico
+    gavetas.gravar(tmp_path, sintetico.base_linear(1), "parquet")
+    tracemalloc.start()
+    gavetas.ler(tmp_path, "parquet")
+    python_mb = tracemalloc.get_traced_memory()[1] / 1e6
+    tracemalloc.stop()
+    assert bg.ram_subprocesso(tmp_path, "parquet") > python_mb

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.25.0 — 2026-11-01 · Rodada 21: as caixas — formato das gavetas medido e escolhido
+- **Gerador sintético** (`camadas/sintetico.py`, `base_linear(km)`): adutora com eixo em UTM, trechos de 20 m, furos
+  a cada 200 m e fatos com evidência; 100 km em 0,17 s, a mesma base para a mesma semente.
+- **Formatos nas gavetas** (`camadas/gavetas.py`): parquet (tipo nativo nas colunas homogêneas, JSON nas outras),
+  geoparquet (WKB e metadados `geo` 1.1.0 com o CRS) e duckdb, além de jsonl e csv; ida e volta sem perda nos cinco.
+- **Bancada** (`scripts/bancada_gavetas.py`): tamanho, gravação, leitura, RAM (pico de RSS num subprocesso) e três
+  consultas p50/p95 pelo motor comum DuckDB e pelo nativo; `decidir` aplica o critério fixado antes de medir.
+- **Decisão**: `formato.atual = parquet` (`conceitos/gavetas.json`, com a evidência). Em 100 km, 8× menor que o JSONL
+  e consulta pelo motor comum 13× mais rápida; RAM maior (117 × 54 MB). Registros versionados no git continuam em
+  JSONL. `pyarrow` passa a ser dependência obrigatória.
+- Lição L017.
+
 ## 0.24.0 — 2026-10-31 · Memória espacial: gavetas e os três de-para
 - **Gavetas** (`conceitos/gavetas.json`, `camadas/gavetas.py`): objetos, geometria, fatos, evidências, pendências e
   serviços, com campos obrigatórios e valores permitidos. Um fato só entra com propriedade declarada, natureza

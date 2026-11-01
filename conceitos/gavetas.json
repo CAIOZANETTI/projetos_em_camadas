@@ -6,8 +6,15 @@
   "observacoes": "Contrato LÓGICO das gavetas: nomes, campos obrigatórios e valores permitidos. O formato físico (JSONL, CSV, Parquet…) é experimento (G05): o mesmo contrato vale para qualquer formato, e `camadas.gavetas` grava e lê pelos formatos de `formato.implementados`. Um fato só entra se a propriedade estiver em `propriedades` e se apontar para uma evidência existente; o que não cabe vira pendência."
  },
  "formato": {
-  "atual": "jsonl",
-  "estado": "premissa",
+  "atual": "parquet",
+  "estado": "medido",
+  "decisao": {
+   "data": "2026-11-01",
+   "evidencia": "pdca/bancada_gavetas.jsonl (rodada 21, 5 e 100 km sintéticos, 3 repetições) e scripts/bancada_gavetas.py decidir",
+   "resultado": "os cinco formatos passam em ida e volta e em p95 ≤ 50 ms (melhor entre motor comum e nativo); no ranking (bytes, ler_s, ram_mb) parquet, geoparquet e duckdb empatam a menos de 20 % e parquet vence por ter menos dependências. Em 100 km: parquet 0,98 MB × jsonl 7,8 MB (8×), consulta pelo motor comum p95 ≤ 6,3 ms × 82 ms do jsonl; RAM pior (117 × 54 MB); ordem por progressiva quase indiferente",
+   "validade": "base sintética; reavaliar com a base real de Foz (G05) e quando as gavetas tiverem mais classes de objeto",
+   "registros_no_git": "jsonl: registros e exemplos versionados continuam em JSONL, que dá diff legível; a base da obra (saida/, fora do git) fica em parquet"
+  },
   "implementados": ["jsonl", "csv", "parquet", "geoparquet", "duckdb"],
   "candidatos": ["jsonl", "csv", "parquet", "geoparquet", "duckdb", "sqlite/spatialite", "postgis"],
   "metricas": ["ida e volta sem perda (tipos, listas, dicionários)", "tamanho em disco por obra", "tempo de gravação e de leitura", "p50/p95 de consulta por objeto e por trecho", "RAM máxima", "legibilidade para auditoria (diff no git)", "dependências extras"],

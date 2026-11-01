@@ -92,11 +92,17 @@ O contrato das gavetas é **lógico** (nomes, campos, valores permitidos em `con
 arquivo é testado e escolhido por métrica, da forma mais determinística possível (experimento G05 nos 5 km e G08 na
 carga sintética de 100 km):
 
-| Candidato | Situação |
+| Candidato | Situação (rodada 21, 01/11/2026) |
 |---|---|
-| JSONL | atual do MVP: legível, diff no git, mesmo estilo de `extracao.jsonl` |
-| CSV | implementado; listas e dicionários vão em JSON na célula (ida e volta conferida em teste) |
-| Parquet / GeoParquet, DuckDB, SQLite/SpatiaLite, PostGIS | candidatos, a implementar quando o teste pedir |
+| **Parquet** | **atual**: venceu a bancada (8× menor que o JSONL em 100 km, consulta p95 ≤ 6 ms pelo DuckDB); RAM maior |
+| GeoParquet | implementado; empata com o Parquet e custa 30 % mais em disco; serve para abrir a geometria em SIG (QGIS) |
+| DuckDB | implementado; empata, arquivo 2,4× maior que o Parquet; motor de consulta comum sobre qualquer formato |
+| JSONL | implementado; fica para os registros e exemplos versionados no git, pelo diff legível |
+| CSV | implementado; listas e dicionários em JSON na célula |
+| SQLite/SpatiaLite, PostGIS | não implementados; só se houver acesso simultâneo ou edição concorrente |
+
+Evidência: `pdca/bancada_gavetas.jsonl` e `conceitos/gavetas.json` (`formato.decisao`). A base é sintética: a escolha
+é reavaliada com a base real de Foz.
 
 Métricas: ida e volta sem perda, tamanho em disco, tempo de gravação e leitura, p50/p95 de consulta por objeto e por
 trecho, RAM máxima, auditabilidade e dependências extras. `gavetas.gravar` e `gavetas.ler` são o único ponto que
