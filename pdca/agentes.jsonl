@@ -32,3 +32,4 @@
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "haiku", "papel": "braçal", "tarefa": "lint ruff em mosaico.py e test_escada.py", "tokens": 63260, "segundos": 51, "ferramentas": 18, "resultado": "5 erros corrigidos"}
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "sonnet", "papel": "implementador", "tarefa": "G1 (schema do furo e leitor de laudo)", "tokens": 94357, "segundos": 278, "ferramentas": 16, "resultado": "entregue; 9 testes"}
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "aceite do PR 2 (G1, L1)", "tokens": 110686, "segundos": 143, "ferramentas": 15, "resultado": "L1 aceita; G1 revisar (preposição na virava NA)"}
+{"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "2º aceite do G1", "tokens": 113188, "segundos": 13, "ferramentas": 1, "resultado": "G1 aceita"}
