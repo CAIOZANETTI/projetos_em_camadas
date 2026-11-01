@@ -16,7 +16,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 
 def arvores(raiz):
     """Todo .py do repositório (código, scripts e testes), fora os ambientes e caches."""
-    FORA = {'.venv', '.git', '__pycache__', 'dados', 'saida', 'saidas', 'entrada', 'exemplos'}
+    FORA = {'.venv', '.git', '.claude', '__pycache__', 'dados', 'saida', 'saidas', 'entrada', 'exemplos'}
     return {a: ast.parse(a.read_text(encoding='utf-8')) for a in sorted(raiz.rglob('*.py'))
             if not FORA & set(a.relative_to(raiz).parts)}
 

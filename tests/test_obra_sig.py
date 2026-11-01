@@ -51,30 +51,12 @@ def test_regras_de_etapa_vem_do_conceito():
     assert pdf_cad.classificar([azul, roxo], regras) == ["1ª etapa", "2ª etapa"]
 
 
-def test_cronograma_resolve_elementos_e_curva_s():
-    dados = {"pranchas": [{"id": "fu1", "M": [1, 0, 0, 0, -1, 0], "layers": [
-                {"nome": "ESTACAS", "grupo": "Civil", "subgrupo": "Geotecnia e fundação", "classe": None},
-                {"nome": "_PROJETADOS", "grupo": "Hidráulica", "subgrupo": "Tubulações e conexões", "classe": "1ª etapa"}]}],
-             "vetores": [{"id": "supressao", "geojson": {"features": []}},
-                         {"id": "estacas", "geojson": {"features": [{"properties": {"id": "A-1", "estrutura": "ACT360"}}]}}]}
-    cfg = {"cronograma": {"data_os": "2027-01-04", "atividades": [
-        {"id": "A", "nome": "fundação", "inicio_dia": 0, "fim_dia": 100, "peso_pct": 25,
-         "seletor": {"grupos": [["Civil", "Geotecnia e fundação"]], "estacas": ["ACT360"]}},
-        {"id": "B", "nome": "tubos 1ª etapa", "inicio_dia": 100, "fim_dia": 200, "peso_pct": 75,
-         "seletor": {"etapas": ["1ª etapa"], "vetores": ["supressao"]}}]}}
-    c = obra.cronograma_4d(cfg, dados)
-    a, b = c["atividades"]
-    assert a["elementos"]["layers"] == {"fu1": ["ESTACAS"]} and a["elementos"]["estacas"] == ["A-1"]
-    assert b["elementos"]["layers"] == {"fu1": ["_PROJETADOS"]} and b["elementos"]["vetores"] == ["supressao"]
-    curva = dict(zip(c["curva_s"]["dia"], c["curva_s"]["planejado_pct"]))
-    assert curva[0] == 0 and curva[100] == pytest.approx(25) and curva[150] == pytest.approx(62.5) and curva[200] == 100
-
-
 def _georef(caminho, e0, n1, res, extra=None):
     geo.salvar_georef(caminho, e0, n1, res, 31981, extra or {})
 
 
 def test_supressao_so_dentro_da_faixa_e_so_vegetacao_alta(tmp_path):
+    pytest.importorskip("rasterio")
     res, n = 0.25, 200                                   # 50 × 50 m
     img = np.full((n, n, 3), (90, 90, 90), np.uint8)    # asfalto
     img[:, 100:140] = (40, 160, 40)                     # faixa verde (árvores em parte, grama no resto)

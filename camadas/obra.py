@@ -30,6 +30,7 @@ from . import (
     escavacao,
     escopo_obra,
     evidencias,
+    extracao,
     geo,
     georef_prancha,
     inventario,
@@ -214,7 +215,7 @@ def referencia_cad(base: dict, pasta: Path, filtro: str, res: float = 0.10) -> P
     """Raster georreferenciado (preto sobre branco) das linhas de referência de uma prancha
     já georreferenciada — serve de "ortofoto" para registrar as pranchas irmãs."""
     import hashlib
-    caminho = pasta / f"_ref_{base['id']}_{hashlib.md5(f'{filtro}|{res}'.encode()).hexdigest()[:6]}.png"
+    caminho = pasta / f"_ref_{base['id']}_{hashlib.md5(f'{filtro}|{res}'.encode(), usedforsecurity=False).hexdigest()[:6]}.png"
     if caminho.exists():
         return caminho
     tr = pdf_cad.extrair(base["pdf"], clip=base.get("clip"))
@@ -576,57 +577,6 @@ def vetor_marcos(cfg: dict, epsg: int, centro_utm) -> dict | None:
             "estilo": {"color": "#0ea5e9", "radius": 5, "weight": 2, "fillOpacity": 0.9}}
 
 
-def cronograma_4d(cfg: dict, dados: dict) -> dict | None:
-    """Resolve os seletores de cada atividade em elementos do HTML e calcula a curva S planejada.
-
-    Seletor: pranchas (ids), grupos ([grupo, subgrupo] dos layers), etapas (classe dos layers e manchas),
-    vetores (ids), estacas (estrutura), intervencoes (tipos desenhados pelo usuário). O front só compara a data
-    escolhida com início/fim — a conta (elementos e curva S) é daqui (regra 12 do estilo).
-    """
-    c = cfg.get("cronograma")
-    if not c:
-        return None
-    estacas = next((v for v in dados["vetores"] if v["id"] == "estacas"), None)
-    ids_vetor = {v["id"] for v in dados["vetores"]}
-    atividades = []
-    for a in c["atividades"]:
-        sel = a.get("seletor", {})
-        layers = {}
-        for pr in dados["pranchas"]:
-            if pr["M"] is None:
-                continue
-            nomes = [l["nome"] for l in pr["layers"]
-                     if (pr["id"] in sel.get("pranchas", []) and not sel.get("grupos") and not sel.get("etapas"))
-                     or [l.get("grupo"), l.get("subgrupo")] in sel.get("grupos", [])
-                     or (l.get("classe") in sel.get("etapas", []) and not sel.get("grupos"))
-                     or (pr["id"] in sel.get("pranchas", []) and [l.get("grupo"), l.get("subgrupo")] in sel.get("grupos", []))]
-            if nomes:
-                layers[pr["id"]] = nomes
-        vetores = [v["id"] for v in dados["vetores"]
-                   if v["id"] in sel.get("vetores", []) or (v.get("etapa") and v["etapa"] in sel.get("etapas", []))]
-        ids_estacas = [f["properties"]["id"] for f in (estacas["geojson"]["features"] if estacas else [])
-                       if f["properties"].get("estrutura") in sel.get("estacas", [])]
-        n = sum(map(len, layers.values())) + len(vetores) + len(ids_estacas) + len(sel.get("intervencoes", []))
-        if sel and not n:
-            _log(f"  cronograma: atividade {a['id']} sem elemento no mapa (seletor {sel})")
-        faltam = [v for v in sel.get("vetores", []) if v not in ids_vetor]
-        atividades.append({**{k: v for k, v in a.items() if k != "seletor"},
-                           "elementos": {"layers": layers, "vetores": vetores, "estacas": ids_estacas,
-                                         "intervencoes": sel.get("intervencoes", [])},
-                           "n_elementos": n, "vetores_ausentes": faltam})
-    fim = max(a["fim_dia"] for a in atividades)
-    dias = np.arange(fim + 1)
-    peso = np.array([a.get("peso_pct", 0.0) for a in atividades], float)
-    inicio = np.array([a["inicio_dia"] for a in atividades], float)
-    termino = np.array([a["fim_dia"] for a in atividades], float)
-    avanco = np.clip((dias[:, None] - inicio) / np.maximum(termino - inicio, 1), 0, 1)   # linear por atividade
-    curva = avanco @ peso / max(peso.sum(), 1e-9) * 100
-    return {**{k: v for k, v in c.items() if k != "atividades"}, "atividades": atividades,
-            "curva_s": {"dia": dias[::5].tolist() + ([int(fim)] if fim % 5 else []),
-                        "planejado_pct": np.round(np.r_[curva[::5], [curva[-1]] if fim % 5 else []], 2).tolist()},
-            "peso_total_pct": round(float(peso.sum()), 2)}
-
-
 def _pranchas_no_mapa(cfg: dict, pranchas: list, extensao: list, epsg: int) -> tuple[list, list, dict]:
     """Pacote vetorial de cada prancha (com quantitativos se georreferenciada), manchas de etapa e pendências."""
     lista, vetores, pendentes = [], [], {}
@@ -761,6 +711,21 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
     ]
 
 
+def _reavaliar(inv: dict, out: Path, cfg: dict) -> dict:
+    """Reavaliação do inventário (`camadas.extracao`): classe de cada fonte, estado da extração, próximo passe e séries
+    de folhas incompletas; grava `pendencias.json` (a lista que abre a próxima rodada) e o registro `extracao.jsonl`."""
+    rel = extracao.aplicar_retornos(out, inv)                      # retornos da IA entram antes da avaliação
+    p = extracao.pendencias(inv, cfg["inventario"].get("pastas"), extracao.ler_complementos(out / "complementos.json"))
+    extracao.registrar_por_executor(p["avaliacoes"], out / "extracao.jsonl", passe="build")
+    resumo = {k: p[k] for k in ("por_estado", "por_classe", "fracao_completa", "series", "fora_do_escopo")}
+    resumo.update({k: p[k] for k in ("por_papel",) if k in p})
+    (out / "pendencias.json").write_text(json.dumps({**resumo, "esperado": extracao.esperado_x_encontrado({"itens": p["itens"]}),
+                                                     "retornos": rel, "pendencias": p["pendencias"]},
+                                                    ensure_ascii=False, indent=1), encoding="utf-8")
+    _log(f"Extração: {p['por_estado']}; {len(p['pendencias'])} pendência(s), {len(p['series'])} série(s) incompleta(s)")
+    return {**resumo, "pendencias": p["pendencias"]}
+
+
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
     lote; os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor; a EAP
@@ -773,8 +738,10 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     for chave, pacote in pacotes.items():
         if pacote:
             dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}
-    if cfg.get("inventario"):                         # todos os PDFs da listagem do Drive, com o carimbo
-        dados["inventario"] = inventario.para_html(inventario.inventario(cfg, out / "inventario_cache.json", log=_log))
+    if cfg.get("inventario"):                         # todos os arquivos da listagem do Drive, com o carimbo
+        inv = inventario.inventario(cfg, out / "inventario_cache.json", log=_log)
+        dados["inventario"] = inventario.para_html(inv)
+        dados["inventario"]["extracao"] = _reavaliar(inv, out, cfg)
         fl = prancha.lote(cfg, escopo, out, log=_log)                  # ficha leve de cada desenho no disco
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
@@ -832,7 +799,6 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "grupos": pdf_cad.disciplinas()["grupos"],
         "intervencoes": json.loads((pdf_cad.CONCEITOS / "intervencoes.json").read_text(encoding="utf-8"))["intervencoes"],
         "elementos": {c["id"]: {"nome": c["nome"], "grupo": c["grupo"]} for c in pdf_cad.elementos()["classes"]},
-        "cronograma": None,
         "escopo": escopo,
         "sondagens": furos,
         "modelo3d": modelo3d(out, rel, cfg.get("max_pontos_3d", 300_000), desloc, vertical),
@@ -844,7 +810,6 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     if vertical:                                      # perfil dos furos no 3D só com a nuvem em cota
         dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
     _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala})
-    dados["cronograma"] = cronograma_4d(cfg, dados)
     return _gravar(cfg, out, dados, pranchas, epsg)
 
 

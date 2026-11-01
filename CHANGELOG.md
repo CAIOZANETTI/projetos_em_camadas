@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.18.0 — 2026-10-30 · EAP codificada como linha mestra
+## 0.24.0 — 2026-11-01 · EAP codificada como linha mestra
 - **EAP (WBS)** (`camadas/eap.py`, `conceitos/eap.json`, `docs/EAP.md`): código `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM`
   sobre as unidades e os sistemas de `unidades_construtivas.json` (obra localizada × linear); disciplinas Geotecnia
   (fundações: estacas, blocos, contenções; movimentação de solo), Civil (estruturas de concreto: piso, viga, pilar,
@@ -59,6 +59,94 @@
 - O build grava `dados.eap`, `dados.evidencias` e o código `eap` em cada elemento da aba Obra, além de
   `evidencias.jsonl`, `fatos.csv`, `cobertura.csv` e `associados.csv`. A aba EAP no HTML fica para a próxima rodada
   (`docs/EAP.md` §9).
+## 0.23.0 — 2026-10-31 · Rodada 20, PR 3: o loop de extração fecha sozinho
+- **Executor da escada** (`camadas/escada.py`, `python -m camadas.escada <obra.json>`): cada pendência sobe pelos
+  `degraus` de `conceitos/fontes.json` (código: baixar, reler, carimbo em 300 dpi, extrair o zip; depois Haiku, Sonnet,
+  você), com `max_tentativas` em todo degrau; repete até não haver degrau de código; o resto vai para
+  `saida/<obra>/lotes/<executor>.jsonl` (sobrescrito a cada rodada). O conteúdo dos zips vira itens filhos
+  inventariados.
+- **Retorno da IA conferido** (`extracao.aplicar_retornos`): o agente grava em `saida/<obra>/retornos/`; entram só os
+  campos de `retorno` da classe e só se o trecho citado está na página (imagem: "não conferível", anotado); retorno
+  repetido não conta duas vezes. O registro grava quem completou (`registrar_por_executor`), no build e na escada.
+  O esperado × encontrado usa os itens já complementados.
+- Teste de integração do ciclo inteiro: lote do Sonnet → retorno → a volta seguinte fecha o item e registra "Sonnet".
+- Índice de determinismo: 66,7 % das etapas em código (a escolha do próximo passe e a conferência do retorno deixaram
+  de ser da IA na sessão). Lição L014.
+- Aceite do Fable no 2º julgamento da E6: a escalada da IA não subia (chaves diferentes para a mesma tentativa; o
+  retorno recusado não contava). Corrigido, e toda escada termina em "você" (lição L015).
+
+## 0.22.0 — 2026-10-31 · Rodada 20, PR 2: releitura, PDF inteiro, papel por pasta e esperado × encontrado
+- **Releitura sem o cache travar** (`inventario.py`): `LEITURA_VERSAO` na assinatura, `reler` força a leitura e erro
+  é relido em toda rodada. O resultado dos degraus e da IA fica em `saida/<obra>/complementos.json`, com executor e
+  tentativas, mesclado por `extracao.pendencias` (o cache guarda só a leitura básica).
+- **PDF lido inteiro**: `texto` pela fração de páginas com texto (até 20), carimbo de cada página e `reler_carimbo`
+  em 300 dpi como degrau alternativo.
+- **Papel por pasta e esperado × encontrado** (`extracao.papel`, `extracao.esperado_x_encontrado`,
+  `conceitos/documentos_esperados.json`): cada sistema confere os documentos que a tipologia exige (forma, armadura,
+  locação e cargas, fundação; planta e perfil nas redes). Vai para `pendencias.json` (`esperado`, `por_papel`).
+- **Custo dos agentes** (`pdca/agentes.jsonl`, resumo por modelo em `scripts/determinismo.py`) e a **proposta do
+  observatório entre repositórios** (`docs/ARQUITETURA.md` §11).
+- PDCA: implementado por três Sonnet (dois em paralelo, um na revisão), julgado pelo Fable. E1 e E3 foram devolvidas
+  uma vez e aceitas na revisão. A aferição deixou de varrer `.claude/` (os worktrees dos agentes duplicavam o código).
+
+## 0.21.0 — 2026-10-30 · Arquitetura R7: ciclo de extração, fontes de evidência e geotecnia separada
+- **Reavaliação do inventário a cada build** (`camadas/extracao.py`, `conceitos/fontes.json`): classe da fonte de
+  cada arquivo (projeto, memorial, laudo, lista, edital, planilha, folha de dados, documento de obra, cotação fora do
+  escopo), estado da extração (completa, parcial, falhou, sem leitor, fora do disco) pelos campos que a classe exige,
+  próximo passe da escada (código → Haiku → Sonnet → Opus → você) e séries de folhas incompletas pelo carimbo "n/m".
+  Grava `saida/<obra>/pendencias.json` e o registro `extracao.jsonl` (só quando o estado muda).
+- **Arquitetura R7** (`docs/ARQUITETURA.md`): o ciclo inventário → extração → reavaliação → loop, a fonte de cada
+  fato, a interpretação dos projetos pelo carimbo, a geotecnia como disciplina independente (modelo geotécnico único
+  no lugar dos dois interpretadores divergentes) e os agentes por degrau da escada.
+- **A regra da lição vale para qualquer sessão**: cada versão do CHANGELOG desde a 0.19.0 precisa de uma lição em
+  `pdca/licoes.jsonl` (teste). Lições L010 (rodada 19), L011 e L012. Índice de determinismo: 63,6 % das etapas em
+  código.
+- **Revisão independente (Fable)** antes do PR: nome vale mais que a pasta, termos com fronteira de palavra, laudo
+  antes de projeto, OS escaneada não sai completa, foto dispensa leitura, séries por unidade com aviso de arquivo fora
+  do disco, registro de qualquer mudança e cotação listada à parte. O que falta para o loop fechar sozinho está em
+  `docs/ARQUITETURA.md` §2.
+- **Arquitetura R8** (§10, PDCA com gerente): cada rodada tem plano com entregas e verificação. O Fable aprova o plano,
+  aceita ou devolve cada entrega e escreve a entrega final; o Opus executa; Sonnet e Haiku implementam contra um
+  contrato fixo. PR na `main` só com testes, aferição, determinismo verdes e o aceite. Plano da rodada 20
+  (`docs/plano/2026-10-30_rodada20.md`) e o campo `retorno` por classe em `conceitos/fontes.json`.
+
+## 0.20.0 — 2026-10-30 · Foz, rodada 19: todas as unidades da Relação de Desenhos e os desenhos não entregues
+- **Unidades da Relação na aba Obra** (regra código do desenho → sistema em `conceitos/unidades_construtivas.json`):
+  7 novas — câmara de contato, canal de água tratada, EEE lodo / reservatório de lodo, RECALD e RECALF, blocos de
+  apoio e ancoragem, caixas de saída de água tratada e caixas de chegada de água bruta (CXA separado pela unidade da
+  Relação); sistema sem geometria aparece na árvore ("sem geometria").
+- **Desenhos citados × entregues** por unidade e no total: 104 citados, 46 entregues, 58 não entregues; entregue com
+  link do Drive, não entregue com marcador de alerta; filtro "Só com desenho não entregue" (8 unidades).
+- Escopo das novas: "a definir" sem pegada no mapa, com o motivo; caixas de saída fora pelo contrato (tabelas 03 e
+  04 só com quantidade na 2ª etapa).
+- Python e aba feitos por dois agentes (Sonnet) contra um contrato fixo; revisão, build e testes na sessão principal.
+
+## 0.19.0 — 2026-10-30 · Arquitetura: só escopo, inventário primeiro e índice de determinismo
+- **Cronograma e 4D removidos**: o sistema trata só de escopo (serviços e atividades numa EAP com quantidades), sem
+  prazo nem preço. Saem `obra.cronograma_4d`, o bloco `cronograma` do obra.json de Foz (marcos MI, pesos das UCs,
+  curva S), a barra 4D do visualizador, os testes e a documentação. Os marcos geodésicos (topografia) ficam.
+- **Arquitetura R6** (`docs/ARQUITETURA.md`): EAP como linha mestra, o HTML único como caderno da obra, decisões com
+  ida e volta, tipos de documento (planta, perfil, detalhe, documento), disciplinas, agentes por papel (Fable como
+  revisor independente) e portões G0–G7. O cenário de mesa de uma obra nova trava em cinco pontos, com a correção de
+  cada um.
+- **Inventário de todos os arquivos** (`camadas/inventario.py`): não só PDF. Planilha (abas, inclusive ocultas), zip
+  (conteúdo) e o que não tem leitor fica "sem leitor", à vista. `procurar` prova a ausência: busca nome, pasta e
+  carimbo em qualquer situação e separa "existe, não lido" de "não existe" (lição do Actiflo 360).
+- **Regra da lição aprendida e índice de determinismo** (`scripts/determinismo.py`, `pdca/determinismo.json`,
+  `pdca/licoes.jsonl`): toda rodada com a IA deixa ao menos uma lição em código, com teste; o índice mede a IA na obra
+  × o código. Reprova índice pior, lição sem arquivo/teste e rodada sem lição nova. Foz: 61,9 % das etapas em código
+  (57,1 % antes do download pelo link direto); meta 85 %. 9 lições, 7 com teste.
+
+## 0.18.0 — 2026-10-30 · Foz, rodada 18: a estrutura dos Actiflo a partir das formas do Drive
+- **Download pelo link direto** (`camadas/drive.py`): o conector do Drive não passa de ~5,5 MB por arquivo e as
+  formas e armaduras (6 a 22 MB) nunca desciam. Foz: 164 PDFs pendentes (811 MB), 0 falha; inventário com os 325
+  PDFs da listagem no disco.
+- **Formas dos Actiflo** (fichas `act01_forma`, `act02_forma`): Actiflo 600 — 87/87 estacas encaixadas a 6 mm, 85
+  blocos (83 rotulados); Actiflo 360 — 39/39 a 3 mm, 30 blocos (29 rotulados), com níveis. Blocos na aba Obra, no
+  mapa e no 3D (78 sólidos, eram 41); "blocos de coroamento" dos Actiflo passa a geometria.
+- Conferido na Relação de Desenhos: o Actiflo 360 não tem pilar nem passarela, e nenhum Actiflo tem projeto de
+  impermeabilização — as lacunas restantes dessas unidades são do projeto, não da leitura.
+
 ## 0.17.0 — 2026-10-30 · Foz, rodada 17: obras lineares dentro da ETA (demandas da Giselle)
 - **Obras lineares da Unidade 1** (`camadas/obras_lineares.py`, `conceitos/obras_lineares.json`): os trechos de tubo
   da ETA (entrada de água bruta, interligações com os Actiflo 360/600, saída e retorno de lodo) não são AAT; cada

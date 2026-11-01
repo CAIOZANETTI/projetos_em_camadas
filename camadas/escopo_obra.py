@@ -8,6 +8,8 @@ evidência de cada parte e o link do projeto de onde veio.
     evidência = trecho real, nunca deduzido: linha da Relação de Desenhos, frase de memorial/descritivo/TR, item do
                contrato (sem preço) ou desenho da geometria. Uma frase vale para o sistema quando ela, ou o título da
                seção em que está, cita o sistema pelas `chaves` de `conceitos/unidades_construtivas.json`
+    desenhos  = cada linha da Relação de Desenhos pertence a um sistema pela regra `desenhos` (código no nome do desenho
+               e, quando o código se repete, a coluna unidade); `entregue` = o desenho existe na listagem do Drive
 
 Lê `dados` (o que `obra.construir` já calculou) e os PDFs de texto do inventário que estão em disco (PyMuPDF). Sem
 IA: só regex e geometria.
@@ -38,6 +40,8 @@ RANK = {"geometria": 0, "contrato": 1, "relacao": 2, "frase": 3, "cabecalho": 4,
 FRASES = re.compile(r"(?<=[.;])\s+(?=[A-ZÀ-Ý•\-–])")
 MARCADOR = re.compile(r"^[•\-–—]\s")
 RUIDO = re.compile(CIVIL["documentos"]["ruido"])
+CODIGO = re.compile(construtivos.REGRAS["relacao"]["codigo"])
+REVISAO = re.compile(r"-R(\d+)$", re.IGNORECASE)
 UNIDADES = re.compile(r"\bL/s\b|\bm[²³]\b|\bmm\b|\bkV\b")
 
 
@@ -90,14 +94,20 @@ def _trecho(frase: str, inicio: int = 0) -> str:
     return ("…" if ini else "") + corte.strip() + ("…" if ini + n < len(frase) else "")
 
 
-def _ids_drive(cfg: dict) -> dict:
-    """{(pasta, arquivo): id do Drive} da listagem recursiva (`inventario.listagem`); vazio se não houver."""
+def _pdfs_drive(cfg: dict) -> list:
+    """[{pasta, arquivo, id}] dos PDFs da listagem recursiva (`inventario.listagem`); vazio se não houver."""
     caminho = Path((cfg.get("inventario") or {}).get("listagem") or "")
     if not caminho.is_file():
-        return {}
+        return []
+    nfc = lambda texto: unicodedata.normalize("NFC", texto)
     with caminho.open(encoding="utf-8", newline="") as f:
-        return {(unicodedata.normalize("NFC", r["caminho"]), unicodedata.normalize("NFC", r["titulo"])): r["id"]
-                for r in csv.DictReader(f, delimiter=";") if r["mimeType"] == "application/pdf"}
+        return [{"pasta": nfc(r["caminho"]), "arquivo": nfc(r["titulo"]), "id": r["id"]}
+                for r in csv.DictReader(f, delimiter=";") if r["mimeType"] == "application/pdf"]
+
+
+def _ids_drive(cfg: dict) -> dict:
+    """{(pasta, arquivo): id do Drive} da listagem."""
+    return {(d["pasta"], d["arquivo"]): d["id"] for d in _pdfs_drive(cfg)}
 
 
 def _registro(dados: dict, cfg: dict) -> dict:
@@ -237,6 +247,86 @@ def _ler_relacao(caminho: Path) -> list:
     return linhas
 
 
+def _chave_desenho(stem: str) -> str:
+    """Nome do desenho sem acento, minúsculo e sem a revisão: a Relação cita o R0 e o Drive pode ter o R1."""
+    return REVISAO.sub("", normalizar(stem))
+
+
+def _revisao(stem: str) -> str | None:
+    m = REVISAO.search(stem)
+    return f"R{m[1]}" if m else None
+
+
+def _dono(r: dict) -> str | None:
+    """Sistema da linha da Relação pela regra `desenhos`: código no nome do desenho (regex inteira) e, se a regra tem
+    `unidade`, a coluna unidade (CXA01 e CXA02 existem em duas unidades). None quando nenhum sistema declara o código."""
+    m = CODIGO.search(r["stem"].upper())
+    unidade = _norm(r["unidade"])
+    for codigo, s in SISTEMAS.items():
+        for regra in s.get("desenhos", []):
+            if m and re.fullmatch(regra["codigo"], m[1]) and re.search(regra.get("unidade", ""), unidade):
+                return codigo
+    return None
+
+
+def _entrega(ctx: dict, stem: str, codigo: str, compartilhado: bool) -> tuple[dict | None, str | None]:
+    """(arquivo da listagem do Drive, observação) do desenho citado. Vale o nome sem a revisão. Nome citado por mais de
+    uma unidade: só o sistema cuja `pasta_drive` casa com a pasta do arquivo o recebe; os outros ficam sem entrega."""
+    achados = ctx["drive"].get(_chave_desenho(stem), [])
+    if compartilhado:
+        pasta = SISTEMAS[codigo].get("pasta_drive")
+        proprios = [d for d in achados if pasta and re.search(pasta, _norm(d["pasta"]))]
+        if not proprios:
+            return None, (f"Mesmo nome de arquivo em mais de uma unidade da Relação; o do Drive está em "
+                          f"'{achados[0]['pasta'].rsplit('/', 1)[-1]}', de outra unidade" if achados else None)
+        achados = proprios
+    if not achados:
+        return None, None
+    d = next((d for d in achados if normalizar(Path(d["arquivo"]).stem) == normalizar(stem)), achados[0])
+    rev_drive, rev_relacao = _revisao(Path(d["arquivo"]).stem), _revisao(stem)
+    return d, (f"Drive tem a revisão {rev_drive}; a Relação cita {rev_relacao}" if rev_drive != rev_relacao else None)
+
+
+def _doc_drive(ctx: dict, d: dict) -> str:
+    """Id do documento de um arquivo do Drive: o do inventário; arquivo fora do inventário entra no registro com o link."""
+    ident = ctx["por_arquivo"].get((d["pasta"], d["arquivo"]))
+    if ident:
+        return ident
+    stem = Path(d["arquivo"]).stem
+    p = ctx["pranchas"].get(normalizar(stem))
+    ctx["registro"].setdefault(stem, {"titulo": p["nome"] if p else stem, "arquivo": d["arquivo"], "link": LINK.format(d["id"]),
+                                      "prancha": p["id"] if p else None, "tipo": "prancha" if p else "documento"})
+    return stem
+
+
+def _desenhos(ctx: dict, corpus: dict) -> list:
+    """Linhas da Relação de Desenhos com o sistema dono, o documento do Drive quando entregue (senão None) e a observação."""
+    linhas = (corpus.get("relacao") or {}).get("linhas", [])
+    donos = [_dono(r) for r in linhas]
+    quem = defaultdict(set)
+    for r, dono in zip(linhas, donos):
+        quem[_chave_desenho(r["stem"])].add(dono)
+    saida = []
+    for r, dono in zip(linhas, donos):
+        d, obs = _entrega(ctx, r["stem"], dono, len(quem[_chave_desenho(r["stem"])]) > 1) if dono else (None, None)
+        saida.append({**r, "dono": dono, "doc": _doc_drive(ctx, d) if d else None, "obs": obs})
+    return saida
+
+
+def _lista_desenhos(ctx: dict, codigo: str) -> list:
+    """Desenhos do sistema: arquivo, folha, conteúdo, se foi entregue e o documento (com link do Drive) quando foi."""
+    return [{"arquivo": r["stem"], "folha": r["folha"], "conteudo": r["conteudo"], "entregue": bool(r["doc"]),
+             "doc": _publicar(ctx, r["doc"]) if r["doc"] else None, **({"obs": r["obs"]} if r["obs"] else {})}
+            for r in ctx["desenhos"] if r["dono"] == codigo]
+
+
+def _contagem(ctx: dict, codigo: str) -> str:
+    """'4 desenhos citados, 2 entregues' do sistema."""
+    citados = [r for r in ctx["desenhos"] if r["dono"] == codigo]
+    n, m = len(citados), sum(bool(r["doc"]) for r in citados)
+    return f"{n} {'desenho citado' if n == 1 else 'desenhos citados'}, {m} {'entregue' if m == 1 else 'entregues'}"
+
+
 def _ler_corpus(dados: dict, cfg: dict) -> dict:
     """{'textos': {arquivo: [texto por página]}, 'relacao': {'arquivo', 'linhas'}} dos PDFs de texto em disco."""
     import pymupdf
@@ -308,12 +398,15 @@ def _texto_convencao(c: dict) -> str:
 
 
 def _tabelas(ctx: dict, codigo: str, redes: list) -> list:
-    """Tabelas do contrato do sistema: pelo nome da tabela, pelo desenho da tabela ou, nas redes, por tubo × desenho."""
+    """Tabelas do contrato do sistema: pelo nome da tabela (chaves ou `tabelas`), pelo desenho da tabela ou, nas redes,
+    por tubo × desenho."""
     escopo = ctx["escopo"]
     desenhos = escopo.get("desenhos_por_tabela") or {}
+    nome = SISTEMAS.get(codigo, {}).get("tabelas", {}).get("nome")
     achadas = {t for t, itens in ctx["itens"].items()
-               if _casa(codigo, _norm(itens[0]["nome_tabela"])) or (t in desenhos and _casa(codigo, _norm(desenhos[t])))}
-    pranchas = {p for r in redes if r["id"] == SISTEMAS[codigo].get("rede", codigo) for p in r["pranchas"]}
+               if _casa(codigo, _norm(itens[0]["nome_tabela"])) or (t in desenhos and _casa(codigo, _norm(desenhos[t])))
+               or (nome and re.search(nome, _norm(itens[0]["nome_tabela"])))}
+    pranchas = {p for r in redes if r["id"] == SISTEMAS.get(codigo, {}).get("rede", codigo) for p in r["pranchas"]}
     achadas |= {t for x in escopo.get("tubo_x_desenho") or [] if x["prancha"] in pranchas for t in x["tabelas"]}
     return sorted((t for t in achadas if t in ctx["itens"]), key=lambda t: [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", t)])
 
@@ -328,19 +421,26 @@ def _itens_do_sistema(ctx: dict, codigo: str, tabelas: list) -> list:
     return [(t, i) for t in tabelas for i in ctx["itens"][t] if not _excluido(codigo, _norm(i["descricao"]))]
 
 
-def _escopo_rede(ctx: dict, codigo: str, redes: list) -> dict | None:
-    """Escopo de rede pelo contrato: q1 > 0 dentro, só q2 fora, sem tabela a definir."""
+def _escopo_contrato(ctx: dict, codigo: str, redes: list, unidade: bool = False) -> dict | None:
+    """Escopo pelo contrato: q1 > 0 dentro, só q2 fora. Rede sem tabela fica 'a definir'; unidade localizada sem tabela
+    devolve None (a regra não se aplica)."""
     tabelas = _tabelas(ctx, codigo, redes)
     itens = _itens_do_sistema(ctx, codigo, tabelas)
     if not itens:
-        return {"estado": "a definir", "origem": "sem regra", "evidencias": [],
-                "motivo": "Rede sem tabela de itens no contrato ligada ao desenho (escopo.tubo_x_desenho, desenhos_por_tabela)"}
+        return None if unidade else {
+            "estado": "a definir", "origem": "sem regra", "evidencias": [],
+            "motivo": "Rede sem tabela de itens no contrato ligada ao desenho (escopo.tubo_x_desenho, desenhos_por_tabela)"}
     n1, n2 = sum(i["q1"] > 0 for _, i in itens), sum(i["q2"] > 0 for _, i in itens)
     estado = "dentro" if n1 else "fora"
     nomes = "; ".join(f"T{t} {ctx['itens'][t][0]['nome_tabela']}" for t in tabelas)
-    motivo = (f"Contrato: {len(itens)} itens nas tabelas {nomes}, {n1} com quantidade na 1ª etapa e {n2} na 2ª; "
-              f"rede '{estado}' pela regra de rede: o contrato é o escopo da obra linear")
-    destaque = sorted(itens, key=lambda ti: not re.search(r"\bTUBOS?\b", _norm(ti[1]["descricao"])))[:2]
+    motivo = f"Contrato: {len(itens)} itens nas tabelas {nomes}, {n1} com quantidade na 1ª etapa e {n2} na 2ª; "
+    if unidade:
+        motivo += (f"unidade '{estado}' pelo contrato, pois a convenção da folha 04 não a decide ({_contagem(ctx, codigo)}): "
+                   f"{SISTEMAS[codigo]['tabelas']['fonte']}")
+        destaque = [next((t, i) for t, i in itens if t == tabela) for tabela in dict.fromkeys(t for t, _ in itens)][:2]
+    else:
+        motivo += f"rede '{estado}' pela regra de rede: o contrato é o escopo da obra linear"
+        destaque = sorted(itens, key=lambda ti: not re.search(r"\bTUBOS?\b", _norm(ti[1]["descricao"])))[:2]
     return {"estado": estado, "origem": "contrato", "motivo": motivo,
             "evidencias": [_ev(ctx, _doc_contrato(ctx, t), _linha_item(i)) for t, i in destaque]}
 
@@ -369,7 +469,8 @@ def _frases_de_escopo(ctx: dict, codigo: str) -> list:
 
 
 def _escopo_sistema(ctx: dict, codigo: str, feicoes: list) -> dict:
-    """Estado do sistema, origem, motivo e evidências: manual > rede (contrato) > convenção > sem regra."""
+    """Estado do sistema, origem, motivo e evidências: manual > rede (contrato) > convenção > unidade pelo contrato >
+    sem regra."""
     s = SISTEMAS.get(codigo, {})
     cfg_e = ctx["cfg_escopo"]
     manual = (cfg_e.get("manual") or {}).get(codigo)
@@ -382,17 +483,25 @@ def _escopo_sistema(ctx: dict, codigo: str, feicoes: list) -> dict:
         return {"estado": manual["estado"], "origem": "manual", "motivo": f"Definido à mão: {manual['fonte']}{pela}",
                 "evidencias": _evidencia_regra(ctx) if conv else []}
     if "rede" in s:
-        r = _escopo_rede(ctx, codigo, ctx["redes"])
+        r = _escopo_contrato(ctx, codigo, ctx["redes"])
         return {**r, "evidencias": r["evidencias"] + _frases_de_escopo(ctx, codigo)}
     if conv and conv["estado"] != "a definir":
         return {"estado": conv["estado"], "origem": "convenção", "motivo": "A " + _texto_convencao(conv) + ".",
                 "evidencias": _evidencia_regra(ctx) + _frases_de_escopo(ctx, codigo)}
+    if s.get("tabelas") and (r := _escopo_contrato(ctx, codigo, ctx["redes"], unidade=True)):
+        return {**r, "evidencias": r["evidencias"] + _frases_de_escopo(ctx, codigo)}
+    evidencias = _frases_de_escopo(ctx, codigo)
     if not tipologia.get("pegada", True):
         motivo = "Sistema geral: agrupa cavas e manchas de várias etapas, sem pegada única"
+    elif conv:
+        motivo = "A " + _texto_convencao(conv)
+    elif not feicoes:
+        motivo = f"Sem geometria no mapa (sem pegada para a convenção da folha 04); {_contagem(ctx, codigo)}"
+        evidencias = [r["ev"] for r in ctx["por_sistema"][codigo]["relacao"][:1]] + evidencias
     else:
-        motivo = "A " + _texto_convencao(conv) if conv else "Sem estaca, bloco, pilar ou cava para medir a pegada"
-    motivo += "; nenhuma regra se aplica."
-    return {"estado": "a definir", "origem": "sem regra", "motivo": motivo, "evidencias": _frases_de_escopo(ctx, codigo)}
+        motivo = "Sem estaca, bloco, pilar ou cava para medir a pegada"
+    return {"estado": "a definir", "origem": "sem regra", "motivo": motivo + "; nenhuma regra se aplica.",
+            "evidencias": evidencias}
 
 
 def _geometria(ctx: dict, feicoes: list, classes: list) -> tuple[int, list]:
@@ -456,15 +565,12 @@ def _indice(ctx: dict, codigos: list, corpus: dict) -> dict:
         por[c]["itens"] = _itens_do_sistema(ctx, c, _tabelas(ctx, c, redes))
     rel = corpus.get("relacao") or {}
     doc_rel = Path(rel.get("arquivo") or "").stem
-    existentes = {normalizar(Path(i["arquivo"]).stem) for i in (ctx["dados"].get("inventario") or {}).get("itens", [])}
-    for r in rel.get("linhas", []):
-        usar = r["stem"] if normalizar(r["stem"]) in existentes else None
+    for r in ctx["desenhos"]:
         txt = " · ".join(x for x in ("Relação de Desenhos", r["unidade"], r["folha"], r["conteudo"]) if x)
-        linha = {"n": _norm(r["conteudo"]), "ev": None}
         for c in codigos:
-            if _casa(c, _norm(f"{r['unidade']} {r['stem']}")):
-                ev = _ev(ctx, usar or doc_rel, _trecho(txt), None if usar else r["pagina"])
-                por[c]["relacao"].append({**linha, "ev": ev})
+            if c == r["dono"] or _casa(c, _norm(f"{r['unidade']} {r['stem']}")):
+                ev = _ev(ctx, r["doc"] or doc_rel, _trecho(txt), None if r["doc"] else r["pagina"])
+                por[c]["relacao"].append({"n": _norm(r["conteudo"]), "ev": ev})
     for arquivo, paginas in corpus.get("textos", {}).items():
         doc = Path(arquivo).stem
         for p in _passagens(doc, paginas):
@@ -495,7 +601,12 @@ def _contexto(dados: dict, cfg: dict, corpus: dict) -> dict:
     for i in (dados.get("escopo") or {}).get("itens", []):
         itens[i["tabela"]].append(i)
     epsg = (dados.get("crs") or {}).get("epsg")
-    ctx = {"dados": dados, "saida": {}, "registro": _registro(dados, cfg), "itens": dict(itens),
+    registro, drive = _registro(dados, cfg), defaultdict(list)
+    for d in _pdfs_drive(cfg):
+        drive[_chave_desenho(Path(d["arquivo"]).stem)].append(d)
+    nfc = lambda texto: unicodedata.normalize("NFC", texto)
+    ctx = {"dados": dados, "saida": {}, "registro": registro, "itens": dict(itens), "drive": drive,
+           "por_arquivo": {(nfc(v["item"]["pasta_drive"]), nfc(v["item"]["arquivo"])): k for k, v in registro.items()},
            "escopo": dados.get("escopo") or {}, "cfg_escopo": cfg.get("escopo_unidades") or {}, "epsg": epsg,
            "pranchas": {normalizar(Path(p["pdf"]).stem): p for p in dados.get("pranchas", []) if p.get("pdf")},
            "pranchas_id": {p["id"]: p for p in dados.get("pranchas", [])},
@@ -517,6 +628,7 @@ def montar(dados: dict, cfg: dict, corpus: dict | None = None) -> dict | None:
         return None
     corpus = _ler_corpus(dados, cfg) if corpus is None else corpus
     ctx = _contexto(dados, cfg, corpus)
+    ctx["desenhos"] = _desenhos(ctx, corpus)
     sistemas = [(s["id"], s["id"].split("-", 1)[1]) for u in c["arvore"] for s in u["sistemas"]]
     ctx["por_sistema"] = _indice(ctx, [cod for _, cod in sistemas], corpus)
     feicoes = defaultdict(list)
@@ -526,17 +638,25 @@ def montar(dados: dict, cfg: dict, corpus: dict | None = None) -> dict | None:
     for sid, codigo in sistemas:
         tipologia = SISTEMAS.get(codigo, {}).get("tipologia")
         saida[sid] = {**_escopo_sistema(ctx, codigo, feicoes[sid]), "tipologia": tipologia or "desconhecida",
-                      "decomposicao": _decompor(ctx, codigo, tipologia, feicoes[sid])}
+                      "decomposicao": _decompor(ctx, codigo, tipologia, feicoes[sid]),
+                      "desenhos": _lista_desenhos(ctx, codigo)}
     regra = ctx["cfg_escopo"].get("documento_regra")
+    na_arvore = [d for s in saida.values() for d in s["desenhos"]]
+    entregues = sum(d["entregue"] for d in na_arvore)
     return {"regra": ctx["cfg_escopo"].get("regra") or CIVIL["escopo"]["fonte"],
             "documento_regra": _publicar(ctx, Path(regra).stem) if regra else None,
-            "documentos": ctx["saida"], "sistemas": saida}
+            "documentos": ctx["saida"], "sistemas": saida,
+            "desenhos_resumo": {"citados": len(na_arvore), "entregues": entregues, "nao_entregues": len(na_arvore) - entregues},
+            "desenhos_sem_sistema": [{"arquivo": r["stem"], "folha": r["folha"], "conteudo": r["conteudo"]}
+                                     for r in ctx["desenhos"] if r["dono"] not in {cod for _, cod in sistemas}]}
 
 
 def metadados() -> dict:
     """Rastreabilidade do método e das regras declaradas (regra 9 do estilo)."""
     regras = [("escopo.convencoes", CIVIL["escopo"]), ("escopo.pegada", CIVIL["escopo"]["pegada"]),
-              ("escopo.fracao_minima", CIVIL["escopo"]["fracao_minima"]), ("escopo.rede", CIVIL["escopo"]["rede"])]
+              ("escopo.fracao_minima", CIVIL["escopo"]["fracao_minima"]), ("escopo.rede", CIVIL["escopo"]["rede"]),
+              ("escopo.contrato_unidade", CIVIL["escopo"]["contrato_unidade"]),
+              ("desenhos.codigo", construtivos.REGRAS["relacao"])]
     regras += [(f"tipologias.{k}", v) for k, v in CIVIL["tipologias"].items()]
     regras += [(f"partes.{k}", v) for k, v in CIVIL["partes"].items()]
     return {

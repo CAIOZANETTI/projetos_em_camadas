@@ -19,6 +19,7 @@ satélite (opcional, online) ─────────────────
 | `camadas/pdf_cad.py` | PDF vetorial → traços (dict) por **layer CAD** e cor, textos, classificação por etapa e por disciplina (`conceitos/`), pacote vetorial p/ HTML; separação por cor para PDF escaneado |
 | `camadas/georef_prancha.py` | Georreferencia prancha: **malha de coordenadas impressa (OCR)**, CAD × CAD por SIFT (pranchas irmãs), pontos de controle + ICP, busca global; registro imagem↔imagem |
 | `camadas/supressao.py` | Supressão vegetal estimada: ExG + altura do MDS na faixa de obra, por etapa |
+| `camadas/extracao.py` | Reavaliação do inventário: classe da fonte, estado da extração, próximo passe da escada, séries de folhas; `pendencias.json` e registro `extracao.jsonl` (`conceitos/fontes.json`) |
 | `camadas/inventario.py` | Inventário determinístico de **todos** os PDFs da listagem do Drive: situação (no disco / falhou / não tentado), formato da folha, código Sanepar, carimbo (canto inferior direito; texto, fonte reparada ou OCR) e planta × detalhe × documento (`conceitos/tipos_prancha.json`) |
 | `camadas/escavacao.py` | Escavação e reaterro por cava: base das estruturas + cota de fundo (OCR das marcas de nível) + crista desenhada + talude + MDS em cota; edificações como parede (`conceitos/escavacao.json`) |
 | `camadas/prancha.py` | Ficha da prancha em camadas de entendimento: identidade, vistas e escala, tabelas por OCR (relação de materiais, níveis), elementos pelo layer (`conceitos/elementos.json`) ou pela geometria (estacas, blocos), balões → itens, estacas do desenho → E/N (RANSAC), pilares, blocos em 3D, encaixe de vista de detalhe e fichas em lote de todas as pranchas do disco (skill `ler-prancha`) |
@@ -29,6 +30,7 @@ satélite (opcional, online) ─────────────────
 | `camadas/dimensoes.py` | **Dimensões dos elementos** (`conceitos/dimensoes.json`): estaca, bloco, pilar, laje, viga, baldrame, parede e vala geram dimensões padronizadas (V, A_forma, A_fundo, A_escoramento, A_imperm…) a partir das pranchas, do `obra.json` (`elementos_declarados`) ou de fatos; derivados (bloco → cava, baldrame → vala corrida); a vala é dimensionada por segmento de superfície com a sondagem mais próxima (profundidade, solo/rocha, NA, escoramento, largura, pavimento) |
 | `camadas/associados.py` | **Serviços associados** por regras genéricas sobre as dimensões (`conceitos/servicos_associados.jsonl`): concreto, forma, armadura, lastro, escoramento, impermeabilização, escavação/reaterro de cava e os serviços da vala; memória de cálculo e "sem valor" com a cadeia do que faltou |
 | `camadas/formulas.py` | Avaliador restrito das fórmulas dos conceitos (aritmética, comparações, condicional, max/min/pi) e premissas com fonte ou referência a outro conceito |
+| `camadas/drive.py` | Download dos PDFs pendentes da listagem do Drive pelo link direto (o conector não passa de ~5,5 MB): `python -m camadas.drive <obra.json> [--filtro PBES]` |
 | `camadas/escopo_obra.py` | Escopo por unidade construtiva (convenção do desenho de etapas, contrato, manual) e decomposição construtiva por tipologia com evidências de pranchas, memoriais, TR e contrato, com link para o Drive (`conceitos/construcao_civil.json`) |
 | `camadas/diagnostico.py` | Conferência visual e calibração em linha de comando: layers em volta de um ponto UTM, inventário de layers × classe, recorte da folha, sobreposição prancha × referência × ortofoto, afinação do OCR |
 | `camadas/valas.py` | Valas das redes: pista × calçada × lote pela posição no desenho (divisas, meio-fio, quadras) ou superfície existente pela ortofoto; demolição, recomposição e volume de vala por rede (`conceitos/valas.json`) |
@@ -42,6 +44,7 @@ satélite (opcional, online) ─────────────────
 | `scripts/exemplo_irati.py` | Exemplo completo: EEB 10 Alto Recalque (SAA Irati/PR) |
 | `exemplos/foz/obra.json` | Obra completa: ETA Vila C, SAA Foz do Iguaçu (etapas, sondagens, 3D) |
 | `exemplos/irati/` | Resultado do exemplo: mosaico georreferenciado e visualizador |
+| `docs/ARQUITETURA.md` | Arquitetura R7: ciclo de extração, fontes de evidência, carimbo, geotecnia, decisões, agentes, portões, regra da lição aprendida e índice de determinismo (`scripts/determinismo.py`, `pdca/determinismo.json`, `pdca/licoes.jsonl`) |
 | `docs/PLANO.md` | Plano de implementação, fases e perguntas em aberto |
 | `docs/PLANO_FOZ.md` | Plano e resultados da obra de Foz (achados, divisão Haiku/Sonnet/Opus, pendências) |
 | `docs/EAP.md` | EAP como linha mestra: codificação, ligação com elementos, pranchas e contrato, quantificação determinística, IA verificada e próximos passos |
@@ -54,6 +57,7 @@ satélite (opcional, online) ─────────────────
 ```bash
 pip install -r requirements.txt pycolmap pymupdf pytesseract   # + apt-get install tesseract-ocr (malha de coordenadas)
 python -m camadas.obra exemplos/foz/obra.json        # SfM + ortofoto + pranchas + escopo + HTML
+# alternativa com uv: uv sync --extra pdf --extra sig && uv run python -m camadas.obra exemplos/foz/obra.json   # extras: pdf ocr sig 3d dxf visual
 python scripts/testar_visualizador.py saida/foz/foz-vilac_camadas_v<versão>_<data>.html
 python scripts/afericao.py --registrar     # régua do código (estilo-caio-python, regra 17)
 ```

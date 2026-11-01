@@ -254,3 +254,118 @@ def test_n_geometria_conta_so_as_classes_da_parte(tmp_path, classes, esperado):
     n, evs = escopo_obra._geometria({"saida": {}, "registro": {}, "pranchas": {}},
                                     [f for f in feicoes if f["properties"]["sistema"] == "u1-ACT600"], classes)
     assert n == esperado and len(evs) == (1 if esperado else 0)
+
+
+CXA01 = "001-SAA-0017-8820-PBES-DE-0000CXA01FORMARMAD-R0"
+SAIDA = "CAIXAS SAÍDA ÁGUA TRATADA/AMPLIAÇÃO SAÍDA EXISTENTE CX01"
+CHEGADA = "CAIXAS DE INTERLIGAÇÃO CHEGADA ÁGUA BRUTA - CAIXA 01"
+RELACAO = {"arquivo": "Relacao de Desenhos.pdf", "linhas": [
+    {"pagina": 2, "folha": "01/02", "stem": CXA01, "conteudo": "FORMA e ARMADURA", "unidade": SAIDA},
+    {"pagina": 3, "folha": "01/01", "stem": CXA01, "conteudo": "FORMA e ARMADURA", "unidade": CHEGADA},
+    {"pagina": 1, "folha": "01/07", "stem": "001-SAA-0017-8820-PBES-DE-0000CMC01FORMA-R0", "conteudo": "FORMA DO FUNDO e TAMPA",
+     "unidade": "CÂMARA DE CONTATO"},
+    {"pagina": 1, "folha": "01/01", "stem": "001-SAA-0017-8820-IMPE-DE-0000CMC01FORMA-R0", "conteudo": "PROJETO DE IMPERMEABILIZAÇÃO",
+     "unidade": "CÂMARA DE CONTATO"},
+    {"pagina": 2, "folha": "08/21", "stem": "008-ACT01ARMADURA-R0", "conteudo": "ARMADURA DAS LAJES DO FUNDO", "unidade": "ACTIFLO 600 LITROS"},
+    {"pagina": 2, "folha": "09/21", "stem": "009-ACT01ARMADURA-R0", "conteudo": "ARMADURA DAS PAREDES: PAR1 a PAR3",
+     "unidade": "ACTIFLO 600 LITROS"},
+    {"pagina": 3, "folha": "01/01", "stem": "001-SAA-0017-8820-PBES-DE-0000ZZZ99FORMA-R0", "conteudo": "FORMA", "unidade": "UNIDADE NOVA"}]}
+
+
+def _tabela(tabela, nome, q1, q2):
+    return {"tabela": tabela, "nome_tabela": nome, "item": "20", "codigo": "134554", "descricao": "TUBO FD PF PN10 DN900", "un": "pç",
+            "q1": q1, "q2": q2}
+
+
+def _com_relacao(tmp_path, q1=0.0):
+    """_dados() com a Relação de Desenhos, as unidades sem geometria na árvore (classes {}) e a listagem do Drive com o
+    CXA01 da pasta INTERLIGAÇÕES e o 009 na revisão R1 (a Relação cita o R0)."""
+    dados, cfg = _dados(), _cfg(tmp_path)
+    dados["construtivos"]["arvore"][0]["sistemas"] += [{"id": f"u1-{c}", "nome": c, "estado": "confirmado", "classes": {}}
+                                                       for c in ("CX_SAIDA", "CX_CHEGADA", "CAMARA_CONTATO")]
+    dados["escopo"]["itens"] += [_tabela("03", "SAÍDA ÁGUA TRATADA", q1, 1.0), _tabela("04", "AMPLIAÇÃO SAÍDA EXISTENTE", q1, 2.0)]
+    with open(cfg["inventario"]["listagem"], "a", encoding="utf-8") as f:
+        f.write(f"UNIDADE 01/ANEXO C/3. PBES/DE/INTERLIGAÇÕES;{CXA01}.PDF;ID_CXA01;application/pdf\n"
+                "UNIDADE 01/ACT600;009-ACT01ARMADURA-R1.PDF;ID_ARM9;application/pdf\n")
+    return dados, cfg, {**CORPUS, "relacao": RELACAO}
+
+
+def _desenhos(tmp_path, q1=0.0):
+    dados, cfg, corpus = _com_relacao(tmp_path, q1)
+    return escopo_obra.montar(dados, cfg, corpus)
+
+
+def test_cxa01_vai_para_o_sistema_pela_unidade(tmp_path):
+    s = _desenhos(tmp_path)["sistemas"]
+    saida, chegada = s["u1-CX_SAIDA"]["desenhos"], s["u1-CX_CHEGADA"]["desenhos"]
+    assert [(d["arquivo"], d["folha"]) for d in saida] == [(CXA01, "01/02")]
+    assert [(d["arquivo"], d["folha"]) for d in chegada] == [(CXA01, "01/01")]
+    assert escopo_obra._dono(RELACAO["linhas"][0]) == "CX_SAIDA" and escopo_obra._dono(RELACAO["linhas"][1]) == "CX_CHEGADA"
+
+
+def test_arquivo_de_nome_repetido_so_conta_para_a_unidade_da_pasta(tmp_path):
+    saida = _desenhos(tmp_path)
+    chegada = saida["sistemas"]["u1-CX_CHEGADA"]["desenhos"][0]
+    assert chegada["entregue"] is True and chegada["doc"] == CXA01                       # a pasta INTERLIGAÇÕES é a da chegada
+    assert saida["documentos"][CXA01]["link"] == "https://drive.google.com/file/d/ID_CXA01/view"   # fora do inventário: link da listagem
+    nao = saida["sistemas"]["u1-CX_SAIDA"]["desenhos"][0]
+    assert (nao["entregue"], nao["doc"]) == (False, None) and "INTERLIGAÇÕES" in nao["obs"]
+
+
+def test_desenho_nao_entregue_e_entregue_com_link(tmp_path):
+    saida = _desenhos(tmp_path)
+    camara = saida["sistemas"]["u1-CAMARA_CONTATO"]["desenhos"]
+    assert [(d["entregue"], d["doc"]) for d in camara] == [(False, None), (False, None)]       # a IMPE também entra na unidade
+    assert set(camara[0]) == {"arquivo", "folha", "conteudo", "entregue", "doc"} and camara[1]["conteudo"] == "PROJETO DE IMPERMEABILIZAÇÃO"
+    act = {d["folha"]: d for d in saida["sistemas"]["u1-ACT600"]["desenhos"]}
+    assert act["08/21"]["entregue"] is True and act["08/21"]["doc"] == "008-ACT01ARMADURA-R0"
+    assert saida["documentos"][act["08/21"]["doc"]]["link"] == "https://drive.google.com/file/d/ID_ARM8/view"
+
+
+def test_revisao_diferente_no_drive_vale_como_entregue_e_avisa(tmp_path):
+    nove = next(d for d in _desenhos(tmp_path)["sistemas"]["u1-ACT600"]["desenhos"] if d["folha"] == "09/21")
+    assert nove["entregue"] is True and nove["doc"] == "009-ACT01ARMADURA-R1" and nove["obs"] == "Drive tem a revisão R1; a Relação cita R0"
+
+
+def test_resumo_citados_e_entregues_mais_nao_entregues(tmp_path):
+    saida = _desenhos(tmp_path)
+    r = saida["desenhos_resumo"]
+    por_sistema = [d for s in saida["sistemas"].values() for d in s["desenhos"]]
+    assert r == {"citados": 6, "entregues": 3, "nao_entregues": 3}                           # CXA01 da chegada, 008 e 009
+    assert r["citados"] == r["entregues"] + r["nao_entregues"] == len(por_sistema)
+    assert [d["arquivo"].split("-")[-2] for d in saida["desenhos_sem_sistema"]] == ["0000ZZZ99FORMA"]   # código sem sistema não some
+
+
+def test_unidade_sem_geometria_fica_a_definir_com_a_contagem_no_motivo(tmp_path):
+    camara = _desenhos(tmp_path)["sistemas"]["u1-CAMARA_CONTATO"]
+    assert (camara["estado"], camara["origem"]) == ("a definir", "sem regra") and camara["tipologia"] == "estrutura_concreto"
+    assert camara["motivo"].startswith("Sem geometria no mapa") and "2 desenhos citados, 0 entregues" in camara["motivo"]
+    assert camara["evidencias"][0]["trecho"].startswith("Relação de Desenhos · CÂMARA DE CONTATO")
+    assert _parte(camara, "impermeabilizacao")["estado"] == "documento"                         # a folha IMPE conta para a unidade
+    chegada = _desenhos(tmp_path)["sistemas"]["u1-CX_CHEGADA"]
+    assert (chegada["estado"], chegada["origem"]) == ("a definir", "sem regra") and "1 desenho citado, 1 entregue" in chegada["motivo"]
+
+
+def test_caixas_de_saida_pelo_contrato_cita_as_tabelas(tmp_path):
+    s = _desenhos(tmp_path)["sistemas"]["u1-CX_SAIDA"]
+    assert (s["estado"], s["origem"]) == ("fora", "contrato")                                  # só 2ª etapa nas tabelas 03 e 04
+    assert "T03 SAÍDA ÁGUA TRATADA" in s["motivo"] and "T04 AMPLIAÇÃO SAÍDA EXISTENTE" in s["motivo"]
+    assert [e["doc"] for e in s["evidencias"][:2]] == ["contrato-T03", "contrato-T04"]
+    assert _desenhos(tmp_path, q1=3.0)["sistemas"]["u1-CX_SAIDA"]["estado"] == "dentro"
+    dados, cfg, corpus = _com_relacao(tmp_path)
+    dados["escopo"]["itens"] = [i for i in dados["escopo"]["itens"] if i["tabela"] == "93"]
+    assert escopo_obra.montar(dados, cfg, corpus)["sistemas"]["u1-CX_SAIDA"]["origem"] == "sem regra"      # sem tabela: não inventa vínculo
+    manual = {"CX_SAIDA": {"estado": "dentro", "fonte": "Caio, 30/10/2026"}}
+    dados, cfg, corpus = _com_relacao(tmp_path)
+    cfg["escopo_unidades"]["manual"] = manual
+    assert escopo_obra.montar(dados, cfg, corpus)["sistemas"]["u1-CX_SAIDA"]["origem"] == "manual"
+
+
+def test_regras_de_desenhos_do_conceito_nao_se_sobrepoem():
+    sistemas = escopo_obra.SISTEMAS
+    assert all(re.compile(r["codigo"]) and re.compile(r.get("unidade", "")) for s in sistemas.values() for r in s.get("desenhos", []))
+    codigos = ["ACT01", "ACT02", "MOD01", "ETL01", "DEP01", "POR01", "CMC01", "CAT01", "EEE01", "REC01", "BLO01"]
+    donos = {c: escopo_obra._dono({"stem": f"001-SAA-0017-8820-PBES-DE-0000{c}FORMA-R0", "unidade": ""}) for c in codigos}
+    assert donos == {"ACT01": "ACT600", "ACT02": "ACT360", "MOD01": "FILTROS", "ETL01": "ETL", "DEP01": "DEPOSITO", "POR01": "GUARITA",
+                     "CMC01": "CAMARA_CONTATO", "CAT01": "CANAL_AT", "EEE01": "EEE_LODO", "REC01": "RECALD_RECALF", "BLO01": "BLOCOS_APOIO"}
+    assert escopo_obra._dono({"stem": "001-SAA-0017-8820-PBES-DE-0000CXA01FORMARMAD-R0", "unidade": ""}) is None   # CXA exige a unidade

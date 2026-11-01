@@ -111,7 +111,7 @@ O teste abre no Chromium (Playwright) e verifica:
 
 ---
 
-# v3 — grupos por disciplina, intervenções, 4D, estacas e marcos
+# v3 — grupos por disciplina, intervenções, estacas e marcos
 
 Chaves novas em `dados`. Tudo é calculado no Python; o front só seleciona e exibe (regra 12 do estilo).
 
@@ -135,13 +135,12 @@ Chaves novas em `dados`. Tudo é calculado no Python; o front só seleciona e ex
 | `fichas[].pilares` (rodada 9) | `[{bloco, lado_m, contorno_utm}]` (estrutura); `fichas[].vistas[].encaixe` = `{ok, rotacao, f1, segundo, motivo}` (hidráulica com `referencia_vistas`) |
 | `vetores[id=pecas_baloes]` (rodada 9) | ponto de cada balão de vista encaixada `{tipo, item, codigo, descricao, qtde, ficha}` |
 | `construtivos` (rodada 15) | `{fonte, classes{id: {nome, cor, geometria}}, arvore[{id, nome, obra: localizada\|linear, sistemas[{id, nome, estado, classes{classe: n}}]}], geojson}` — features com `{id, rotulo, classe, unidade, sistema, etapa, atributos[[rótulo, valor]], fonte}`; aba **Obra** (busca, árvore, ficha) e camada `construtivos` (`camadas/construtivos.py`); features com `doc` |
-| `construtivos.escopo` (rodada 16) | `{regra, documento_regra, documentos{doc: {titulo, arquivo, tipo, link, prancha}}, sistemas{id: {estado: dentro\|fora\|a definir, origem, motivo, evidencias[EV], tipologia, decomposicao[{id, grupo, nome, estado: geometria\|documento\|sem evidência, n_geometria, evidencias[EV]}]}}}`, EV = `{doc, trecho, pagina}` (`camadas/escopo_obra.py`) |
+| `construtivos.escopo` (rodada 16) | `{regra, documento_regra, documentos{doc: {titulo, arquivo, tipo, link, prancha}}, sistemas{id: {estado: dentro\|fora\|a definir, origem, motivo, evidencias[EV], tipologia, decomposicao[{id, grupo, nome, estado: geometria\|documento\|sem evidência, n_geometria, evidencias[EV]}]}}}`, EV = `{doc, trecho, pagina}` (`camadas/escopo_obra.py`); rodada 19: `sistemas[id].desenhos[{arquivo, folha, conteudo, entregue, doc, obs?}]` e `desenhos_resumo{citados, entregues, nao_entregues}`; sistema sem geometria vem na árvore com `classes {}` |
 | `area_obra` (rodada 11) | `{area_m2, fracao_do_voo, margem_m, fontes[], fonte, utm[[E, N]]}`: a base `orto` vem recortada nela (transparente fora); vetor `area_obra` com o contorno (`camadas/obra.py: area_da_obra`) |
 | `limites_obra` (rodada 11) | `[[lat_s, lon_o], [lat_n, lon_l]]`: o satélite só pede tiles aí (voo + área desenhada das pranchas georreferenciadas + `margem_satelite_m`) |
 | `inventario.itens[].ficha` (rodada 9) | `{vistas, escalas, tabelas, baloes, obra, objetos[], genericos_pct, completa{tabelas_contrato, itens, itens_no_contrato, baloes_com_item, itens_sem_balao, familia?{relacao_em[], validos[], itens[]}}}` ou `{erro}`; `null` fora do disco ou documento (`prancha.lote`, ligado pela pasta + arquivo) |
 | `modelo3d.solidos` | `[{id, xy[[x,y]] relativo à origem, z0 (arrasamento), z1 (face superior)}]` extrudados no 3D (só com controle vertical) |
 | `vetores[id=valas]` | trechos do tubo por classe `{rede, classe, tipo, cor, extensao_m, estimado}`; o front pinta cada trecho com `properties.cor` |
-| `cronograma` | `{fonte, data_os, data_os_hipotese, prazo_dias, marcos[{id,dia,descricao}], atividades[{id,nome,inicio_dia,fim_dia,uc,etapa,peso_pct,origem_peso,elementos:{layers:{prancha:[layers]}, vetores:[], estacas:[ids], intervencoes:[tipos]}, n_elementos}], curva_s:{dia[], planejado_pct[]}}` |
 
 ## Interface
 
@@ -155,35 +154,17 @@ Chaves novas em `dados`. Tudo é calculado no Python; o front só seleciona e ex
    - O recorte é uma anotação com `properties.intervencao` e a cor do tipo.
    - Lista e totais por tipo (somas de áreas já medidas são apresentação aceitável; não recalcular geometria).
    - A camada `supressao` aparece no grupo "Intervenções", com o resumo por etapa no painel.
-3. **4D**: botão "4D" abre uma barra inferior com:
-   - linha do tempo de `0…max(fim_dia)`, marcos MI;
-   - data calendário = `data_os` + dias, com aviso "data da OS hipotética" quando `data_os_hipotese` e campo para trocar
-     a data da OS (só muda o rótulo);
-   - botões ▶ play / pausa e velocidade;
-   - mini-Gantt das atividades;
-   - curva S (pontos de `curva_s`, SVG simples, sem biblioteca).
-
-   No dia `d`, cada elemento de cada atividade fica:
-   - **oculto** se `d < inicio_dia`;
-   - **destacado** (laranja, pulsante) se `inicio ≤ d ≤ fim`;
-   - **normal** se `d > fim`.
-
-   Elementos que não pertencem a nenhuma atividade ficam normais. Ao sair do 4D, tudo volta.
-   O painel mostra as atividades em execução no dia e o % planejado (`curva_s`, interpolação linear é aceitável).
-   No 3D, as estacas seguem a mesma regra.
-4. **Estacas**:
+3. **Estacas**:
    - no mapa, círculos com raio proporcional ao diâmetro;
    - no 3D, cilindros verticais do terreno (percentil 10 de z da nuvem) para baixo, com `comprimento_m`, cor por estrutura;
    - o clique mostra os atributos.
-5. **Marcos geodésicos**: ícone triangular, popup com nome, rede, classificação, situação (destacar "DESTRUÍDO") e
+4. **Marcos geodésicos**: ícone triangular, popup com nome, rede, classificação, situação (destacar "DESTRUÍDO") e
    distância à obra.
 
 ## Teste (acrescentar a `scripts/testar_visualizador.py`)
 - a árvore tem os grupos Civil, Hidráulica, Elétrica e automação, e o subgrupo Civil › Drenagem;
 - desligar Civil esconde as pranchas ou layers do grupo;
 - desenhar um polígono, classificar como "Supressão vegetal (desmatamento)" e ver o recorte na lista com área > 0;
-- 4D: ir ao dia 100 (A04 e A05 em execução, A08 oculta), ao dia 600 (tudo concluído), play por 1 s sem erro;
-  a curva S aparece;
 - estacas no mapa e no 3D;
 - marcos com popup;
 - console sem erros nos dois cenários.

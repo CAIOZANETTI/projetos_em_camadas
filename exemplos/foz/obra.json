@@ -477,327 +477,6 @@
    "3ª etapa (futura)"
   ]
  },
- "cronograma": {
-  "fonte": "Marcos intermediários do Termo de Referência (Anexo A, R20, 25/05/2026): MI01–MI06 da Unidade 1. As durações internas das atividades são HIPÓTESE de referência — substitua pelo cronograma da proposta.",
-  "data_os": "2027-01-04",
-  "data_os_hipotese": true,
-  "prazo_dias": 540,
-  "marcos": [
-   {
-    "id": "MI01",
-    "dia": 150,
-    "descricao": "UC5/UC6 – compatibilização do projeto executivo (fornecedor do sistema)"
-   },
-   {
-    "id": "MI02",
-    "dia": 240,
-    "descricao": "UC4 – fundações e estruturas 100%"
-   },
-   {
-    "id": "MI03",
-    "dia": 270,
-    "descricao": "UC3 – abrigos 100%"
-   },
-   {
-    "id": "MI04",
-    "dia": 300,
-    "descricao": "UC8 – aprovação dos DLCs (20% de 8.3)"
-   },
-   {
-    "id": "MI05",
-    "dia": 360,
-    "descricao": "UC1 90% (1.1); UC2 100% (2.1, 2.2); UC8 90% (8.1)"
-   },
-   {
-    "id": "MI06",
-    "dia": 420,
-    "descricao": "UC5/UC6 – instalação dos módulos 360 e 600 L/s"
-   }
-  ],
-  "atividades": [
-   {
-    "id": "A01",
-    "nome": "Mobilização e canteiro",
-    "inicio_dia": 0,
-    "fim_dia": 30,
-    "seletor": {
-     "intervencoes": [
-      "canteiro"
-     ]
-    },
-    "uc": "ALO",
-    "etapa": "1ª etapa",
-    "peso_pct": 0.0,
-    "origem_peso": "incluída na administração local (ALO)"
-   },
-   {
-    "id": "A02",
-    "nome": "Supressão vegetal e limpeza da faixa de obra",
-    "inicio_dia": 15,
-    "fim_dia": 45,
-    "seletor": {
-     "vetores": [
-      "supressao"
-     ]
-    },
-    "uc": "UC04",
-    "etapa": "1ª etapa",
-    "peso_pct": 0.3,
-    "origem_peso": "UC04 4.1 (parte)"
-   },
-   {
-    "id": "A03",
-    "nome": "Compatibilização do projeto executivo (ACTIFLO)",
-    "inicio_dia": 0,
-    "fim_dia": 150,
-    "seletor": {},
-    "uc": "UC05/UC06",
-    "etapa": "1ª etapa",
-    "marco": "MI01",
-    "peso_pct": 0.53,
-    "origem_peso": "UC05/UC06 x.1 = 1%"
-   },
-   {
-    "id": "A04",
-    "nome": "Escavação e contenção",
-    "inicio_dia": 30,
-    "fim_dia": 120,
-    "seletor": {
-     "pranchas": [
-      "es1",
-      "es2",
-      "es3",
-      "ct1",
-      "ct2",
-      "ct3"
-     ]
-    },
-    "uc": "UC04",
-    "etapa": "1ª etapa",
-    "peso_pct": 2.0,
-    "origem_peso": "UC04 4.1 (parte)"
-   },
-   {
-    "id": "A05",
-    "nome": "Fundações – estacas hélice contínua",
-    "inicio_dia": 45,
-    "fim_dia": 150,
-    "seletor": {
-     "pranchas": [
-      "fu1",
-      "fu2",
-      "fu3"
-     ],
-     "estacas": [
-      "ACT360",
-      "ACT600",
-      "TORRE_ELEV",
-      "GUARITA"
-     ]
-    },
-    "uc": "UC04",
-    "etapa": "1ª etapa",
-    "peso_pct": 1.8,
-    "origem_peso": "UC04 4.1 (parte)"
-   },
-   {
-    "id": "A06",
-    "nome": "Estruturas dos módulos de microareia 360/600 L/s",
-    "inicio_dia": 110,
-    "fim_dia": 240,
-    "seletor": {
-     "grupos": [
-      [
-       "Civil",
-       "Estrutura"
-      ]
-     ],
-     "etapas": [
-      "1ª etapa"
-     ]
-    },
-    "uc": "UC04",
-    "etapa": "1ª etapa",
-    "marco": "MI02",
-    "peso_pct": 2.67,
-    "origem_peso": "UC04 4.1 (restante)"
-   },
-   {
-    "id": "A07",
-    "nome": "Guarita e abrigos",
-    "inicio_dia": 150,
-    "fim_dia": 270,
-    "seletor": {
-     "grupos": [
-      [
-       "Civil",
-       "Arquitetura"
-      ]
-     ]
-    },
-    "uc": "UC03",
-    "etapa": "1ª etapa",
-    "marco": "MI03",
-    "peso_pct": 1.79,
-    "origem_peso": "UC03 3.2 + 3.4"
-   },
-   {
-    "id": "A08",
-    "nome": "Interligações e tubulações de água bruta",
-    "inicio_dia": 150,
-    "fim_dia": 360,
-    "seletor": {
-     "pranchas": [
-      "f004",
-      "f010"
-     ],
-     "grupos": [
-      [
-       "Hidráulica",
-       "Tubulações e conexões"
-      ]
-     ]
-    },
-    "uc": "UC01",
-    "etapa": "1ª etapa",
-    "marco": "MI05",
-    "peso_pct": 8.75,
-    "origem_peso": "UC01 1.1 (78%) + UC04 4.2"
-   },
-   {
-    "id": "A09",
-    "nome": "Rede de água potável e produtos químicos",
-    "inicio_dia": 240,
-    "fim_dia": 360,
-    "seletor": {
-     "pranchas": [
-      "f008",
-      "f043"
-     ]
-    },
-    "uc": "UC01/UC02",
-    "etapa": "1ª etapa",
-    "marco": "MI05",
-    "peso_pct": 5.5,
-    "origem_peso": "UC01 1.2 + UC02"
-   },
-   {
-    "id": "A10",
-    "nome": "Elétrica, automação e pneumático",
-    "inicio_dia": 240,
-    "fim_dia": 480,
-    "seletor": {
-     "pranchas": [
-      "el_im",
-      "el_fo",
-      "el_co",
-      "el_at"
-     ]
-    },
-    "uc": "UC08",
-    "etapa": "1ª etapa",
-    "marco": "MI05",
-    "peso_pct": 11.66,
-    "origem_peso": "UC08"
-   },
-   {
-    "id": "A11",
-    "nome": "Instalação dos módulos ACTIFLO 360 e 600 L/s",
-    "inicio_dia": 300,
-    "fim_dia": 420,
-    "seletor": {
-     "grupos": [
-      [
-       "Mecânica",
-       "Equipamentos"
-      ]
-     ],
-     "etapas": [
-      "1ª etapa"
-     ]
-    },
-    "uc": "UC05/UC06",
-    "etapa": "1ª etapa",
-    "marco": "MI06",
-    "peso_pct": 52.05,
-    "origem_peso": "UC05/UC06 x.2 + x.3 (89%) + UC07"
-   },
-   {
-    "id": "A12",
-    "nome": "Drenagem, pavimentação e urbanização",
-    "inicio_dia": 420,
-    "fim_dia": 510,
-    "seletor": {
-     "pranchas": [
-      "f006",
-      "urb"
-     ],
-     "grupos": [
-      [
-       "Civil",
-       "Drenagem"
-      ],
-      [
-       "Civil",
-       "Pavimentação"
-      ],
-      [
-       "Civil",
-       "Urbanização"
-      ]
-     ]
-    },
-    "uc": "UC03",
-    "etapa": "1ª etapa",
-    "peso_pct": 2.62,
-    "origem_peso": "UC03 3.1 + 3.3 + 3.5 + UC01 1.3"
-   },
-   {
-    "id": "A13",
-    "nome": "Partida, operação assistida e as built",
-    "inicio_dia": 480,
-    "fim_dia": 540,
-    "seletor": {},
-    "uc": "UC05/UC06",
-    "etapa": "1ª etapa",
-    "peso_pct": 5.82,
-    "origem_peso": "UC05/UC06 x.4 + UC01 1.4"
-   },
-   {
-    "id": "B01",
-    "nome": "2ª etapa – filtros novos, câmara de contato, ETL, depósito (fora deste contrato)",
-    "inicio_dia": 540,
-    "fim_dia": 720,
-    "seletor": {
-     "etapas": [
-      "2ª etapa"
-     ],
-     "estacas": [
-      "FILTROS",
-      "EEE_FILTROS_NOVOS",
-      "ETL",
-      "DEPOSITO"
-     ]
-    },
-    "uc": "—",
-    "etapa": "2ª etapa",
-    "peso_pct": 0.0,
-    "origem_peso": "fora do contrato (2ª etapa)"
-   },
-   {
-    "id": "ALO",
-    "nome": "Administração local",
-    "inicio_dia": 0,
-    "fim_dia": 540,
-    "seletor": {},
-    "uc": "ALO",
-    "etapa": "1ª etapa",
-    "peso_pct": 4.52,
-    "origem_peso": "ALO 4,52%"
-   }
-  ],
-  "fonte_pesos": "Pesos das UCs da Unidade 01 no preço global (TR p.76-77) repartidos pelas fases de medição (TR, unidade_01_fases); curva S linear por atividade — referência, não cronograma da proposta"
- },
  "referencias_geodesicas": {
   "pasta": "referencias/sanepar",
   "raio_m": 3000
@@ -812,6 +491,7 @@
   "listagem": "dados/foz/projeto/_listagem_drive.csv",
   "baixados": "dados/foz/projeto/_baixados.csv",
   "pasta": "dados/foz/projeto",
+  "pastas": {"": "licitacao"},
   "fonte": "listagem recursiva do Drive '211 - SAA Foz do Iguaçu' pelo conector (skill drive-ingestao)"
  },
  "escopo_unidades": {
@@ -929,25 +609,41 @@
   ]
  },
  "fichas": [
-  {
-   "id": "f010",
-   "nome": "Folha 10 · Interligações (piloto hidráulica)",
-   "piloto": "hidraulica",
-   "layer_balao": "CISM_18_BLOCO_LISTA_PEÇAS",
-   "tabelas": [
-    "16",
-    "17"
-   ],
-   "layer_numero": "CISM_24_TEXTO_IND_LISTA_PEÇAS",
-   "referencia_vistas": "f004"
-  },
-  {
-   "id": "mod01_forma",
-   "nome": "Módulo de filtros · locação e cargas (piloto estrutura)",
-   "piloto": "estrutura",
-   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_FILTROS_NOVOS/001-SAA-0017-8820-PBES-DE-0000MOD01FORMA-R1.pdf",
-   "escala": 50,
-   "ancoras": "dados/foz/geotec/estacas.csv"
-  }
+   {
+     "id": "f010",
+     "nome": "Folha 10 · Interligações (piloto hidráulica)",
+     "piloto": "hidraulica",
+     "layer_balao": "CISM_18_BLOCO_LISTA_PEÇAS",
+     "tabelas": [
+       "16",
+       "17"
+     ],
+     "layer_numero": "CISM_24_TEXTO_IND_LISTA_PEÇAS",
+     "referencia_vistas": "f004"
+   },
+   {
+     "id": "mod01_forma",
+     "nome": "Módulo de filtros · locação e cargas (piloto estrutura)",
+     "piloto": "estrutura",
+     "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_FILTROS_NOVOS/001-SAA-0017-8820-PBES-DE-0000MOD01FORMA-R1.pdf",
+     "escala": 50,
+     "ancoras": "dados/foz/geotec/estacas.csv"
+   },
+   {
+     "id": "act01_forma",
+     "nome": "Forma ACT01 · fundação do Actiflo 600 L/s",
+     "piloto": "estrutura",
+     "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_MICRO_AREIA_600Ls/001-SAA-0017-8820-PBES-DE-0000ACT01FORMA-R0.PDF",
+     "escala": 50,
+     "ancoras": "dados/foz/geotec/estacas.csv"
+   },
+   {
+     "id": "act02_forma",
+     "nome": "Forma ACT02 · fundação do Actiflo 360 L/s",
+     "piloto": "estrutura",
+     "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/3. PBES/DE/MOD_TRATAM_MICRO_AREIA_360Ls/001-SAA-0017-8820-PBES-DE-0000ACT02FORMA-R0.PDF",
+     "escala": 50,
+     "ancoras": "dados/foz/geotec/estacas.csv"
+   }
  ]
 }

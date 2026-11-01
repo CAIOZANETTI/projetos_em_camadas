@@ -3,7 +3,7 @@
   "fonte": "Descritivo Técnico - Obra Civil ETA Vila C (06/04/2026), Descritivo Técnico - Obra Civil AAT06/AAT02/AAT Vila C (06/04/2026), Anexo A (Termo de Referência, R20, 25/05/2026), Escopo_1etapa_PBES (05/09/2023) e Relação de Desenhos do PBES (07/09/2022)",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "`contrato: true` na parte = os itens do contrato (tabelas ligadas ao sistema) também valem como evidência dela; nas demais o item de equipamento casaria por palavra solta ('VIGA I' de uma talha, 'GRADE DE PISO'). Decomposição de uma unidade construtiva em partes que se constroem. O nome de cada parte vem do próprio projeto quando um documento a nomeia (estado confirmado: a Relação de Desenhos lista 'ARMADURA DAS LAJES DO FUNDO', 'PAREDES', 'PASSARELA', 'ESCADA', 'PROJETO DE IMPERMEABILIZAÇÃO'; o Descritivo cita demolição, escavação, escoramento, reaterro, fundações, estrutura em concreto armado e revestimento); a escolha de qual tipologia vale para qual sistema e o agrupamento em grupos são convenção do Caio (estado premissa). As palavras são regex sobre o texto sem acento, em maiúsculas, com '_' lido como espaço: a parte só ganha evidência de documento quando a frase (ou o título da seção) também cita o sistema pelas `chaves` de unidades_construtivas.json. Evidência é trecho real, nunca deduzida: parte sem trecho nem geometria fica 'sem evidência'."
+  "observacoes": "`contrato: true` na parte = os itens do contrato (tabelas ligadas ao sistema) também valem como evidência dela; nas demais o item de equipamento casaria por palavra solta ('VIGA I' de uma talha, 'GRADE DE PISO'). Decomposição de uma unidade construtiva em partes que se constroem. O nome de cada parte vem do próprio projeto quando um documento a nomeia (estado confirmado: a Relação de Desenhos lista 'ARMADURA DAS LAJES DO FUNDO', 'PAREDES', 'PASSARELA', 'ESCADA', 'PROJETO DE IMPERMEABILIZAÇÃO'; o Descritivo cita demolição, escavação, escoramento, reaterro, fundações, estrutura em concreto armado e revestimento); a escolha de qual tipologia vale para qual sistema e o agrupamento em grupos são convenção do Caio (estado premissa). As palavras são regex sobre o texto sem acento, em maiúsculas, com '_' lido como espaço: a parte só ganha evidência de documento quando a frase (ou o título da seção) também cita o sistema pelas `chaves` de unidades_construtivas.json. `escopo.contrato_unidade` = unidade localizada que o contrato identifica pelo nome da tabela. Evidência é trecho real, nunca deduzida: parte sem trecho nem geometria fica 'sem evidência'."
  },
  "escopo": {
   "convencoes": {
@@ -26,6 +26,10 @@
    "valor": 0.1,
    "estado": "calibrar",
    "fonte": "fração da pegada do sistema que a maior mancha de convenção precisa cobrir para valer; abaixo disso o sistema fica 'a definir'. Medido na Foz: ACT600 91 %, ACT360 85 %, ETL 100 %, EEE 89 %, filtros 87 %; guarita, depósito e torre do elevador 0 %"
+  },
+  "contrato_unidade": {
+   "estado": "premissa",
+   "fonte": "unidade localizada sem geometria no mapa (sem pegada para a convenção da folha 04) cujo nome é o de tabelas do contrato (`tabelas` do sistema em unidades_construtivas.json): 'dentro' com quantidade na 1ª etapa (q1 > 0), 'fora' só com a 2ª. Só vale quando a tabela identifica a unidade sem ambiguidade; na dúvida a unidade fica 'a definir'"
   },
   "rede": {
    "estado": "premissa",
@@ -93,6 +97,12 @@
    "partes": ["demolicao", "escavacao", "escoramento", "reaterro", "fundacoes", "estacas", "blocos", "concreto_armado",
               "laje_fundo", "paredes_concreto", "pilares", "vigas", "laje_tampa", "escadas", "passarelas", "guarda_corpo",
               "impermeabilizacao", "revestimento"]
+  },
+  "bloco_concreto": {
+   "nome": "Bloco de concreto armado (apoio e ancoragem)",
+   "estado": "premissa",
+   "fonte": "Relação de Desenhos PBES, BLO01 (locação, forma e armadura): blocos de concreto armado que apoiam e ancoram tubulação, sem tanque nem edificação; a escolha desta tipologia é convenção do Caio (premissa)",
+   "partes": ["escavacao", "escoramento", "reaterro", "concreto_armado", "blocos_ancoragem"]
   },
   "edificacao": {
    "nome": "Edificação",

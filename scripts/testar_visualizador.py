@@ -11,13 +11,13 @@ Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema
   * a aba Pranchas numa prancha com textos ("fu1"): folha desenhada e busca de texto;
   * a aba Etapas & escopo (situação por item salva, CSV, contagens, especificação e alertas vindos do Python, sem preço);
   * sondagens (popup com SVG), foto do drone e o 3D (canvas WebGL com pixels desenhados);
-  * v3: árvore por disciplina, recorte classificado (intervenção), estacas no mapa e no 3D, marcos geodésicos
-    e o 4D (linha do tempo, play, curva S);
+  * v3: árvore por disciplina, recorte classificado (intervenção), estacas no mapa e no 3D, marcos geodésicos;
   * aba Obra (só com `D.construtivos`): é a primeira aba e abre ao carregar; busca por rótulo/classe/sistema, árvore por
     unidade, clique que enquadra e destaca um único elemento, ficha (só no painel) com atributos e fonte como link,
     popup do mapa mínimo, trecho de rede como linha vetorial clicável; e, com `construtivos.escopo`: resumo
     dentro/fora/a definir, filtro "Só o escopo", escolha por sistema (localStorage, exportar/restaurar), decomposição
-    construtiva com evidências em link e partes com geometria enquadradas no mapa;
+    construtiva com evidências em link e partes com geometria enquadradas no mapa; sistemas sem elemento de geometria;
+    desenhos da Relação por sistema (entregue com link, não entregue com alerta), resumo geral e atalho "Só com desenho não entregue";
   * sem rolagem horizontal da página no celular.
 Sai com código 1 se algum passo falhar. Capturas em PNG na pasta indicada (padrão: <pasta do html>/capturas).
 Requer apenas `playwright` (já com o Chromium instalado); não instala nada.
@@ -80,7 +80,7 @@ JS_PIXELS_3D = """() => {
 JS_TODAS_PRONTAS = "__viz.PR.filter(p => p.mapa.on).every(p => p.pronta)"
 JS_INFO = """() => ({pr: __viz.PR.map(p => p.id), tem3d: !!__viz.D.modelo3d, sond: (__viz.D.sondagens || []).length,
   fotos: Object.keys(__viz.D.fotos || {}), escopo: ((__viz.D.escopo || {}).itens || []).length, etapas: (__viz.D.etapas || []).map(e => e.id),
-  grupos: __viz.D.grupos || {}, interv: (__viz.D.intervencoes || []).length, crono: !!__viz.D.cronograma,
+  grupos: __viz.D.grupos || {}, interv: (__viz.D.intervencoes || []).length,
   totais: (__viz.D.escopo || {}).totais || null})"""
 
 
@@ -560,6 +560,9 @@ def verificar_obra(c: dict) -> None:
     if escopo:
         obra_fonte(c)
         obra_decomposicao(c)
+        obra_sem_geometria(c)
+        obra_desenhos(c)
+        obra_desenhos_filtro(c)
     obra_linha(c, alvos)
     obra_fim(c, alvos)
     js(c, "__viz.obra.definirSoEscopo(true)")   # volta ao padrão
@@ -750,6 +753,156 @@ def obra_decomposicao(c: dict) -> None:
         foto(c, "19b_obra_parte_no_mapa")
 
 
+def mostrar_no_topo(c: dict, seletor: str) -> None:
+    """Rola a aba Obra até o elemento ficar logo abaixo da busca fixa (para a captura mostrar o que interessa)."""
+    js(c, "(s) => { const a = document.querySelector('#aba-obra'), e = document.querySelector(s); a.scrollTop += e.getBoundingClientRect().top - a.getBoundingClientRect().top - document.querySelector('.ob-busca').offsetHeight - 4; }", seletor)
+
+
+JS_OBRA_DESENHOS = r"""() => { const E = __viz.obra.ES, ids = [...document.querySelectorAll('#obArvore .ob-sis')].map(d => d.dataset.sis);
+  const des = i => (E.sistemas[i] || {}).desenhos || [], pend = i => des(i).filter(d => d.entregue !== true).length;
+  const pr = new Set(__viz.PR.map(p => p.id)), https = d => d && /^https:\/\//.test(d.link || '');
+  const vazios = __viz.obra.OB.arvore.flatMap(u => u.sistemas).filter(s => Object.keys(s.classes || {}).length === 0).map(s => s.id);
+  const comDes = ids.filter(i => des(i).length), comPend = ids.filter(i => pend(i) > 0);
+  const ent = comDes.find(i => des(i).some(d => d.entregue === true && d.doc && https(E.documentos[d.doc])));
+  const comPr = comDes.find(i => des(i).some(d => d.entregue === true && d.doc && E.documentos[d.doc] && E.documentos[d.doc].prancha && pr.has(E.documentos[d.doc].prancha)));
+  return {vazios: vazios.filter(i => ids.includes(i)), comDes, comPend, ent: ent || null, comPr: comPr || null, resumo: E.desenhos_resumo || null,
+          todosEntregues: comDes.filter(i => pend(i) === 0)}; }"""
+JS_OBRA_DES_DOM = r"""(id) => { const E = __viz.obra.ES, d = document.querySelector('.ob-sis[data-sis="' + id + '"]'), L = (E.sistemas[id] || {}).desenhos || [];
+  const sec = [...d.querySelectorAll('.ob-corpo .ob-sec')].find(x => /Desenhos do projeto \(Rela/.test(x.textContent)), n = d.querySelector('.ob-des-n'), linhas = [...d.querySelectorAll('.ob-des')];
+  const k = L.filter(x => x.entregue !== true).length, ne = d.querySelector('.ob-sis-h .ob-ne');
+  const ok = (x, el) => !!el && el.querySelector('.f').textContent === (x.folha || '—') && el.querySelector('.ct').textContent.includes(x.conteudo || '') && el.querySelector('.ar').textContent === x.arquivo;
+  return {sec: !!sec, nota: n ? n.textContent.replace(/\s+/g, ' ').trim() : null, esperada: L.length + ' citados · ' + (L.length - k) + ' entregues · ' + k + ' não entregues',
+          linhas: linhas.length, n: L.length, campos: L.every((x, i) => ok(x, linhas[i])),
+          indicador: ne ? ne.textContent.trim() : null, indEsperado: k ? k + ' não entregue' + (k > 1 ? 's' : '') : null, indVisivel: ne ? ne.offsetParent !== null : false}; }"""
+JS_OBRA_DES_LINHAS = r"""(id) => { const E = __viz.obra.ES, d = document.querySelector('.ob-sis[data-sis="' + id + '"]'), L = (E.sistemas[id] || {}).desenhos || [], linhas = [...d.querySelectorAll('.ob-des')];
+  const nao = linhas.filter((el, i) => L[i].entregue !== true), sim = linhas.filter((el, i) => L[i].entregue === true);
+  const marca = el => { const m = el.querySelector('.ob-nao'); return m ? {txt: m.textContent.trim(), forma: getComputedStyle(m, '::before').clipPath, cor: getComputedStyle(m).color, fundo: getComputedStyle(el).backgroundColor} : null; };
+  const lk = el => { const a = el.querySelector('a'); return a ? {href: a.getAttribute('href'), alvo: a.target, rel: a.rel} : null; };
+  const sem = document.querySelector('.ob-parte.est-sem .es');
+  return {nao: nao.length, naoMarca: nao.every(el => marca(el) && marca(el).txt === 'não entregue'), naoSemLink: nao.every(el => !el.querySelector('a')),
+          alerta: nao.length ? marca(nao[0]) : null, lacuna: sem ? getComputedStyle(sem).color : null,
+          sim: sim.length, simSemMarca: sim.every(el => !el.querySelector('.ob-nao')),
+          simLink: sim.map(el => { const doc = L[linhas.indexOf(el)].doc && E.documentos[L[linhas.indexOf(el)].doc];
+            return {doc: !!doc, esperado: doc ? doc.link : null, l: lk(el), pr: doc && doc.prancha ? !!el.querySelector('[data-ob-acao="prancha"]') : null}; })}; }"""
+
+
+def obra_sem_geometria(c: dict) -> None:
+    """Sistema sem elemento de geometria (`classes = {}`) vem na árvore, abre sem erro e mantém o controle de escopo."""
+    page = c["page"]
+    page.fill("#obBusca", "")
+    a = js(c, JS_OBRA_DESENHOS)
+    if not a["vazios"]:
+        passo(c, "obra/sem geometria: nenhum sistema sem elemento nos dados (não testado)", True)
+        return
+    sid = a["vazios"][0]
+    erros = len(c["erros"])
+    abrir_sistema(c, sid)
+    r = js(c, """(id) => { const d = document.querySelector('.ob-sis[data-sis="' + id + '"]'), h = d.querySelector('.ob-sis-h'), cb = d.querySelector('.ob-esc-cb');
+      return {aberto: h.getAttribute('aria-expanded') === 'true' && !d.querySelector('.ob-corpo').hidden, cls: d.querySelectorAll('.ob-cls').length, mapa: d.querySelectorAll('[data-ob-acao="parte-mapa"]').length,
+              aviso: /Sem elementos de geometria/.test(d.querySelector('.ob-corpo').textContent), nota: h.querySelector('.nota').textContent, nan: /NaN|undefined|null/.test(d.textContent),
+              cb: !!cb, motivo: d.querySelector('.ob-motivo').textContent.length > 8, elementos: __viz.obra.itens.filter(i => i.sis === id).length}; }""", sid)
+    passo(c, "obra/sem geometria: o sistema sem elemento aparece na árvore e abre sem erro, sem 'ver no mapa' nem classes",
+          r["aberto"] and r["cls"] == 0 and r["mapa"] == 0 and r["aviso"] and not r["nan"] and r["elementos"] == 0 and len(c["erros"]) == erros, f"{sid} ({len(a['vazios'])} sem geometria)")
+    passo(c, "obra/sem geometria: sem contagem de elementos no cabeçalho; 'No escopo' e a origem do escopo continuam",
+          r["nota"] == "sem geometria" and r["cb"] and r["motivo"], r["nota"])
+    antes = js(c, JS_ESCOPO_ESTADO)
+    est = js(c, "(i) => __viz.obra.estado(i)", sid)
+    page.locator(f'.ob-sis[data-sis="{sid}"] .ob-esc-cb').click()
+    depois = js(c, JS_ESCOPO_ESTADO)
+    novo = js(c, "(i) => __viz.obra.estado(i)", sid)
+    passo(c, "obra/sem geometria: alternar 'No escopo' muda o estado e o resumo do sistema sem elemento",
+          novo != est and sum(depois["chips"].values()) == sum(antes["chips"].values()) and depois["chips"] != antes["chips"], f"{est} -> {novo}")
+    js(c, "__viz.obra.restaurar()")
+    mostrar_no_topo(c, f'#obArvore .ob-sis[data-sis="{sid}"]')
+    foto(c, "21_obra_sem_geometria")
+
+
+def obra_desenhos(c: dict) -> None:
+    """Desenhos do projeto (Relação) por sistema: contagem, não entregue com marcador de alerta e sem link, entregue com link e 'ver na aba Pranchas'; resumo geral."""
+    page = c["page"]
+    page.fill("#obBusca", "")
+    a = js(c, JS_OBRA_DESENHOS)
+    if not a["comDes"]:
+        passo(c, "obra/desenhos: nenhum sistema com desenhos da Relação nos dados (não testado)", True)
+        return
+    erros = len(c["erros"])
+    for sid in a["comDes"]:
+        abrir_sistema(c, sid)
+    dom = {i: js(c, JS_OBRA_DES_DOM, i) for i in a["comDes"]}
+    ruins = [i for i, r in dom.items() if not (r["sec"] and r["nota"] == r["esperada"] and r["linhas"] == r["n"] and r["campos"])]
+    passo(c, "obra/desenhos: cada sistema com desenhos mostra a seção, 'N citados · M entregues · K não entregues' igual aos dados, e uma linha por desenho (folha, conteúdo, arquivo)",
+          not ruins, f"{len(dom)} sistema(s)" + (f"; falhou {ruins[:3]}" if ruins else ""))
+    passo(c, "obra/desenhos: na árvore, o indicador 'K não entregues' aparece só nos sistemas com pendência e bate com os dados",
+          all(r["indicador"] == r["indEsperado"] and (r["indicador"] is None or r["indVisivel"]) for r in dom.values()), f"{len(a['comPend'])} com pendência")
+    passo(c, "obra/desenhos: sistema com todos os desenhos entregues não mostra o indicador",
+          all(dom[i]["indicador"] is None for i in a["todosEntregues"]), f"{len(a['todosEntregues'])} sistema(s)")
+    nao = next(iter(a["comPend"]), None)
+    if nao:
+        r = js(c, JS_OBRA_DES_LINHAS, nao)
+        passo(c, "obra/desenhos: desenho não entregue traz o marcador de alerta 'não entregue' e nenhum link",
+              r["nao"] > 0 and r["naoMarca"] and r["naoSemLink"] and r["alerta"]["forma"] != "none", f"{nao}: {r['nao']} não entregue(s)")
+        passo(c, "obra/desenhos: o alerta usa a cor da lacuna 'sem evidência' e destaca a linha",
+              (r["lacuna"] is None or r["alerta"]["cor"] == r["lacuna"]) and r["alerta"]["fundo"] != "rgba(0, 0, 0, 0)", r["alerta"]["cor"])
+        mostrar_no_topo(c, f'#obArvore .ob-sis[data-sis="{nao}"]')
+        foto(c, "22_obra_desenhos")
+    if a["ent"]:
+        r = js(c, JS_OBRA_DES_LINHAS, a["ent"])
+        bons = [x for x in r["simLink"] if x["doc"] and (x["esperado"] or "").startswith("https://")]
+        passo(c, "obra/desenhos: desenho entregue é link https para o documento, em nova aba (target=_blank, rel=noopener), sem marcador de alerta",
+              r["simSemMarca"] and bool(bons) and all(x["l"] and x["l"]["href"] == x["esperado"] and x["l"]["alvo"] == "_blank" and "noopener" in x["l"]["rel"] for x in bons), f"{a['ent']}: {len(bons)} entregue(s)")
+    else:
+        passo(c, "obra/desenhos: nenhum desenho entregue com link nos dados (não testado)", True)
+    if a["comPr"]:
+        r = js(c, JS_OBRA_DES_LINHAS, a["comPr"])
+        com = [x for x in r["simLink"] if x["pr"] is not None]
+        passo(c, "obra/desenhos: entregue que é prancha oferece 'ver na aba Pranchas'", bool(com) and all(x["pr"] for x in com), a["comPr"])
+        alvo = js(c, "(i) => { const D = __viz.obra.ES.sistemas[i].desenhos, E = __viz.obra.ES.documentos; return D.map(d => d.doc && E[d.doc] && E[d.doc].prancha).find(Boolean); }", a["comPr"])
+        c["page"].locator(f'#obArvore .ob-sis[data-sis="{a["comPr"]}"] .ob-des [data-ob-acao="prancha"]').first.click()
+        p = js(c, "() => ({folha: __viz.FV.P ? __viz.FV.P.id : null, aba: !document.querySelector('#aba-pranchas').hidden})")
+        passo(c, "obra/desenhos: 'ver na aba Pranchas' abre a prancha do documento", p["folha"] == alvo and p["aba"], str(p["folha"]))
+        page.select_option("#pSel", "")
+        page.click("#t-obra")
+    rs = a["resumo"]
+    if rs:
+        txt = js(c, "document.querySelector('#obDesResumo').textContent.replace(/\\s+/g, ' ').trim()")
+
+        def f(n: int) -> str:
+            return f"{n:,}".replace(",", ".")
+
+        esperado = f"Desenhos do projeto: {f(rs['citados'])} citados · {f(rs['entregues'])} entregues · {f(rs['nao_entregues'])} não entregues"
+        topo = js(c, "(() => { const r = document.querySelector('#obDesRes'), t = document.querySelector('#obArvore'); return !r.hidden && r.getBoundingClientRect().bottom <= t.getBoundingClientRect().top; })()")
+        passo(c, "obra/desenhos: resumo geral no topo da aba bate com desenhos_resumo", txt == esperado and topo, txt)
+    else:
+        passo(c, "obra/desenhos: sem desenhos_resumo nos dados o resumo geral fica vazio", js(c, "document.querySelector('#obDesResumo').textContent === ''"))
+    passo(c, "obra/desenhos: console sem erros ao abrir os sistemas e a seção", len(c["erros"]) == erros, "; ".join(c["erros"][erros:erros + 2]))
+    js(c, "document.querySelector('#aba-obra').scrollTop = 0")
+    foto(c, "23_obra_resumo_desenhos")
+
+
+def obra_desenhos_filtro(c: dict) -> None:
+    """Atalho "Só com desenho não entregue": a árvore lista exatamente os sistemas com pendência."""
+    page = c["page"]
+    a = js(c, JS_OBRA_DESENHOS)
+    if not a["comDes"]:
+        return
+    page.fill("#obBusca", "")
+    antes = js(c, "document.querySelectorAll('#obArvore .ob-sis:not([hidden])').length")
+    page.check("#obSoPend")
+    r = js(c, """() => ({ids: [...document.querySelectorAll('#obArvore .ob-sis:not([hidden])')].filter(d => d.offsetParent !== null).map(d => d.dataset.sis).sort(),
+      unidades: [...document.querySelectorAll('#obArvore .ob-un')].every(u => u.hidden === !u.querySelector('.ob-sis:not([hidden])')),
+      n: document.querySelector('#obSoPendN').textContent})""")
+    passo(c, "obra/desenhos: 'Só com desenho não entregue' lista exatamente os sistemas com pendência (e esconde unidades vazias)",
+          r["ids"] == sorted(a["comPend"]) and r["unidades"] and str(len(a["comPend"])) in r["n"], f"{len(r['ids'])} de {antes} sistemas")
+    for sid in r["ids"]:   # só para a captura: fecha os sistemas abertos, para a lista de pendências caber na tela
+        if js(c, "(s) => document.querySelector(s).getAttribute('aria-expanded')", f'#obArvore .ob-sis[data-sis="{sid}"] .ob-sis-h') == "true":
+            page.click(f'#obArvore .ob-sis[data-sis="{sid}"] .ob-sis-h')
+    mostrar_no_topo(c, "#obArvore")
+    foto(c, "24_obra_so_pendentes")
+    page.uncheck("#obSoPend")
+    depois = js(c, "document.querySelectorAll('#obArvore .ob-sis:not([hidden])').length")
+    passo(c, "obra/desenhos: desligar o atalho devolve todos os sistemas à árvore", depois == antes, f"{depois} sistemas")
+
+
 def obra_fonte(c: dict) -> None:
     """Fonte da ficha como link (nova aba) e 'ver na aba Pranchas'; popup mínimo leva à ficha mesmo com outra aba aberta."""
     page = c["page"]
@@ -910,8 +1063,9 @@ def verificar_projeto(c: dict) -> None:
     page.wait_for_timeout(300)
     if js(c, "!!__viz.D.inventario"):
         r = js(c, """() => { const I = __viz.D.inventario, s = I.resumo.reduce((a, l) => a + l.total, 0);
-          return {soma: s, pdfs: I.totais.pdfs, itens: I.itens.length, nota: document.querySelector('#invLista .nota-l').textContent}; }""")
-        passo(c, "inventário: soma do resumo = PDFs da listagem = itens", r["soma"] == r["pdfs"] == r["itens"], str(r))
+          return {soma: s, total: I.totais.arquivos ?? I.totais.pdfs, itens: I.itens.length, nota: document.querySelector('#invLista .nota-l').textContent}; }""")
+        # desde a 0.19.0 o inventário tem todos os arquivos da listagem (não só PDF): totais.arquivos
+        passo(c, "inventário: soma do resumo = arquivos da listagem = itens", r["soma"] == r["total"] == r["itens"], str(r))
         page.select_option("#invTipo", "planta")
         page.wait_for_timeout(200)
         n = js(c, "document.querySelectorAll('#invLista .inv-i').length")
@@ -956,95 +1110,6 @@ def verificar_projeto(c: dict) -> None:
     page.wait_for_timeout(300)
 
 
-def ir_ao_dia(c: dict, dia: int) -> None:
-    """Usa o próprio controle da linha do tempo (evento input do range). Espera dois quadros com prazo largo: no
-    Chromium sem GPU (swiftshader), com o WebGL do 3D vivo e 34 canvases, o primeiro quadro do 4D já levou 42 s,
-    com a CPU ociosa — demora de composição do ambiente de teste, não do código (o mesmo passo também deu 0,6 s)."""
-    js(c, "(d) => { const r = document.querySelector('#b4Dia'); r.value = d; r.dispatchEvent(new Event('input', {bubbles: true})); }", dia)
-    c["page"].wait_for_function("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))",
-                                timeout=180000)
-    c["page"].wait_for_timeout(300)
-
-
-def verificar_v3_4d_abrir(c: dict) -> None:
-    page = c["page"]
-    js(c, "__viz.map.closePopup()")
-    page.click("#b-enquadrar")
-    page.wait_for_timeout(500)
-    page.click("#b-4d")
-    page.wait_for_function(JS_TODAS_PRONTAS, timeout=180000)
-    passo(c, "4D: barra da linha do tempo aberta", js(c, "!document.querySelector('#bar4d').hidden"))
-    passo(c, "4D: aviso de data da OS hipotética", js(c, "!document.querySelector('#b4Aviso').hidden") == bool(js(c, "__viz.D.cronograma.data_os_hipotese")))
-    passo(c, "4D: marcos MI na linha do tempo", js(c, "document.querySelectorAll('#b4Marcos button').length") == js(c, "__viz.D.cronograma.marcos.length"))
-    passo(c, "4D: curva S desenhada em SVG", js(c, "document.querySelectorAll('#b4Curva polyline').length") == 1)
-    ini = js(c, "document.querySelector('#b4Data').textContent")
-    page.fill("#b4Os", "2027-03-01")
-    passo(c, "4D: trocar a data da OS muda só o rótulo", js(c, "document.querySelector('#b4Data').textContent") != ini and js(c, "__viz.F4.dia") == 0)
-
-
-def verificar_v3_4d_dia100(c: dict) -> None:
-    ir_ao_dia(c, 100)
-    exec_ = c["page"].inner_text("#b4Exec")
-    passo(c, "4D dia 100: A04 e A05 em execução, A08 fora da lista", "A04" in exec_ and "A05" in exec_ and "A08" not in exec_)
-    r = js(c, """() => {
-      const f8 = __viz.PR.find(p => p.id === 'f008'), fu = __viz.PR.find(p => p.id === 'fu1'), E = __viz.ESTACAS;
-      const g = __viz.camadasMapa.estacas.layer, ac = E.find(e => e.id.startsWith('ACT360')), fi = E.find(e => e.id.startsWith('FILTROS'));
-      return {a08: f8.f4d.every(v => v === 1) && f8.ef.every(v => v === 0), a05: fu.f4d.some(v => v === 2),
-        estOk: ac.f4 === 2 && fi.f4 === 1 && !g.hasLayer(fi.marker) && g.hasLayer(ac.marker), pct: document.querySelector('#b4Pct').textContent};
-    }""")
-    passo(c, "4D dia 100: elementos da A08 ocultos", r["a08"])
-    passo(c, "4D dia 100: elementos da A05 destacados", r["a05"])
-    passo(c, "4D dia 100: estacas ACT360 destacadas e FILTROS ocultas no mapa", r["estOk"])
-    esperado = js(c, "__viz.D.cronograma.curva_s.planejado_pct[__viz.D.cronograma.curva_s.dia.indexOf(100)]")
-    pct = float(r["pct"].replace("%", "").replace(",", ".").strip())
-    passo(c, "4D dia 100: % planejado confere com a curva S", abs(pct - esperado) < .06, f"{pct} % × {esperado} %")
-    foto(c, "13_4d_dia100")
-
-
-def verificar_v3_4d_3d(c: dict) -> None:
-    """No 3D as estacas seguem a mesma regra (escala zero = oculta; cor laranja = em execução)."""
-    if not js(c, "!!(__viz.v3 && __viz.v3.estacas)"):
-        return
-    r = js(c, """() => {
-      const im = __viz.v3.estacas, m = new THREE.Matrix4(), cor = new THREE.Color(), E = __viz.ESTACAS;
-      const i = E.findIndex(e => e.id.startsWith('FILTROS')), j = E.findIndex(e => e.id.startsWith('ACT360'));
-      im.getMatrixAt(i, m); const sx = m.elements[0]; im.getColorAt(j, cor);
-      return {sx, laranja: cor.r > .9 && cor.g > .3 && cor.g < .6 && cor.b < .1};
-    }""")
-    passo(c, "4D dia 100: no 3D a estaca FILTROS some e a ACT360 fica laranja", r["sx"] == 0 and r["laranja"], str(r))
-
-
-def verificar_v3_4d_dias(c: dict) -> None:
-    ir_ao_dia(c, 400)
-    exec_ = c["page"].inner_text("#b4Exec")
-    passo(c, "4D dia 400: A10 e A11 em execução", "A10" in exec_ and "A11" in exec_ and "A04" not in exec_)
-    foto(c, "14_4d_dia400")
-    ir_ao_dia(c, 600)
-    r = js(c, "({oculto: __viz.PR.some(P => P.f4d.some(v => v === 1)) || __viz.ESTACAS.some(e => e.f4 === 1), exec: document.querySelector('#b4Exec').textContent})")
-    passo(c, "4D dia 600: 1ª etapa concluída, nada oculto (só a B01, da 2ª etapa, em execução)", not r["oculto"] and "B01" in r["exec"] and "A13" not in r["exec"])
-    foto(c, "15_4d_dia600")
-
-
-def verificar_v3_4d_play(c: dict) -> None:
-    page = c["page"]
-    ir_ao_dia(c, 0)
-    page.click("#b4Play")
-    page.wait_for_timeout(1000)
-    dia = js(c, "__viz.F4.dia")
-    passo(c, "4D: play por 1 s avança os dias", dia > 0, f"dia {dia}")
-    page.click("#b4Play")
-    passo(c, "4D: pausa", js(c, "document.querySelector('#b4Play').getAttribute('aria-pressed')") == "false")
-
-
-def verificar_v3_4d_sair(c: dict) -> None:
-    page = c["page"]
-    page.click("#b4Fechar")
-    page.wait_for_timeout(500)
-    r = js(c, """() => ({f4d: __viz.PR.every(P => P.f4d.every(v => v === 0)), est: __viz.ESTACAS.every(e => e.f4 === 0),
-      vet: Object.values(__viz.camadasMapa).every(c => !c.f4), f004: __viz.PR.find(p => p.id === 'f004').mapa.on, barra: document.querySelector('#bar4d').hidden})""")
-    passo(c, "4D: ao sair, tudo volta ao estado anterior", r["f4d"] and r["est"] and r["vet"] and r["f004"] and r["barra"], str(r))
-
-
 def verificar_final(c: dict) -> None:
     c["page"].wait_for_timeout(300)
     passo(c, "sem rolagem horizontal ao final", js(c, "document.documentElement.scrollWidth <= window.innerWidth + 1"))
@@ -1059,9 +1124,6 @@ def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
                   verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_area_obra,
                   verificar_obra, verificar_projeto):
         secao(c)
-    if c["info"]["crono"]:
-        for secao in (verificar_v3_4d_abrir, verificar_v3_4d_dia100, verificar_v3_4d_3d, verificar_v3_4d_dias, verificar_v3_4d_play, verificar_v3_4d_sair):
-            secao(c)
     verificar_final(c)
 
 
