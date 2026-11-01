@@ -484,3 +484,62 @@ def test_paridade_compara_os_servicos_gravados():
     servicos, _ = gv.calcular(base)
     velhos = [{**s, "valor": 999.0} if s["saida"] == "escavacao_m3" else s for s in servicos]
     assert any(d["saida"] == "escavacao_m3" for d in gv.paridade(base, trechos, furos, servicos=velhos))
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# Índice: o mesmo resultado, sem varrer a base a cada objeto (rodada 24, critério 2)
+# --------------------------------------------------------------------------------------------------------------------
+
+def _normalizada(entrada):
+    """A entrada com o eixo em lista, para comparar com `==`."""
+    return {**entrada, "pts": None if entrada.get("pts") is None else entrada["pts"].tolist()}
+
+
+def _linear_1km():
+    from camadas import sintetico
+    return sintetico.base_linear(1)
+
+
+def _referencia_sem_indice(base):
+    """Serviços e pendências calculados só pela `entrada` sem índice (o caminho antigo)."""
+    servicos, pendencias = [], []
+    for o in base["objetos"]:
+        e = gv.entrada(base, o)
+        if e["regra"] is None:
+            continue
+        if e["faltam"]:
+            pendencias.append({"objeto_id": o["objeto_id"], "regra": e["regra"],
+                               "motivo": "faltam fatos obrigatórios: " + ", ".join(e["faltam"])})
+            continue
+        chave = gv.chave_servico(e["regra"], gv.SERVICOS["regras"][e["regra"]]["versao"], e["dados"], e["fatos"],
+                                 e["furos_usados"], e["pts"])
+        linhas, pends = gv._calcular_objeto(o, e, chave)
+        servicos += linhas
+        pendencias += pends
+    return servicos, pendencias
+
+
+@pytest.mark.parametrize("fabrica", [_base, _base_planilha, _linear_1km], ids=["agua_bruta", "planilha", "linear_1km"])
+def test_indice_nao_muda_fatos_furos_entrada_nem_servicos(fabrica):
+    base = fabrica()
+    ind = gv.indice(base)
+    for o in base["objetos"]:
+        assert gv.fatos_do_objeto(base, o["objeto_id"], ind) == gv.fatos_do_objeto(base, o["objeto_id"])
+        assert _normalizada(gv.entrada(base, o, ind)) == _normalizada(gv.entrada(base, o))
+    for classe in {o["classe"] for o in base["objetos"]} | {"classe_inexistente"}:
+        assert gv.furos(base, classe, ind) == gv.furos(base, classe)
+    servicos, pendencias, _ = gv.calcular_incremental(base)
+    assert (servicos, pendencias) == _referencia_sem_indice(base)
+
+
+def test_reaproveitar_pelo_anterior_indexado_e_paridade_com_indice():
+    base = copy.deepcopy(_base_planilha())
+    servicos, _, _ = gv.calcular_incremental(base)
+    outros, _, est = gv.calcular_incremental(base, anterior=servicos)
+    assert outros == servicos and est == {"recalculados": 0, "reaproveitados": 2}
+    for f in base["fatos"]:
+        if f["objeto_id"] == "OL-007" and f["propriedade"] == "comp_m":
+            f["valor"] = 50.0
+    _, _, est = gv.calcular_incremental(base, anterior=servicos)
+    assert est == {"recalculados": 1, "reaproveitados": 1}
+    assert {d["objeto_id"] for d in gv.paridade(base, _trechos_planilha(), _furos_planilha())} == {"OL-007"}
