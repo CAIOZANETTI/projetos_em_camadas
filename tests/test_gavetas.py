@@ -613,3 +613,20 @@ def test_empate_de_natureza_o_fato_de_codigo_vence_o_de_ia(invertida):
     assert gv.fatos_do_objeto(base, "SP-02")["cota_boca_m"]["valor"] == 650.5
     assert gv.fatos_do_objeto(base, "SP-02", gv.indice(base))["cota_boca_m"]["valor"] == 650.5
     assert gv._vencedores(fatos, {"EIA"})["cota_boca_m"]["valor"] == 650.5
+
+
+def test_furo_criado_so_pela_ia_nao_e_insumo_da_regra():
+    """2º aceite da rodada 24: um furo que só a IA cita não pode tirar o alerta de "sem sondagem" de um trecho."""
+    base = _base()
+    base["geometria"] = [g for g in base["geometria"] if g["objeto_id"] != "SP-02"]
+    base["fatos"] = [f for f in base["fatos"] if f["objeto_id"] != "SP-02"]
+    base["objetos"] = [o for o in base["objetos"] if o["objeto_id"] != "SP-02"]
+    base["objetos"].append({"objeto_id": "SP-99", "classe": "furo_sondagem"})
+    base["evidencias"].append({"evidencia_id": "EV-IA-1", "classe": "laudo", "documento": "laudo.pdf",
+                               "localizador": {"pagina": 3}, "trecho": "NA 0,5 m", "metodo": "IA", "executor": "Sonnet"})
+    base["fatos"].append({"fato_id": "SP-99.na_m.ia", "objeto_id": "SP-99", "propriedade": "na_m", "valor": 0.5,
+                          "natureza": "inferido", "evidencia_id": "EV-IA-1"})
+    assert gv.furos(base, "furo_sondagem") == [] and gv.furos(base, "furo_sondagem", gv.indice(base)) == []
+    base["fatos"].append({"fato_id": "SP-99.na_m", "objeto_id": "SP-99", "propriedade": "na_m", "valor": 0.5,
+                          "natureza": "observado", "evidencia_id": "E2"})         # com fato de código, entra
+    assert [f["id"] for f in gv.furos(base, "furo_sondagem")] == ["SP-99"]

@@ -405,10 +405,10 @@ def indice(base: dict) -> dict:
         geometria.setdefault(g["objeto_id"], g)
     por_classe: dict[str, list[dict]] = {}
     for o in base.get("objetos", []):
-        g = geometria.get(o["objeto_id"])
-        if g and g["tipo"] != "ponto":
+        g, de_codigo = geometria.get(o["objeto_id"]), codigo.get(o["objeto_id"], {})
+        if (g and g["tipo"] != "ponto") or not (g or de_codigo):     # objeto só de IA não é insumo de regra
             continue
-        por_classe.setdefault(o["classe"], []).append(_furo_do_objeto(o, g, codigo.get(o["objeto_id"], {})))
+        por_classe.setdefault(o["classe"], []).append(_furo_do_objeto(o, g, de_codigo))
     return {"fatos": fatos, "fatos_codigo": codigo, "geometria": geometria, "furos": por_classe,
             "furos_xy": {c: ol.furos_com_xy(lista) for c, lista in por_classe.items()}}
 
@@ -437,15 +437,17 @@ def _geometria(base: dict, objeto_id: str, ind: dict | None = None) -> dict | No
 
 
 def furos(base: dict, classe: str, ind: dict | None = None) -> list[dict]:
-    """Sondagens da classe no formato de `obras_lineares`: com ponto (E, N) ou sem geometria (E e N None, só pelo nome)."""
+    """Sondagens da classe no formato de `obras_lineares`: com ponto (E, N) ou sem geometria (E e N None, só pelo nome).
+    Objeto sem geometria e sem nenhum fato de código (criado só pela IA) não entra: não é insumo de regra."""
     if ind is not None:
         return ind["furos"].get(classe, [])
     saida = []
     for o in base.get("objetos", []):
         g = _geometria(base, o["objeto_id"])
-        if o["classe"] != classe or (g and g["tipo"] != "ponto"):
+        de_codigo = fatos_de_codigo(base, o["objeto_id"]) if o["classe"] == classe else {}
+        if o["classe"] != classe or (g and g["tipo"] != "ponto") or not (g or de_codigo):   # só de IA: fora
             continue
-        saida.append(_furo_do_objeto(o, g, fatos_de_codigo(base, o["objeto_id"])))
+        saida.append(_furo_do_objeto(o, g, de_codigo))
     return saida
 
 
