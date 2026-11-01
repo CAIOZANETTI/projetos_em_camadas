@@ -361,14 +361,15 @@ def _geometria(base: dict, objeto_id: str) -> dict | None:
 
 
 def furos(base: dict, classe: str) -> list[dict]:
-    """Sondagens colocadas no local: objetos da classe com geometria de ponto, no formato de `obras_lineares`."""
+    """Sondagens da classe no formato de `obras_lineares`: com ponto (E, N) ou sem geometria (E e N None, só pelo nome)."""
     saida = []
     for o in base.get("objetos", []):
         g = _geometria(base, o["objeto_id"])
-        if o["classe"] != classe or not g or g["tipo"] != "ponto":
+        if o["classe"] != classe or (g and g["tipo"] != "ponto"):
             continue
         fatos = fatos_do_objeto(base, o["objeto_id"])
-        saida.append({"id": o["objeto_id"], "E": g["coords"][0], "N": g["coords"][1],
+        xy = g["coords"][:2] if g else (None, None)           # sem geometria: só pelo nome citado (sem eixo)
+        saida.append({"id": o["objeto_id"], "E": xy[0], "N": xy[1],
                       "na_m": fatos.get("na_m", {}).get("valor"), "camadas": fatos.get("camadas", {}).get("valor", []),
                       "fatos": [f["fato_id"] for f in fatos.values()]})
     return saida
@@ -402,10 +403,15 @@ def entrada(base: dict, objeto: dict) -> dict:
     usados = [p for p in r["exige"] + r["opcionais"] if p in fatos]
     pts = eixo(_geometria(base, objeto["objeto_id"]))
     fs = furos(base, r["sondagens"]) if r.get("sondagens") else []
-    perto = set(ol.furo_por_metro(pts, fs)) if pts is not None and fs else set()
-    return {"regra": nome, "dados": {"local": objeto["objeto_id"], **{p: fatos[p]["valor"] for p in usados}},
-            "furos": fs, "pts": pts, "faltam": [p for p in r["exige"] if p not in fatos],
-            "fatos": [fatos[p]["fato_id"] for p in usados] + [i for f in fs if f["id"] in perto for i in f["fatos"]]}
+    dados = {"local": objeto["objeto_id"], **{p: fatos[p]["valor"] for p in usados}}
+    if pts is not None:                          # com eixo: o furo mais próximo de cada metro
+        perto = set(ol.furo_por_metro(pts, fs)) if fs else set()
+        ids = {f["id"] for f in fs if f["id"] in perto}
+    else:                                        # sem eixo: os furos citados em sond_ini/sond_fim (como `cobertura`)
+        citados = {ol.id_furo(dados[p]) for p in ("sond_ini", "sond_fim") if dados.get(p)}
+        ids = {f["id"] for f in fs if ol.id_furo(f["id"]) in citados}
+    return {"regra": nome, "dados": dados, "furos": fs, "pts": pts, "faltam": [p for p in r["exige"] if p not in fatos],
+            "fatos": [fatos[p]["fato_id"] for p in usados] + [i for f in fs if f["id"] in ids for i in f["fatos"]]}
 
 
 def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict]:
@@ -442,6 +448,71 @@ def calcular(base: dict) -> tuple[list[dict], list[dict]]:
     return servicos, pendencias
 
 
+def _achatar(saidas: dict, nomes: list[str]) -> dict[tuple, float]:
+    """{(saída, chave): valor} das saídas pedidas; dicionário abre uma entrada por chave, None some."""
+    plano = {}
+    for saida in nomes:
+        valor = saidas.get(saida)
+        for chave, v in (valor.items() if isinstance(valor, dict) else [(None, valor)]):
+            if v is not None:
+                plano[(saida, chave)] = v
+    return plano
+
+
+GEOTECNIA = ["esgotamento_frac", "sem_sondagem_frac", "na_min_m", "categorias"]
+
+
+def _diferencas(objeto_id: str, obtido: dict, esperado: dict, tol: float, prefixo: str = "") -> list[dict]:
+    """Chaves em que os dois lados {(saída, chave): valor} diferem por mais de `tol` (lado ausente vem None)."""
+    difs = []
+    for saida, chave in sorted(set(esperado) | set(obtido), key=lambda k: (k[0], k[1] or "")):
+        g, q = obtido.get((saida, chave)), esperado.get((saida, chave))
+        if g is None or q is None or abs(g - q) > tol:
+            difs.append({"objeto_id": objeto_id, "saida": prefixo + saida, "chave": chave, "gavetas": g, "obras_lineares": q})
+    return difs
+
+
+def _paridade_do_objeto(base: dict, o: dict, trecho: dict, furos: list[dict], obtido: dict, tol: float) -> list[dict]:
+    """Um trecho: método, quantidades e geotecnia das gavetas contra o `quantificar` do trecho recebido."""
+    e = entrada(base, o)
+    if e["regra"] is None:
+        return []
+    metodo_regra = SERVICOS["regras"][e["regra"]]["quando"]["metodo"]
+    metodo = trecho.get("metodo") or "VCA"
+    q = ol.quantificar({**trecho, "metodo": metodo}, furos)
+    difs = []
+    if ol.norm(metodo) != ol.norm(metodo_regra):
+        difs.append({"objeto_id": o["objeto_id"], "saida": "metodo", "chave": None, "gavetas": metodo_regra,
+                     "obras_lineares": metodo})
+    difs += _diferencas(o["objeto_id"], obtido, _achatar(q, SERVICOS["regras"][e["regra"]]["saidas"]), tol)
+    if not e["faltam"]:                       # com fato obrigatório faltando as gavetas não calculam nada (há pendência)
+        geo = ol.quantificar(e["dados"], e["furos"], e["pts"])["geotecnia"]
+        difs += _diferencas(o["objeto_id"], _achatar(geo, GEOTECNIA), _achatar(q["geotecnia"], GEOTECNIA), tol,
+                            "geotecnia.")
+    return difs
+
+
+def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.001) -> list[dict]:
+    """Diferenças entre o cálculo das gavetas e o `obras_lineares.quantificar` dos trechos da planilha (`OL-<linha>`).
+
+    O `quantificar` usa o `metodo` do trecho recebido (o aplicado, como no `obras_lineares.csv`); se ele difere do método
+    da regra escolhida nas gavetas, sai a diferença `metodo`. Compara também a geotecnia (`geotecnia.<campo>`), com a
+    `entrada` da base. Devolve só o que difere por mais de `tol`: {objeto_id, saida, chave, gavetas, obras_lineares}.
+    """
+    servicos, _ = calcular(base)
+    por_objeto: dict[str, dict] = {}
+    for s in servicos:
+        por_objeto.setdefault(s["objeto_id"], {})[(s["saida"], s.get("chave"))] = s["valor"]
+    por_linha = {t["linha"]: t for t in trechos}
+    difs = []
+    for o in base.get("objetos", []):
+        achou = re.fullmatch(r"OL-(\d+)", o["objeto_id"])
+        trecho = por_linha.get(int(achou[1])) if achou and o["classe"] == "trecho_tubo" else None
+        if trecho:
+            difs += _paridade_do_objeto(base, o, trecho, furos, por_objeto.get(o["objeto_id"], {}), tol)
+    return difs
+
+
 # --------------------------------------------------------------------------------------------------------------------
 # Do serviço à EAP (de-para 3)
 # --------------------------------------------------------------------------------------------------------------------
@@ -466,7 +537,7 @@ def metadados() -> dict:
         "modulo": "gavetas",
         "descricao": "memória espacial: gavetas com evidência, serviços calculados só a partir delas e EAP lastreada",
         "funcoes": ["validar", "conferir_base", "conferir_de_para", "gravar", "ler", "fatos_do_objeto", "furos",
-                    "eixo", "regra_de", "entrada", "calcular", "para_eap"],
+                    "eixo", "regra_de", "entrada", "calcular", "paridade", "para_eap"],
         "conceitos": ["gavetas.json", "de_para_extracao.json", "de_para_servicos.json", "de_para_eap.json"],
         "formato": REGRAS["formato"]["atual"],
         "estado": REGRAS["metadata"]["estado"],
