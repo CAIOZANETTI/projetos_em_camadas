@@ -27,3 +27,4 @@
 {"rodada": "rodada 23", "data": "2026-11-01", "modelo": "sonnet", "papel": "implementador", "tarefa": "E2 (aba EAP no visualizador)", "tokens": 78292, "segundos": 171, "ferramentas": 23, "resultado": "entregue; integração depois do aceite da 22"}
 {"rodada": "rodada 22", "data": "2026-11-01", "modelo": "sonnet", "papel": "implementador", "tarefa": "revisão: 4 achados do aceite", "tokens": 101515, "segundos": 169, "ferramentas": 25, "resultado": "entregue; 9 testes novos, 7 falhavam antes"}
 {"rodada": "rodada 22", "data": "2026-11-01", "modelo": "fable", "papel": "gerente (aceite)", "tarefa": "2º aceite da rodada 22", "tokens": 20494, "segundos": 112, "ferramentas": 10, "resultado": "ACEITA"}
+{"rodada": "rodada 25 (plano)", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "aprovar o plano", "tokens": 128737, "segundos": 105, "ferramentas": 21, "resultado": "aprovado com ajustes"}
