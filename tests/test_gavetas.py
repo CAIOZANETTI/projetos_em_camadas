@@ -488,3 +488,145 @@ def test_paridade_compara_os_servicos_gravados():
     servicos, _ = gv.calcular(base)
     velhos = [{**s, "valor": 999.0} if s["saida"] == "escavacao_m3" else s for s in servicos]
     assert any(d["saida"] == "escavacao_m3" for d in gv.paridade(base, trechos, furos, servicos=velhos))
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# Índice: o mesmo resultado, sem varrer a base a cada objeto (rodada 24, critério 2)
+# --------------------------------------------------------------------------------------------------------------------
+
+def _normalizada(entrada):
+    """A entrada com o eixo em lista, para comparar com `==`."""
+    return {**entrada, "pts": None if entrada.get("pts") is None else entrada["pts"].tolist()}
+
+
+def _linear_1km():
+    from camadas import sintetico
+    return sintetico.base_linear(1)
+
+
+def _referencia_sem_indice(base):
+    """Serviços e pendências calculados só pela `entrada` sem índice (o caminho antigo)."""
+    servicos, pendencias = [], []
+    for o in base["objetos"]:
+        e = gv.entrada(base, o)
+        if e["regra"] is None:
+            continue
+        if e["faltam"]:
+            pendencias.append({"objeto_id": o["objeto_id"], "regra": e["regra"],
+                               "motivo": "faltam fatos obrigatórios: " + ", ".join(e["faltam"])})
+            continue
+        chave = gv.chave_servico(e["regra"], gv.SERVICOS["regras"][e["regra"]]["versao"], e["dados"], e["fatos"],
+                                 e["furos_usados"], e["pts"])
+        linhas, pends = gv._calcular_objeto(o, e, chave)
+        servicos += linhas
+        pendencias += pends
+    return servicos, pendencias
+
+
+@pytest.mark.parametrize("fabrica", [_base, _base_planilha, _linear_1km], ids=["agua_bruta", "planilha", "linear_1km"])
+def test_indice_nao_muda_fatos_furos_entrada_nem_servicos(fabrica):
+    base = fabrica()
+    ind = gv.indice(base)
+    for o in base["objetos"]:
+        assert gv.fatos_do_objeto(base, o["objeto_id"], ind) == gv.fatos_do_objeto(base, o["objeto_id"])
+        assert _normalizada(gv.entrada(base, o, ind)) == _normalizada(gv.entrada(base, o))
+    for classe in {o["classe"] for o in base["objetos"]} | {"classe_inexistente"}:
+        assert gv.furos(base, classe, ind) == gv.furos(base, classe)
+    servicos, pendencias, _ = gv.calcular_incremental(base)
+    assert (servicos, pendencias) == _referencia_sem_indice(base)
+
+
+def test_reaproveitar_pelo_anterior_indexado_e_paridade_com_indice():
+    base = copy.deepcopy(_base_planilha())
+    servicos, _, _ = gv.calcular_incremental(base)
+    outros, _, est = gv.calcular_incremental(base, anterior=servicos)
+    assert outros == servicos and est == {"recalculados": 0, "reaproveitados": 2}
+    for f in base["fatos"]:
+        if f["objeto_id"] == "OL-007" and f["propriedade"] == "comp_m":
+            f["valor"] = 50.0
+    _, _, est = gv.calcular_incremental(base, anterior=servicos)
+    assert est == {"recalculados": 1, "reaproveitados": 1}
+    assert {d["objeto_id"] for d in gv.paridade(base, _trechos_planilha(), _furos_planilha())} == {"OL-007"}
+
+
+# --- Revisão da rodada 24: fato de IA não alimenta regra --------------------------------------------------------------
+
+def _ev_ia(i="EIA"):
+    return {"evidencia_id": i, "classe": "laudo", "documento": "laudo.pdf", "localizador": {"pagina": 1, "pasta_drive": "X"},
+            "trecho": "trecho citado", "metodo": "IA", "executor": "Sonnet"}
+
+
+def _fato_ia(obj, prop, valor):
+    return {"fato_id": f"{obj}.{prop}.ia", "objeto_id": obj, "propriedade": prop, "valor": valor,
+            "natureza": "inferido", "evidencia_id": "EIA"}
+
+
+def test_objeto_so_com_fatos_de_ia_vira_pendencia_e_nao_gera_servico():
+    base = {"objetos": [{"objeto_id": "OL-999", "classe": "trecho_tubo"}], "geometria": [],
+            "fatos": [_fato_ia("OL-999", "dn_mm", 300), _fato_ia("OL-999", "material", "PVC"),
+                      _fato_ia("OL-999", "prof_m", 2.0), _fato_ia("OL-999", "comp_m", 50.0)],
+            "evidencias": [_ev_ia()], "pendencias": [], "servicos": []}
+    servicos, pendencias = gv.calcular(base)
+    assert servicos == []
+    assert [p["motivo"] for p in pendencias] == ["depende de fato de IA não conferido: dn_mm, material, prof_m, comp_m"]
+    assert gv.fatos_do_objeto(base, "OL-999")["dn_mm"]["natureza"] == "inferido"          # continua visível
+
+
+def test_obrigatorio_so_de_ia_e_obrigatorio_ausente_geram_pendencias_separadas():
+    base = _base()
+    base["fatos"] = [f for f in base["fatos"] if f["propriedade"] not in ("prof_m", "material")]
+    base["fatos"].append(_fato_ia("T01", "prof_m", 2.4))
+    base["evidencias"].append(_ev_ia())
+    servicos, pendencias = gv.calcular(base)
+    assert not [s for s in servicos if s["objeto_id"] == "T01"]
+    assert sorted(p["motivo"] for p in pendencias) == ["depende de fato de IA não conferido: prof_m",
+                                                       "faltam fatos obrigatórios: material"]
+
+
+def test_fato_de_ia_nao_entra_em_dados_nem_na_memoria_de_calculo():
+    base = _base()
+    base["fatos"].append(_fato_ia("T01", "junta", "elástica"))
+    base["fatos"].append(_fato_ia("SP-02", "cota_boca_m", 650.0))
+    base["evidencias"].append(_ev_ia())
+    e = gv.entrada(base, base["objetos"][0])
+    assert "junta" not in e["dados"] and "T01.junta.ia" not in e["fatos"] and "SP-02.cota_boca_m.ia" not in e["fatos"]
+    assert _normalizada(e) == _normalizada(gv.entrada(base, base["objetos"][0], gv.indice(base)))
+    assert all("ia" not in i.split(".")[-1] for s in gv.calcular(base)[0] for i in s["fatos"])
+
+
+def test_na_de_ia_no_furo_nao_chega_a_regra():
+    base = _base()
+    base["fatos"] = [f for f in base["fatos"] if f["propriedade"] != "na_m"]
+    base["fatos"].append(_fato_ia("SP-02", "na_m", 0.5))
+    base["evidencias"].append(_ev_ia())
+    assert gv.furos(base, "furo_sondagem")[0]["na_m"] is None
+    assert gv.furos(base, "furo_sondagem", gv.indice(base))[0]["na_m"] is None
+    assert gv.fatos_do_objeto(base, "SP-02")["na_m"]["valor"] == 0.5
+
+
+@pytest.mark.parametrize("invertida", [False, True])
+def test_empate_de_natureza_o_fato_de_codigo_vence_o_de_ia(invertida):
+    codigo = {**_fato("SP-02", "cota_boca_m", 650.5, "inferido", "E1"), "fato_id": "SP-02.cota_boca_m.ortofoto"}
+    ia = _fato_ia("SP-02", "cota_boca_m", 700.0)
+    fatos = [ia, codigo] if invertida else [codigo, ia]
+    base = {"objetos": [], "geometria": [], "fatos": fatos, "evidencias": [_ev("E1"), _ev_ia()], "pendencias": []}
+    assert gv.fatos_do_objeto(base, "SP-02")["cota_boca_m"]["valor"] == 650.5
+    assert gv.fatos_do_objeto(base, "SP-02", gv.indice(base))["cota_boca_m"]["valor"] == 650.5
+    assert gv._vencedores(fatos, {"EIA"})["cota_boca_m"]["valor"] == 650.5
+
+
+def test_furo_criado_so_pela_ia_nao_e_insumo_da_regra():
+    """2º aceite da rodada 24: um furo que só a IA cita não pode tirar o alerta de "sem sondagem" de um trecho."""
+    base = _base()
+    base["geometria"] = [g for g in base["geometria"] if g["objeto_id"] != "SP-02"]
+    base["fatos"] = [f for f in base["fatos"] if f["objeto_id"] != "SP-02"]
+    base["objetos"] = [o for o in base["objetos"] if o["objeto_id"] != "SP-02"]
+    base["objetos"].append({"objeto_id": "SP-99", "classe": "furo_sondagem"})
+    base["evidencias"].append({"evidencia_id": "EV-IA-1", "classe": "laudo", "documento": "laudo.pdf",
+                               "localizador": {"pagina": 3}, "trecho": "NA 0,5 m", "metodo": "IA", "executor": "Sonnet"})
+    base["fatos"].append({"fato_id": "SP-99.na_m.ia", "objeto_id": "SP-99", "propriedade": "na_m", "valor": 0.5,
+                          "natureza": "inferido", "evidencia_id": "EV-IA-1"})
+    assert gv.furos(base, "furo_sondagem") == [] and gv.furos(base, "furo_sondagem", gv.indice(base)) == []
+    base["fatos"].append({"fato_id": "SP-99.na_m", "objeto_id": "SP-99", "propriedade": "na_m", "valor": 0.5,
+                          "natureza": "observado", "evidencia_id": "E2"})         # com fato de código, entra
+    assert [f["id"] for f in gv.furos(base, "furo_sondagem")] == ["SP-99"]
