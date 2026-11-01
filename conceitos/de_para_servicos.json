@@ -9,22 +9,66 @@
   "vala_aberta": {
    "versao": "1",
    "objeto": "trecho_tubo",
-   "quando": {"metodo": "VCA"},
+   "quando": {
+    "metodo": "VCA"
+   },
    "funcao": "camadas.obras_lineares.quantificar",
-   "exige": ["dn_mm", "material", "prof_m", "comp_m"],
-   "opcionais": ["junta", "pavimentos", "supressao_frac", "metodo"],
+   "exige": [
+    "dn_mm",
+    "material",
+    "prof_m",
+    "comp_m"
+   ],
+   "opcionais": [
+    "junta",
+    "pavimentos",
+    "supressao_frac",
+    "metodo",
+    "sond_ini",
+    "sond_fim",
+    "na_m",
+    "solo",
+    "local"
+   ],
    "sondagens": "furo_sondagem",
-   "saidas": ["escavacao_m3", "reaterro_m3", "bota_fora_m3", "escoramento_m2", "supressao_m2", "pavimento_m2"]
+   "saidas": [
+    "escavacao_m3",
+    "reaterro_m3",
+    "bota_fora_m3",
+    "escoramento_m2",
+    "supressao_m2",
+    "pavimento_m2"
+   ]
   },
   "mnd": {
    "versao": "1",
    "objeto": "trecho_tubo",
-   "quando": {"metodo": "MND"},
+   "quando": {
+    "metodo": "MND"
+   },
    "funcao": "camadas.obras_lineares.quantificar",
-   "exige": ["dn_mm", "material", "comp_m"],
-   "opcionais": ["prof_m", "pavimentos", "metodo"],
+   "exige": [
+    "dn_mm",
+    "material",
+    "comp_m"
+   ],
+   "opcionais": [
+    "prof_m",
+    "pavimentos",
+    "metodo",
+    "sond_ini",
+    "sond_fim",
+    "na_m",
+    "solo",
+    "local"
+   ],
    "sondagens": "furo_sondagem",
-   "saidas": ["escavacao_m3", "reaterro_m3", "pavimento_m2", "caximbos"]
+   "saidas": [
+    "escavacao_m3",
+    "reaterro_m3",
+    "pavimento_m2",
+    "caximbos"
+   ]
   }
  }
 }
