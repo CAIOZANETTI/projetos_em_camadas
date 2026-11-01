@@ -438,7 +438,8 @@ def chave_servico(regra: str, versao: str, dados: dict, fatos_usados: list[str],
     pontos = None if pts is None else np.round(np.asarray(pts, float), 3).tolist()
     corpo = {"regra": regra, "versao": versao, "dados": dados, "fatos": list(fatos_usados),
              "furos": furos_usados, "pts": pontos}
-    return hashlib.sha1(json.dumps(corpo, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:12]
+    texto = json.dumps(corpo, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha1(texto, usedforsecurity=False).hexdigest()[:12]   # identidade do cálculo, não segurança
 
 
 def _reaproveitavel(anterior: list[dict], objeto_id: str, regra: str, chave: str) -> list[dict] | None:
