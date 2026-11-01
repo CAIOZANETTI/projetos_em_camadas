@@ -31,3 +31,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 25,aceite do PR 3 (G2 G3 L2),revisor (aceite),claude-fable-5-1,102653,7,104,False,ajuste do gerente,G2 e G3 aceitas; L2 revisar (fundo da vala somava o berço); corrigido pelo Opus
 2026-11-01,rodada 25,2º aceite do L2,revisor (aceite),claude-fable-5-1,109092,2,18,True,nenhum,L2 aceita
 2026-11-01,rodada 25,aceite da correção da impressão da regra,revisor (aceite),claude-fable-5-1,122913,3,48,True,nenhum,aceita
+2026-11-01,rodada 25,F (conferências geotécnicas no build),implementador,claude-sonnet-5-5,99250,24,179,True,nenhum,entregue; aguarda aceite
