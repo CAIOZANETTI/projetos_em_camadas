@@ -15,3 +15,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 22,revisão: 4 achados do aceite,implementador,claude-sonnet-5-5,101515,25,169,True,devolução do Fable,"entregue; 9 testes novos, 7 falhavam antes"
 2026-11-01,rodada 22,2º aceite da rodada 22,gerente (aceite),claude-fable-5-1,20494,10,112,True,nenhum,ACEITA
 2026-11-01,rodada 23,E3 (recálculo incremental),implementador,claude-sonnet-5-5,81511,17,171,True,nenhum,"aceita pelo Opus (campo chave_calculo, alertas no 1º serviço)"
+2026-11-01,rodada 23,E4 (conferência ponta a ponta da aba EAP),braçal,claude-haiku-5-5,71669,15,78,True,nenhum,"entregue; 146 valores, 256 evidências, 2 pendências, 0 números sem origem, 0 erros"

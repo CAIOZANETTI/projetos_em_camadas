@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.27.0 — 2026-11-01 · Rodada 23: EAP lastreada no HTML e recálculo incremental
+- **EAP montada em Python** (`camadas/eap_html.py`): cada nó leva aos serviços, cada serviço aos fatos usados e cada
+  fato à evidência (documento, onde, trecho, executor). Os valores saem formatados no padrão brasileiro e com unidade
+  SI; o HTML só apresenta.
+- **Aba EAP no visualizador**: árvore nó → serviço → fato → evidência, pendências e resumo, sem nenhuma conta em JS
+  (teste no Chromium: `tests/test_visualizador_eap.py`). A conferência de ponta a ponta com dados do próprio código
+  achou 0 números sem origem no Python.
+- **Recálculo incremental** (`gavetas.calcular_incremental`, `chave_servico`): a chave é o hash da regra, da versão,
+  dos dados de entrada, dos fatos e dos furos usados; o serviço de mesma chave é reaproveitado sem chamar a regra. A
+  etapa do build lê o anterior em `base/servicos.parquet` e o resumo conta recalculados e reaproveitados.
+- `dados["eap"]` ligado ao build (`extrair_gavetas.etapa` → `obra._aba_projeto`).
+- Lição L021.
+
 ## 0.26.0 — 2026-11-01 · Rodada 22: extração para as gavetas
 - **Leitores → gavetas** (`camadas/extrair_gavetas.py`): a planilha Obras Lineares vira objetos `trecho_tubo`, com
   fatos e evidência de aba e linha; as sondagens viram `furo_sondagem` com geometria de ponto e o executor de quem
