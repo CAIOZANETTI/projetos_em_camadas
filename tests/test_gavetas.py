@@ -368,3 +368,122 @@ def test_furo_sem_geometria_e_ignorado_quando_ha_eixo():
     base["fatos"].append(_fato("SP-99", "na_m", 0.1, "observado", "E2"))
     e = gv.entrada(base, base["objetos"][0])
     assert e["pts"] is not None and "SP-99" not in {i for f in e["fatos"] for i in [f.split(".")[0]]}
+
+
+# --- recálculo incremental (chave = regra + versão + dados + fatos + furos usados) ---
+
+def _base_tres():
+    """A base da planilha com a profundidade do 3º trecho preenchida: os 3 trechos têm serviços."""
+    base = _base_planilha()
+    base["fatos"].append(_fato("OL-009", "prof_m", 2.0))
+    return base
+
+
+def _muda_fato(base, obj, prop, valor):
+    nova = copy.deepcopy(base)
+    for f in nova["fatos"]:
+        if f["objeto_id"] == obj and f["propriedade"] == prop:
+            f["valor"] = valor
+    return nova
+
+
+def _por_objeto(servicos):
+    saida = {}
+    for s in servicos:
+        saida.setdefault(s["objeto_id"], []).append(s)
+    return saida
+
+
+def test_incremental_primeira_vez_recalcula_e_segunda_reaproveita():
+    base = _base_tres()
+    s1, p1, e1 = gv.calcular_incremental(base)
+    assert e1 == {"recalculados": 3, "reaproveitados": 0}
+    assert all(s["chave_calculo"] for s in s1)
+    s2, p2, e2 = gv.calcular_incremental(base, s1)
+    assert e2 == {"recalculados": 0, "reaproveitados": 3}
+    assert s2 == s1 and p2 == p1
+    assert gv.calcular(base) == (s1, p1)
+
+
+def test_incremental_mudar_prof_de_um_trecho_recalcula_so_ele():
+    base = _base_tres()
+    s1, _, _ = gv.calcular_incremental(base)
+    s2, _, est = gv.calcular_incremental(_muda_fato(base, "OL-007", "prof_m", 3.1), s1)
+    assert est == {"recalculados": 1, "reaproveitados": 2}
+    a, b = _por_objeto(s1), _por_objeto(s2)
+    assert a["OL-007"] != b["OL-007"]
+    assert a["OL-008"] == b["OL-008"] and a["OL-009"] == b["OL-009"]
+
+
+def test_incremental_mudar_versao_da_regra_recalcula_tudo(monkeypatch):
+    base = _base_tres()
+    s1, _, _ = gv.calcular_incremental(base)
+    regras = copy.deepcopy(gv.SERVICOS)
+    for r in regras["regras"].values():
+        r["versao"] = r["versao"] + "-nova"
+    monkeypatch.setattr(gv, "SERVICOS", regras)
+    _, _, est = gv.calcular_incremental(base, s1)
+    assert est == {"recalculados": 3, "reaproveitados": 0}
+
+
+def test_incremental_mudar_na_do_furo_recalcula_so_quem_cita():
+    base = _base_tres()
+    s1, _, _ = gv.calcular_incremental(base)
+    _, _, est = gv.calcular_incremental(_muda_fato(base, "SP-02", "na_m", 1.5), s1)
+    assert est == {"recalculados": 2, "reaproveitados": 1}       # SP-02 é citado por OL-007 e OL-008; OL-009 cita SP-01
+
+
+def test_incremental_reaproveitar_nao_chama_a_funcao_da_regra(monkeypatch):
+    base = _base_tres()
+    s1, p1, _ = gv.calcular_incremental(base)
+    chamadas = []
+    original = ol.quantificar
+    monkeypatch.setattr(ol, "quantificar", lambda *a, **k: chamadas.append(1) or original(*a, **k))
+    _, p2, est = gv.calcular_incremental(base, s1)
+    assert chamadas == [] and est["reaproveitados"] == 3 and p2 == p1
+    gv.calcular_incremental(_muda_fato(base, "OL-007", "prof_m", 3.1), s1)
+    assert len(chamadas) == 1
+
+
+def test_chave_servico_deterministica_e_sensivel_a_cada_parte():
+    f = [{"id": "SP", "na_m": 1.0}]
+    k = gv.chave_servico("r", "1", {"a": 1}, ["F1"], f)
+    assert k == gv.chave_servico("r", "1", {"a": 1}, ["F1"], f) and len(k) == 12
+    outras = {gv.chave_servico("r", "2", {"a": 1}, ["F1"], f), gv.chave_servico("r", "1", {"a": 2}, ["F1"], f),
+              gv.chave_servico("r", "1", {"a": 1}, ["F2"], f),
+              gv.chave_servico("r", "1", {"a": 1}, ["F1"], [{"id": "SP", "na_m": 2.0}])}
+    assert k not in outras and len(outras) == 4
+
+
+def test_incremental_ve_as_constantes_da_regra(monkeypatch):
+    """Aceite da rodada 23: mudar uma constante do MOS (empolamento) muda a chave e recalcula, sem subir a versão."""
+    base = _base()
+    servicos, _, _ = gv.calcular_incremental(base)
+    # desde a rodada 25 o empolamento mora no modelo geotécnico (conceitos/geotecnia.json), de que o MOS depende
+    from camadas import geotecnia as geo
+    premissas = copy.deepcopy(geo.PREMISSAS)
+    premissas["empolamento"]["solo"] = premissas["empolamento"]["solo"] * 2
+    monkeypatch.setattr(geo, "PREMISSAS", premissas)
+    monkeypatch.setattr(geo, "EMPOLAMENTO_SOLO", geo.EMPOLAMENTO_SOLO * 2)
+    novos, _, est = gv.calcular_incremental(base, anterior=servicos)
+    assert est["reaproveitados"] == 0 and est["recalculados"] >= 1
+    antes = {s["servico_id"]: s["valor"] for s in servicos}
+    depois = {s["servico_id"]: s["valor"] for s in novos}
+    assert depois["T01:vala_aberta:bota_fora_m3"] == pytest.approx(2 * antes["T01:vala_aberta:bota_fora_m3"], abs=0.002)
+
+
+def test_paridade_compara_os_servicos_gravados():
+    """Aceite da rodada 23: valor adulterado (ou velho) nos serviços que vão para a EAP aparece na paridade."""
+    base = _base()
+    base["objetos"][0]["objeto_id"] = "OL-007"
+    for g in ("geometria", "fatos"):
+        for r in base[g]:
+            if r["objeto_id"] == "T01":
+                r["objeto_id"] = "OL-007"
+    trechos = [{"linha": 7, "local": "x", "dn_mm": 1000, "material": "FD", "prof_m": 2.4, "comp_m": 57.3,
+                "metodo": "VCA", "pavimentos": {"grama": 57.3}, "supressao_frac": 1.0, "sond_ini": None, "sond_fim": None,
+                "na_m": None, "solo": None}]
+    furos = [f for f in gv.furos(base, "furo_sondagem")]
+    servicos, _ = gv.calcular(base)
+    velhos = [{**s, "valor": 999.0} if s["saida"] == "escavacao_m3" else s for s in servicos]
+    assert any(d["saida"] == "escavacao_m3" for d in gv.paridade(base, trechos, furos, servicos=velhos))

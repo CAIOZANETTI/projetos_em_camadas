@@ -10,7 +10,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from . import gavetas
+from . import eap_html, gavetas
 from . import obras_lineares as ol
 
 OBSERVADAS_NA_PLANILHA = ("na_m", "solo")      # transcritas do laudo para a planilha
@@ -86,7 +86,7 @@ def de_sondagens(furos: list[dict], documento: str, executor: str = "código", c
                                       "crs_h": crs_h, "datum_v": "ortométrico"})
         else:
             base["pendencias"].append({"objeto_id": objeto_id,
-                                       "motivo": "furo sem coordenadas: não entra pela posição"})
+                                       "motivo": "furo sem coordenadas: entra só pelo nome citado na planilha, não pela posição no eixo"})
         for propriedade in propriedades:
             if not _vazio(furo.get(propriedade)):
                 base["fatos"].append(_fato(objeto_id, propriedade, furo[propriedade], "observado", evidencia_id))
@@ -146,7 +146,8 @@ def _resumo(base: dict, erros: list[str], difs: list[dict], servicos: list[dict]
 
 def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
-    compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`."""
+    compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`. Devolve o resumo
+    com `eap_html` (o `dados["eap"]` da aba EAP, montado e formatado em Python por `eap_html.montar`)."""
     c = cfg.get("obras_lineares")
     if not c or not Path(c["planilha"]).exists():
         if c:
@@ -161,18 +162,19 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
                   de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))))
     erros = gavetas.conferir_base(base)
-    servicos, pend_calculo = gavetas.calcular(base)
-    difs = gavetas.paridade(base, aplicados, furos)
-    base["pendencias"] = base["pendencias"] + pend_calculo
     pasta = Path(out) / "base"
+    anterior = gavetas.ler(pasta)["servicos"] if (pasta / "servicos.parquet").exists() else None
+    servicos, pend_calculo, est = gavetas.calcular_incremental(base, anterior)
+    difs = gavetas.paridade(base, aplicados, furos, servicos=servicos)   # compara o que vai para a EAP
+    base["pendencias"] = base["pendencias"] + pend_calculo
     pasta.mkdir(parents=True, exist_ok=True)
     gavetas.gravar(pasta, {**base, "servicos": servicos})
-    resumo = _resumo(base, erros, difs, servicos)
+    resumo = {**_resumo(base, erros, difs, servicos), **est}
     (Path(out) / "paridade.json").write_text(json.dumps(difs, ensure_ascii=False, indent=1), encoding="utf-8")
     (Path(out) / "resumo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas: {len(base['objetos'])} objetos, {len(base['fatos'])} fatos, {len(base['pendencias'])} pendências, "
         f"{len(servicos)} serviços, {len(erros)} erros de conferência, {len(difs)} diferenças de paridade")
-    return resumo
+    return {**resumo, "eap_html": eap_html.montar(base, servicos, base["pendencias"], resumo)}   # aba EAP do HTML
 
 
 def metadados() -> dict:

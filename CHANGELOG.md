@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.29.0 — 2026-11-01 · Rodada 25, PR 3: modelo geotécnico único, conferências e leitor de perfil
+- **Modelo geotécnico único** (`camadas/geotecnia.py`): `classe_solo`, `solo_na_faixa`, `categoria_escavacao`,
+  `na_m`, `topo_rocha_m`, `perfil_em` (furo mais próximo, vetorizado, com a distância e o raio) e `alerta_na` (fundo
+  da vala a menos de 0,5 m do NA, porque o NA é sazonal; o alerta não muda o cálculo). As regras de solo, rocha e
+  categoria, o raio e o empolamento saíram de `obras_lineares`, que agora delega: uma só fonte, em
+  `conceitos/geotecnia.json`. O hash do conjunto de referência não mudou.
+- **Conferências projeto × sondagem** (`geotecnia.conferir`): estaca que não chega ao impenetrável ou passa dele,
+  cava abaixo do NA (esgotamento) e trecho de rede sem furo no raio, com tolerância absoluta de 0,10 m.
+- **Leitor do perfil longitudinal, piloto** (`lineares.ler_perfil`): pela grade sob o desenho, lê estaca, cota do
+  terreno, cota da geratriz inferior ou do fundo da vala e profundidade escrita. Profundidade = terreno − (geratriz −
+  berço), ou terreno − fundo. O que não sai vai para `nao_lidos`.
+- PDCA: G2/G3 e L2 feitos por dois Sonnet em paralelo. O Fable devolveu o L2 uma vez: o fundo da vala somava o berço e
+  deixava a vala 10 cm mais funda. O gerente corrigiu, e o L2 foi aceito no 2º julgamento. Lição L023.
+
+## 0.28.0 — 2026-11-01 · Rodada 23 da memória espacial: EAP lastreada no HTML e recálculo incremental
+- **EAP montada em Python** (`camadas/eap_html.py`): cada nó leva aos serviços, cada serviço aos fatos usados e cada
+  fato à evidência (documento, onde, trecho, executor). Os valores saem formatados no padrão brasileiro e com unidade
+  SI; o HTML só apresenta.
+- **Aba EAP no visualizador**: árvore nó → serviço → fato → evidência, pendências e resumo, sem nenhuma conta em JS
+  (teste no Chromium: `tests/test_visualizador_eap.py`). A conferência de ponta a ponta com dados do próprio código
+  achou 0 números sem origem no Python.
+- **Recálculo incremental** (`gavetas.calcular_incremental`, `chave_servico`): a chave é o hash da regra, da versão,
+  dos dados de entrada, dos fatos e dos furos usados; o serviço de mesma chave é reaproveitado sem chamar a regra. A
+  etapa do build lê o anterior em `base/servicos.parquet` e o resumo conta recalculados e reaproveitados.
+- `dados["eap"]` ligado ao build (`extrair_gavetas.etapa` → `obra._aba_projeto`).
+- Lição L022.
 ## 0.27.0 — 2026-11-01 · Rodada 25, PR 2: leitor de laudo de sondagem e estaqueamento da obra linear
 - **Geotecnia como disciplina** (`camadas/geotecnia.py`, `conceitos/geotecnia.json`): schema do furo com a unidade de
   cada campo (os nomes já em uso, sem renomear, enquanto a memória espacial está em andamento); `validar_furos`; e
