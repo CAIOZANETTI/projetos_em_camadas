@@ -225,3 +225,146 @@ def test_nome_de_tabela_so_de_gaveta_conhecida():
     assert gv._tabela_sql("fatos") == '"fatos"'
     with pytest.raises(ValueError):
         gv._tabela_sql('fatos"; DROP TABLE objetos; --')
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# Paridade com obras_lineares (trechos sem eixo, sondagens pelos nomes da planilha)
+# --------------------------------------------------------------------------------------------------------------------
+
+def _trechos_planilha():
+    """Os trechos aplicados da etapa: VCA, MND (a planilha diz VCA; a decisão troca, e o aplicado já vem MND) e prof vazia."""
+    comum = {"material": "PEAD", "na_m": None, "solo": None, "supressao_frac": 0.0}
+    return [{"linha": 7, "local": "Rede A", "dn_mm": 200.0, "sond_ini": "SP-01", "sond_fim": "SP 02", "prof_m": 2.0,
+             "comp_m": 40.0, "metodo": "VCA", "pavimentos": {"asfalto": 40.0}, **comum},
+            {"linha": 8, "local": "Rede B", "dn_mm": 160.0, "sond_ini": "SP-02", "sond_fim": "SP-02", "prof_m": 2.5,
+             "comp_m": 60.0, "metodo": "MND", "pavimentos": {"concreto": 60.0}, **comum},
+            {"linha": 9, "local": "Rede C", "dn_mm": 200.0, "sond_ini": "SP-01", "sond_fim": "SP-01", "prof_m": None,
+             "comp_m": 25.0, "metodo": "VCA", "pavimentos": {}, **comum}]
+
+
+def _base_planilha():
+    """Base à mão equivalente a `_trechos_planilha` (sem geometria nos trechos) e dois furos com camadas e NA."""
+    fatos, objetos, evidencias = [], [], [_ev("E1"), _ev("E2", "laudo", "Sonnet"), _ev("D1", "decisao", "você")]
+    for t in _trechos_planilha():
+        obj = f"OL-{t['linha']:03d}"
+        objetos.append({"objeto_id": obj, "classe": "trecho_tubo"})
+        for p in ("local", "dn_mm", "material", "sond_ini", "sond_fim", "prof_m", "comp_m", "pavimentos"):
+            if t[p] not in (None, {}):
+                fatos.append(_fato(obj, p, t[p]))
+    fatos.append(_fato("OL-008", "metodo", "MND", "decidido", ev="D1"))
+    camadas = [{"de": 0, "ate": 6, "descricao": "argila siltosa"}]
+    for sp, na in (("SP-01", 1.0), ("SP-02", 5.0)):              # SP-01: NA acima do fundo da vala (2,0 m)
+        objetos.append({"objeto_id": sp, "classe": "furo_sondagem"})
+        fatos += [_fato(sp, "na_m", na, "observado", "E2"), _fato(sp, "camadas", camadas, "observado", "E2")]
+    geometria = [{"objeto_id": "SP-01", "tipo": "ponto", "coords": [0, 0], "crs_h": "EPSG:31982", "datum_v": "ortométrico"},
+                 {"objeto_id": "SP-02", "tipo": "ponto", "coords": [30, 0], "crs_h": "EPSG:31982", "datum_v": "ortométrico"}]
+    return {"objetos": objetos, "geometria": geometria, "fatos": fatos, "evidencias": evidencias, "pendencias": [],
+            "servicos": []}
+
+
+def _furos_planilha():
+    camadas = [{"de": 0, "ate": 6, "descricao": "argila siltosa"}]
+    return [{"id": "SP-01", "E": 0, "N": 0, "na_m": 1.0, "camadas": camadas},
+            {"id": "SP-02", "E": 30, "N": 0, "na_m": 5.0, "camadas": camadas}]
+
+
+def test_paridade_planilha_vca_mnd_e_prof_vazia_sem_diferencas():
+    base = _base_planilha()
+    assert gv.conferir_base(base) == []
+    servicos, pend = gv.calcular(base)
+    assert {s["regra"] for s in servicos if s["objeto_id"] == "OL-008"} == {"mnd"}
+    assert {s["objeto_id"] for s in servicos} == {"OL-007", "OL-008"}                 # OL-009 sem prof_m: pendência
+    assert any(p["objeto_id"] == "OL-009" for p in pend)
+    q = ol.quantificar(_trechos_planilha()[0], _furos_planilha())
+    assert q["geotecnia"]["esgotamento_frac"] > 0                                      # SP-01 tem o NA acima do fundo
+    assert gv.paridade(base, _trechos_planilha(), _furos_planilha()) == []
+
+
+def test_furo_citado_em_sond_ini_entra_nos_fatos_do_trecho_sem_eixo():
+    servicos, _ = gv.calcular(_base_planilha())
+    do_trecho = [s for s in servicos if s["objeto_id"] == "OL-007"]
+    assert do_trecho and all("SP-01.na_m.observado" in s["fatos"] and "SP-02.camadas.observado" in s["fatos"]
+                             for s in do_trecho)                                       # "SP 02" casa com SP-02 por id_furo
+    do_mnd = [s for s in servicos if s["objeto_id"] == "OL-008"]
+    assert all("SP-02.na_m.observado" in s["fatos"] and "SP-01.na_m.observado" not in s["fatos"] for s in do_mnd)
+
+
+def test_paridade_devolve_a_diferenca_quando_so_a_base_muda():
+    base = copy.deepcopy(_base_planilha())
+    for f in base["fatos"]:
+        if f["objeto_id"] == "OL-007" and f["propriedade"] == "comp_m":
+            f["valor"] = 50.0
+    difs = gv.paridade(base, _trechos_planilha(), _furos_planilha())
+    esc = next(d for d in difs if d["objeto_id"] == "OL-007" and d["saida"] == "escavacao_m3")
+    q = ol.quantificar(_trechos_planilha()[0], _furos_planilha())
+    assert esc["obras_lineares"] == pytest.approx(q["escavacao_m3"])
+    assert esc["gavetas"] > esc["obras_lineares"] and esc["chave"] is None
+    assert {d["objeto_id"] for d in difs} == {"OL-007"}
+
+
+def test_paridade_trecho_sem_servico_so_difere_se_o_quantificar_calculou():
+    base = _base_planilha()
+    trechos = _trechos_planilha()
+    assert gv.paridade(base, trechos, _furos_planilha()) == []                         # OL-009: nenhum lado calcula
+    trechos[2]["prof_m"] = 2.0                                                         # a planilha tem prof, a base não
+    difs = gv.paridade(base, trechos, _furos_planilha())
+    assert any(d["objeto_id"] == "OL-009" and d["saida"] == "escavacao_m3" and d["gavetas"] is None
+               and d["obras_lineares"] > 0 for d in difs)
+
+
+def test_paridade_usa_o_metodo_do_trecho_recebido():
+    base = _base_planilha()
+    trechos = _trechos_planilha()
+    trechos[1]["metodo"] = "VCA"                                  # o aplicado diz VCA, a base decidiu MND
+    difs = gv.paridade(base, trechos, _furos_planilha())
+    met = [d for d in difs if d["saida"] == "metodo"]
+    assert met == [{"objeto_id": "OL-008", "saida": "metodo", "chave": None, "gavetas": "MND", "obras_lineares": "VCA"}]
+
+
+def test_paridade_dois_trechos_do_mesmo_local_com_decisao_mnd():
+    from camadas import extrair_gavetas as eg
+    base = _base_planilha()
+    base["fatos"] = [f for f in base["fatos"] if f["propriedade"] != "metodo"]
+    trechos = _trechos_planilha()
+    trechos[0]["local"] = trechos[1]["local"] = "Rede B"
+    for t in trechos[:2]:
+        t["metodo"] = "MND"
+    base = eg.juntar(base, eg.de_decisoes({"rede b": "MND"}, trechos, "obra.json"))
+    servicos, _ = gv.calcular(base)
+    assert {s["regra"] for s in servicos if s["objeto_id"] in ("OL-007", "OL-008")} == {"mnd"}
+    assert gv.paridade(base, trechos, _furos_planilha()) == []
+    base["fatos"] = [f for f in base["fatos"] if f["fato_id"] != "OL-007.metodo.decidido"]
+    assert any(d["objeto_id"] == "OL-007" and d["saida"] == "metodo" for d in gv.paridade(base, trechos, _furos_planilha()))
+
+
+def _base_furo_citado(com_furo=True):
+    t = {"linha": 3, "local": "X", "dn_mm": 200.0, "material": "PEAD", "sond_ini": "SP-03", "sond_fim": "SP-03",
+         "prof_m": 2.0, "comp_m": 10.0, "metodo": "VCA", "pavimentos": {}, "na_m": None, "solo": None}
+    fatos = [_fato("OL-003", p, t[p]) for p in ("dn_mm", "material", "sond_ini", "sond_fim", "prof_m", "comp_m")]
+    objetos = [{"objeto_id": "OL-003", "classe": "trecho_tubo"}]
+    if com_furo:                                                  # furo citado, sem geometria (sem E/N)
+        objetos.append({"objeto_id": "SP-03", "classe": "furo_sondagem"})
+        fatos += [_fato("SP-03", "na_m", 0.5, "observado", "E2"),
+                  _fato("SP-03", "camadas", [{"de": 0, "ate": 6, "descricao": "argila"}], "observado", "E2")]
+    return t, {"objetos": objetos, "geometria": [], "fatos": fatos, "evidencias": [_ev("E1"), _ev("E2", "laudo", "Sonnet")],
+               "pendencias": [], "servicos": []}
+
+
+def test_furo_sem_geometria_entra_so_pelo_nome_e_a_geotecnia_tem_paridade():
+    t, base = _base_furo_citado()
+    furos_ol = [{"id": "SP-03", "E": None, "N": None, "na_m": 0.5, "camadas": [{"de": 0, "ate": 6, "descricao": "argila"}]}]
+    assert gv.furos(base, "furo_sondagem")[0]["E"] is None
+    assert ol.quantificar(t, furos_ol)["geotecnia"]["esgotamento_frac"] == 1.0
+    assert gv.paridade(base, [t], furos_ol) == []
+    _, sem = _base_furo_citado(False)
+    difs = gv.paridade(sem, [t], furos_ol)
+    esg = next(d for d in difs if d["saida"] == "geotecnia.esgotamento_frac")
+    assert esg["gavetas"] == 0.0 and esg["obras_lineares"] == 1.0
+
+
+def test_furo_sem_geometria_e_ignorado_quando_ha_eixo():
+    base = _base()
+    base["objetos"].append({"objeto_id": "SP-99", "classe": "furo_sondagem"})
+    base["fatos"].append(_fato("SP-99", "na_m", 0.1, "observado", "E2"))
+    e = gv.entrada(base, base["objetos"][0])
+    assert e["pts"] is not None and "SP-99" not in {i for f in e["fatos"] for i in [f.split(".")[0]]}

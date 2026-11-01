@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.26.0 — 2026-11-01 · Rodada 22: extração para as gavetas
+- **Leitores → gavetas** (`camadas/extrair_gavetas.py`): a planilha Obras Lineares vira objetos `trecho_tubo`, com
+  fatos e evidência de aba e linha; as sondagens viram `furo_sondagem` com geometria de ponto e o executor de quem
+  escreveu o arquivo; a escolha de método do obra.json vira fato `decidido`. Valor vazio não vira fato.
+- **Paridade** (`gavetas.paridade`): o cálculo das gavetas é comparado, serviço a serviço, com o
+  `obras_lineares.quantificar`. Sem eixo, os furos citados na planilha entram na memória de cálculo.
+- **IA aponta a gaveta**: os lotes da escada dizem em que gaveta cada classe de arquivo grava
+  (`extracao.gavetas_da_classe`); `extracao.fatos_do_retorno` transforma o retorno conferido em fatos `inferido`,
+  com o executor e o trecho citado, e recusa o que estiver fora do de-para.
+- **Base no build**: a etapa `gavetas` grava `saida/<obra>/base/` (parquet), `paridade.json` e `resumo.json`; o build
+  segue mesmo se a etapa falhar.
+- Lição L020.
+
 ## 0.25.0 — 2026-11-01 · Rodada 21: as caixas — formato das gavetas medido e escolhido
 - **Gerador sintético** (`camadas/sintetico.py`, `base_linear(km)`): adutora com eixo em UTM, trechos de 20 m, furos
   a cada 200 m e fatos com evidência; 100 km em 0,17 s, a mesma base para a mesma semente.

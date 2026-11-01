@@ -433,6 +433,10 @@
   "catalogo": "referencias/sanepar/catalogo_materiais.jsonl.gz"
  },
  "sondagens": "dados/foz/geotec/sondagens.json",
+ "gavetas": {
+  "executor_sondagens": "Sonnet",
+  "fonte": "pdca/determinismo.json, etapa sondagens: o sondagens.json foi escrito por um Sonnet a partir do laudo"
+ },
  "obras_lineares": {
   "planilha": "dados/foz/orcamento/211 - SAA Foz do Iguaçú.xlsx",
   "aba": "Obras Lineares",
