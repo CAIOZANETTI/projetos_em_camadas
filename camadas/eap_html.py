@@ -89,7 +89,8 @@ def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dic
     lista = [{"objeto_id": p["objeto_id"], "local": _local(base, p["objeto_id"]), "motivo": p["motivo"]} for p in pendencias]
     contagem = {"servicos": len(servicos), "nos": len(nos), "pendencias": len(lista), "diferencas_paridade": 0,
                 "recalculados": 0, "reaproveitados": 0}
-    return {"nos": nos, "pendencias": lista, "resumo": {**contagem, **(resumo or {})}}
+    dado = resumo or {}                                   # só as chaves do contrato; o resto do resumo fica fora do HTML
+    return {"nos": nos, "pendencias": lista, "resumo": {k: dado.get(k, v) for k, v in contagem.items()}}
 
 
 def metadados() -> dict:

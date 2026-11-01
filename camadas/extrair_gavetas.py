@@ -10,7 +10,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from . import gavetas
+from . import eap_html, gavetas
 from . import obras_lineares as ol
 
 OBSERVADAS_NA_PLANILHA = ("na_m", "solo")      # transcritas do laudo para a planilha
@@ -146,7 +146,8 @@ def _resumo(base: dict, erros: list[str], difs: list[dict], servicos: list[dict]
 
 def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
-    compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`."""
+    compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`. Devolve o resumo
+    com `eap_html` (o `dados["eap"]` da aba EAP, montado e formatado em Python por `eap_html.montar`)."""
     c = cfg.get("obras_lineares")
     if not c or not Path(c["planilha"]).exists():
         if c:
@@ -173,7 +174,7 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     (Path(out) / "resumo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas: {len(base['objetos'])} objetos, {len(base['fatos'])} fatos, {len(base['pendencias'])} pendências, "
         f"{len(servicos)} serviços, {len(erros)} erros de conferência, {len(difs)} diferenças de paridade")
-    return resumo
+    return {**resumo, "eap_html": eap_html.montar(base, servicos, base["pendencias"], resumo)}   # aba EAP do HTML
 
 
 def metadados() -> dict:

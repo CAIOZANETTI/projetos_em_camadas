@@ -119,6 +119,11 @@ def test_etapa_grava_base_paridade_e_resumo(tmp_path):
     assert resumo["fatos_por_natureza"]["decidido"] == 1 and resumo["erros_conferencia"] == []
     assert resumo["objetos_por_classe"] == {"trecho_tubo": 3, "furo_sondagem": 1}
     assert gavetas.conferir_base(gavetas.ler(out / "base")) == []
+    eap = resumo["eap_html"]                                   # rodada 23: o dados["eap"] da aba EAP
+    assert eap["nos"] and set(eap["resumo"]) == {"servicos", "nos", "pendencias", "diferencas_paridade",
+                                                  "recalculados", "reaproveitados"}
+    assert all(f["evidencia"]["onde"] for n in eap["nos"] for s in n["servicos"] for f in s["fatos"])
+    assert "eap_html" not in gravado and json.dumps(eap)       # o resumo.json fica leve; o HTML embute o eap
 
 
 def test_etapa_sem_planilha_devolve_none(tmp_path):
