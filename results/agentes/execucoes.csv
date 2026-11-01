@@ -8,3 +8,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 22,E1 (leitores → gavetas),implementador,claude-sonnet-5-5,86572,19,182,True,ajuste do gerente,"aceita pelo Opus com 2 ajustes (fato_id da decisão, comp 0)"
 2026-11-01,rodada 22,E2 (paridade do cálculo),implementador,claude-sonnet-5-5,88668,17,123,True,nenhum,aceita pelo Opus
 2026-11-01,rodada 22,E3 (lote e retorno com gaveta),implementador,claude-sonnet-5-5,77484,21,125,True,nenhum,aceita pelo Opus
+2026-11-01,rodada 22,E4 (etapa gavetas no build),implementador,claude-sonnet-5-5,14955,11,68,True,nenhum,aceita pelo Opus

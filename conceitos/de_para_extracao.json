@@ -55,7 +55,7 @@
     "solo"
    ],
    "leitor": "camadas.obras_lineares.ler_obras_lineares",
-   "estado": "a ligar",
+   "estado": "ligado (rodada 22: camadas.extrair_gavetas)",
    "classe_fontes_json": "Planilha (contrato, orçamento sem preço, quantitativos)"
   },
   {
@@ -69,7 +69,7 @@
     "cota_boca_m"
    ],
    "leitor": "camadas.obras_lineares.ler_furos (módulo geotecnia a fazer)",
-   "estado": "a ligar",
+   "estado": "ligado (rodada 22: camadas.extrair_gavetas)",
    "classe_fontes_json": "Laudo / relatório técnico (sondagem, topografia, ensaio)"
   },
   {
@@ -94,7 +94,7 @@
     "metodo"
    ],
    "leitor": "bloco de decisões do HTML (ARQUITETURA.md §6)",
-   "estado": "a ligar",
+   "estado": "ligado (rodada 22: camadas.extrair_gavetas)",
    "classe_fontes_json": null
   }
  ]
