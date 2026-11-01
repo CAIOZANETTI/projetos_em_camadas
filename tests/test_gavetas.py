@@ -1,4 +1,5 @@
 import copy
+import json
 
 import pytest
 
@@ -96,8 +97,18 @@ def test_natureza_mais_forte_vence():
     assert gv.fatos_do_objeto(base, "T01")["prof_m"]["valor"] == 3.0
 
 
-@pytest.mark.parametrize("formato", ["jsonl", "csv"])
+DEPENDENCIA = {"parquet": ["pyarrow"], "geoparquet": ["pyarrow", "shapely", "pyproj"], "duckdb": ["pyarrow", "duckdb"]}
+NOVOS = ["parquet", "geoparquet", "duckdb"]
+
+
+def _exige(formato):
+    for mod in DEPENDENCIA.get(formato, []):
+        pytest.importorskip(mod)
+
+
+@pytest.mark.parametrize("formato", ["jsonl", "csv"] + NOVOS)
 def test_formato_fisico_ida_e_volta_sem_perda(tmp_path, formato):
+    _exige(formato)
     base = _base()
     gv.gravar(tmp_path, base, formato)
     lida = gv.ler(tmp_path, formato)
@@ -105,8 +116,8 @@ def test_formato_fisico_ida_e_volta_sem_perda(tmp_path, formato):
 
 
 def test_formato_nao_implementado_avisa(tmp_path):
-    with pytest.raises(ValueError, match="parquet"):
-        gv.gravar(tmp_path, _base(), "parquet")
+    with pytest.raises(ValueError, match="sqlite"):
+        gv.gravar(tmp_path, _base(), "sqlite")
 
 
 def test_eap_soma_e_guarda_o_caminho_de_volta():
@@ -126,3 +137,78 @@ def test_eixo_amostra_cada_metro():
     pts = gv.eixo({"tipo": "linha", "coords": [[0, 0], [3, 0], [3, 2]]})
     assert len(pts) == 5 and pts[0].tolist() == [0.5, 0] and pts[-1].tolist() == [3, 1.5]
     assert gv.eixo({"tipo": "ponto", "coords": [0, 0]}) is None
+
+
+@pytest.mark.parametrize("formato", ["jsonl", "csv"] + NOVOS)
+def test_coluna_mista_e_chave_ausente_voltam_iguais(tmp_path, formato):
+    _exige(formato)
+    base = _base()
+    valores = [1, 2.5, "texto", {"a": [1, 2]}, [1, "b"], True, 3.0, 7]
+    base["fatos"] = [{**_fato("T01", "dn_mm", v), "fato_id": f"F{i}"} for i, v in enumerate(valores)]
+    base["fatos"].append({"fato_id": "F9", "objeto_id": "T01", "propriedade": "dn_mm", "natureza": "projetado"})  # sem valor
+    gv.gravar(tmp_path, base, formato)
+    lida = gv.ler(tmp_path, formato)["fatos"]
+    assert lida == base["fatos"] and "valor" not in lida[-1]
+    assert [type(f["valor"]) for f in lida[:-1]] == [type(v) for v in valores]
+
+
+@pytest.mark.parametrize("formato", NOVOS)
+def test_coluna_escalar_homogenea_fica_nativa(tmp_path, formato):
+    _exige(formato)
+    gv.gravar(tmp_path, _base(), formato)
+    if formato == "duckdb":
+        import duckdb
+        con = duckdb.connect(str(tmp_path / "base.duckdb"), read_only=True)
+        assert ("evidencias", "localizador") in con.execute("SELECT gaveta, coluna FROM _codificacao").fetchall()
+        tipos = dict(con.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'fatos'").fetchall())
+        con.close()
+        assert tipos["fato_id"] == "VARCHAR" and tipos["valor"] == "VARCHAR"
+    else:
+        import pyarrow.parquet as pq
+        esquema = pq.read_schema(tmp_path / "evidencias.parquet")
+        assert json.loads(esquema.metadata[b"gavetas"]) == {"json": ["localizador"]}
+        assert str(esquema.field("evidencia_id").type) == "string"
+
+
+@pytest.mark.parametrize("formato", NOVOS)
+def test_gaveta_vazia_nao_deixa_registro_velho(tmp_path, formato):
+    _exige(formato)
+    gv.gravar(tmp_path, _base(), formato)
+    assert len(gv.ler(tmp_path, formato)["fatos"]) == 8
+    gv.gravar(tmp_path, {**_base(), "fatos": []}, formato)
+    lida = gv.ler(tmp_path, formato)
+    assert lida["fatos"] == [] and len(lida["objetos"]) == 2
+    if formato != "duckdb":
+        assert not (tmp_path / "fatos.parquet").exists()
+
+
+def test_geoparquet_metadados_geo_e_wkb(tmp_path):
+    pq = pytest.importorskip("pyarrow.parquet")
+    shapely = pytest.importorskip("shapely")
+    pytest.importorskip("pyproj")
+    base = _base()
+    gv.gravar(tmp_path, base, "geoparquet")
+    tabela = pq.read_table(tmp_path / "geometria.parquet")
+    geo = json.loads(tabela.schema.metadata[b"geo"])
+    col = geo["columns"]["geometry"]
+    assert geo["version"] == "1.1.0" and geo["primary_column"] == "geometry"
+    assert col["encoding"] == "WKB" and col["geometry_types"] == ["LineString", "Point"]
+    assert col["crs"]["id"] == {"authority": "EPSG", "code": 31982}
+    geoms = [shapely.from_wkb(b) for b in tabela.column("geometry").to_pylist()]
+    assert list(geoms[0].coords) == [(0, 0), (57.3, 0)] and list(geoms[1].coords) == [(20, 10)]
+    assert "geometry" not in gv.ler(tmp_path, "geoparquet")["geometria"][0]
+    base["geometria"][1]["crs_h"] = "EPSG:31983"                      # CRS misto: crs desconhecido (null), não inventado
+    gv.gravar(tmp_path, base, "geoparquet")
+    assert json.loads(pq.read_schema(tmp_path / "geometria.parquet").metadata[b"geo"])["columns"]["geometry"]["crs"] is None
+
+
+def test_geoparquet_poligono_com_furo(tmp_path):
+    shapely = pytest.importorskip("shapely")
+    pq = pytest.importorskip("pyarrow.parquet")
+    pytest.importorskip("pyproj")
+    anel = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]
+    furo = [[2, 2], [4, 2], [4, 4], [2, 2]]
+    reg = {"objeto_id": "B1", "tipo": "poligono", "coords": [anel, furo], "crs_h": "EPSG:31982", "datum_v": "x"}
+    gv.gravar(tmp_path, {"geometria": [reg]}, "geoparquet")
+    g = shapely.from_wkb(pq.read_table(tmp_path / "geometria.parquet").column("geometry")[0].as_py())
+    assert g.area == pytest.approx(100 - 2) and gv.ler(tmp_path, "geoparquet")["geometria"] == [reg]

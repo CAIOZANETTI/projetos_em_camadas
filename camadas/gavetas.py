@@ -96,44 +96,224 @@ def conferir_de_para() -> list[str]:
 # Formato físico (experimento G05): o mesmo contrato em qualquer formato
 # --------------------------------------------------------------------------------------------------------------------
 
+def _gravar_jsonl(pasta: Path, base: dict) -> list[Path]:
+    """`<gaveta>.jsonl`: um registro por linha."""
+    feitos = []
+    for gav in GAVETAS:
+        arq = pasta / f"{gav}.jsonl"
+        arq.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in base.get(gav, [])), encoding="utf-8")
+        feitos.append(arq)
+    return feitos
+
+
+def _ler_jsonl(pasta: Path) -> dict:
+    base = {}
+    for gav in GAVETAS:
+        arq = pasta / f"{gav}.jsonl"
+        base[gav] = ([json.loads(l) for l in arq.read_text(encoding="utf-8").splitlines() if l.strip()]
+                     if arq.exists() else [])
+    return base
+
+
+def _gravar_csv(pasta: Path, base: dict) -> list[Path]:
+    """`<gaveta>.csv`: cabeçalho com a união das chaves, célula em JSON."""
+    feitos = []
+    for gav in GAVETAS:
+        regs, arq = base.get(gav, []), pasta / f"{gav}.csv"
+        colunas = list(dict.fromkeys(k for r in regs for k in r))
+        with open(arq, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh, delimiter=";")
+            w.writerow(colunas)
+            w.writerows([[json.dumps(r.get(c), ensure_ascii=False) for c in colunas] for r in regs])
+        feitos.append(arq)
+    return feitos
+
+
+def _ler_csv(pasta: Path) -> dict:
+    base = {}
+    for gav in GAVETAS:
+        arq = pasta / f"{gav}.csv"
+        if not arq.exists():
+            base[gav] = []
+            continue
+        with open(arq, newline="", encoding="utf-8") as fh:
+            linhas = list(csv.reader(fh, delimiter=";"))
+        base[gav] = [{c: json.loads(v) for c, v in zip(linhas[0], l) if json.loads(v) is not None}
+                     for l in linhas[1:]]
+    return base
+
+
+# Colunas em tabela arrow (parquet, geoparquet e duckdb): escalar homogêneo fica nativo, o resto vira texto JSON.
+
+def _tipo_nativo(valores: list):
+    """Tipo arrow da coluna se todos os valores presentes são do mesmo escalar (bool, int64, float, str); senão None."""
+    import pyarrow as pa
+    tipos = {type(v) for v in valores if v is not None}
+    if len(tipos) != 1:
+        return None
+    t = tipos.pop()
+    if t is int:
+        return pa.int64() if all(-2**63 <= v < 2**63 for v in valores if v is not None) else None
+    return {bool: pa.bool_(), float: pa.float64(), str: pa.string()}.get(t)
+
+
+def _tabela(regs: list[dict]):
+    """Tabela arrow de uma gaveta; os nomes das colunas em JSON ficam nos metadados do schema (`b"gavetas"`)."""
+    import pyarrow as pa
+    colunas = list(dict.fromkeys(k for r in regs for k in r))
+    arrays, em_json = [], []
+    for c in colunas:
+        valores = [r.get(c) for r in regs]
+        tipo = _tipo_nativo(valores)
+        if tipo is None:
+            em_json.append(c)
+            valores = [None if v is None else json.dumps(v, ensure_ascii=False) for v in valores]
+            tipo = pa.string()
+        arrays.append(pa.array(valores, type=tipo))
+    meta = {b"gavetas": json.dumps({"json": em_json}).encode()}
+    return pa.table(arrays, schema=pa.schema([pa.field(c, a.type) for c, a in zip(colunas, arrays)], metadata=meta))
+
+
+def _registros(tabela, em_json: list[str], descartar: tuple = ()) -> list[dict]:
+    """Volta os registros: valor ausente não é recriado e as colunas em JSON são decodificadas."""
+    return [{c: (json.loads(v) if c in em_json else v) for c, v in linha.items() if v is not None and c not in descartar}
+            for linha in tabela.to_pylist()]
+
+
+def _forma(g: dict):
+    """Geometria shapely de um registro da gaveta `geometria` (`tipo` + `coords`); None se não montar."""
+    from shapely import geometry as sg
+    try:
+        c = g["coords"]
+        if g["tipo"] == "ponto":
+            return sg.Point(c)
+        if g["tipo"] == "linha":
+            return sg.LineString(c)
+        aneis = c if c and isinstance(c[0][0], (list, tuple)) else [c]
+        return sg.Polygon(aneis[0], aneis[1:])
+    except (KeyError, TypeError, ValueError, IndexError):
+        return None
+
+
+def _meta_geo(geoms: list, crs_h: set) -> dict:
+    """Metadados `geo` da especificação GeoParquet 1.1; `crs` em PROJJSON só se todos os registros têm o mesmo `crs_h`."""
+    tipos = sorted({g.geom_type + (" Z" if g.has_z else "") for g in geoms if g is not None})
+    coluna = {"encoding": "WKB", "geometry_types": tipos, "crs": None}
+    if len(crs_h) == 1 and None not in crs_h:
+        from pyproj import CRS
+        coluna["crs"] = CRS.from_user_input(next(iter(crs_h))).to_json_dict()
+    return {"version": "1.1.0", "primary_column": "geometry", "columns": {"geometry": coluna}}
+
+
+def _com_geometria(tabela, regs: list[dict]):
+    """Acrescenta a coluna `geometry` (WKB) e o metadado `geo` à tabela da gaveta `geometria`."""
+    import pyarrow as pa
+    import shapely
+    geoms = [_forma(r) for r in regs]
+    wkb = [None if g is None else shapely.to_wkb(g) for g in geoms]
+    tabela = tabela.append_column("geometry", pa.array(wkb, type=pa.binary()))
+    geo = _meta_geo(geoms, {r.get("crs_h") for r in regs})
+    return tabela.replace_schema_metadata({**tabela.schema.metadata, b"geo": json.dumps(geo).encode()})
+
+
+def _gravar_parquet(pasta: Path, base: dict, geo: bool = False) -> list[Path]:
+    """`<gaveta>.parquet`; gaveta vazia não deixa arquivo (apaga o de uma gravação anterior)."""
+    import pyarrow.parquet as pq
+    feitos = []
+    for gav in GAVETAS:
+        regs, arq = base.get(gav, []), pasta / f"{gav}.parquet"
+        if not regs:
+            arq.unlink(missing_ok=True)
+            continue
+        tabela = _tabela(regs)
+        pq.write_table(_com_geometria(tabela, regs) if geo and gav == "geometria" else tabela, arq)
+        feitos.append(arq)
+    return feitos
+
+
+def _gravar_geoparquet(pasta: Path, base: dict) -> list[Path]:
+    """Parquet com a coluna `geometry` em WKB e os metadados `geo` na gaveta `geometria`; `coords` segue guardado."""
+    return _gravar_parquet(pasta, base, geo=True)
+
+
+def _ler_parquet(pasta: Path, geo: bool = False) -> dict:
+    import pyarrow.parquet as pq
+    base = {}
+    for gav in GAVETAS:
+        arq = pasta / f"{gav}.parquet"
+        if not arq.exists():
+            base[gav] = []
+            continue
+        tabela = pq.read_table(arq)
+        em_json = json.loads(tabela.schema.metadata[b"gavetas"])["json"]
+        base[gav] = _registros(tabela, em_json, ("geometry",) if geo and gav == "geometria" else ())
+    return base
+
+
+def _ler_geoparquet(pasta: Path) -> dict:
+    return _ler_parquet(pasta, geo=True)
+
+
+def _gravar_duckdb(pasta: Path, base: dict) -> list[Path]:
+    """`base.duckdb`: uma tabela por gaveta (da mesma tabela arrow do parquet) e `_codificacao(gaveta, coluna)`."""
+    import duckdb
+    arq = pasta / "base.duckdb"
+    con = duckdb.connect(str(arq))
+    con.execute("DROP TABLE IF EXISTS _codificacao")
+    con.execute("CREATE TABLE _codificacao (gaveta VARCHAR, coluna VARCHAR)")
+    for gav in GAVETAS:
+        con.execute(f'DROP TABLE IF EXISTS "{gav}"')
+        if not base.get(gav):
+            continue
+        tabela = _tabela(base[gav])
+        con.register("_t", tabela)
+        con.execute(f'CREATE TABLE "{gav}" AS SELECT * FROM _t')
+        con.unregister("_t")
+        em_json = json.loads(tabela.schema.metadata[b"gavetas"])["json"]
+        for c in em_json:
+            con.execute("INSERT INTO _codificacao VALUES (?, ?)", [gav, c])
+    con.close()
+    return [arq]
+
+
+def _ler_duckdb(pasta: Path) -> dict:
+    import duckdb
+    arq = pasta / "base.duckdb"
+    if not arq.exists():
+        return {gav: [] for gav in GAVETAS}
+    con = duckdb.connect(str(arq), read_only=True)
+    existem = {t for (t,) in con.execute("SELECT table_name FROM information_schema.tables").fetchall()}
+    base = {}
+    for gav in GAVETAS:
+        if gav not in existem:
+            base[gav] = []
+            continue
+        em_json = [c for (c,) in con.execute("SELECT coluna FROM _codificacao WHERE gaveta = ?", [gav]).fetchall()]
+        base[gav] = _registros(con.sql(f'SELECT * FROM "{gav}" ORDER BY rowid').to_arrow_table(), em_json)
+    con.close()
+    return base
+
+
+_GRAVAR = {"jsonl": _gravar_jsonl, "csv": _gravar_csv, "parquet": _gravar_parquet,
+           "geoparquet": _gravar_geoparquet, "duckdb": _gravar_duckdb}
+_LER = {"jsonl": _ler_jsonl, "csv": _ler_csv, "parquet": _ler_parquet,
+        "geoparquet": _ler_geoparquet, "duckdb": _ler_duckdb}
+
+
 def gravar(pasta, base: dict, formato: str | None = None) -> list[Path]:
-    """Uma gaveta por arquivo: `<gaveta>.jsonl` (um registro por linha) ou `<gaveta>.csv` (célula em JSON)."""
+    """Grava a base no formato (`formato.implementados`): um arquivo por gaveta, ou um `base.duckdb`. Devolve os arquivos."""
     formato = formato or REGRAS["formato"]["atual"]
     if formato not in REGRAS["formato"]["implementados"]:
         raise ValueError(f"formato {formato} não implementado: {REGRAS['formato']['implementados']}")
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
-    feitos = []
-    for gav in GAVETAS:
-        regs, arq = base.get(gav, []), pasta / f"{gav}.{formato}"
-        if formato == "jsonl":
-            arq.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in regs), encoding="utf-8")
-        else:
-            colunas = list(dict.fromkeys(k for r in regs for k in r))
-            with open(arq, "w", newline="", encoding="utf-8") as fh:
-                w = csv.writer(fh, delimiter=";")
-                w.writerow(colunas)
-                w.writerows([[json.dumps(r.get(c), ensure_ascii=False) for c in colunas] for r in regs])
-        feitos.append(arq)
-    return feitos
+    return _GRAVAR[formato](pasta, base)
 
 
 def ler(pasta, formato: str | None = None) -> dict:
-    """A base gravada por `gravar`; gaveta sem arquivo volta vazia."""
+    """A base gravada por `gravar`; gaveta sem arquivo (ou sem tabela) volta vazia."""
     formato = formato or REGRAS["formato"]["atual"]
-    base = {}
-    for gav in GAVETAS:
-        arq = Path(pasta) / f"{gav}.{formato}"
-        if not arq.exists():
-            base[gav] = []
-        elif formato == "jsonl":
-            base[gav] = [json.loads(l) for l in arq.read_text(encoding="utf-8").splitlines() if l.strip()]
-        else:
-            with open(arq, newline="", encoding="utf-8") as fh:
-                linhas = list(csv.reader(fh, delimiter=";"))
-            base[gav] = [{c: json.loads(v) for c, v in zip(linhas[0], l) if json.loads(v) is not None}
-                         for l in linhas[1:]]
-    return base
+    return _LER[formato](Path(pasta))
 
 
 # --------------------------------------------------------------------------------------------------------------------
