@@ -1,8 +1,8 @@
 """Testes do schema do furo, da validação e do leitor de laudo de sondagem (camadas/geotecnia.py)."""
 
 import copy
-from itertools import pairwise
 import json
+from itertools import pairwise
 
 import pytest
 
