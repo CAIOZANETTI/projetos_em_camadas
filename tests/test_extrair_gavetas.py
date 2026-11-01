@@ -234,3 +234,76 @@ def test_etapa_com_redes_vala_grava_servicos(tmp_path):
     servicos = gavetas.ler(out / "base")["servicos"]
     assert {s["saida"] for s in servicos if s["objeto_id"] == "RV-R1"} == {"demolicao_m2", "recomposicao_m2", "volume_vala_m3"}
     assert json.loads((out / "paridade.json").read_text(encoding="utf-8")) == []
+
+
+# --- E3 (rodada 24): fatos da IA na etapa ---------------------------------------------------------------------------
+
+def _linha_ia(**extra):
+    return {"arquivo": "laudo.pdf", "pasta_drive": "SONDAGENS", "executor": "Sonnet", "classe": "laudo",
+            "citacao": {"pagina": 2, "trecho": "N.A. a 1,80 m"},
+            "fatos": [{"objeto_id": "SP-77", "propriedade": "na_m", "valor": 1.8},
+                      {"objeto_id": "SP-77", "propriedade": "dn_mm", "valor": 300}], **extra}
+
+
+def _jsonl(pasta, nome="a.jsonl", linhas=()):
+    pasta.mkdir(parents=True, exist_ok=True)
+    (pasta / nome).write_text("\n".join(l if isinstance(l, str) else json.dumps(l) for l in linhas) + "\n",
+                              encoding="utf-8")
+    return pasta
+
+
+def test_retorno_com_fato_permitido_e_fato_fora_do_de_para(tmp_path):
+    base = eg.de_retornos(_jsonl(tmp_path / "r", linhas=[_linha_ia()]))
+    assert len(base["fatos"]) == 1
+    fato, ev = base["fatos"][0], base["evidencias"][0]
+    assert (fato["propriedade"], fato["natureza"], fato["executor"]) == ("na_m", "inferido", "Sonnet")
+    assert ev["executor"] == "Sonnet" and ev["trecho"] == "N.A. a 1,80 m" and ev["metodo"] == "IA"
+    assert [p["objeto_id"] for p in base["pendencias"]] == ["SP-77"]
+    motivo = base["pendencias"][0]["motivo"]
+    assert motivo.startswith("retorno de IA recusado: ") and "(dn_mm)" in motivo
+    assert gavetas.conferir_base(eg.juntar(base)) == []
+
+
+def test_retorno_sem_trecho_vira_so_pendencia(tmp_path):
+    base = eg.de_retornos(_jsonl(tmp_path / "r", linhas=[_linha_ia(citacao={"pagina": 1, "trecho": ""})]))
+    assert base["fatos"] == [] and base["objetos"] == [] and len(base["pendencias"]) == 2
+    assert all("sem trecho citado" in p["motivo"] for p in base["pendencias"])
+
+
+def test_linha_invalida_vira_pendencia_e_a_leitura_segue(tmp_path):
+    pasta = _jsonl(tmp_path / "r", linhas=["{isto nao e json", _linha_ia()])
+    base = eg.de_retornos(pasta)
+    assert len(base["fatos"]) == 1
+    assert any(p["objeto_id"] == "a.jsonl" and "linha 1" in p["motivo"] for p in base["pendencias"])
+    assert eg.de_retornos(pasta) == base                                           # determinístico
+
+
+def test_objeto_ia_ja_existente_nao_duplica_e_classe_diferente_vira_pendencia(tmp_path):
+    existente = eg.de_sondagens(FUROS, "sondagens.json")
+    linha = _linha_ia(fatos=[{"objeto_id": "SP-02", "propriedade": "cota_boca_m", "valor": 651.0}])
+    ia = eg._conciliar_com_a_base(eg.de_retornos(_jsonl(tmp_path / "r", linhas=[linha])), existente)
+    base = eg.juntar(existente, ia)
+    assert [o["objeto_id"] for o in base["objetos"]].count("SP-02") == 1 and gavetas.conferir_base(base) == []
+    trecho = {"objeto_id": "SP-02", "classe": "trecho_tubo"}
+    ia = eg._conciliar_com_a_base({**ia, "objetos": [trecho], "pendencias": []}, existente)
+    assert ia["objetos"] == [] and "classe difere" in ia["pendencias"][0]["motivo"]
+
+
+def test_etapa_com_retornos_conta_fatos_e_recusas_da_ia(tmp_path):
+    out = tmp_path / "saida"
+    _jsonl(out / "retornos_gavetas", linhas=[_linha_ia()])
+    resumo = eg.etapa(_cfg(tmp_path), [{"id": "SP-02", "E": 0.0, "N": 0.0, "na_m": 9.0, "camadas": []}], out,
+                      log=lambda *_: None)
+    assert resumo["fatos_ia"] == 1 and resumo["recusas_ia"] == 1 and resumo["erros_conferencia"] == []
+    assert resumo["fatos_por_natureza"]["inferido"] == 1
+    assert gavetas.conferir_base(gavetas.ler(out / "base")) == []
+
+
+def test_na_do_laudo_observado_vence_o_inferido_da_ia(tmp_path):
+    laudo = eg.de_sondagens(FUROS, "sondagens.json")
+    linha = _linha_ia(fatos=[{"objeto_id": "SP-02", "propriedade": "na_m", "valor": 3.3}])
+    ia = eg._conciliar_com_a_base(eg.de_retornos(_jsonl(tmp_path / "r", linhas=[linha])), laudo)
+    base = eg.juntar(laudo, ia)
+    assert sum(f["propriedade"] == "na_m" and f["objeto_id"] == "SP-02" for f in base["fatos"]) == 2
+    escolhido = gavetas.fatos_do_objeto(base, "SP-02")["na_m"]
+    assert escolhido["natureza"] == "observado" and escolhido["valor"] == 9.0
