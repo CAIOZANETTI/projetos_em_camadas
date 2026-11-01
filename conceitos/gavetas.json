@@ -8,7 +8,7 @@
  "formato": {
   "atual": "jsonl",
   "estado": "premissa",
-  "implementados": ["jsonl", "csv"],
+  "implementados": ["jsonl", "csv", "parquet", "geoparquet", "duckdb"],
   "candidatos": ["jsonl", "csv", "parquet", "geoparquet", "duckdb", "sqlite/spatialite", "postgis"],
   "metricas": ["ida e volta sem perda (tipos, listas, dicionários)", "tamanho em disco por obra", "tempo de gravação e de leitura", "p50/p95 de consulta por objeto e por trecho", "RAM máxima", "legibilidade para auditoria (diff no git)", "dependências extras"],
   "experimento": "G05 (5 km reais) e G08 (carga sintética de 100 km); a troca do formato não muda nenhum outro arquivo"
