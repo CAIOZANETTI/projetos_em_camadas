@@ -75,3 +75,12 @@ def test_serializavel_e_metadados():
     _, _, _, eap = _montado()
     assert json.loads(json.dumps(eap, ensure_ascii=False)) == eap
     assert eh.metadados()["modulo"] == "eap_html"
+
+
+def test_servico_com_fato_fora_da_base_nao_vai_para_o_html():
+    """Aceite da rodada 23: número sem caminho de volta é erro, não omissão silenciosa."""
+    base = _base()
+    servicos, pend = gavetas.calcular(base)
+    servicos[0] = {**servicos[0], "fatos": servicos[0]["fatos"] + ["T01.inexistente"]}
+    with pytest.raises(ValueError, match="T01.inexistente"):
+        eh.montar(base, servicos, pend)

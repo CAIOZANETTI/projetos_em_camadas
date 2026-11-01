@@ -432,12 +432,24 @@ def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict
     return linhas
 
 
+def impressao_regra(regra: str) -> str:
+    """sha1 curto do código do módulo da função da regra e das constantes dele (`REGRAS`, de `conceitos/`): mudar o
+    empolamento, a Tabela I do MOS ou o próprio cálculo muda a chave, sem depender de alguém subir a `versao`."""
+    if regra not in SERVICOS["regras"]:
+        return ""
+    modulo = importlib.import_module(SERVICOS["regras"][regra]["funcao"].rpartition(".")[0])
+    corpo = Path(modulo.__file__).read_bytes() + json.dumps(getattr(modulo, "REGRAS", None), sort_keys=True,
+                                                            default=str).encode("utf-8")
+    return hashlib.sha1(corpo, usedforsecurity=False).hexdigest()[:12]   # identidade do cálculo, não segurança
+
+
 def chave_servico(regra: str, versao: str, dados: dict, fatos_usados: list[str], furos_usados: list[dict],
-                  pts: np.ndarray | None = None) -> str:
-    """sha1 curto (12 hex) de regra + versão + dados da regra + fato_id usados + furos usados (e os pontos do eixo)."""
+                  pts: np.ndarray | None = None, impressao: str | None = None) -> str:
+    """sha1 curto (12 hex) de regra + versão + impressão da regra (código e constantes) + dados da regra + fato_id
+    usados + furos usados (e os pontos do eixo)."""
     pontos = None if pts is None else np.round(np.asarray(pts, float), 3).tolist()
-    corpo = {"regra": regra, "versao": versao, "dados": dados, "fatos": list(fatos_usados),
-             "furos": furos_usados, "pts": pontos}
+    corpo = {"regra": regra, "versao": versao, "impressao": impressao or impressao_regra(regra), "dados": dados,
+             "fatos": list(fatos_usados), "furos": furos_usados, "pts": pontos}
     texto = json.dumps(corpo, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha1(texto, usedforsecurity=False).hexdigest()[:12]   # identidade do cálculo, não segurança
 
@@ -466,6 +478,7 @@ def calcular_incremental(base: dict, anterior: list[dict] | None = None) -> tupl
     `chave_calculo` (e os alertas guardados no 1º serviço) voltam sem chamar a função da regra.
     O campo `chave` do serviço já é a subchave do dicionário (pavimento); o hash fica em `chave_calculo`."""
     servicos, pendencias, est = [], [], {"recalculados": 0, "reaproveitados": 0}
+    impressoes = {r: impressao_regra(r) for r in SERVICOS["regras"]}      # uma leitura por regra e por cálculo
     for o in base.get("objetos", []):
         e = entrada(base, o)
         if e["regra"] is None:
@@ -475,7 +488,7 @@ def calcular_incremental(base: dict, anterior: list[dict] | None = None) -> tupl
                                "motivo": "faltam fatos obrigatórios: " + ", ".join(e["faltam"])})
             continue
         chave = chave_servico(e["regra"], SERVICOS["regras"][e["regra"]]["versao"], e["dados"], e["fatos"],
-                              e["furos_usados"], e["pts"])
+                              e["furos_usados"], e["pts"], impressoes[e["regra"]])
         antigos = _reaproveitavel(anterior or [], o["objeto_id"], e["regra"], chave)
         if antigos is not None:
             linhas = [dict(s) for s in antigos]
@@ -539,14 +552,16 @@ def _paridade_do_objeto(base: dict, o: dict, trecho: dict, furos: list[dict], ob
     return difs
 
 
-def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.001) -> list[dict]:
+def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.001,
+             servicos: list[dict] | None = None) -> list[dict]:
     """Diferenças entre o cálculo das gavetas e o `obras_lineares.quantificar` dos trechos da planilha (`OL-<linha>`).
 
     O `quantificar` usa o `metodo` do trecho recebido (o aplicado, como no `obras_lineares.csv`); se ele difere do método
     da regra escolhida nas gavetas, sai a diferença `metodo`. Compara também a geotecnia (`geotecnia.<campo>`), com a
     `entrada` da base. Devolve só o que difere por mais de `tol`: {objeto_id, saida, chave, gavetas, obras_lineares}.
+    `servicos`: os que foram gravados e vão para a EAP (inclusive os reaproveitados); sem eles, calcula a base.
     """
-    servicos, _ = calcular(base)
+    servicos = calcular(base)[0] if servicos is None else servicos
     por_objeto: dict[str, dict] = {}
     for s in servicos:
         por_objeto.setdefault(s["objeto_id"], {})[(s["saida"], s.get("chave"))] = s["valor"]

@@ -453,3 +453,34 @@ def test_chave_servico_deterministica_e_sensivel_a_cada_parte():
               gv.chave_servico("r", "1", {"a": 1}, ["F2"], f),
               gv.chave_servico("r", "1", {"a": 1}, ["F1"], [{"id": "SP", "na_m": 2.0}])}
     assert k not in outras and len(outras) == 4
+
+
+def test_incremental_ve_as_constantes_da_regra(monkeypatch):
+    """Aceite da rodada 23: mudar uma constante do MOS (empolamento) muda a chave e recalcula, sem subir a versão."""
+    base = _base()
+    servicos, _, _ = gv.calcular_incremental(base)
+    regras = copy.deepcopy(ol.REGRAS)
+    regras["empolamento"]["valor"] = regras["empolamento"]["valor"] * 2
+    monkeypatch.setattr(ol, "REGRAS", regras)
+    novos, _, est = gv.calcular_incremental(base, anterior=servicos)
+    assert est["reaproveitados"] == 0 and est["recalculados"] >= 1
+    antes = {s["servico_id"]: s["valor"] for s in servicos}
+    depois = {s["servico_id"]: s["valor"] for s in novos}
+    assert depois["T01:vala_aberta:bota_fora_m3"] == pytest.approx(2 * antes["T01:vala_aberta:bota_fora_m3"], abs=0.002)
+
+
+def test_paridade_compara_os_servicos_gravados():
+    """Aceite da rodada 23: valor adulterado (ou velho) nos serviços que vão para a EAP aparece na paridade."""
+    base = _base()
+    base["objetos"][0]["objeto_id"] = "OL-007"
+    for g in ("geometria", "fatos"):
+        for r in base[g]:
+            if r["objeto_id"] == "T01":
+                r["objeto_id"] = "OL-007"
+    trechos = [{"linha": 7, "local": "x", "dn_mm": 1000, "material": "FD", "prof_m": 2.4, "comp_m": 57.3,
+                "metodo": "VCA", "pavimentos": {"grama": 57.3}, "supressao_frac": 1.0, "sond_ini": None, "sond_fim": None,
+                "na_m": None, "solo": None}]
+    furos = [f for f in gv.furos(base, "furo_sondagem")]
+    servicos, _ = gv.calcular(base)
+    velhos = [{**s, "valor": 999.0} if s["saida"] == "escavacao_m3" else s for s in servicos]
+    assert any(d["saida"] == "escavacao_m3" for d in gv.paridade(base, trechos, furos, servicos=velhos))

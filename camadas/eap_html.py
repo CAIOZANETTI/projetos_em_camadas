@@ -66,6 +66,16 @@ def _evidencia(ev: dict | None) -> dict:
             "onde": onde(ev.get("localizador") or {}), "trecho": ev.get("trecho") or "", "executor": ev.get("executor", "")}
 
 
+def _lastro(fatos: dict, evidencias: dict, servico_id: str, fato_id: str) -> dict:
+    """O fato citado pelo serviço, com a evidência dele; sem um dos dois, erro: número sem caminho de volta não vai
+    para o HTML (critério 1 da rodada 23)."""
+    f = fatos.get(fato_id)
+    if f is None or f.get("evidencia_id") not in evidencias:
+        raise ValueError(f"serviço {servico_id} cita {'fato ' + fato_id if f is None else 'fato sem evidência ' + fato_id}"
+                         " que não está na base")
+    return f
+
+
 def _fato(f: dict, evidencias: dict) -> dict:
     return {"propriedade": f["propriedade"], "valor_txt": valor_txt(f["propriedade"], f["valor"]),
             "natureza": f["natureza"], "evidencia": _evidencia(evidencias.get(f["evidencia_id"]))}
@@ -82,10 +92,11 @@ def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dic
         for sid in no["servicos"]:
             s = por_id[sid]
             itens.append({"servico_id": sid, "objeto_id": s["objeto_id"], "local": _local(base, s["objeto_id"]),
-                          "regra": s["regra"], "versao_regra": str(s["versao_regra"]), "valor_txt": br(s["valor"]),
-                          "fatos": [_fato(fatos[i], evidencias) for i in s["fatos"] if i in fatos]})
+                          "regra": s["regra"], "versao_regra": str(s["versao_regra"]),
+                          "valor_txt": br(s["valor"], 0 if no["unidade"] == "un" else 2),
+                          "fatos": [_fato(_lastro(fatos, evidencias, sid, i), evidencias) for i in s["fatos"]]})
         nos.append({"eap": no["eap"], "descricao": no["descricao"], "unidade": no["unidade"],
-                    "valor_txt": br(no["valor"]), "servicos": itens})
+                    "valor_txt": br(no["valor"], 0 if no["unidade"] == "un" else 2), "servicos": itens})
     lista = [{"objeto_id": p["objeto_id"], "local": _local(base, p["objeto_id"]), "motivo": p["motivo"]} for p in pendencias]
     contagem = {"servicos": len(servicos), "nos": len(nos), "pendencias": len(lista), "diferencas_paridade": 0,
                 "recalculados": 0, "reaproveitados": 0}

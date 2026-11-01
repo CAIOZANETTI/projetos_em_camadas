@@ -165,7 +165,7 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     pasta = Path(out) / "base"
     anterior = gavetas.ler(pasta)["servicos"] if (pasta / "servicos.parquet").exists() else None
     servicos, pend_calculo, est = gavetas.calcular_incremental(base, anterior)
-    difs = gavetas.paridade(base, aplicados, furos)
+    difs = gavetas.paridade(base, aplicados, furos, servicos=servicos)   # compara o que vai para a EAP
     base["pendencias"] = base["pendencias"] + pend_calculo
     pasta.mkdir(parents=True, exist_ok=True)
     gavetas.gravar(pasta, {**base, "servicos": servicos})
