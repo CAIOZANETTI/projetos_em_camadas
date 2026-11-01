@@ -86,7 +86,7 @@ def de_sondagens(furos: list[dict], documento: str, executor: str = "código", c
                                       "crs_h": crs_h, "datum_v": "ortométrico"})
         else:
             base["pendencias"].append({"objeto_id": objeto_id,
-                                       "motivo": "furo sem coordenadas: não entra pela posição"})
+                                       "motivo": "furo sem coordenadas: entra só pelo nome citado na planilha, não pela posição no eixo"})
         for propriedade in propriedades:
             if not _vazio(furo.get(propriedade)):
                 base["fatos"].append(_fato(objeto_id, propriedade, furo[propriedade], "observado", evidencia_id))

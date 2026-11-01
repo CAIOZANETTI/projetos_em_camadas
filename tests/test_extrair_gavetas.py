@@ -60,7 +60,7 @@ def test_furos_com_e_sem_coordenadas():
     base = eg.de_sondagens(FUROS, "sondagens.json", executor="Sonnet")
     assert base["geometria"] == [{"objeto_id": "SP-02", "tipo": "ponto", "coords": [10.0, 20.0],
                                   "crs_h": "EPSG:31982", "datum_v": "ortométrico"}]
-    assert base["pendencias"] == [{"objeto_id": "SP-05", "motivo": "furo sem coordenadas: não entra pela posição"}]
+    assert base["pendencias"] == [{"objeto_id": "SP-05", "motivo": "furo sem coordenadas: entra só pelo nome citado na planilha, não pela posição no eixo"}]
     assert {e["executor"] for e in base["evidencias"]} == {"Sonnet"}
     assert base["evidencias"][0]["localizador"] == {"arquivo": "sondagens.json", "furo": "SP-02"}
     assert not any(f["objeto_id"] == "SP-05" and f["propriedade"] == "cota_boca_m" for f in base["fatos"])
