@@ -1,0 +1,101 @@
+{
+ "metadata": {
+  "fonte": "de-para 1 de docs/MEMORIA_ESPACIAL.md: documento → gaveta",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Para cada classe de fonte (conceitos/fontes.json) e elemento lido: a classe do objeto, as propriedades que a leitura pode gravar e o leitor. O primeiro executor é sempre código; o que o código não lê sobe pela escada de fontes.json (Haiku → Sonnet → Opus → você) e o Fable audita o fechamento. Um agente só devolve as propriedades listadas aqui. MVP: trecho de tubo de adutora e furo de sondagem. `classe_fontes_json` liga a entrada à classe de conceitos/fontes.json (o lote da escada e o retorno da IA usam esse vínculo); ortofoto e decisão não são arquivos do inventário (null)."
+ },
+ "entradas": [
+  {
+   "classe_fonte": "projeto",
+   "vista": "planta",
+   "objeto": "trecho_tubo",
+   "geometria": "linha",
+   "propriedades": [
+    "dn_mm",
+    "material"
+   ],
+   "leitor": "camadas.pdf_cad + camadas.georef_prancha",
+   "estado": "a ligar",
+   "classe_fontes_json": "Projeto (prancha)"
+  },
+  {
+   "classe_fonte": "projeto",
+   "vista": "perfil",
+   "objeto": "trecho_tubo",
+   "geometria": null,
+   "propriedades": [
+    "prof_m",
+    "comp_m",
+    "dn_mm",
+    "material"
+   ],
+   "leitor": "camadas.prancha (perfil)",
+   "estado": "a implementar",
+   "classe_fontes_json": "Projeto (prancha)"
+  },
+  {
+   "classe_fonte": "planilha",
+   "vista": "aba Obras Lineares",
+   "objeto": "trecho_tubo",
+   "geometria": null,
+   "propriedades": [
+    "local",
+    "dn_mm",
+    "material",
+    "junta",
+    "prof_m",
+    "comp_m",
+    "metodo",
+    "pavimentos",
+    "supressao_frac",
+    "sond_ini",
+    "sond_fim",
+    "na_m",
+    "solo"
+   ],
+   "leitor": "camadas.obras_lineares.ler_obras_lineares",
+   "estado": "a ligar",
+   "classe_fontes_json": "Planilha (contrato, orçamento sem preço, quantitativos)"
+  },
+  {
+   "classe_fonte": "laudo",
+   "vista": "sondagem SPT",
+   "objeto": "furo_sondagem",
+   "geometria": "ponto",
+   "propriedades": [
+    "na_m",
+    "camadas",
+    "cota_boca_m"
+   ],
+   "leitor": "camadas.obras_lineares.ler_furos (módulo geotecnia a fazer)",
+   "estado": "a ligar",
+   "classe_fontes_json": "Laudo / relatório técnico (sondagem, topografia, ensaio)"
+  },
+  {
+   "classe_fonte": "ortofoto",
+   "vista": "mosaico do drone",
+   "objeto": "trecho_tubo",
+   "geometria": null,
+   "propriedades": [
+    "pavimentos",
+    "supressao_frac"
+   ],
+   "leitor": "camadas.obras_lineares.pavimentos_ortofoto, camadas.supressao",
+   "estado": "a ligar",
+   "classe_fontes_json": null
+  },
+  {
+   "classe_fonte": "decisao",
+   "vista": "decisão do engenheiro",
+   "objeto": "trecho_tubo",
+   "geometria": null,
+   "propriedades": [
+    "metodo"
+   ],
+   "leitor": "bloco de decisões do HTML (ARQUITETURA.md §6)",
+   "estado": "a ligar",
+   "classe_fontes_json": null
+  }
+ ]
+}

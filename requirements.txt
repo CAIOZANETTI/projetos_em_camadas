@@ -6,6 +6,7 @@ pytest>=8
 pandas>=2.2
 openpyxl>=3.1
 shapely>=2.0      # geometria (camadas.obra importa valas/escavacao/prancha, que usam no topo; shapely 2: contains_xy, from_geojson)
+pyarrow>=15     # formato atual das gavetas (parquet; camadas.gavetas, decisão da rodada 21)
 # opcionais
 # pycolmap>=4.0   # 3D/ortofoto (camadas.sfm), CPU
 # pymupdf>=1.24   # PDF vetorial (camadas.pdf_cad) — AGPL
@@ -13,4 +14,5 @@ shapely>=2.0      # geometria (camadas.obra importa valas/escavacao/prancha, que
 # pytesseract     # malha de coordenadas impressa (georef_prancha.registrar_malha); exige `apt-get install tesseract-ocr`
 # geopandas>=1.2  # GeoPackage (camadas.sig.geopackage, _gdf_de_fc)
 # rasterio>=1.5   # GeoTIFF e recorte (camadas.sig.geotiff, recortar) e máscara (camadas.supressao); usa GDAL
+# duckdb>=1.0    # formato duckdb das gavetas (camadas.gavetas.gravar/ler)
 # playwright>=1.40  # teste do visualizador (scripts/testar_visualizador.py); exige `playwright install chromium`
