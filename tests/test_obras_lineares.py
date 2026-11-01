@@ -228,3 +228,19 @@ def test_furo_por_metro_com_caixa_igual_a_referencia_em_casos_aleatorios():
         assert ol.furo_por_metro(pts, furos, ol.furos_com_xy(furos)) == esperado
     assert ol.furo_por_metro(np.zeros((0, 2)), []) == []
     assert ol.furo_por_metro(np.zeros((0, 2)), [{"id": "A", "E": 0.0, "N": 0.0}]) == []
+
+
+def test_furo_por_metro_com_linha_nan_igual_a_referencia():
+    pts = np.array([[10.0, 10.0], [np.nan, np.nan], [12.0, 10.0], [np.nan, 5.0]])
+    furos = [{"id": "A", "E": 10.0, "N": 11.0}, {"id": "B", "E": 12.0, "N": 12.0}]
+    esperado = _furo_por_metro_referencia(pts, furos)
+    assert esperado == ["A", None, "B", None]
+    assert ol.furo_por_metro(pts, furos) == esperado
+    assert ol.furo_por_metro(np.full((2, 2), np.nan), furos) == [None, None]
+
+
+def test_id_furo_aceita_argumento_nao_hashable_e_separa_tipos():
+    assert ol.id_furo(["SP-02"]) == ol.id_furo(str(["SP-02"]))
+    assert ol.id_furo(None) == ol.id_furo(None)
+    assert ol.id_furo(2) == "2" and ol.id_furo(2.0) == "20"
+    assert ol.id_furo("SP-02") == "SP2"

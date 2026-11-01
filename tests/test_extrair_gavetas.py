@@ -202,6 +202,7 @@ def test_etapa_segunda_rodada_no_mesmo_out_nao_recalcula_nada(tmp_path):
 def _rede_vala(n=40, criterio="divisas"):
     import numpy as np
     return {"id": "R1", "de_mm": 300, "fonte_de": "t", "criterio": criterio, "pranchas": ["P1", "P2"],
+            "layers": ["TUBO", "LIMITE"],
             "extensao_m": float(n), "pts": np.c_[np.arange(n) + 0.5, np.zeros(n)], "tang": np.tile([1.0, 0.0], (n, 1)),
             "peso": np.ones(n), "classes": ["pista"] * 25 + ["calcada"] * 10 + ["vegetacao"] * 5,
             "finais": [None] * 35 + ["grama"] * 5, "quadro": []}
@@ -215,7 +216,8 @@ def test_rede_de_vala_passa_por_gavetas_e_paridade():
         "de_mm": "projetado", "extensao_m": "projetado", "classes_por_metro": "projetado", "pesos_m": "projetado",
         "finais": "projetado"}
     ev = base["evidencias"][0]
-    assert ev["classe"] == "projeto" and ev["localizador"] == {"pranchas": ["P1", "P2"], "criterio": "divisas"}
+    assert ev["classe"] == "projeto" and ev["localizador"] == {
+        "pranchas": ["P1", "P2"], "layers": ["TUBO", "LIMITE"], "criterio": "divisas"}
     servicos, pend = gavetas.calcular(base)
     assert pend == [] and {s["saida"] for s in servicos} == {"demolicao_m2", "recomposicao_m2", "volume_vala_m3"}
     assert eg.paridade_valas(base, [rede]) == []
@@ -224,6 +226,33 @@ def test_rede_de_vala_passa_por_gavetas_e_paridade():
     assert eg.paridade_valas(base, [{**rede, "peso": rede["peso"] * 1.5}])      # base defasada: a paridade acusa
     por_ortofoto = eg.de_valas([_rede_vala(criterio="ortofoto")])
     assert {f["natureza"] for f in por_ortofoto["fatos"] if f["propriedade"] == "pesos_m"} == {"inferido"}
+
+
+def test_vala_pela_ortofoto_aponta_as_classes_para_a_evidencia_da_ortofoto():
+    base = eg.de_valas([_rede_vala(criterio="ortofoto")], ortofoto="saida/sfm/ortofoto.jpg")
+    assert gavetas.conferir_base(base) == []
+    evidencias = {e["evidencia_id"]: e for e in base["evidencias"]}
+    orto = evidencias["EV-RV-R1-ORTO"]
+    assert (orto["classe"], orto["documento"], orto["metodo"], orto["executor"]) == (
+        "ortofoto", "saida/sfm/ortofoto.jpg", "geometria", "código")
+    por_propriedade = {f["propriedade"]: f for f in base["fatos"]}
+    for propriedade in ("classes_por_metro", "pesos_m", "finais"):
+        assert por_propriedade[propriedade]["evidencia_id"] == "EV-RV-R1-ORTO"
+        assert por_propriedade[propriedade]["natureza"] == "inferido"
+    for propriedade in ("de_mm", "extensao_m"):
+        assert por_propriedade[propriedade]["evidencia_id"] == "EV-RV-R1"
+    assert evidencias["EV-RV-R1"]["localizador"]["layers"] == ["TUBO", "LIMITE"]
+    desenho = eg.de_valas([_rede_vala()])
+    assert [e["evidencia_id"] for e in desenho["evidencias"]] == ["EV-RV-R1"]
+    assert {f["evidencia_id"] for f in desenho["fatos"]} == {"EV-RV-R1"}
+
+
+def test_etapa_passa_a_ortofoto_do_sfm_para_as_valas(tmp_path):
+    out = tmp_path / "saida"
+    out.mkdir()
+    eg.etapa(_cfg(tmp_path), [], out, log=lambda *_: None, redes_vala=[_rede_vala(criterio="ortofoto")])
+    evidencias = {e["evidencia_id"]: e for e in gavetas.ler(out / "base")["evidencias"]}
+    assert evidencias["EV-RV-R1-ORTO"]["documento"] == str(out / "sfm" / "ortofoto.jpg")
 
 
 def test_etapa_com_redes_vala_grava_servicos(tmp_path):
@@ -307,3 +336,44 @@ def test_na_do_laudo_observado_vence_o_inferido_da_ia(tmp_path):
     assert sum(f["propriedade"] == "na_m" and f["objeto_id"] == "SP-02" for f in base["fatos"]) == 2
     escolhido = gavetas.fatos_do_objeto(base, "SP-02")["na_m"]
     assert escolhido["natureza"] == "observado" and escolhido["valor"] == 9.0
+
+
+# --- Revisão da rodada 24 -----------------------------------------------------------------------------------------------
+
+def test_classe_declarada_pela_ia_diferente_da_calculada_recusa_o_retorno_inteiro(tmp_path):
+    linha = _linha_ia(arquivo="planta_geral.dwg", pasta_drive="PROJETOS/PLANTAS", classe="laudo")
+    base = eg.de_retornos(_jsonl(tmp_path / "r", linhas=[linha]))
+    assert base["fatos"] == [] and base["evidencias"] == [] and base["objetos"] == []
+    assert len(base["pendencias"]) == 1
+    motivo = base["pendencias"][0]["motivo"]
+    assert "classe do arquivo não conferida" in motivo and "declarada laudo" in motivo
+
+
+def test_classe_vem_do_classificador_e_da_avaliacao_quando_dada(tmp_path):
+    pasta = _jsonl(tmp_path / "r", linhas=[_linha_ia()])
+    assert len(eg.de_retornos(pasta)["fatos"]) == 1                                  # laudo.pdf é laudo pelo nome
+    avaliacoes = {"SONDAGENS/laudo.pdf": {"classe": "memorial"}}                     # o inventário diz outra coisa
+    recusado = eg.de_retornos(pasta, avaliacoes)
+    assert recusado["fatos"] == [] and "classe do arquivo não conferida" in recusado["pendencias"][0]["motivo"]
+    assert len(eg.de_retornos(pasta, {"laudo.pdf": {"classe": "laudo"}})["fatos"]) == 1
+
+
+def test_arquivo_que_nao_se_classifica_recusa_o_retorno(tmp_path):
+    for extra in ({"arquivo": "xyz123.bin", "pasta_drive": "DIVERSOS"}, {"arquivo": None}):
+        base = eg.de_retornos(_jsonl(tmp_path / "r", linhas=[_linha_ia(**extra)]))
+        assert base["fatos"] == [] and "classe do arquivo não conferida" in base["pendencias"][0]["motivo"]
+
+
+def test_retorno_de_ia_com_objeto_fora_da_planilha_nao_gera_escavacao_na_etapa(tmp_path):
+    out = tmp_path / "saida"
+    fatos = [{"objeto_id": "OL-999", "propriedade": p, "valor": v, "classe_objeto": "trecho_tubo"}
+             for p, v in (("dn_mm", 300), ("material", "PVC"), ("prof_m", 2.0), ("comp_m", 50.0))]
+    _jsonl(out / "retornos_gavetas", linhas=[_linha_ia(arquivo="planta_adutora.dwg", pasta_drive="PROJETOS", classe="projeto",
+                                                       fatos=fatos)])
+    resumo = eg.etapa(_cfg(tmp_path), [], out, log=lambda *_: None)
+    servicos = gavetas.ler(out / "base")["servicos"]
+    assert not [s for s in servicos if s["objeto_id"] == "OL-999"]
+    pendencias = gavetas.ler(out / "base")["pendencias"]
+    assert any(p["objeto_id"] == "OL-999" and p["motivo"].startswith("depende de fato de IA não conferido")
+               for p in pendencias)
+    assert resumo["fatos_ia"] == 4 and resumo["fatos_por_natureza"]["inferido"] >= 4

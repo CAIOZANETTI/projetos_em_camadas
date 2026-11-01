@@ -547,3 +547,69 @@ def test_reaproveitar_pelo_anterior_indexado_e_paridade_com_indice():
     _, _, est = gv.calcular_incremental(base, anterior=servicos)
     assert est == {"recalculados": 1, "reaproveitados": 1}
     assert {d["objeto_id"] for d in gv.paridade(base, _trechos_planilha(), _furos_planilha())} == {"OL-007"}
+
+
+# --- Revisão da rodada 24: fato de IA não alimenta regra --------------------------------------------------------------
+
+def _ev_ia(i="EIA"):
+    return {"evidencia_id": i, "classe": "laudo", "documento": "laudo.pdf", "localizador": {"pagina": 1, "pasta_drive": "X"},
+            "trecho": "trecho citado", "metodo": "IA", "executor": "Sonnet"}
+
+
+def _fato_ia(obj, prop, valor):
+    return {"fato_id": f"{obj}.{prop}.ia", "objeto_id": obj, "propriedade": prop, "valor": valor,
+            "natureza": "inferido", "evidencia_id": "EIA"}
+
+
+def test_objeto_so_com_fatos_de_ia_vira_pendencia_e_nao_gera_servico():
+    base = {"objetos": [{"objeto_id": "OL-999", "classe": "trecho_tubo"}], "geometria": [],
+            "fatos": [_fato_ia("OL-999", "dn_mm", 300), _fato_ia("OL-999", "material", "PVC"),
+                      _fato_ia("OL-999", "prof_m", 2.0), _fato_ia("OL-999", "comp_m", 50.0)],
+            "evidencias": [_ev_ia()], "pendencias": [], "servicos": []}
+    servicos, pendencias = gv.calcular(base)
+    assert servicos == []
+    assert [p["motivo"] for p in pendencias] == ["depende de fato de IA não conferido: dn_mm, material, prof_m, comp_m"]
+    assert gv.fatos_do_objeto(base, "OL-999")["dn_mm"]["natureza"] == "inferido"          # continua visível
+
+
+def test_obrigatorio_so_de_ia_e_obrigatorio_ausente_geram_pendencias_separadas():
+    base = _base()
+    base["fatos"] = [f for f in base["fatos"] if f["propriedade"] not in ("prof_m", "material")]
+    base["fatos"].append(_fato_ia("T01", "prof_m", 2.4))
+    base["evidencias"].append(_ev_ia())
+    servicos, pendencias = gv.calcular(base)
+    assert not [s for s in servicos if s["objeto_id"] == "T01"]
+    assert sorted(p["motivo"] for p in pendencias) == ["depende de fato de IA não conferido: prof_m",
+                                                       "faltam fatos obrigatórios: material"]
+
+
+def test_fato_de_ia_nao_entra_em_dados_nem_na_memoria_de_calculo():
+    base = _base()
+    base["fatos"].append(_fato_ia("T01", "junta", "elástica"))
+    base["fatos"].append(_fato_ia("SP-02", "cota_boca_m", 650.0))
+    base["evidencias"].append(_ev_ia())
+    e = gv.entrada(base, base["objetos"][0])
+    assert "junta" not in e["dados"] and "T01.junta.ia" not in e["fatos"] and "SP-02.cota_boca_m.ia" not in e["fatos"]
+    assert _normalizada(e) == _normalizada(gv.entrada(base, base["objetos"][0], gv.indice(base)))
+    assert all("ia" not in i.split(".")[-1] for s in gv.calcular(base)[0] for i in s["fatos"])
+
+
+def test_na_de_ia_no_furo_nao_chega_a_regra():
+    base = _base()
+    base["fatos"] = [f for f in base["fatos"] if f["propriedade"] != "na_m"]
+    base["fatos"].append(_fato_ia("SP-02", "na_m", 0.5))
+    base["evidencias"].append(_ev_ia())
+    assert gv.furos(base, "furo_sondagem")[0]["na_m"] is None
+    assert gv.furos(base, "furo_sondagem", gv.indice(base))[0]["na_m"] is None
+    assert gv.fatos_do_objeto(base, "SP-02")["na_m"]["valor"] == 0.5
+
+
+@pytest.mark.parametrize("invertida", [False, True])
+def test_empate_de_natureza_o_fato_de_codigo_vence_o_de_ia(invertida):
+    codigo = {**_fato("SP-02", "cota_boca_m", 650.5, "inferido", "E1"), "fato_id": "SP-02.cota_boca_m.ortofoto"}
+    ia = _fato_ia("SP-02", "cota_boca_m", 700.0)
+    fatos = [ia, codigo] if invertida else [codigo, ia]
+    base = {"objetos": [], "geometria": [], "fatos": fatos, "evidencias": [_ev("E1"), _ev_ia()], "pendencias": []}
+    assert gv.fatos_do_objeto(base, "SP-02")["cota_boca_m"]["valor"] == 650.5
+    assert gv.fatos_do_objeto(base, "SP-02", gv.indice(base))["cota_boca_m"]["valor"] == 650.5
+    assert gv._vencedores(fatos, {"EIA"})["cota_boca_m"]["valor"] == 650.5

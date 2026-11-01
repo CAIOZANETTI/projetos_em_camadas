@@ -230,10 +230,12 @@ def classificar(am: dict, criterio: str, limites: dict, orto: dict | None = None
 def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict | None:
     """Uma rede (uma ou várias pranchas): amostras classificadas e o quadro por classe."""
     pts, tang, peso, classes, finais = [], [], [], [], []
+    layers = []                                           # os layers lidos: tubo de cada prancha e os de apoio da rede
     for pid in r["pranchas"]:
         p = por_id.get(pid)
         if p is None or p.get("M") is None:
             continue
+        layers.append(r.get("layer") or p["layer_tubo"])
         tr = pdf_cad.extrair(p["pdf"], clip=p.get("clip"))
         am = amostras(tr, r.get("layer") or re.escape(p["layer_tubo"]), p["M"], p.get("clip_mapa"), linha=bool(r.get("layer")))
         limites = {k: shapely.union_all([LineString(geo.aplicar(np.asarray(p["M"]), np.asarray(q))) for t in tr
@@ -247,9 +249,10 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
         finais += f or [None] * len(c)
     if not classes:
         return None
+    apoio = [r[k] for k in ("layer_limite", "layer_meio_fio", "layer_alinhamento") if r.get(k)]
     peso = np.concatenate(peso)
     return {"id": r["id"], "de_mm": r["de_mm"], "fonte_de": r.get("fonte_de", ""), "criterio": r["criterio"],
-            "pranchas": list(r["pranchas"]), "finais": finais if any(finais) else None,
+            "pranchas": list(r["pranchas"]), "layers": list(dict.fromkeys(layers + apoio)), "finais": finais if any(finais) else None,
             "extensao_m": round(float(peso.sum()), 1), "pts": np.vstack(pts), "tang": np.vstack(tang), "peso": peso,
             "classes": classes, "quadro": quantificar(classes, peso, r["de_mm"] / 1000, finais if any(finais) else None)}
 

@@ -56,6 +56,11 @@ def onde(localizador: dict) -> str:
         return f"{localizador['arquivo']}, {localizador['chave']}"
     if "pagina" in localizador and "pasta_drive" in localizador:
         return f"{localizador['pasta_drive']}, p. {localizador['pagina']}"
+    if "pranchas" in localizador and "criterio" in localizador:
+        partes = [f"pranchas {', '.join(map(str, localizador['pranchas']))}"]
+        if localizador.get("layers"):
+            partes.append(f"layers {', '.join(map(str, localizador['layers']))}")
+        return "; ".join(partes + [f"critério {localizador['criterio']}"])
     return json.dumps(localizador, ensure_ascii=False, separators=(",", ":"), default=str)
 
 

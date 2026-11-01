@@ -93,11 +93,20 @@ def solo_na_vala(furo: dict, prof_m: float) -> dict[str, float]:
     return geo.solo_na_faixa(furo, 0.0, prof_m)
 
 
-@lru_cache(maxsize=65536)
-def id_furo(texto) -> str:
-    """Id comparável de sondagem: 'SP-02', 'SP02', 'SPT-2' e 'SP 2' são o mesmo furo."""
+def _id_furo_calculado(texto) -> str:
     t = re.sub(r"[^A-Z0-9]", "", norm(texto)).replace("SPT", "SP")
     return re.sub(r"(?<=[A-Z])0+(?=\d)", "", t)
+
+
+_id_furo_em_cache = lru_cache(maxsize=None, typed=True)(_id_furo_calculado)
+
+
+def id_furo(texto) -> str:
+    """Id comparável de sondagem: 'SP-02', 'SP02', 'SPT-2' e 'SP 2' são o mesmo furo. Só str, int e float usam o
+    cache (tipos separados: 2 e 2.0 não se misturam); qualquer outro tipo, mesmo não hashable, é calculado direto."""
+    if type(texto) in (str, int, float):
+        return _id_furo_em_cache(texto)
+    return _id_furo_calculado(texto)
 
 
 def furos_com_xy(furos: list[dict]) -> tuple[list[dict], np.ndarray]:
@@ -119,7 +128,9 @@ def furo_por_metro(pts: np.ndarray, furos: list[dict], preparado: tuple | None =
         return [None] * len(pts)
     raio = geo.RAIO_INFLUENCIA_M
     folga = raio + 1e-6
-    dentro = np.all((xy >= pts.min(axis=0) - folga) & (xy <= pts.max(axis=0) + folga), axis=1)
+    if np.isnan(pts).all(axis=0).any():                  # coluna sem nenhum valor: nenhum ponto tem distância
+        return [None] * len(pts)
+    dentro = np.all((xy >= np.nanmin(pts, axis=0) - folga) & (xy <= np.nanmax(pts, axis=0) + folga), axis=1)
     candidatos = [f for f, d in zip(com_xy, dentro, strict=True) if d]
     indices, distancias_m = geo.furo_mais_proximo(pts, candidatos)
     return [candidatos[k]["id"] if k >= 0 and d <= raio else None
