@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.27.0 — 2026-11-01 · EAP codificada como linha mestra
+## 0.28.0 — 2026-11-01 · EAP codificada como linha mestra
 - **EAP (WBS)** (`camadas/eap.py`, `conceitos/eap.json`, `docs/EAP.md`): código `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM`
   sobre as unidades e os sistemas de `unidades_construtivas.json` (obra localizada × linear); disciplinas Geotecnia
   (fundações: estacas, blocos, contenções; movimentação de solo), Civil (estruturas de concreto: piso, viga, pilar,
@@ -63,6 +63,20 @@
 - O build grava `dados.eap`, `dados.evidencias` e o código `eap` em cada elemento da aba Obra, além de
   `evidencias.jsonl`, `fatos.csv`, `cobertura.csv` e `associados.csv`. A aba EAP no HTML fica para a próxima rodada
   (`docs/EAP.md` §9).
+## 0.27.0 — 2026-11-01 · Rodada 25, PR 2: leitor de laudo de sondagem e estaqueamento da obra linear
+- **Geotecnia como disciplina** (`camadas/geotecnia.py`, `conceitos/geotecnia.json`): schema do furo com a unidade de
+  cada campo (os nomes já em uso, sem renomear, enquanto a memória espacial está em andamento); `validar_furos`; e
+  `ler_laudo`, que lê pelo texto do PDF a tabela de coordenadas e o perfil de cada furo (camadas, NA, impenetrável,
+  NSPT). O que não sai vai para `nao_lidos` com o motivo, sem inventar. Premissas da decisão D1 declaradas: raio de
+  60 m, margem do NA de 0 m, empolamento de 1,30 no solo e 1,50 na rocha.
+- **Obra linear: eixo e estaqueamento** (`camadas/lineares.py`, `conceitos/lineares.json`): "12+10,00" ↔ progressiva
+  ↔ ponto, projeção de um ponto no eixo com afastamento e lado, segmento entre progressivas. Vetorizado, com tolerância
+  de 1 mm.
+- Lint de `camadas/mosaico.py` e `tests/test_escada.py` (Haiku).
+- PDCA: G1 e L1 feitos por dois Sonnet em paralelo, o lint por um Haiku. O Fable devolveu o G1 uma vez (a preposição
+  "na" virava nível d'água); o gerente corrigiu e o G1 foi aceito no 2º julgamento. O balanço do vcm acusou o tempo da
+  referência, tratado como ruído (mesmo hash, faixas sobrepostas em 5 execuções).
+
 ## 0.26.0 — 2026-11-01 · Rodada 22: extração para as gavetas
 - **Leitores → gavetas** (`camadas/extrair_gavetas.py`): a planilha Obras Lineares vira objetos `trecho_tubo`, com
   fatos e evidência de aba e linha; as sondagens viram `furo_sondagem` com geometria de ponto e o executor de quem
