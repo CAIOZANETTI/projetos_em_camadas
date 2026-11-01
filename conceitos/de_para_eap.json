@@ -1,0 +1,17 @@
+{
+ "metadata": {
+  "fonte": "de-para 3 de docs/MEMORIA_ESPACIAL.md: serviço → nó da EAP",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Códigos provisórios do MVP (OL = obras lineares), a casar com a EAP do ramo EAP (evidencia.schema.json). Saída em dicionário (pavimento_m2) abre um nó por chave: OL.06.<superfície>. Sem preço e sem prazo."
+ },
+ "saidas": {
+  "escavacao_m3": {"eap": "OL.01", "descricao": "Escavação de vala", "unidade": "m³"},
+  "escoramento_m2": {"eap": "OL.02", "descricao": "Escoramento de vala", "unidade": "m²"},
+  "reaterro_m3": {"eap": "OL.03", "descricao": "Reaterro de vala", "unidade": "m³"},
+  "bota_fora_m3": {"eap": "OL.04", "descricao": "Carga e bota-fora de material excedente", "unidade": "m³"},
+  "supressao_m2": {"eap": "OL.05", "descricao": "Supressão vegetal", "unidade": "m²"},
+  "pavimento_m2": {"eap": "OL.06", "descricao": "Demolição e recomposição de pavimento", "unidade": "m²"},
+  "caximbos": {"eap": "OL.07", "descricao": "Caximbos do método não destrutivo", "unidade": "un"}
+ }
+}
