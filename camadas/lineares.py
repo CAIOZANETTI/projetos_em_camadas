@@ -260,22 +260,23 @@ def _na_coluna(valores: list[tuple], cx: float) -> str | None:
 def _linhas_ausentes(linhas: dict) -> str | None:
     """Motivo se faltam linhas essenciais (estaca, terreno, geratriz ou profundidade escrita); None se está completo."""
     ausentes = [p for p in ("estaca", "terreno") if p not in linhas]
-    if "geratriz" not in linhas and "profundidade" not in linhas:
+    if not {"geratriz", "fundo", "profundidade"} & set(linhas):
         ausentes.append("geratriz")
     if not ausentes:
         return None
     nomes = {
         "estaca": "estaca",
         "terreno": "cota do terreno",
-        "geratriz": "cota da geratriz (e sem profundidade escrita)",
+        "geratriz": "cota da geratriz ou do fundo da vala (e sem profundidade escrita)",
     }
     return "perfil sem a linha de " + ", ".join(nomes[a] for a in ausentes)
 
 
 def _valores_da_coluna(linhas: dict, cx: float) -> dict:
-    """Terreno, geratriz e profundidade escrita (m) na coluna `cx`; None onde falta. ValueError se não for número."""
+    """Terreno, geratriz, fundo da vala e profundidade escrita (m) na coluna `cx`; None onde falta. ValueError se não
+    for número."""
     valores = {}
-    for papel in ("terreno", "geratriz", "profundidade"):
+    for papel in ("terreno", "geratriz", "fundo", "profundidade"):
         texto = _na_coluna(linhas.get(papel, []), cx)
         valores[papel] = numero_brasileiro(texto) if texto else None
     return valores
@@ -299,18 +300,24 @@ def _ponto_da_coluna(
         motivo = f"progressiva {progressiva_m:.2f} m fora de ordem (anterior {ultima_m:.2f} m)"
     elif terreno_m is None:
         motivo = "sem cota do terreno na coluna"
-    elif geratriz_m is None and escrita_m is None:
-        motivo = "sem cota da geratriz na coluna"
+    elif geratriz_m is None and valores["fundo"] is None and escrita_m is None:
+        motivo = "sem cota da geratriz nem do fundo da vala na coluna"
     else:
         motivo = None
     if motivo:
         return {"estaca": texto_estaca, "motivo": motivo}
+    from . import valas  # import tardio: valas passará a chamar este módulo
+
+    berco_m = float(valas.VALOR["berco_m"])
+    if (
+        geratriz_m is None and valores["fundo"] is not None
+    ):  # cota do fundo da vala: o berço já está dentro
+        geratriz_m = valores["fundo"] + berco_m
     if escrita_m is not None:
         profundidade_m, origem = escrita_m, "escrita no perfil"
+    elif valores["fundo"] is not None and valores["geratriz"] is None:
+        profundidade_m, origem = terreno_m - valores["fundo"], "terreno − fundo da vala"
     else:
-        from . import valas  # import tardio: valas passará a chamar este módulo
-
-        berco_m = float(valas.VALOR["berco_m"])
         profundidade_m = terreno_m - (geratriz_m - berco_m)
         origem = "terreno − geratriz + berço"
     return {

@@ -341,3 +341,25 @@ def test_ler_perfil_ocr(tmp_path):
             + _berco_m(),
             atol=TOL_M,
         )
+
+
+def test_cota_do_fundo_da_vala_nao_soma_o_berco(tmp_path):
+    """Revisão do Fable (rodada 25): "COTA DO FUNDO DA VALA" já é o fundo; profundidade = terreno − fundo, sem somar o
+    berço; a geratriz inferior é fundo + berço. Antes, o fundo caía como geratriz e a vala saía 10 cm mais funda."""
+    pdf = _pdf_perfil(
+        tmp_path / "perfil_fundo.pdf",
+        [
+            ("ESTACA", ESTACAS),
+            ("COTA DO TERRENO", TERRENO),
+            ("COTA DO FUNDO DA VALA", GERATRIZ),
+        ],
+    )
+    perfil = lineares.ler_perfil(pdf)
+    assert perfil["nao_lidos"] == [] and len(perfil["pontos"]) == 5
+    for ponto, terr, fundo in zip(perfil["pontos"], TERRENO, GERATRIZ):
+        terreno_m, fundo_m = (float(v.replace(",", ".")) for v in (terr, fundo))
+        assert ponto["profundidade_m"] == pytest.approx(terreno_m - fundo_m, abs=0.001)
+        assert ponto["cota_geratriz_m"] == pytest.approx(
+            fundo_m + _berco_m(), abs=0.001
+        )
+        assert ponto["fonte_profundidade"] == "terreno − fundo da vala"
