@@ -13,11 +13,11 @@ def _furo(**kw):
     return {"id": "SP-01", "E": 50.0, "N": 10.0, "cota_boca": 240.0, "profundidade_m": 10.0, **kw}
 
 
-def _vala(segmentos, de_mm=200, material="TUBO PEAD DE 200", sondagens=(), **kw):
-    """Elementos de vala do trecho e as evidências dos serviços (pelas regras genéricas)."""
+def _vala(segmentos, de_mm=200, material="TUBO PEAD DE 200", sondagens=(), metodos=("nbr12266",), **kw):
+    """Elementos de vala do trecho (pelos métodos pedidos) e as evidências dos serviços (pelas regras genéricas)."""
     trecho = {"id": "t1", "de_mm": de_mm, "segmentos": segmentos, "material_texto": material, "geometria": LINHA, **kw}
-    els = [dimensoes.elemento(f"t1 · {s}", "vala", "U2.AAT06", None, dims, "teste", al)
-           for s, dims, al in dimensoes.dimensionar_vala(trecho, list(sondagens))]
+    els = [dimensoes.elemento(f"t1 · {s} · {m}", "vala", "U2.AAT06", None, dims, "teste", al, m)
+           for s, m, dims, al in dimensoes.dimensionar_vala(trecho, list(sondagens), list(metodos))]
     evs, sem_valor, detalhes = associados.aplicar(els)
     return els, evs, sem_valor, detalhes
 
@@ -198,3 +198,30 @@ def test_tabela_de_dimensoes_e_de_servicos():
     assert len(dimensoes.tabela(els)) == 2
     t = associados.tabela(evs)
     assert t[t["servico"] == "assentamento"]["quantidade"].sum() == 100.0
+
+
+# vários métodos para a mesma vala ---------------------------------------------------------------------------------
+def test_largura_pelo_mos_sanepar():
+    els, _, _, _ = _vala({"pista": 100.0}, de_mm=630, material="TUBO PE DE 630", metodos=("mos_sanepar",),
+                         sondagens=[_furo()])
+    assert els[0]["dims"]["b"] == pytest.approx(0.63 + 0.35 + 0.10)                     # D + SL(PEAD) + X (escorada)
+    assert dimensoes.material_mos("TUBO PE DE 630") == "PEAD" and dimensoes.material_mos("TUBO FD K7") == "FD"
+
+
+def test_cada_metodo_e_uma_fonte_e_a_consolidacao_compara():
+    from camadas import evidencias
+    els, evs, _, _ = _vala({"pista": 100.0}, de_mm=630, material="TUBO PE DE 630",
+                           metodos=("nbr12266", "mos_sanepar"), sondagens=[_furo()])
+    assert {e["metodo"] for e in els} == {"nbr12266", "mos_sanepar"}
+    assert {e["documento"]["id"] for e in evs} == {"metodo:nbr12266", "metodo:mos_sanepar"}
+    fatos = evidencias.consolidar(evs).set_index(["codigo", "servico", "unidade"])
+    esc = fatos.loc[("U2.AAT06.GEO.MOV.VAL", "escavacao", "m³")]
+    assert esc["status"] == "conflito" and esc["n_documentos"] == 2                       # 1,23 m × 1,08 m de largura
+    assert sorted(a["valor"] for a in esc["afirmacoes"]) == pytest.approx([1.08 * 1.38 * 100, 1.23 * 1.38 * 100], rel=1e-3)
+    assert fatos.loc[("U2.AAT06.HID.TUB.RED", "assentamento", "m")]["status"] == "convergente"   # não depende de b
+
+
+def test_metodo_que_nao_se_aplica_fica_de_fora_com_alerta():
+    els, _, _, _ = _vala({"pista": 10.0}, material="TUBO DE MATERIAL DESCONHECIDO", metodos=("nbr12266", "mos_sanepar"))
+    assert [e["metodo"] for e in els] == ["nbr12266"]
+    assert any("MOS: material do tubo não reconhecido" in a for a in els[0]["alertas"])

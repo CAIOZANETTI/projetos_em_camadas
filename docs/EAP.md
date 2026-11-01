@@ -324,6 +324,34 @@ aterro e argila siltosa, NSPT 5–9, NA a 1,9 m e impenetrável a 2,3 m.
 | GEO.MOV.VAL | rebaixamento (ponteiras) | 120 m · 80 h |
 | HID.TUB.RED | assentamento | 150 m |
 
+### 7.2 Vários métodos para a mesma vala: cada um é uma evidência
+
+O código não escolhe um método de cálculo: roda **todos** os de `dimensoes.json#vala.metodos`, sobre os mesmos
+trechos. Cada método gera os seus elementos `vala` e entra na consolidação como um documento próprio
+(`metodo:nbr12266`, `metodo:mos_sanepar`). Se os métodos concordam, o fato é convergente. Se divergem, o fato fica
+em conflito, com os valores de cada método e a diferença em %. A escolha é uma `decisao` do engenheiro, que não
+apaga as afirmações.
+
+| Método | Largura | Fonte |
+|---|---|---|
+| `nbr12266` | max(DE + 0,60; mínimo da profundidade) + acréscimo do tipo de escoramento | `valas.json`, `dimensoes.json#vala` |
+| `mos_sanepar` | D + SL (Tabela I, por material, DN e junta) + X (0,10 se escorada) + Y (0,10 por metro acima de 2 m) | `camadas.obras_lineares.largura`, `conceitos/obras_lineares.json` |
+
+Exemplo AAT06 (PEAD DE 630, 120 m em pista e 30 m em calçada, SP-07):
+
+| Serviço | NBR 12266 (b = 1,43 m) | MOS (b = 1,08 m) | Status |
+|---|---:|---:|---|
+| corte de asfalto, assentamento, escoramento, rebaixamento | iguais | iguais | convergente |
+| demolição / recomposição de asfalto | 207,6 m² | 165,6 m² | conflito 20,2 % |
+| escavação de vala | 288,7 m³ | 218,1 m³ | conflito 24,5 % |
+| envoltória | 152,7 m³ | 103,9 m³ | conflito 32,0 % |
+| bota-fora | 382,7 m³ | 293,5 m³ | conflito 23,3 % |
+
+A diferença vem quase toda da folga e do acréscimo do escoramento contínuo (0,20 m na premissa da NBR; 0,10 m no
+MOS). Método que não se aplica ao tubo (material fora da Tabela I do MOS) fica de fora, com alerta em todos os
+elementos do trecho. Para acrescentar um método, basta uma função de largura em `dimensoes.LARGURAS` e uma entrada
+em `vala.metodos`. `validar()` reprova o método declarado sem código.
+
 ## 8. Quantificação das pranchas e verificação de proposta (`camadas/eap.py`)
 
 - `eap.quantificar`: item EAP e grandeza → quantidade, com os ids dos elementos e as fontes. Elemento sem o
@@ -363,6 +391,7 @@ com as afirmações, cobertura e associados × edital) e o código `eap` em cada
 | d | Medir vigas, paredes e lajes nas formas (comprimento/área por layer já calculados em `pdf_cad.quantitativos`) | `pdf_cad`, `prancha.ficha_estrutura` |
 | e | Calibrar premissas (taxa de armadura, embutimento, seção de baldrame) com projetos de armação | `servicos_associados.jsonl` |
 | f | Vala pelo perfil longitudinal: profundidade e cota do terreno por estaca do perfil, trecho dividido entre sondagens | `dimensoes.dimensionar_vala`, leitura do perfil nas pranchas AAT |
+| h | Planilha Obras Lineares (valores já calculados pela Sanepar) como mais uma fonte de evidência dos trechos da ETA, casando trecho da planilha × trecho do desenho | `obras_lineares.etapa` → `evidencias` |
 | g | Tipo de pavimento real (cadastro viário da prefeitura ou ortofoto) no lugar de "pista = asfalto" | `dimensoes.json` (`vala.pavimentos.superficie_tipo`) |
 
 ## 11. Decisões em aberto (Caio)

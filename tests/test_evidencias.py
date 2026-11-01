@@ -121,7 +121,7 @@ def test_planilha_parcelas_somam_e_cadastro_de_materiais_classifica():
 
 def test_servicos_associados_por_formula():
     evs, sem_valor = associados.de_elementos(_construtivos(), EPSG)
-    por = {(e["codigo"], e["servico"]): e for e in evs}
+    por = {(e["codigo"], e["servico"]): e for e in evs if e["documento"]["id"] != "metodo:mos_sanepar"}
     assert por[("U1.FILTROS.GEO.MOV.ESC", "")]["valor"] == pytest.approx(20.0, rel=1e-3)   # (16 + 0,5·16 + 1)·0,80
     assert por[("U1.FILTROS.GEO.MOV.REA", "")]["valor"] == pytest.approx(7.2, rel=1e-3)
     assert por[("U1.FILTROS.GEO.FUN.BLO", "forma")]["valor"] == pytest.approx(12.0, rel=1e-3)

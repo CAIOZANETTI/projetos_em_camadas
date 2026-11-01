@@ -42,6 +42,10 @@
     escoramento; impermeabilização; armadura por taxa do tipo; escavação/reaterro de cava). Tem condição e modelos
     de destino (`{item}`, `{item_pavimento}`, `escoramento_{tipo_escoramento}`).
   - `camadas/formulas.py`: avaliador restrito com comparações e condicional, e `conferir` nas validações.
+- **Vários métodos para a mesma vala, sem escolher um**: a largura sai de cada método de `dimensoes.json#vala.metodos`
+  — NBR 12266 e MOS Sanepar (`obras_lineares.largura`, L = D + SL + X + Y) — e cada método vira uma fonte de evidência
+  (`metodo:<id>`). A consolidação mostra convergência (corte, assentamento) ou conflito com a diferença (AAT06 PEAD 630:
+  escavação 288,7 × 218,1 m³, 24,5 %). Material fora da Tabela I deixa o método de fora com alerta.
 - **A vala é só mais um tipo**. `dimensoes.dimensionar_vala` decide por segmento de superfície:
   - profundidade (recobrimento + DE + berço, ou a do perfil);
   - solo, rocha e NA da sondagem mais próxima (raio 300 m, NA com margem de 0,5 m);

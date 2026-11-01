@@ -30,6 +30,15 @@ DOCUMENTO = {"id": "regras:servicos_associados", "tipo": "associado",
              "nome": "serviços associados (camadas.associados, conceitos/servicos_associados.jsonl)"}
 
 
+def _documento(el: dict) -> dict:
+    """Fonte da evidência: o método de cálculo do elemento (cada método da vala é uma fonte independente, para a
+    consolidação comparar), ou as regras gerais."""
+    if not el.get("metodo"):
+        return DOCUMENTO
+    nome = dimensoes.VP["metodos"].get(el["metodo"], {}).get("nome", el["metodo"])
+    return {"id": f"metodo:{el['metodo']}", "tipo": "associado", "nome": f"serviços associados · {nome}"}
+
+
 def _textos(el: dict) -> dict:
     return {"item": el["item"] or "", **{k: v for k, v in el["dims"].items() if isinstance(v, str)}}
 
@@ -83,7 +92,7 @@ def aplicar(elementos: list[dict]) -> tuple[list[dict], dict, list[dict]]:
                                  "unidade": regra["unidade"], "valor": round(r["valor"], 3)})
             elif r:
                 evs.append(evidencia(codigo=f"{el['base']}.{r['item']}", servico=r["servico"], unidade=regra["unidade"],
-                                     valor=round(r["valor"], 6), parcela=True, documento=DOCUMENTO,
+                                     valor=round(r["valor"], 6), parcela=True, documento=_documento(el),
                                      localizador=el["id"], trecho=_memoria(regra, el, r), metodo="associado",
                                      regra=regra["id"]))
     return evs, sem_valor, detalhes

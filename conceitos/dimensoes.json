@@ -3,7 +3,7 @@
   "fonte": "pedido do Caio (30/10/2026): os elementos geram dimensões e as dimensões geram os serviços associados (lastro pela área do bloco, forma, escoramento, impermeabilização, escavação e reaterro, vala da rede)",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Cada tipo de elemento declara de onde vem cada dimensão (atributo do elemento construtivo, geometria em UTM, valor dado pelo obra.json/fato/elemento pai, ou padrão) e os cálculos que levam às dimensões PADRONIZADAS que as regras de serviço usam: V (concreto), A_forma, A_fundo (apoio no solo: lastro), A_escoramento, A_imperm, V_esc/V_reat (cava). Dimensão que falta não é suposta: o cálculo que depende dela não sai e o serviço fica 'sem valor', com a dimensão que faltou. `derivados` cria elementos que a execução exige (cava do bloco, vala do baldrame) com as dimensões do pai. O tipo `vala` é dimensionado por camadas.dimensoes.dimensionar_vala (profundidade, solo e NA da sondagem, escoramento, largura, pavimento) com os parâmetros de `vala`. `de_fatos` transforma fatos consolidados em elementos (laje em m² → laje com A). Elemento declarado no obra.json (`elementos_declarados`) entra com as dimensões dadas."
+  "observacoes": "Cada tipo de elemento declara de onde vem cada dimensão (atributo do elemento construtivo, geometria em UTM, valor dado pelo obra.json/fato/elemento pai, ou padrão) e os cálculos que levam às dimensões PADRONIZADAS que as regras de serviço usam: V (concreto), A_forma, A_fundo (apoio no solo: lastro), A_escoramento, A_imperm, V_esc/V_reat (cava). Dimensão que falta não é suposta: o cálculo que depende dela não sai e o serviço fica 'sem valor', com a dimensão que faltou. `derivados` cria elementos que a execução exige (cava do bloco, vala do baldrame) com as dimensões do pai. O tipo `vala` é dimensionado por camadas.dimensoes.dimensionar_vala (profundidade, solo e NA da sondagem, escoramento, largura, pavimento) com os parâmetros de `vala`. `de_fatos` transforma fatos consolidados em elementos (laje em m² → laje com A). Elemento declarado no obra.json (`elementos_declarados`) entra com as dimensões dadas. A vala é dimensionada por TODOS os métodos de `vala.metodos` (NBR 12266 e MOS Sanepar): cada método vira um documento de evidência próprio ('metodo:<id>'), e a consolidação mostra onde os métodos convergem e onde divergem; não se escolhe um método no código."
  },
  "tipos": {
   "estaca": {
@@ -594,6 +594,48 @@
     },
     "estado": "premissa",
     "fonte": "solo da vala volta como reaterro; rocha e argila mole (NSPT < 4) vão para bota-fora e o reaterro é importado"
+   }
+  },
+  "metodos": {
+   "nbr12266": {
+    "nome": "NBR 12266 (premissas de valas.json)",
+    "estado": "premissa",
+    "fonte": "b = max(DE + folga 0,60; mínimo da profundidade) + acréscimo do tipo de escoramento"
+   },
+   "mos_sanepar": {
+    "nome": "MOS Sanepar (camadas.obras_lineares)",
+    "estado": "confirmado",
+    "fonte": "L = D + SL + X + Y: SL pela Tabela I (material, DN, junta), X = 0,10 m se escorada, Y = 0,10 m por metro acima de 2 m (conceitos/obras_lineares.json)",
+    "materiais": [
+     [
+      "PEAD",
+      "PEAD|\\bPE\\b|POLIETILENO"
+     ],
+     [
+      "PVC",
+      "PVC"
+     ],
+     [
+      "FD",
+      "\\bFD\\b|FERRO FUNDIDO|FOFO|FUNDIDO DUCTIL"
+     ],
+     [
+      "PRFV",
+      "PRFV"
+     ],
+     [
+      "CONCRETO",
+      "CONCRETO"
+     ],
+     [
+      "CERAMICO",
+      "CERAMIC"
+     ],
+     [
+      "ACO",
+      "\\bACO\\b"
+     ]
+    ]
    }
   }
  }
