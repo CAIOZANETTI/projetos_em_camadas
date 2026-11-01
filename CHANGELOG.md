@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.27.0 — 2026-11-01 · Rodada 23: EAP lastreada no HTML e recálculo incremental
+## 0.28.0 — 2026-11-01 · Rodada 23 da memória espacial: EAP lastreada no HTML e recálculo incremental
 - **EAP montada em Python** (`camadas/eap_html.py`): cada nó leva aos serviços, cada serviço aos fatos usados e cada
   fato à evidência (documento, onde, trecho, executor). Os valores saem formatados no padrão brasileiro e com unidade
   SI; o HTML só apresenta.
@@ -11,7 +11,20 @@
   dos dados de entrada, dos fatos e dos furos usados; o serviço de mesma chave é reaproveitado sem chamar a regra. A
   etapa do build lê o anterior em `base/servicos.parquet` e o resumo conta recalculados e reaproveitados.
 - `dados["eap"]` ligado ao build (`extrair_gavetas.etapa` → `obra._aba_projeto`).
-- Lição L021.
+- Lição L022.
+## 0.27.0 — 2026-11-01 · Rodada 25, PR 2: leitor de laudo de sondagem e estaqueamento da obra linear
+- **Geotecnia como disciplina** (`camadas/geotecnia.py`, `conceitos/geotecnia.json`): schema do furo com a unidade de
+  cada campo (os nomes já em uso, sem renomear, enquanto a memória espacial está em andamento); `validar_furos`; e
+  `ler_laudo`, que lê pelo texto do PDF a tabela de coordenadas e o perfil de cada furo (camadas, NA, impenetrável,
+  NSPT). O que não sai vai para `nao_lidos` com o motivo, sem inventar. Premissas da decisão D1 declaradas: raio de
+  60 m, margem do NA de 0 m, empolamento de 1,30 no solo e 1,50 na rocha.
+- **Obra linear: eixo e estaqueamento** (`camadas/lineares.py`, `conceitos/lineares.json`): "12+10,00" ↔ progressiva
+  ↔ ponto, projeção de um ponto no eixo com afastamento e lado, segmento entre progressivas. Vetorizado, com tolerância
+  de 1 mm.
+- Lint de `camadas/mosaico.py` e `tests/test_escada.py` (Haiku).
+- PDCA: G1 e L1 feitos por dois Sonnet em paralelo, o lint por um Haiku. O Fable devolveu o G1 uma vez (a preposição
+  "na" virava nível d'água); o gerente corrigiu e o G1 foi aceito no 2º julgamento. O balanço do vcm acusou o tempo da
+  referência, tratado como ruído (mesmo hash, faixas sobrepostas em 5 execuções).
 
 ## 0.26.0 — 2026-11-01 · Rodada 22: extração para as gavetas
 - **Leitores → gavetas** (`camadas/extrair_gavetas.py`): a planilha Obras Lineares vira objetos `trecho_tubo`, com

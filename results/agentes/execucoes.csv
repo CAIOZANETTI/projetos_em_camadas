@@ -14,6 +14,12 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 23,E2 (aba EAP no visualizador),implementador,claude-sonnet-5-5,78292,23,171,True,nenhum,entregue; integração depois do aceite da 22
 2026-11-01,rodada 22,revisão: 4 achados do aceite,implementador,claude-sonnet-5-5,101515,25,169,True,devolução do Fable,"entregue; 9 testes novos, 7 falhavam antes"
 2026-11-01,rodada 22,2º aceite da rodada 22,gerente (aceite),claude-fable-5-1,20494,10,112,True,nenhum,ACEITA
+2026-11-01,rodada 25 (plano),aprovar o plano de geotecnia e obras lineares,revisor,claude-fable-5-1,128737,21,105,True,nenhum,aprovado com 7 ajustes
+2026-11-01,rodada 25,L1 (eixo e estaqueamento),implementador,claude-sonnet-5-5,81515,15,164,True,nenhum,entregue; 22 testes
+2026-11-01,rodada 25,lint ruff (mosaico.py e test_escada.py),braçal,claude-haiku-5-5,63260,18,51,True,nenhum,5 erros corrigidos
+2026-11-01,rodada 25,G1 (schema do furo e leitor de laudo),implementador,claude-sonnet-5-5,94357,16,278,True,nenhum,entregue; 9 testes
+2026-11-01,rodada 25,aceite do PR 2 (G1 e L1),revisor (aceite),claude-fable-5-1,110686,15,143,False,ajuste do gerente,L1 aceita; G1 revisar (preposição 'na' virava NA); corrigido pelo Opus
+2026-11-01,rodada 25,2º aceite do G1,revisor (aceite),claude-fable-5-1,113188,1,13,True,nenhum,G1 aceita
 2026-11-01,rodada 23,E3 (recálculo incremental),implementador,claude-sonnet-5-5,81511,17,171,True,nenhum,"aceita pelo Opus (campo chave_calculo, alertas no 1º serviço)"
 2026-11-01,rodada 23,E4 (conferência ponta a ponta da aba EAP),braçal,claude-haiku-5-5,71669,15,78,True,nenhum,"entregue; 146 valores, 256 evidências, 2 pendências, 0 números sem origem, 0 erros"
 2026-11-01,rodada 23,aceite da rodada 23,gerente (aceite),claude-fable-5-1,36844,10,154,True,nenhum,"REVISAR: E1 (omissão silenciosa), E3 (chave sem as constantes do MOS; paridade sobre recálculo fresco)"
