@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import eap_html, gavetas, valas
+from . import eap_html, extracao, gavetas, valas
 from . import obras_lineares as ol
 
 OBSERVADAS_NA_PLANILHA = ("na_m", "solo")      # transcritas do laudo para a planilha
@@ -185,14 +185,94 @@ def _sem_repeticao(gaveta: str, chave: str | None, registros: list[dict]) -> lis
     return list(vistos.values())
 
 
+MOTIVO_RECUSA_IA = "retorno de IA recusado"
+
+
+def _recusa(retorno: dict, objeto_id, propriedade, motivo: str) -> dict:
+    """Pendência de um fato da IA que não entra: o motivo e a propriedade ficam no texto."""
+    return {"objeto_id": str(objeto_id or retorno.get("arquivo") or "retorno"),
+            "motivo": f"{MOTIVO_RECUSA_IA}: {motivo} ({propriedade})"}
+
+
+def _ler_retornos(pasta: Path) -> tuple[list[dict], list[dict]]:
+    """Linhas dos `*.jsonl` em ordem alfabética de arquivo e de linha; linha inválida vira pendência."""
+    retornos, pendencias = [], []
+    for arquivo in sorted(Path(pasta).glob("*.jsonl")):
+        for numero, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), start=1):
+            if not linha.strip():
+                continue
+            try:
+                retorno = json.loads(linha)
+            except ValueError:
+                retorno = None
+            if isinstance(retorno, dict):
+                retornos.append(retorno)
+            else:
+                pendencias.append({"objeto_id": arquivo.name,
+                                   "motivo": f"{MOTIVO_RECUSA_IA}: linha {numero} não é um retorno JSON (-)"})
+    return retornos, pendencias
+
+
+def de_retornos(pasta: Path, avaliacoes: dict | None = None) -> dict:
+    """Retornos de IA (`pasta/*.jsonl`) → base com fatos `inferido`, evidências (executor e trecho) e objetos.
+
+    Cada linha passa por `extracao.fatos_do_retorno`; as recusas (fora do de-para, sem trecho, sem valor) viram
+    pendência com motivo, nunca fato. `avaliacoes` é `{"<pasta_drive>/<arquivo>": avaliação}` (ou só `<arquivo>`).
+    Objeto citado com classes diferentes entre retornos: o primeiro vale e o outro vira pendência."""
+    base = _base_vazia()
+    retornos, base["pendencias"] = _ler_retornos(pasta)
+    classes: dict[str, str] = {}
+    for retorno in retornos:
+        chave = f"{retorno.get('pasta_drive')}/{retorno.get('arquivo')}"
+        avaliacao = (avaliacoes or {}).get(chave) or (avaliacoes or {}).get(retorno.get("arquivo"))
+        saida = extracao.fatos_do_retorno(retorno, avaliacao)
+        base["pendencias"] += [_recusa(retorno, r.get("objeto_id"), r["propriedade"], r["motivo"])
+                               for r in saida["recusas"]]
+        classe_do_objeto = {o["objeto_id"]: o["classe"] for o in saida["objetos"]}
+        divergentes = {i for i, c in classe_do_objeto.items() if classes.setdefault(i, c) != c}
+        for objeto_id in sorted(divergentes):
+            base["pendencias"].append(_recusa(retorno, objeto_id, "classe",
+                                              f"classe {classe_do_objeto[objeto_id]} difere de {classes[objeto_id]}"))
+        saida = _sem_objetos(saida, divergentes)
+        for gaveta in ("fatos", "evidencias", "objetos"):
+            base[gaveta] += saida[gaveta]
+    return {**base, **{g: _sem_repeticao(g, gavetas.REGRAS["gavetas"][g]["chave"], base[g])
+                       for g in ("fatos", "evidencias", "objetos")}}
+
+
+def _sem_objetos(base: dict, objetos: set[str]) -> dict:
+    """Tira os objetos dados, seus fatos e as evidências que ficaram sem fato."""
+    if not objetos:
+        return base
+    fatos = [f for f in base["fatos"] if f["objeto_id"] not in objetos]
+    usadas = {f["evidencia_id"] for f in fatos}
+    return {**base, "fatos": fatos, "objetos": [o for o in base["objetos"] if o["objeto_id"] not in objetos],
+            "evidencias": [e for e in base["evidencias"] if e["evidencia_id"] in usadas]}
+
+
+def _conciliar_com_a_base(ia: dict, base: dict) -> dict:
+    """Objeto da IA que já existe na base não se duplica (mesma classe) ou vira pendência (classe diferente)."""
+    existentes = {o["objeto_id"]: o["classe"] for o in base["objetos"]}
+    divergentes = {o["objeto_id"] for o in ia["objetos"]
+                   if o["objeto_id"] in existentes and existentes[o["objeto_id"]] != o["classe"]}
+    pendencias = [{"objeto_id": i, "motivo": f"{MOTIVO_RECUSA_IA}: classe difere da do objeto existente "
+                                              f"{existentes[i]} (classe)"} for i in sorted(divergentes)]
+    ia = _sem_objetos({**ia, "objetos": ia["objetos"]}, divergentes)
+    return {**ia, "pendencias": ia["pendencias"] + pendencias,
+            "objetos": [o for o in ia["objetos"] if o["objeto_id"] not in existentes]}
+
+
 def _resumo(base: dict, erros: list[str], difs: list[dict], servicos: list[dict]) -> dict:
     """Contagens da base: objetos, fatos (por natureza e por executor da evidência), pendências, paridade e EAP."""
     executor = {e["evidencia_id"]: e["executor"] for e in base["evidencias"]}
+    metodo = {e["evidencia_id"]: e.get("metodo") for e in base["evidencias"]}
     return {
         "objetos_por_classe": dict(Counter(o["classe"] for o in base["objetos"])),
         "fatos_por_natureza": dict(Counter(f["natureza"] for f in base["fatos"])),
         "fatos_por_executor": dict(Counter(executor.get(f["evidencia_id"]) for f in base["fatos"])),
         "pendencias_por_motivo": dict(Counter(p["motivo"].split(":")[0] for p in base["pendencias"])),
+        "fatos_ia": sum(1 for f in base["fatos"] if f["natureza"] == "inferido" and metodo.get(f["evidencia_id"]) == "IA"),
+        "recusas_ia": sum(1 for p in base["pendencias"] if p["motivo"].startswith(MOTIVO_RECUSA_IA)),
         "erros_conferencia": erros, "diferencas_paridade": len(difs), "servicos": len(servicos),
         "eap": gavetas.para_eap(servicos)}
 
@@ -215,6 +295,8 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
                   de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))),
                   de_valas(redes_vala or []))
+    if (Path(out) / "retornos_gavetas").is_dir():                       # fatos da IA: inferidos, com executor e trecho
+        base = juntar(base, _conciliar_com_a_base(de_retornos(Path(out) / "retornos_gavetas"), base))
     erros = gavetas.conferir_base(base)
     pasta = Path(out) / "base"
     anterior = gavetas.ler(pasta)["servicos"] if (pasta / "servicos.parquet").exists() else None
@@ -237,7 +319,7 @@ def metadados() -> dict:
     return {
         "modulo": "extrair_gavetas",
         "descricao": "leitores (planilha de obras lineares, sondagens, decisões) gravam objetos, fatos e evidências "
-                     "nas gavetas; valor ausente não vira fato",
-        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "de_valas", "paridade_valas", "juntar", "etapa"],
+                     "nas gavetas; valor ausente não vira fato; retornos de IA entram como inferido e a recusa vira pendência",
+        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "de_valas", "paridade_valas", "de_retornos", "juntar", "etapa"],
         "conceitos": ["gavetas.json", "de_para_extracao.json"],
     }
