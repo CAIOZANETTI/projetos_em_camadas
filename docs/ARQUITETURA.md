@@ -1,4 +1,4 @@
-# Arquitetura — projetos em camadas (R8, 30/10/2026)
+# Arquitetura — projetos em camadas (R9 proposta, 01/11/2026)
 
 Diagrama, cenário de mesa e índice: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
 
@@ -204,6 +204,30 @@ build (rodada 18).
 
 **Elétrica**: pranchas PBEA com texto real, listas de materiais e de cabos, quadro de cargas. Hoje só termos; o
 leitor de listas é lacuna.
+
+### Tipo de obra: localizada × linear (proposta R9, 01/11/2026)
+
+A obra linear fica separada como **tipo de obra**, não como quinta disciplina. A disciplina diz o que se constrói;
+o tipo de obra diz como a obra se organiza no espaço. A adutora tem geotecnia, civil e hidráulica, mas tudo nela se
+localiza por estaca ao longo de um eixo, se mede em metro de rede e gira em torno da vala.
+
+| | Obra localizada (ETA, EEE, reservatório) | Obra linear (adutora, rede coletora, recalque) |
+|---|---|---|
+| espinha | unidade construtiva | eixo, com o estaqueamento como coordenada |
+| unidade de trabalho | estrutura e seus elementos | trecho (entre PVs, por superfície, entre sondagens) |
+| serviço dominante | concreto armado e fundação | vala: escavação, escoramento, pavimento, reaterro, esgotamento |
+| documento-chave | forma, armadura, locação e cargas | planta e perfil juntos (o perfil dá a profundidade real) |
+| só dela | — | interferências, travessias e MND, PVs, ligações prediais |
+
+**Módulo de obras lineares** (a fazer, nesta ordem):
+1. eixo e estaqueamento como espinha;
+2. leitor do perfil: estaca, cota do terreno e cota da geratriz;
+3. segmentação em trechos por PV, superfície e sondagem;
+4. **um único dimensionador de vala** (MOS Sanepar), alimentado pelo modelo geotécnico. Ele substitui os três que existem
+   hoje: `valas.py`, `obras_lineares.py` e o dimensionador do ramo da EAP;
+5. interferências e travessias.
+
+A EAP já separa as duas (U1 ETA × U2 adutoras).
 
 ## 6. Decisões: ida e volta
 
