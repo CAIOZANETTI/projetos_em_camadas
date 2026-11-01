@@ -535,3 +535,47 @@ def test_conferir_sem_entradas_e_formato_da_ocorrencia():
     o = geo.conferir([_furo()], estacas=[_estaca("E1", 95.0)])[0]
     assert set(o) == {"tipo", "objeto_id", "furo", "distancia_m", "mensagem", "valores"}
     json.dumps(o)  # serializável
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# F: boca do furo × terreno e estaca sem coordenada
+
+
+def test_conferir_boca_x_terreno_acusa_alem_da_tolerancia_e_cala_dentro():
+    # boca na cota 100; terreno do MDS 99,2 (boca 0,8 m acima) e 100,3 (dentro de 0,50 m)
+    r = geo.conferir([_furo()], terreno=[{"id": "SP-01", "terreno_m": 99.2}])
+    assert [o["tipo"] for o in r] == ["boca_x_terreno"]
+    assert r[0]["objeto_id"] == "SP-01" and r[0]["furo"] == "SP-01"
+    assert r[0]["valores"]["diferenca_m"] == pytest.approx(0.8)
+    assert "acima" in r[0]["mensagem"]
+    abaixo = geo.conferir([_furo()], terreno=[{"id": "SP-01", "terreno_m": 100.9}])
+    assert "abaixo" in abaixo[0]["mensagem"]
+    assert geo.conferir([_furo()], terreno=[{"id": "SP-01", "terreno_m": 100.3}]) == []
+    # a tolerância é configurável e absoluta
+    estreita = geo.conferir(
+        [_furo()], terreno=[{"id": "SP-01", "terreno_m": 100.3}], tolerancia_boca_m=0.2
+    )
+    assert estreita[0]["tipo"] == "boca_x_terreno"
+
+
+def test_conferir_boca_x_terreno_sem_dados_nao_acusa():
+    sem_cota = _furo()
+    sem_cota.pop("cota_boca")
+    assert geo.conferir([sem_cota], terreno=[{"id": "SP-01", "terreno_m": 90.0}]) == []
+    assert geo.conferir([_furo()], terreno=[{"id": "SP-01", "terreno_m": None}]) == []
+    assert geo.conferir([_furo()], terreno=[{"id": "OUTRO", "terreno_m": 90.0}]) == []
+    assert geo.PREMISSAS["tolerancia_boca_m"]["valor"] == 0.5
+
+
+def test_conferir_estaca_sem_coordenada_vira_ocorrencia():
+    sem_en = _estaca("E7", 95.0)
+    sem_en["E"] = None
+    nan = _estaca("E8", 95.0)
+    nan["N"] = float("nan")
+    r = geo.conferir([_furo()], estacas=[sem_en, nan, _estaca("E1", 94.0)])
+    assert [(o["tipo"], o["objeto_id"]) for o in r] == [
+        ("sem_coordenada", "E7"),
+        ("sem_coordenada", "E8"),
+    ]
+    assert r[0]["furo"] is None and "sem coordenada" in r[0]["mensagem"]
+    json.dumps(r)

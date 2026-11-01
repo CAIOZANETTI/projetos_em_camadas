@@ -7,9 +7,11 @@
     VCA        = escavação = comprimento × L × profundidade; reaterro = escavação − π·DN²/4 × comprimento;
                  bota-fora = volume do tubo × empolamento; pavimento = comprimento do tipo × L
     MND        = sem vala: só os caximbos (1 a cada 80 m, 4,5 m²) escavam e demolem
+    regra única= `quantificar` delega a `lineares.vala_do_trecho`, o núcleo de `lineares.dimensionar_vala` (L3a);
+                 aqui ficam as fórmulas do MOS e da planilha (sobrelargura, largura, escorar, vca, mnd, geotecnia)
     sondagem   = cada metro na sondagem mais próxima dentro do raio de influência (com o eixo em UTM) ou metade na
                  inicial e metade na final (só os ids da planilha); solo pela descrição das camadas até o fundo da
-                 vala; NA mais raso que o fundo = esgotamento
+                 vala; NA de projeto (geotecnia.na_m) mais raso que o fundo = esgotamento
     ortofoto   = verde = grama, preto = asfalto, cinza claro = concreto/calçada (camadas.valas.classe_ortofoto)
 
 Regras em `conceitos/obras_lineares.json`. Sem preço: só geometria e serviço associado.
@@ -31,7 +33,7 @@ import openpyxl
 import pandas as pd
 
 from . import geotecnia as geo
-from . import pdf_cad, valas
+from . import lineares, pdf_cad, valas
 
 REGRAS = json.loads((pdf_cad.CONCEITOS / "obras_lineares.json").read_text(encoding="utf-8"))
 PAVIMENTOS = list(REGRAS["pavimentos"]["tipos"])
@@ -146,28 +148,35 @@ def cobertura(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) ->
     return {ini: 1.0} if ini == fim else {ini: 0.5, fim: 0.5}
 
 
+def furos_do_trecho(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) -> list[tuple[dict | None, float]]:
+    """[(furo, fração do trecho)] pela `cobertura`; furo None = parte do trecho sem furo (fora do raio ou id sem furo)."""
+    por_id = {id_furo(f["id"]): f for f in furos}
+    return [(por_id.get(id_furo(fid)) if fid else None, frac)
+            for fid, frac in (cobertura(trecho, furos, pts) if furos else {}).items()]
+
+
 def geotecnia(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) -> dict:
     """Solo (fração por classe e categoria), NA e esgotamento do trecho pelas sondagens que o cobrem; sem o arquivo
-    de sondagens, o solo e o NA digitados na planilha."""
+    de sondagens, o solo e o NA digitados na planilha. O NA é o de projeto (`geotecnia.na_m`, com a margem)."""
     prof = trecho.get("prof_m")
-    por_id = {id_furo(f["id"]): f for f in furos}
     solos: dict[str, float] = {}
     nas, sem, esgota = [], 0.0, 0.0
     if not furos and trecho.get("solo"):
         solos[classe_solo(trecho["solo"])["classe"]] = 1.0
-    for fid, frac in (cobertura(trecho, furos, pts) if furos else {}).items():
-        furo = por_id.get(id_furo(fid)) if fid else None
+    for furo, frac in furos_do_trecho(trecho, furos, pts):
         if furo is None:
             sem += frac
             continue
         for cl, f in (solo_na_vala(furo, prof) if prof else {}).items():
             solos[cl] = solos.get(cl, 0.0) + f * frac
-        if furo.get("na_m") is not None:
-            nas.append(furo["na_m"])
-            esgota += frac if prof and furo["na_m"] < prof else 0.0
-    if not nas and trecho.get("na_m") is not None:            # só o NA da planilha
-        nas.append(trecho["na_m"])
-        esgota = 1.0 - sem if prof and trecho["na_m"] < prof else 0.0
+        nivel_m = geo.na_m(furo)
+        if nivel_m is not None:
+            nas.append(nivel_m)
+            esgota += frac if prof and nivel_m < prof else 0.0
+    nivel_planilha_m = geo.na_m(trecho) if isinstance(trecho.get("na_m"), (int, float)) else None
+    if not nas and nivel_planilha_m is not None:            # só o NA da planilha
+        nas.append(nivel_planilha_m)
+        esgota = 1.0 - sem if prof and nivel_planilha_m < prof else 0.0
     cat = geo.CATEGORIA_POR_CLASSE
     return {"solos": {k: round(v, 3) for k, v in solos.items()},
             "categorias": {c: round(sum(v for k, v in solos.items() if cat.get(k, "a definir") == c), 3)
@@ -248,25 +257,10 @@ def mnd(t: dict) -> dict:
 
 
 def quantificar(trecho: dict, furos: list[dict] | None = None, pts: np.ndarray | None = None) -> dict:
-    """Trecho completo: escoramento, largura (MOS), quantidades do método, geotecnia e alertas."""
-    t = {**trecho, "metodo": norm(trecho.get("metodo") or "VCA")}
-    prof, alertas = t.get("prof_m"), []
-    t["escorado"] = escorar(prof)
-    geo = geotecnia(t, furos or [], pts)
-    if not prof:
-        alertas.append("sem profundidade média: largura, escoramento e volumes não calculados")
-    larg = largura(t["dn_mm"], t["material"], prof, t["escorado"], t.get("junta")) if prof else None
-    if prof and larg is None:
-        alertas.append(f"material {t['material']} DN {t['dn_mm']} fora da Tabela I do MOS")
-    q = mnd(t) if t["metodo"] == "MND" else vca(t, larg) if larg else {}
-    if geo["esgotamento_frac"] > 0:
-        alertas.append(f"NA ({geo['na_min_m']} m) acima do fundo da vala ({prof} m): esgotamento de vala")
-    if geo["sem_sondagem_frac"] > 0:
-        alertas.append(f"{geo['sem_sondagem_frac']:.0%} do trecho sem sondagem dentro do raio de influência")
-    soma_pav = sum((t.get("pavimentos") or {}).values())
-    if t["metodo"] == "VCA" and soma_pav and abs(soma_pav - t["comp_m"]) > 0.05:
-        alertas.append(f"pavimentos somam {soma_pav:g} m e o trecho tem {t['comp_m']:g} m")
-    return {**t, **q, "geotecnia": geo, "alertas": alertas}
+    """Trecho completo: escoramento, largura (MOS), quantidades do método, geotecnia e alertas. Delega à regra única
+    de vala (`lineares.vala_do_trecho`, a mesma de `lineares.dimensionar_vala`), sem perfil e sem os acréscimos do
+    dimensionador: mesmos nomes e valores de antes da L3a."""
+    return lineares.vala_do_trecho(trecho, furos, None, pts)[0]
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -483,7 +477,7 @@ def metadados() -> dict:
         "descricao": "seção de vala pelo MOS Sanepar, escoramento, solo e NA pela sondagem, pavimento pela ortofoto e "
                      "quantidades VCA/MND por trecho; conferência com a planilha e conciliação com o CUSTO CIVIL",
         "funcoes": ["sobrelargura", "escorar", "largura", "classe_solo", "solo_na_vala", "furos_com_xy", "furo_por_metro", "cobertura",
-                    "geotecnia", "brilho", "pavimentos_ortofoto", "no_eixo", "vca", "mnd", "quantificar", "ler_obras_lineares",
+                    "furos_do_trecho", "geotecnia", "brilho", "pavimentos_ortofoto", "no_eixo", "vca", "mnd", "quantificar", "ler_obras_lineares",
                     "ler_custo_civil", "conferir", "casar", "conciliar", "quadro", "para_html", "etapa", "id_furo"],
         "bibliografia": [
             {"obra": "Sanepar — Manual de Obras de Saneamento (MOS): largura de vala e Tabela I de sobrelargura",

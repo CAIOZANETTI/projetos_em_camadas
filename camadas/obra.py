@@ -32,6 +32,7 @@ from . import (
     extrair_gavetas,
     geo,
     georef_prancha,
+    geotecnia,
     inventario,
     obras_lineares,
     orcamento_sanepar,
@@ -684,6 +685,49 @@ def _furos_x_nuvem(furos: list, vertical: dict | None) -> list:
     return furos
 
 
+def _terreno_dos_furos(furos: list) -> list[dict]:
+    """[{id, terreno_m}] dos furos com o terreno da nuvem já em cota (`controle_vertical` de `_furos_x_nuvem`)."""
+    return [{"id": f["id"], "terreno_m": f["controle_vertical"]["terreno_m"]} for f in furos
+            if (f.get("controle_vertical") or {}).get("terreno_m") is not None]
+
+
+def _estacas_do_csv(cfg: dict) -> list[dict]:
+    """Linhas do CSV de estacas, inclusive as sem E/N (a conferência acusa `sem_coordenada`)."""
+    caminho = cfg.get("estacas")
+    if not caminho or not Path(caminho).exists():
+        return []
+    import pandas as pd
+    t = pd.read_csv(caminho, sep=";", decimal=",", dtype={"id": str})
+    return t.astype(object).where(t.notna(), None).to_dict("records")
+
+
+def _cavas_para_conferir(esc: dict | None, epsg: int) -> list[dict]:
+    """Cavas da escavação como [{id, E_m, N_m, cota_fundo_m}]: centro do contorno (lon/lat -> UTM) e o fundo mais baixo."""
+    from shapely.geometry import shape
+    cavas = []
+    for f in ((esc or {}).get("geojson") or {}).get("features", []):
+        p = f["properties"]
+        if not p.get("fundo_m"):
+            continue
+        centro = shape(f["geometry"]).representative_point()
+        e, n = geo.para_utm(centro.x, centro.y, epsg)
+        cavas.append({"id": p["id"], "E_m": float(e), "N_m": float(n), "cota_fundo_m": float(min(p["fundo_m"]))})
+    return cavas
+
+
+def _conferencias_geotecnia(furos: list, estacas_csv: list, cavas: list, terreno: list,
+                            trechos: list | None = None) -> dict | None:
+    """Conferências projeto × sondagem (`geotecnia.conferir`) no formato de `dados["geotecnia"]`:
+    {"conferencias": [...], "resumo": {tipo: n}}. Sem sondagens, None."""
+    if not furos:
+        return None
+    ocorrencias = geotecnia.conferir(furos, estacas_csv, cavas, trechos=trechos, terreno=terreno)
+    resumo: dict[str, int] = {}
+    for o in ocorrencias:
+        resumo[o["tipo"]] = resumo.get(o["tipo"], 0) + 1
+    return {"conferencias": ocorrencias, "resumo": resumo}
+
+
 def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | None, lista: list) -> list:
     """Painel de informações: sistema, levantamento, posição, ortofoto, nuvem, cotas e georreferência das pranchas."""
     from . import VERSAO
@@ -710,16 +754,18 @@ def _info(cfg: dict, crs: dict, rel: dict, desloc, orto: dict, vertical: dict | 
     ]
 
 
-def _reavaliar(inv: dict, out: Path, cfg: dict) -> dict:
+def _reavaliar(inv: dict, out: Path, cfg: dict, geotecnia_dados: dict | None = None) -> dict:
     """Reavaliação do inventário (`camadas.extracao`): classe de cada fonte, estado da extração, próximo passe e séries
-    de folhas incompletas; grava `pendencias.json` (a lista que abre a próxima rodada) e o registro `extracao.jsonl`."""
+    de folhas incompletas; grava `pendencias.json` (a lista que abre a próxima rodada, com a chave `geotecnia` das
+    conferências projeto × sondagem) e o registro `extracao.jsonl`."""
     rel = extracao.aplicar_retornos(out, inv)                      # retornos da IA entram antes da avaliação
     p = extracao.pendencias(inv, cfg["inventario"].get("pastas"), extracao.ler_complementos(out / "complementos.json"))
     extracao.registrar_por_executor(p["avaliacoes"], out / "extracao.jsonl", passe="build")
     resumo = {k: p[k] for k in ("por_estado", "por_classe", "fracao_completa", "series", "fora_do_escopo")}
     resumo.update({k: p[k] for k in ("por_papel",) if k in p})
     (out / "pendencias.json").write_text(json.dumps({**resumo, "esperado": extracao.esperado_x_encontrado({"itens": p["itens"]}),
-                                                     "retornos": rel, "pendencias": p["pendencias"]},
+                                                     "retornos": rel, "pendencias": p["pendencias"],
+                                                     "geotecnia": geotecnia_dados},
                                                     ensure_ascii=False, indent=1), encoding="utf-8")
     _log(f"Extração: {p['por_estado']}; {len(p['pendencias'])} pendência(s), {len(p['series'])} série(s) incompleta(s)")
     return {**resumo, "pendencias": p["pendencias"]}
@@ -746,7 +792,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     if cfg.get("inventario"):                         # todos os arquivos da listagem do Drive, com o carimbo
         inv = inventario.inventario(cfg, out / "inventario_cache.json", log=_log)
         dados["inventario"] = inventario.para_html(inv)
-        dados["inventario"]["extracao"] = _reavaliar(inv, out, cfg)
+        dados["inventario"]["extracao"] = _reavaliar(inv, out, cfg, dados.get("geotecnia"))
         fl = prancha.lote(cfg, escopo, out, log=_log)                  # ficha leve de cada desenho no disco
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
@@ -756,6 +802,14 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
 
 
 # 5 ---------------------------------------------------------------------------
+def _sondagens_no_build(dados: dict, cfg: dict, furos: list, esc: dict | None, epsg: int, vertical) -> None:
+    """Conferências projeto × sondagem em `dados["geotecnia"]` e o perfil dos furos no 3D (só com a nuvem em cota)."""
+    dados["geotecnia"] = _conferencias_geotecnia(furos, _estacas_do_csv(cfg), _cavas_para_conferir(esc, epsg),
+                                                 _terreno_dos_furos(furos))
+    if vertical:
+        dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
+
+
 def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     cfg = json.loads(Path(cfg_path).read_text())
     out = Path(cfg["saida"])
@@ -811,8 +865,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "anotacoes": {"type": "FeatureCollection", "features": []},
         "info": _info(cfg, crs, rel, desloc, orto, vertical, lista),
     }
-    if vertical:                                      # perfil dos furos no 3D só com a nuvem em cota
-        dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
+    _sondagens_no_build(dados, cfg, furos, esc, epsg, vertical)
     _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala}, redes_vala)
     return _gravar(cfg, out, dados, pranchas, epsg)
 

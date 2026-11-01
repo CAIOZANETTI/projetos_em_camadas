@@ -3,7 +3,7 @@ import pytest
 import shapely
 from shapely.geometry import LineString
 
-from camadas import valas
+from camadas import lineares, valas
 
 M = np.array([[1.0, 0, 0], [0, 1.0, 0]])               # pt = m, para o teste
 
@@ -53,10 +53,13 @@ def test_quadras():
 
 
 def test_quadro_da_vala():
+    # D2, plano da rodada 25: gabarito muda da NBR 12266 (b = DE + 0,60) para o MOS Sanepar (L = D + SL + X + Y).
+    # Antes (NBR): largura 0,90, demolição e recomposição 12,0, volume 12,6. Agora (MOS, FD DN 300, vala de 1,40 m
+    # escorada): largura 0,75, demolição e recomposição 10,5, volume 10,5. A profundidade (1,40 m) não mudou.
     q = valas.quantificar(["pista"] * 10, np.ones(10), 0.3)[0]
-    assert q["largura_m"] == pytest.approx(0.9) and q["profundidade_m"] == pytest.approx(1.4)
-    assert q["demolicao_m2"] == pytest.approx(12.0) and q["recomposicao_m2"] == pytest.approx(12.0)
-    assert q["volume_vala_m3"] == pytest.approx(12.6)
+    assert q["largura_m"] == pytest.approx(0.75, abs=0.001) and q["profundidade_m"] == pytest.approx(1.4, abs=0.001)
+    assert q["demolicao_m2"] == pytest.approx(10.5, abs=0.05) and q["recomposicao_m2"] == pytest.approx(10.5, abs=0.05)
+    assert q["volume_vala_m3"] == pytest.approx(10.5, abs=0.05)
     coberta = valas.quantificar(["pavimentado"] * 4, np.ones(4), 0.3, ["asfalto novo"] * 4)[0]
     assert coberta["demolicao_m2"] > 0 and coberta["recomposicao_m2"] == 0 and "urbanização" in coberta["recomposicao"]
     verde = valas.quantificar(["vegetacao"], np.ones(1), 0.3)[0]
@@ -84,6 +87,31 @@ def test_camada_do_mapa_soma_a_extensao_da_rede():
             "pts": am["pts"], "tang": am["tang"], "peso": am["peso"], "classes": [cl] * len(am["pts"]), "quadro": []}
     h = valas.para_html([rede], {}, None, 31982)
     assert sum(f["properties"]["extensao_m"] for f in h["geojson"]["features"]) == pytest.approx(rede["extensao_m"], abs=0.2)
+
+
+def test_largura_e_profundidade_vem_do_dimensionador_unico():
+    d = lineares.dimensionar_vala({"local": "x", "dn_mm": 300, "material": "FD", "prof_m": 1.4, "comp_m": 1.0,
+                                   "metodo": "VCA"})
+    q = valas.quantificar(["pista"] * 4, np.ones(4), 0.3)[0]
+    assert q["largura_m"] == pytest.approx(d["largura_m"], abs=0.001)
+    assert q["profundidade_m"] == pytest.approx(d["profundidade_m"], abs=0.001)
+    assert valas.secao("pista", 0.3) == pytest.approx((d["largura_m"], d["profundidade_m"]), abs=0.001)
+    assert q["escorado"] is True and q["tipo_escoramento"] == d["tipo_escoramento"]
+
+
+def test_material_padrao_avisa_e_material_declarado_nao():
+    padrao = valas.quantificar(["pista"], np.ones(1), 0.3)[0]
+    assert padrao["material"] == "FD" and padrao["dn_mm"] == 300
+    assert any("material de premissa" in a for a in padrao["alertas"])
+    pead = valas.quantificar(["pista"], np.ones(1), 0.3, material="PEAD", dn_mm=315)[0]
+    assert pead["material"] == "PEAD" and pead["dn_mm"] == 315
+    assert not any("material de premissa" in a for a in pead["alertas"])
+
+
+def test_fora_da_tabela_do_mos_cai_na_largura_da_nbr_com_alerta():
+    q = valas.quantificar(["pista"], np.ones(1), 3.0, material="FD", dn_mm=3000)[0]
+    assert q["largura_m"] == pytest.approx(3.6, abs=0.001)
+    assert any("Tabela I do MOS" in a for a in q["alertas"])
 
 
 def _rede_sintetica(criterio="divisas", finais=None):
