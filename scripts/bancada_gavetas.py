@@ -16,6 +16,7 @@ import statistics
 import sys
 import tempfile
 import time
+import subprocess
 import tracemalloc
 from datetime import date
 from pathlib import Path
@@ -168,6 +169,30 @@ def _versao(pacote: str) -> str | None:
         return None
 
 
+_RSS = """
+import importlib, re, sys
+from camadas import gavetas
+for p in {"parquet": ["pyarrow"], "geoparquet": ["pyarrow", "shapely", "pyproj"], "duckdb": ["duckdb", "pyarrow"]}.get(sys.argv[2], []):
+    importlib.import_module(p)
+def kb(campo):
+    return int(re.search(campo + r":\\s+(\\d+)", open("/proc/self/status").read()).group(1))
+open("/proc/self/clear_refs", "w").write("5")   # zera o pico (VmHWM) depois dos imports
+antes = kb("VmRSS")
+gavetas.ler(sys.argv[1], sys.argv[2])
+print(kb("VmHWM") - antes)
+"""
+
+
+def ram_subprocesso(pasta: Path, formato: str) -> float:
+    """Crescimento do pico de RSS (MB) ao ler a base num processo novo, já com as bibliotecas importadas: enxerga a
+    memória nativa do pyarrow e do DuckDB, que o tracemalloc não vê. Linux: o pico (VmHWM) é zerado por
+    /proc/self/clear_refs depois dos imports."""
+    raiz = Path(__file__).resolve().parents[1]
+    r = subprocess.run([sys.executable, "-c", _RSS, str(pasta), formato], capture_output=True, text=True, cwd=raiz,
+                       check=True)
+    return round(int(r.stdout.strip().splitlines()[-1]) / 1024, 2)
+
+
 def medir_io(base: dict, formato: str, repeticoes: int) -> tuple[dict, Path, tempfile.TemporaryDirectory]:
     """Tamanho, gravação, leitura, ida e volta e RAM do formato; devolve também a pasta da última gravação."""
     tempos, tmp = [], None
@@ -187,7 +212,7 @@ def medir_io(base: dict, formato: str, repeticoes: int) -> tuple[dict, Path, tem
     tracemalloc.stop()
     medidas = {"bytes": sum(a.stat().st_size for a in arqs), "gravar_s": round(statistics.median(tempos), 4),
                "ler_s": round(statistics.median(leituras), 4), "ida_e_volta": lida == base,
-               "ram_mb": round(pico / 1e6, 2)}
+               "ram_mb": ram_subprocesso(Path(tmp.name), formato), "ram_python_mb": round(pico / 1e6, 2)}
     return medidas, Path(tmp.name), tmp
 
 
