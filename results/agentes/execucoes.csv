@@ -28,3 +28,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 23,2º aceite da rodada 23,gerente (aceite),claude-fable-5-1,16274,7,92,True,nenhum,ACEITA
 2026-11-01,rodada 24,E3 (fatos da IA na etapa),implementador,claude-sonnet-5-5,79045,13,130,True,devolução do gerente,devolvida 1 vez: os testes não tinham entrado no commit; corrigido
 2026-11-01,rodada 24,E3 (correção: testes no commit),implementador,claude-sonnet-5-5,8344,9,49,True,nenhum,"aceita pelo Opus (21 testes, conferido git show)"
+2026-11-01,rodada 24,desempenho: índice da base,implementador,claude-sonnet-5-5,87247,23,466,True,nenhum,"aceito pelo Opus; 20 km 70,4 s → 0,86 s; meta do 2º cálculo ainda não"
