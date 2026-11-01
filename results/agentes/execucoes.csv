@@ -18,3 +18,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 23,E4 (conferência ponta a ponta da aba EAP),braçal,claude-haiku-5-5,71669,15,78,True,nenhum,"entregue; 146 valores, 256 evidências, 2 pendências, 0 números sem origem, 0 erros"
 2026-11-01,rodada 23,aceite da rodada 23,gerente (aceite),claude-fable-5-1,36844,10,154,True,nenhum,"REVISAR: E1 (omissão silenciosa), E3 (chave sem as constantes do MOS; paridade sobre recálculo fresco)"
 2026-11-01,rodada 24,E2 (bancada do cálculo),implementador,claude-sonnet-5-5,85661,19,133,True,nenhum,entregue; achou o 2º cálculo O(n²) (reprova o critério 2 já em 5 km)
+2026-11-01,rodada 24,E1 (valas nas gavetas),implementador,claude-sonnet-5-5,112297,28,185,True,nenhum,entregue; corrigiu também valor_txt de listas e regra_de sem quando
