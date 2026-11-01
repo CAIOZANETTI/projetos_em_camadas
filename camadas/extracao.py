@@ -347,6 +347,9 @@ def fatos_do_retorno(retorno: dict, avaliacao: dict | None = None) -> dict:
         if not obj_id or not executor:
             saida["recusas"].append({"propriedade": prop, "motivo": "fato sem objeto_id" if not obj_id else "retorno sem executor"})
             continue
+        if f.get("valor") is None or f.get("valor") == "":
+            saida["recusas"].append({"propriedade": prop, "motivo": "sem valor"})
+            continue
         objetos.setdefault(obj_id, {"objeto_id": obj_id, "classe": casam[0]["objeto"]})
         saida["fatos"].append({"fato_id": f"{obj_id}.{prop}.ia", "objeto_id": obj_id, "propriedade": prop,
                                "valor": f.get("valor"), "natureza": "inferido", "evidencia_id": ev_id,

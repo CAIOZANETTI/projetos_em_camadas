@@ -318,3 +318,12 @@ def test_fatos_do_retorno_sem_trecho_recusa_tudo_e_classe_vem_da_avaliacao():
     sem_classe = {k: v for k, v in _retorno_ia().items() if k != "classe"}
     assert len(extracao.fatos_do_retorno(sem_classe, {"classe": "laudo"})["fatos"]) == 1
     assert extracao.fatos_do_retorno(sem_classe, {"classe": "memorial"})["fatos"] == []
+
+
+def test_fatos_do_retorno_valor_vazio_vira_recusa_sem_valor():
+    r = extracao.fatos_do_retorno(_retorno_ia(fatos=[
+        {"objeto_id": "SP-01", "propriedade": "na_m", "valor": None},
+        {"objeto_id": "SP-02", "propriedade": "na_m", "valor": ""},
+        {"objeto_id": "SP-03", "propriedade": "na_m", "valor": 0}]))
+    assert [f["objeto_id"] for f in r["fatos"]] == ["SP-03"] and r["objetos"] == [{"objeto_id": "SP-03", "classe": "furo_sondagem"}]
+    assert [x["motivo"] for x in r["recusas"]] == ["sem valor", "sem valor"]

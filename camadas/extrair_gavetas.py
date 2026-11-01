@@ -38,6 +38,17 @@ def _fato(objeto_id: str, propriedade: str, valor, natureza: str, evidencia_id: 
             "valor": valor, "natureza": natureza, "evidencia_id": evidencia_id}
 
 
+def _inventado(trecho: dict, propriedade: str, valor) -> bool:
+    """Valor que o leitor pôs no lugar de uma célula vazia (comp 0, método VCA, supressão 0, material 'None')."""
+    if propriedade == "comp_m":
+        return not valor
+    if propriedade == "metodo":
+        return "metodo_lido" in trecho and _vazio(trecho["metodo_lido"])
+    if propriedade == "supressao_frac":
+        return not trecho.get("supressao_lida", True)
+    return propriedade == "material" and str(valor).strip() in ("None", "")
+
+
 def de_obras_lineares(trechos: list[dict], documento: str, aba: str = "Obras Lineares") -> dict:
     """Trechos de `ler_obras_lineares` → objetos `trecho_tubo` `OL-<linha>`, fatos e evidência (aba e linha)."""
     base = _base_vazia()
@@ -52,7 +63,7 @@ def de_obras_lineares(trechos: list[dict], documento: str, aba: str = "Obras Lin
             "executor": "código"})
         for propriedade in propriedades:
             valor = trecho.get(propriedade)
-            if _vazio(valor) or (propriedade == "comp_m" and not valor):   # o leitor troca comp vazio por 0
+            if _vazio(valor) or _inventado(trecho, propriedade, valor):
                 continue
             natureza = "observado" if propriedade in OBSERVADAS_NA_PLANILHA else "projetado"
             base["fatos"].append(_fato(objeto_id, propriedade, valor, natureza, evidencia_id))
@@ -83,21 +94,20 @@ def de_sondagens(furos: list[dict], documento: str, executor: str = "código", c
 
 
 def de_decisoes(metodo_por_local: dict, trechos: list[dict], documento: str) -> dict:
-    """Escolha `{local: "MND"}` do obra.json → fato `metodo` `decidido` no trecho de mesmo `local` (sem acento/caixa)."""
+    """Escolha `{local: "MND"}` do obra.json → fato `metodo` `decidido` em todo trecho de mesmo `local` (sem acento/caixa)."""
     base = _base_vazia()
-    por_local = {ol.norm(t["local"]): t for t in trechos}
     for local, metodo in metodo_por_local.items():
-        trecho = por_local.get(ol.norm(local))
-        if trecho is None:
+        casados = [t for t in trechos if ol.norm(t["local"]) == ol.norm(local)]
+        if not casados:
             base["pendencias"].append({"objeto_id": str(local),
                                        "motivo": f"decisão de método '{metodo}' sem trecho de mesmo local na planilha"})
-            continue
-        objeto_id, evidencia_id = f"OL-{trecho['linha']:03d}", f"EV-DEC-{trecho['linha']}"
-        base["evidencias"].append({
-            "evidencia_id": evidencia_id, "classe": "decisao", "documento": documento,
-            "localizador": {"arquivo": documento, "chave": "obras_lineares.metodo"}, "trecho": local,
-            "metodo": "decisão", "executor": "você"})
-        base["fatos"].append(_fato(objeto_id, "metodo", metodo, "decidido", evidencia_id))
+        for trecho in casados:
+            objeto_id, evidencia_id = f"OL-{trecho['linha']:03d}", f"EV-DEC-{trecho['linha']}"
+            base["evidencias"].append({
+                "evidencia_id": evidencia_id, "classe": "decisao", "documento": documento,
+                "localizador": {"arquivo": documento, "chave": "obras_lineares.metodo"}, "trecho": local,
+                "metodo": "decisão", "executor": "você"})
+            base["fatos"].append(_fato(objeto_id, "metodo", metodo, "decidido", evidencia_id))
     return base
 
 
@@ -147,7 +157,7 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     escolha = {ol.norm(k): v for k, v in (c.get("metodo") or {}).items()}
     aplicados = [{**t, "metodo": escolha.get(ol.norm(t["local"]), t["metodo"])} for t in trechos]
     doc_sond = cfg["sondagens"] if isinstance(cfg.get("sondagens"), str) else "sondagens"
-    executor = cfg.get("gavetas", {}).get("executor_sondagens", "código")
+    executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
     base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
                   de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))))
     erros = gavetas.conferir_base(base)

@@ -361,14 +361,15 @@ def _geometria(base: dict, objeto_id: str) -> dict | None:
 
 
 def furos(base: dict, classe: str) -> list[dict]:
-    """Sondagens colocadas no local: objetos da classe com geometria de ponto, no formato de `obras_lineares`."""
+    """Sondagens da classe no formato de `obras_lineares`: com ponto (E, N) ou sem geometria (E e N None, só pelo nome)."""
     saida = []
     for o in base.get("objetos", []):
         g = _geometria(base, o["objeto_id"])
-        if o["classe"] != classe or not g or g["tipo"] != "ponto":
+        if o["classe"] != classe or (g and g["tipo"] != "ponto"):
             continue
         fatos = fatos_do_objeto(base, o["objeto_id"])
-        saida.append({"id": o["objeto_id"], "E": g["coords"][0], "N": g["coords"][1],
+        xy = g["coords"][:2] if g else (None, None)           # sem geometria: só pelo nome citado (sem eixo)
+        saida.append({"id": o["objeto_id"], "E": xy[0], "N": xy[1],
                       "na_m": fatos.get("na_m", {}).get("valor"), "camadas": fatos.get("camadas", {}).get("valor", []),
                       "fatos": [f["fato_id"] for f in fatos.values()]})
     return saida
@@ -458,11 +459,45 @@ def _achatar(saidas: dict, nomes: list[str]) -> dict[tuple, float]:
     return plano
 
 
+GEOTECNIA = ["esgotamento_frac", "sem_sondagem_frac", "na_min_m", "categorias"]
+
+
+def _diferencas(objeto_id: str, obtido: dict, esperado: dict, tol: float, prefixo: str = "") -> list[dict]:
+    """Chaves em que os dois lados {(saída, chave): valor} diferem por mais de `tol` (lado ausente vem None)."""
+    difs = []
+    for saida, chave in sorted(set(esperado) | set(obtido), key=lambda k: (k[0], k[1] or "")):
+        g, q = obtido.get((saida, chave)), esperado.get((saida, chave))
+        if g is None or q is None or abs(g - q) > tol:
+            difs.append({"objeto_id": objeto_id, "saida": prefixo + saida, "chave": chave, "gavetas": g, "obras_lineares": q})
+    return difs
+
+
+def _paridade_do_objeto(base: dict, o: dict, trecho: dict, furos: list[dict], obtido: dict, tol: float) -> list[dict]:
+    """Um trecho: método, quantidades e geotecnia das gavetas contra o `quantificar` do trecho recebido."""
+    e = entrada(base, o)
+    if e["regra"] is None:
+        return []
+    metodo_regra = SERVICOS["regras"][e["regra"]]["quando"]["metodo"]
+    metodo = trecho.get("metodo") or "VCA"
+    q = ol.quantificar({**trecho, "metodo": metodo}, furos)
+    difs = []
+    if ol.norm(metodo) != ol.norm(metodo_regra):
+        difs.append({"objeto_id": o["objeto_id"], "saida": "metodo", "chave": None, "gavetas": metodo_regra,
+                     "obras_lineares": metodo})
+    difs += _diferencas(o["objeto_id"], obtido, _achatar(q, SERVICOS["regras"][e["regra"]]["saidas"]), tol)
+    if not e["faltam"]:                       # com fato obrigatório faltando as gavetas não calculam nada (há pendência)
+        geo = ol.quantificar(e["dados"], e["furos"], e["pts"])["geotecnia"]
+        difs += _diferencas(o["objeto_id"], _achatar(geo, GEOTECNIA), _achatar(q["geotecnia"], GEOTECNIA), tol,
+                            "geotecnia.")
+    return difs
+
+
 def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.001) -> list[dict]:
     """Diferenças entre o cálculo das gavetas e o `obras_lineares.quantificar` dos trechos da planilha (`OL-<linha>`).
 
-    O método do `quantificar` é o do fato que venceu na base (sem fato: VCA, como a regra das gavetas). Devolve só o que
-    difere por mais de `tol`: {objeto_id, saida, chave, gavetas, obras_lineares}; o que um lado não calculou vem None.
+    O `quantificar` usa o `metodo` do trecho recebido (o aplicado, como no `obras_lineares.csv`); se ele difere do método
+    da regra escolhida nas gavetas, sai a diferença `metodo`. Compara também a geotecnia (`geotecnia.<campo>`), com a
+    `entrada` da base. Devolve só o que difere por mais de `tol`: {objeto_id, saida, chave, gavetas, obras_lineares}.
     """
     servicos, _ = calcular(base)
     por_objeto: dict[str, dict] = {}
@@ -473,16 +508,8 @@ def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.
     for o in base.get("objetos", []):
         achou = re.fullmatch(r"OL-(\d+)", o["objeto_id"])
         trecho = por_linha.get(int(achou[1])) if achou and o["classe"] == "trecho_tubo" else None
-        nome = regra_de(o["classe"], fatos_do_objeto(base, o["objeto_id"])) if trecho else None
-        if nome is None:
-            continue
-        metodo = fatos_do_objeto(base, o["objeto_id"]).get("metodo", {}).get("valor") or "VCA"
-        esperado = _achatar(ol.quantificar({**trecho, "metodo": metodo}, furos), SERVICOS["regras"][nome]["saidas"])
-        obtido = por_objeto.get(o["objeto_id"], {})
-        for saida, chave in sorted(set(esperado) | set(obtido), key=lambda k: (k[0], k[1] or "")):
-            g, q = obtido.get((saida, chave)), esperado.get((saida, chave))
-            if g is None or q is None or abs(g - q) > tol:
-                difs.append({"objeto_id": o["objeto_id"], "saida": saida, "chave": chave, "gavetas": g, "obras_lineares": q})
+        if trecho:
+            difs += _paridade_do_objeto(base, o, trecho, furos, por_objeto.get(o["objeto_id"], {}), tol)
     return difs
 
 
