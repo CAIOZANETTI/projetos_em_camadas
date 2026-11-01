@@ -34,3 +34,4 @@
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "aceite do PR 2 (G1, L1)", "tokens": 110686, "segundos": 143, "ferramentas": 15, "resultado": "L1 aceita; G1 revisar (preposição na virava NA)"}
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor", "tarefa": "2º aceite do G1", "tokens": 113188, "segundos": 13, "ferramentas": 1, "resultado": "G1 aceita"}
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "sonnet", "papel": "implementador", "tarefa": "L2 (leitor do perfil longitudinal)", "tokens": 95094, "segundos": 228, "ferramentas": 19, "resultado": "entregue; 11 testes (OCR pulado)"}
+{"rodada": "rodada 25", "data": "2026-11-01", "modelo": "sonnet", "papel": "implementador", "tarefa": "G2 e G3 (modelo geotécnico e conferências)", "tokens": 144694, "segundos": 380, "ferramentas": 32, "resultado": "entregue; hash igual"}
