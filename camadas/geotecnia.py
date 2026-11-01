@@ -46,6 +46,7 @@ EMPOLAMENTO_SOLO = PREMISSAS["empolamento"]["solo"]
 EMPOLAMENTO_ROCHA = PREMISSAS["empolamento"]["rocha"]
 FOLGA_NA_SAZONAL_M = PREMISSAS["folga_na_sazonal_m"]["valor"]
 TOLERANCIA_CONFERENCIA_M = PREMISSAS["tolerancia_conferencia_m"]["valor"]
+TOLERANCIA_BOCA_M = PREMISSAS["tolerancia_boca_m"]["valor"]
 PASSO_AMOSTRAGEM_M = PREMISSAS["passo_amostragem_m"]["valor"]
 CATEGORIA_POR_CLASSE = {c["classe"]: c["categoria"] for c in REGRAS["solos"]["classes"]}
 CATEGORIA_INDEFINIDA = "a definir"
@@ -420,13 +421,23 @@ def _estaca_x_topo(
 
 def _conferir_estacas(furos, estacas, tolerancia_m, raio_m) -> list[dict]:
     """Ponta da estaca (cota_arrasamento − comprimento_m) × topo do impenetrável/rocha do furo mais próximo."""
+    saidas = [
+        _ocorrencia(
+            "sem_coordenada",
+            str(e.get("id")),
+            None,
+            None,
+            f"estaca {e.get('id')}: sem coordenada E/N, não dá para conferir o impenetrável",
+        )
+        for e in estacas
+        if not (_numero(e.get("E")) and _numero(e.get("N")))
+    ]
     estacas = [e for e in estacas if _numero(e.get("E")) and _numero(e.get("N"))]
     if not estacas:
-        return []
+        return saidas
     indices, distancias_m = furo_mais_proximo(
         np.array([[e["E"], e["N"]] for e in estacas]), furos
     )
-    saidas = []
     for estaca, i, distancia_m in zip(estacas, indices, distancias_m, strict=True):
         if i < 0 or distancia_m > raio_m:
             saidas.append(
@@ -479,6 +490,39 @@ def _conferir_cavas(furos, cavas, tolerancia_m, raio_m) -> list[dict]:
                     cota_fundo_m=float(cava["cota_fundo_m"]),
                     cota_na_m=cota_na_m,
                     diferenca_m=diferenca_m,
+                )
+            )
+    return saidas
+
+
+def _conferir_bocas(furos, terreno, tolerancia_m) -> list[dict]:
+    """Cota da boca do furo (topográfica) × terreno do MDS/nuvem no mesmo ponto: acusa além da tolerância."""
+    por_id = {str(f.get("id")): f for f in furos}
+    saidas = []
+    for item in terreno:
+        furo = por_id.get(str(item.get("id")))
+        boca_m = None if furo is None else _cota_boca_m(furo)
+        if boca_m is None or not _numero(item.get("terreno_m")):
+            continue
+        diferenca_m = boca_m - float(
+            item["terreno_m"]
+        )  # > 0: boca acima do terreno do MDS
+        if abs(diferenca_m) > tolerancia_m:
+            msg = (
+                f"furo {furo.get('id')}: cota da boca {_br(abs(diferenca_m))} m "
+                f"{'acima' if diferenca_m > 0 else 'abaixo'} do terreno do MDS"
+            )
+            saidas.append(
+                _ocorrencia(
+                    "boca_x_terreno",
+                    str(furo.get("id")),
+                    furo,
+                    0.0,
+                    msg,
+                    cota_boca_m=boca_m,
+                    terreno_m=float(item["terreno_m"]),
+                    diferenca_m=diferenca_m,
+                    tolerancia_m=tolerancia_m,
                 )
             )
     return saidas
@@ -538,6 +582,8 @@ def conferir(
     cavas: list[dict] | None = None,
     trechos: list[dict] | None = None,
     tolerancia_m: float | None = None,
+    terreno: list[dict] | None = None,
+    tolerancia_boca_m: float | None = None,
 ) -> list[dict]:
     """Conferências projeto × sondagem. Devolve ocorrências {tipo, objeto_id, furo, distancia_m, mensagem, valores}.
 
@@ -547,15 +593,24 @@ def conferir(
     - `cavas` ([{id, E_m, N_m, cota_fundo_m}]): fundo abaixo da cota do NA = esgotamento necessário, com a diferença;
     - `trechos` ([{id, pontos_m (n, 2)}]): fração do trecho sem furo dentro do raio de influência.
 
+    - `terreno` ([{id, terreno_m}], o terreno da nuvem/MDS no furo, de `obra._furos_x_nuvem`): acusa
+      `boca_x_terreno` quando |cota_boca − terreno_m| > `tolerancia_boca_m` (padrão 0,50 m, premissa
+      `tolerancia_boca_m`: cota topográfica × MDS do drone).
+
+    Estaca sem E/N vira `sem_coordenada` (não é descartada em silêncio).
     Estaca ou cava sem furo dentro do raio vira `sem_furo_no_raio` (não há como conferir). Furo sem cota_boca, sem NA
-    ou sem rocha/impenetrável não gera ocorrência. Tipos: estaca_x_impenetravel, cava_x_na, trecho_sem_furo.
+    ou sem rocha/impenetrável não gera ocorrência. Tipos: estaca_x_impenetravel, cava_x_na, trecho_sem_furo, boca_x_terreno, sem_coordenada.
     """
     tolerancia_m = TOLERANCIA_CONFERENCIA_M if tolerancia_m is None else tolerancia_m
+    tolerancia_boca_m = (
+        TOLERANCIA_BOCA_M if tolerancia_boca_m is None else tolerancia_boca_m
+    )
     furos = [f for f in furos or [] if isinstance(f, dict)]
     return (
         _conferir_estacas(furos, estacas or [], tolerancia_m, RAIO_INFLUENCIA_M)
         + _conferir_cavas(furos, cavas or [], tolerancia_m, RAIO_INFLUENCIA_M)
         + _conferir_trechos(furos, trechos or [], RAIO_INFLUENCIA_M)
+        + _conferir_bocas(furos, terreno or [], tolerancia_boca_m)
     )
 
 
