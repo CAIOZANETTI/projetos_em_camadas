@@ -6,6 +6,10 @@ vêm do de-para 1 (`conceitos/de_para_extracao.json`), não de uma lista copiada
 """
 from __future__ import annotations
 
+import json
+from collections import Counter
+from pathlib import Path
+
 from . import gavetas
 from . import obras_lineares as ol
 
@@ -118,12 +122,55 @@ def _sem_repeticao(gaveta: str, chave: str | None, registros: list[dict]) -> lis
     return list(vistos.values())
 
 
+def _resumo(base: dict, erros: list[str], difs: list[dict], servicos: list[dict]) -> dict:
+    """Contagens da base: objetos, fatos (por natureza e por executor da evidência), pendências, paridade e EAP."""
+    executor = {e["evidencia_id"]: e["executor"] for e in base["evidencias"]}
+    return {
+        "objetos_por_classe": dict(Counter(o["classe"] for o in base["objetos"])),
+        "fatos_por_natureza": dict(Counter(f["natureza"] for f in base["fatos"])),
+        "fatos_por_executor": dict(Counter(executor.get(f["evidencia_id"]) for f in base["fatos"])),
+        "pendencias_por_motivo": dict(Counter(p["motivo"].split(":")[0] for p in base["pendencias"])),
+        "erros_conferencia": erros, "diferencas_paridade": len(difs), "servicos": len(servicos),
+        "eap": gavetas.para_eap(servicos)}
+
+
+def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
+    """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
+    compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`."""
+    c = cfg.get("obras_lineares")
+    if not c or not Path(c["planilha"]).exists():
+        if c:
+            log(f"Gavetas: planilha {c['planilha']} não está no disco")
+        return None
+    aba = c.get("aba", "Obras Lineares")
+    trechos = ol.ler_obras_lineares(c["planilha"], aba)
+    escolha = {ol.norm(k): v for k, v in (c.get("metodo") or {}).items()}
+    aplicados = [{**t, "metodo": escolha.get(ol.norm(t["local"]), t["metodo"])} for t in trechos]
+    doc_sond = cfg["sondagens"] if isinstance(cfg.get("sondagens"), str) else "sondagens"
+    executor = cfg.get("gavetas", {}).get("executor_sondagens", "código")
+    base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
+                  de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))))
+    erros = gavetas.conferir_base(base)
+    servicos, pend_calculo = gavetas.calcular(base)
+    difs = gavetas.paridade(base, aplicados, furos)
+    base["pendencias"] = base["pendencias"] + pend_calculo
+    pasta = Path(out) / "base"
+    pasta.mkdir(parents=True, exist_ok=True)
+    gavetas.gravar(pasta, {**base, "servicos": servicos})
+    resumo = _resumo(base, erros, difs, servicos)
+    (Path(out) / "paridade.json").write_text(json.dumps(difs, ensure_ascii=False, indent=1), encoding="utf-8")
+    (Path(out) / "resumo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
+    log(f"Gavetas: {len(base['objetos'])} objetos, {len(base['fatos'])} fatos, {len(base['pendencias'])} pendências, "
+        f"{len(servicos)} serviços, {len(erros)} erros de conferência, {len(difs)} diferenças de paridade")
+    return resumo
+
+
 def metadados() -> dict:
     """Rastreabilidade do método (regra 9 do estilo)."""
     return {
         "modulo": "extrair_gavetas",
         "descricao": "leitores (planilha de obras lineares, sondagens, decisões) gravam objetos, fatos e evidências "
                      "nas gavetas; valor ausente não vira fato",
-        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "juntar"],
+        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "juntar", "etapa"],
         "conceitos": ["gavetas.json", "de_para_extracao.json"],
     }

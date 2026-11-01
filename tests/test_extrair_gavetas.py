@@ -1,3 +1,5 @@
+import json
+
 import openpyxl
 import pytest
 
@@ -94,3 +96,32 @@ def test_decisao_convive_com_o_metodo_da_planilha_e_comp_zero_nao_vira_fato():
     assert gavetas.conferir_base(base) == []
     assert gavetas.fatos_do_objeto(base, "OL-007")["metodo"]["natureza"] == "decidido"
     assert "comp_m" not in gavetas.fatos_do_objeto(base, "OL-008")
+
+
+def _cfg(tmp_path, **extra):
+    planilha = _planilha(tmp_path)
+    return {"obras_lineares": {"planilha": str(planilha), "metodo": {"TRAVESSIA DA RUA PARA": "MND"}},
+            "sondagens": "sondagens.json", **extra}
+
+
+def test_etapa_grava_base_paridade_e_resumo(tmp_path):
+    furos = [{"id": "SP-02", "E": 0.0, "N": 0.0, "na_m": 9.0,
+              "camadas": [{"de": 0, "ate": 8, "descricao": "Argila siltosa"}]}]
+    out = tmp_path / "saida"
+    out.mkdir()
+    mensagens = []
+    resumo = eg.etapa(_cfg(tmp_path), furos, out, log=mensagens.append)
+    assert list(out.glob("base/*.parquet")) and mensagens
+    assert json.loads((out / "paridade.json").read_text(encoding="utf-8")) == []
+    gravado = json.loads((out / "resumo.json").read_text(encoding="utf-8"))
+    assert {"objetos_por_classe", "fatos_por_natureza", "fatos_por_executor", "pendencias_por_motivo",
+            "erros_conferencia", "diferencas_paridade", "servicos", "eap"} <= set(gravado)
+    assert resumo["fatos_por_natureza"]["decidido"] == 1 and resumo["erros_conferencia"] == []
+    assert resumo["objetos_por_classe"] == {"trecho_tubo": 3, "furo_sondagem": 1}
+    assert gavetas.conferir_base(gavetas.ler(out / "base")) == []
+
+
+def test_etapa_sem_planilha_devolve_none(tmp_path):
+    assert eg.etapa({}, [], tmp_path) is None
+    cfg = {"obras_lineares": {"planilha": str(tmp_path / "nao_existe.xlsx")}}
+    assert eg.etapa(cfg, [], tmp_path, log=lambda *_: None) is None
