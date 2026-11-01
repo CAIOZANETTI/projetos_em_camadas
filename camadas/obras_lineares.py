@@ -23,6 +23,7 @@ import json
 import math
 import re
 import unicodedata
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -105,21 +106,37 @@ def solo_na_vala(furo: dict, prof_m: float) -> dict[str, float]:
     return fatias
 
 
+@lru_cache(maxsize=65536)
 def id_furo(texto) -> str:
     """Id comparável de sondagem: 'SP-02', 'SP02', 'SPT-2' e 'SP 2' são o mesmo furo."""
     t = re.sub(r"[^A-Z0-9]", "", norm(texto)).replace("SPT", "SP")
     return re.sub(r"(?<=[A-Z])0+(?=\d)", "", t)
 
 
-def furo_por_metro(pts: np.ndarray, furos: list[dict]) -> list[str | None]:
-    """Id do furo mais próximo de cada ponto do eixo (UTM) dentro do raio de influência; None fora dele."""
+def furos_com_xy(furos: list[dict]) -> tuple[list[dict], np.ndarray]:
+    """Os furos com E e N, na ordem original, e a matriz (n, 2) das posições: o que `furo_por_metro` prepara a cada
+    chamada. Quem chama muitas vezes com a mesma lista de furos calcula uma vez e passa em `preparado`."""
     com_xy = [f for f in furos if f.get("E") is not None and f.get("N") is not None]
-    if not com_xy:
+    return com_xy, np.array([[f["E"], f["N"]] for f in com_xy], float).reshape(-1, 2)
+
+
+def furo_por_metro(pts: np.ndarray, furos: list[dict], preparado: tuple | None = None) -> list[str | None]:
+    """Id do furo mais próximo de cada ponto do eixo (UTM) dentro do raio de influência; None fora dele.
+
+    Só entram na conta os furos dentro da caixa do eixo ampliada pelo raio (com folga de 1 µm): o mais próximo de um
+    ponto que está no raio sempre está na caixa, e a ordem original resolve o empate (primeiro da lista), então o
+    resultado é o mesmo da conta contra todos os furos. `preparado`: o par de `furos_com_xy(furos)`, se já calculado."""
+    com_xy, xy = preparado if preparado is not None else furos_com_xy(furos)
+    if not com_xy or len(pts) == 0:
         return [None] * len(pts)
-    xy = np.array([[f["E"], f["N"]] for f in com_xy], float)
+    raio = REGRAS["raio_influencia_m"]["valor"]
+    folga = raio + 1e-6
+    dentro = np.all((xy >= pts.min(axis=0) - folga) & (xy <= pts.max(axis=0) + folga), axis=1)
+    if not dentro.any():
+        return [None] * len(pts)
+    com_xy, xy = [f for f, d in zip(com_xy, dentro) if d], xy[dentro]
     d = np.linalg.norm(pts[:, None, :] - xy[None, :, :], axis=2)
     perto = d.argmin(axis=1)
-    raio = REGRAS["raio_influencia_m"]["valor"]
     return [com_xy[k]["id"] if d[i, k] <= raio else None for i, k in enumerate(perto)]
 
 
@@ -468,7 +485,7 @@ def metadados() -> dict:
         "modulo": "obras_lineares",
         "descricao": "seção de vala pelo MOS Sanepar, escoramento, solo e NA pela sondagem, pavimento pela ortofoto e "
                      "quantidades VCA/MND por trecho; conferência com a planilha e conciliação com o CUSTO CIVIL",
-        "funcoes": ["sobrelargura", "escorar", "largura", "classe_solo", "solo_na_vala", "furo_por_metro", "cobertura",
+        "funcoes": ["sobrelargura", "escorar", "largura", "classe_solo", "solo_na_vala", "furos_com_xy", "furo_por_metro", "cobertura",
                     "geotecnia", "brilho", "pavimentos_ortofoto", "no_eixo", "vca", "mnd", "quantificar", "ler_obras_lineares",
                     "ler_custo_civil", "conferir", "casar", "conciliar", "quadro", "para_html", "etapa", "id_furo"],
         "bibliografia": [
