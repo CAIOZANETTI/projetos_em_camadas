@@ -197,3 +197,40 @@ def test_etapa_segunda_rodada_no_mesmo_out_nao_recalcula_nada(tmp_path):
     r2 = eg.etapa(cfg, [], out, log=lambda *_: None)
     assert r2["recalculados"] == 0 and r2["reaproveitados"] == r1["recalculados"]
     assert json.loads((out / "resumo.json").read_text(encoding="utf-8"))["recalculados"] == 0
+
+
+def _rede_vala(n=40, criterio="divisas"):
+    import numpy as np
+    return {"id": "R1", "de_mm": 300, "fonte_de": "t", "criterio": criterio, "pranchas": ["P1", "P2"],
+            "extensao_m": float(n), "pts": np.c_[np.arange(n) + 0.5, np.zeros(n)], "tang": np.tile([1.0, 0.0], (n, 1)),
+            "peso": np.ones(n), "classes": ["pista"] * 25 + ["calcada"] * 10 + ["vegetacao"] * 5,
+            "finais": [None] * 35 + ["grama"] * 5, "quadro": []}
+
+
+def test_rede_de_vala_passa_por_gavetas_e_paridade():
+    rede = _rede_vala()
+    base = eg.de_valas([rede])
+    assert gavetas.conferir_base(base) == [] and base["objetos"] == [{"objeto_id": "RV-R1", "classe": "rede_vala"}]
+    assert {f["propriedade"]: f["natureza"] for f in base["fatos"]} == {
+        "de_mm": "projetado", "extensao_m": "projetado", "classes_por_metro": "projetado", "pesos_m": "projetado",
+        "finais": "projetado"}
+    ev = base["evidencias"][0]
+    assert ev["classe"] == "projeto" and ev["localizador"] == {"pranchas": ["P1", "P2"], "criterio": "divisas"}
+    servicos, pend = gavetas.calcular(base)
+    assert pend == [] and {s["saida"] for s in servicos} == {"demolicao_m2", "recomposicao_m2", "volume_vala_m3"}
+    assert eg.paridade_valas(base, [rede]) == []
+    assert {"RD.01.pista", "RD.02.calcada", "RD.03.vegetacao/grama"} <= {n["eap"] for n in gavetas.para_eap(servicos)}
+    assert gavetas.conferir_de_para() == []
+    assert eg.paridade_valas(base, [{**rede, "peso": rede["peso"] * 1.5}])      # base defasada: a paridade acusa
+    por_ortofoto = eg.de_valas([_rede_vala(criterio="ortofoto")])
+    assert {f["natureza"] for f in por_ortofoto["fatos"] if f["propriedade"] == "pesos_m"} == {"inferido"}
+
+
+def test_etapa_com_redes_vala_grava_servicos(tmp_path):
+    out = tmp_path / "saida"
+    out.mkdir()
+    resumo = eg.etapa(_cfg(tmp_path), [], out, log=lambda *_: None, redes_vala=[_rede_vala()])
+    assert resumo["objetos_por_classe"]["rede_vala"] == 1 and resumo["erros_conferencia"] == []
+    servicos = gavetas.ler(out / "base")["servicos"]
+    assert {s["saida"] for s in servicos if s["objeto_id"] == "RV-R1"} == {"demolicao_m2", "recomposicao_m2", "volume_vala_m3"}
+    assert json.loads((out / "paridade.json").read_text(encoding="utf-8")) == []

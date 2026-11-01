@@ -69,6 +69,25 @@
     "pavimento_m2",
     "caximbos"
    ]
+  },
+  "vala_rede": {
+   "versao": "1",
+   "objeto": "rede_vala",
+   "funcao": "camadas.valas.quantificar_gavetas",
+   "exige": [
+    "de_mm",
+    "classes_por_metro",
+    "pesos_m"
+   ],
+   "opcionais": [
+    "finais"
+   ],
+   "sondagens": null,
+   "saidas": [
+    "demolicao_m2",
+    "recomposicao_m2",
+    "volume_vala_m3"
+   ]
   }
  }
 }

@@ -12,6 +12,9 @@
   "bota_fora_m3": {"eap": "OL.04", "descricao": "Carga e bota-fora de material excedente", "unidade": "m³"},
   "supressao_m2": {"eap": "OL.05", "descricao": "Supressão vegetal", "unidade": "m²"},
   "pavimento_m2": {"eap": "OL.06", "descricao": "Demolição e recomposição de pavimento", "unidade": "m²"},
-  "caximbos": {"eap": "OL.07", "descricao": "Caximbos do método não destrutivo", "unidade": "un"}
+  "caximbos": {"eap": "OL.07", "descricao": "Caximbos do método não destrutivo", "unidade": "un"},
+  "demolicao_m2": {"eap": "RD.01", "descricao": "Demolição de pavimento (redes)", "unidade": "m²"},
+  "recomposicao_m2": {"eap": "RD.02", "descricao": "Recomposição de pavimento (redes)", "unidade": "m²"},
+  "volume_vala_m3": {"eap": "RD.03", "descricao": "Escavação de vala (redes)", "unidade": "m³"}
  }
 }

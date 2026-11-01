@@ -84,3 +84,35 @@ def test_camada_do_mapa_soma_a_extensao_da_rede():
             "pts": am["pts"], "tang": am["tang"], "peso": am["peso"], "classes": [cl] * len(am["pts"]), "quadro": []}
     h = valas.para_html([rede], {}, None, 31982)
     assert sum(f["properties"]["extensao_m"] for f in h["geojson"]["features"]) == pytest.approx(rede["extensao_m"], abs=0.2)
+
+
+def _rede_sintetica(criterio="divisas", finais=None):
+    n = 40
+    pts = np.c_[np.arange(n) + 0.5, np.zeros(n)]
+    classes = ["pista"] * 25 + ["calcada"] * 10 + ["vegetacao"] * 5
+    return {"id": "R1", "de_mm": 300, "fonte_de": "teste", "criterio": criterio, "pranchas": ["P1", "P2"],
+            "extensao_m": float(n), "pts": pts, "tang": np.tile([1.0, 0.0], (n, 1)), "peso": np.ones(n),
+            "classes": classes, "finais": finais, "quadro": []}
+
+
+def test_quantificar_gavetas_bate_com_quantificar():
+    r = _rede_sintetica(finais=[None] * 35 + ["grama"] * 5)
+    q = valas.quantificar(r["classes"], r["peso"], 0.3, r["finais"])
+    g = valas.quantificar_gavetas({"classes_por_metro": r["classes"], "pesos_m": r["peso"].tolist(), "de_mm": 300,
+                                   "finais": r["finais"]})
+    assert g["alertas"] == [] and sum(g["volume_vala_m3"].values()) == pytest.approx(sum(x["volume_vala_m3"] for x in q))
+    assert sum(g["demolicao_m2"].values()) == pytest.approx(sum(x["demolicao_m2"] for x in q))
+    assert sum(g["recomposicao_m2"].values()) == pytest.approx(sum(x["recomposicao_m2"] for x in q))
+    assert "vegetacao/grama" in g["volume_vala_m3"] and "vegetacao/grama" not in g["recomposicao_m2"]
+    verde = valas.quantificar_gavetas({"classes_por_metro": ["vegetacao"], "pesos_m": [1], "de_mm": 300})
+    assert "vegetacao" not in verde["demolicao_m2"] and "vegetacao" in verde["recomposicao_m2"]
+
+
+def test_etapa_devolve_as_redes_calculadas(monkeypatch, tmp_path):
+    r = _rede_sintetica()
+    monkeypatch.setattr(valas, "ortofoto", lambda caminho: None)
+    monkeypatch.setattr(valas, "rede", lambda *a, **k: r)
+    saida: list = []
+    pacote = valas.etapa({"valas": {"redes": [{"id": "R1", "pranchas": ["P1"], "criterio": "divisas", "de_mm": 300}]}},
+                         [], [], None, tmp_path, 31982, log=lambda *_: None, redes_saida=saida)
+    assert saida == [r] and pacote["redes"][0]["id"] == "R1"

@@ -96,6 +96,22 @@
    "leitor": "bloco de decisões do HTML (ARQUITETURA.md §6)",
    "estado": "ligado (rodada 22: camadas.extrair_gavetas)",
    "classe_fontes_json": null
+  },
+  {
+   "classe_fonte": "projeto",
+   "vista": "eixo da rede",
+   "objeto": "rede_vala",
+   "geometria": "linha",
+   "propriedades": [
+    "de_mm",
+    "extensao_m",
+    "classes_por_metro",
+    "pesos_m",
+    "finais"
+   ],
+   "leitor": "camadas.valas.rede",
+   "estado": "ligado (rodada 24)",
+   "classe_fontes_json": "Projeto (prancha)"
   }
  ]
 }

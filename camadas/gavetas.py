@@ -390,7 +390,7 @@ def regra_de(classe: str, fatos: dict) -> str | None:
     """A regra do objeto pelo fato `metodo` (`quando`); sem o fato, a primeira regra da classe."""
     candidatas = [n for n, r in SERVICOS["regras"].items() if r["objeto"] == classe]
     metodo = ol.norm(fatos.get("metodo", {}).get("valor") or "")
-    casou = [n for n in candidatas if metodo and ol.norm(SERVICOS["regras"][n]["quando"]["metodo"]) == metodo]
+    casou = [n for n in candidatas if metodo and ol.norm(SERVICOS["regras"][n].get("quando", {}).get("metodo") or "") == metodo]
     return (casou or candidatas or [None])[0]
 
 
