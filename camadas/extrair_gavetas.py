@@ -161,13 +161,14 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
                   de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))))
     erros = gavetas.conferir_base(base)
-    servicos, pend_calculo = gavetas.calcular(base)
+    pasta = Path(out) / "base"
+    anterior = gavetas.ler(pasta)["servicos"] if (pasta / "servicos.parquet").exists() else None
+    servicos, pend_calculo, est = gavetas.calcular_incremental(base, anterior)
     difs = gavetas.paridade(base, aplicados, furos)
     base["pendencias"] = base["pendencias"] + pend_calculo
-    pasta = Path(out) / "base"
     pasta.mkdir(parents=True, exist_ok=True)
     gavetas.gravar(pasta, {**base, "servicos": servicos})
-    resumo = _resumo(base, erros, difs, servicos)
+    resumo = {**_resumo(base, erros, difs, servicos), **est}
     (Path(out) / "paridade.json").write_text(json.dumps(difs, ensure_ascii=False, indent=1), encoding="utf-8")
     (Path(out) / "resumo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas: {len(base['objetos'])} objetos, {len(base['fatos'])} fatos, {len(base['pendencias'])} pendências, "

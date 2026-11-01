@@ -182,3 +182,13 @@ def test_etapa_com_gavetas_nulo_nao_quebra(tmp_path):
     out.mkdir()
     resumo = eg.etapa(_cfg(tmp_path, gavetas=None), [], out, log=lambda *_: None)
     assert resumo is not None
+
+
+def test_etapa_segunda_rodada_no_mesmo_out_nao_recalcula_nada(tmp_path):
+    cfg = _cfg(tmp_path)
+    out = tmp_path / "out"
+    r1 = eg.etapa(cfg, [], out, log=lambda *_: None)
+    assert r1["recalculados"] > 0 and r1["reaproveitados"] == 0
+    r2 = eg.etapa(cfg, [], out, log=lambda *_: None)
+    assert r2["recalculados"] == 0 and r2["reaproveitados"] == r1["recalculados"]
+    assert json.loads((out / "resumo.json").read_text(encoding="utf-8"))["recalculados"] == 0
