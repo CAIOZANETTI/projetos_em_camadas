@@ -205,7 +205,8 @@ def lotes(out: str | Path, pendencias: list, complementos: dict, inv: dict | Non
         linhas.setdefault(degrau["executor"], []).append(
             {"arquivo": av["arquivo"], "pasta_drive": av["pasta_drive"], "caminho": caminhos.get((av["pasta_drive"], av["arquivo"])),
              "classe": av["classe"], "situacao": av["situacao"], "faltando": av["faltando"], "acao": av["acao"],
-             "retorno": classes[av["classe"]].get("retorno", [])})
+             "retorno": classes[av["classe"]].get("retorno", []),
+             "gavetas": extracao.gavetas_da_classe(av["classe"])})
     for executor, itens in linhas.items():
         (pasta / f"{executor}.jsonl").write_text("".join(json.dumps(i, ensure_ascii=False) + "\n" for i in itens),
                                                  encoding="utf-8")
@@ -221,8 +222,9 @@ def metadados() -> dict:
             "premissas": [{"aplicacao": {"proximo_degrau": ["conceitos/fontes.json escada[].degraus",
                                                             "max_tentativas em todo degrau"],
                                          "itens_do_zip": ["pasta_drive = '<pasta>/<zip>!'", SITUACAO_ZIP],
-                                         "lotes": ["retorno da classe", "regravado a cada rodada"]},
-                           "fonte": "plano rodada 20, E4 (docs/ARQUITETURA.md §10)"}],
+                                         "lotes": ["retorno da classe", "regravado a cada rodada",
+                                                    "gavetas: de_para_extracao.json pela classe_fontes_json"]},
+                           "fonte": "plano rodada 20, E4 (docs/ARQUITETURA.md §10); rodada 22, E3"}],
             "ultima_revisao": "2026-10-31"}
 
 

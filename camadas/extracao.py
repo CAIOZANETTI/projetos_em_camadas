@@ -22,6 +22,7 @@ from . import inventario, pdf_cad
 
 FONTES = json.loads((pdf_cad.CONCEITOS / "fontes.json").read_text(encoding="utf-8"))
 ESCADA = {d["situacao"]: d for d in FONTES["escada"]}
+DE_PARA = json.loads((pdf_cad.CONCEITOS / "de_para_extracao.json").read_text(encoding="utf-8"))
 ESPERADOS = json.loads((pdf_cad.CONCEITOS / "documentos_esperados.json").read_text(encoding="utf-8"))["tipologias"]
 SISTEMAS = json.loads((pdf_cad.CONCEITOS / "unidades_construtivas.json").read_text(encoding="utf-8"))["sistemas"]
 
@@ -307,6 +308,60 @@ def aplicar_retornos(out: str | Path, inv: dict) -> dict:
     return rel
 
 
+def _entradas_da_classe(classe_arquivo: str | None) -> list[dict]:
+    nome = next((c["nome"] for c in FONTES["classes"] if classe_arquivo in (c["id"], c["nome"])), classe_arquivo)
+    return [e for e in DE_PARA["entradas"] if e.get("classe_fontes_json") == nome]
+
+
+def gavetas_da_classe(classe_arquivo: str) -> list[dict]:
+    """Entradas do de-para 1 (`conceitos/de_para_extracao.json`) cujo `classe_fontes_json` é a classe do arquivo (id ou
+    nome em fontes.json), reduzidas a {objeto, vista, propriedades}. Classe sem entrada devolve []."""
+    return [{"objeto": e["objeto"], "vista": e["vista"], "propriedades": list(e["propriedades"])}
+            for e in _entradas_da_classe(classe_arquivo)]
+
+
+def fatos_do_retorno(retorno: dict, avaliacao: dict | None = None) -> dict:
+    """Retorno da IA com `fatos: [{objeto_id, propriedade, valor, classe_objeto?}]` no contrato de
+    `conceitos/gavetas.json`: fatos 'inferido' (leitura de IA, nunca 'observado') com evidência (classe da fonte, arquivo,
+    {pagina, pasta_drive}, trecho citado, método IA) e os objetos referidos. Só entra propriedade do de-para 1 da classe
+    do arquivo (a classe vem de `avaliacao["classe"]`, senão de `retorno["classe"]`); o resto é recusa com motivo. Sem
+    trecho citado tudo é recusado: a IA não completa nada sem conferência. Não grava nada (a ligação ao build é da E4)."""
+    saida = {"fatos": [], "evidencias": [], "objetos": [], "recusas": []}
+    pedidos = retorno.get("fatos") or []
+    cit = retorno.get("citacao") or {}
+    trecho = (cit.get("trecho") or "").strip()
+    if not trecho:
+        saida["recusas"] = [{"propriedade": f.get("propriedade"), "motivo": "sem trecho citado"} for f in pedidos]
+        return saida
+    entradas = _entradas_da_classe((avaliacao or retorno).get("classe"))
+    arquivo, executor = retorno.get("arquivo"), retorno.get("executor")
+    chave = f"{arquivo}|{cit.get('pagina')}|{trecho}"
+    ev_id = "EV-IA-" + hashlib.sha1(chave.encode(), usedforsecurity=False).hexdigest()[:10]
+    objetos = {}
+    for f in pedidos:
+        prop, obj_id, dado = f.get("propriedade"), f.get("objeto_id"), f.get("classe_objeto")
+        casam = [e for e in entradas if prop in e["propriedades"] and (not dado or e["objeto"] == dado)]
+        if not casam:
+            saida["recusas"].append({"propriedade": prop, "motivo": f"propriedade {prop} fora do de-para da classe do arquivo"})
+            continue
+        if not obj_id or not executor:
+            saida["recusas"].append({"propriedade": prop, "motivo": "fato sem objeto_id" if not obj_id else "retorno sem executor"})
+            continue
+        if f.get("valor") is None or f.get("valor") == "":
+            saida["recusas"].append({"propriedade": prop, "motivo": "sem valor"})
+            continue
+        objetos.setdefault(obj_id, {"objeto_id": obj_id, "classe": casam[0]["objeto"]})
+        saida["fatos"].append({"fato_id": f"{obj_id}.{prop}.ia", "objeto_id": obj_id, "propriedade": prop,
+                               "valor": f.get("valor"), "natureza": "inferido", "evidencia_id": ev_id,
+                               "executor": executor})
+    if saida["fatos"]:
+        saida["evidencias"].append({"evidencia_id": ev_id, "classe": entradas[0]["classe_fonte"], "documento": arquivo,
+                                    "localizador": {"pagina": cit.get("pagina"), "pasta_drive": retorno.get("pasta_drive")},
+                                    "trecho": trecho, "metodo": "IA", "executor": executor})
+        saida["objetos"] = list(objetos.values())
+    return saida
+
+
 def registrar(avaliacoes: list, caminho: Path, passe: str, executor: str = "código") -> int:
     """Acrescenta ao registro uma linha por arquivo cuja classe, estado ou lista do que falta mudou desde a última
     linha dele; devolve quantas."""
@@ -339,7 +394,7 @@ def metadados() -> dict:
     """Rastreabilidade das regras da reavaliação (regra 9 do estilo)."""
     return {"modulo": "extracao",
             "descricao": "classe da fonte, estado da extração, próximo passe da escada, séries de folhas e registro",
-            "funcoes": ["classe", "papel", "avaliar", "series", "ler_complementos", "gravar_complemento", "aplicar_retornos", "pendencias", "esperado_x_encontrado", "registrar"],
+            "funcoes": ["classe", "papel", "avaliar", "series", "ler_complementos", "gravar_complemento", "aplicar_retornos", "gavetas_da_classe", "fatos_do_retorno", "pendencias", "esperado_x_encontrado", "registrar"],
             "premissas": [{"aplicacao": {"classe": ["conceitos/fontes.json classes"], "avaliar": ["satisfatoria", "escada"]},
                            "fonte": FONTES["metadata"]["fonte"]},
                           {"aplicacao": {"esperado_x_encontrado": ["conceitos/documentos_esperados.json tipologias",
@@ -354,5 +409,9 @@ def metadados() -> dict:
                                          "avaliar": ["arquivo sem leitor: completo se tem os campos de retorno da classe"]},
                            "fonte": "plano rodada 20, E5 (a IA devolve campos com citação; o código confere)"},
                           {"aplicacao": {"papel": ["obra.json inventario.pastas: prefixo de pasta mais longo"]},
-                           "fonte": "convenção do Caio (docs/ARQUITETURA.md §2)"}],
+                           "fonte": "convenção do Caio (docs/ARQUITETURA.md §2)"},
+                          {"aplicacao": {"gavetas_da_classe": ["conceitos/de_para_extracao.json classe_fontes_json"],
+                                         "fatos_do_retorno": ["propriedades do de-para 1 da classe", "natureza inferido",
+                                                              "citação obrigatória", "contrato de conceitos/gavetas.json"]},
+                           "fonte": "plano rodada 22, E3"}],
             "ultima_revisao": "2026-10-30"}

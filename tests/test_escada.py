@@ -183,3 +183,15 @@ def test_retorno_recusado_ou_insuficiente_sobe_haiku_sonnet_voce(tmp_path, monke
     assert escada.executar(cfg, out)["lotes"] == {"você": 1}
     tent = extracao.ler_complementos(out / "complementos.json")[f"UNIDADE 01/{NOME}"]["tentativas"]
     assert tent == {"código:reler": 1, "código:reler_carimbo": 1, "Haiku:retorno": 1, "Sonnet:retorno": 1}
+
+
+def test_lote_leva_as_gavetas_da_classe(tmp_path):
+    cfg, pasta, out = _obra(tmp_path, [("MEMORIAIS", "Memorial descritivo.docx", "m1"), ("LAUDOS", "Laudo de sondagem SPT.docx", "l1")])
+    for p, n in (("MEMORIAIS", "Memorial descritivo.docx"), ("LAUDOS", "Laudo de sondagem SPT.docx")):
+        (pasta / p).mkdir()
+        (pasta / p / n).write_bytes(b"PK")
+    escada.executar(cfg, out)
+    por = {l["classe"]: l for l in _lote(out, "Sonnet")}
+    assert "furo_sondagem" in {g["objeto"] for g in por["laudo"]["gavetas"]}
+    assert set(por["laudo"]["gavetas"][0]) == {"objeto", "vista", "propriedades"}
+    assert por["memorial"]["gavetas"] == []

@@ -300,6 +300,7 @@ def ler_obras_lineares(caminho, aba: str = "Obras Lineares") -> list[dict]:
             "sond_ini": v.get("sond_ini"), "sond_fim": v.get("sond_fim"), "na_m": v.get("na_m"), "solo": v.get("solo"),
             "prof_m": v.get("prof_m") if isinstance(v.get("prof_m"), (int, float)) else None,
             "comp_m": float(v.get("comp_m") or 0), "metodo": v.get("metodo") or "VCA",
+            "metodo_lido": v.get("metodo"), "supressao_lida": bool(pct),
             "pavimentos": _pavimentos(ws, r, col["pavimentos"]),
             "supressao_frac": float(pct[1].replace(",", ".")) / 100 if pct else 0.0, "obs": obs,
             "planilha": {k: v.get(k) for k in ("escoramento", "largura_m", "area_m2", "escavacao_m3", "reaterro_m3",

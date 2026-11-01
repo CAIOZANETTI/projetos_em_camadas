@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.24.0 — 2026-11-01 · EAP codificada como linha mestra
+## 0.27.0 — 2026-11-01 · EAP codificada como linha mestra
 - **EAP (WBS)** (`camadas/eap.py`, `conceitos/eap.json`, `docs/EAP.md`): código `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM`
   sobre as unidades e os sistemas de `unidades_construtivas.json` (obra localizada × linear); disciplinas Geotecnia
   (fundações: estacas, blocos, contenções; movimentação de solo), Civil (estruturas de concreto: piso, viga, pilar,
@@ -59,6 +59,47 @@
 - O build grava `dados.eap`, `dados.evidencias` e o código `eap` em cada elemento da aba Obra, além de
   `evidencias.jsonl`, `fatos.csv`, `cobertura.csv` e `associados.csv`. A aba EAP no HTML fica para a próxima rodada
   (`docs/EAP.md` §9).
+## 0.26.0 — 2026-11-01 · Rodada 22: extração para as gavetas
+- **Leitores → gavetas** (`camadas/extrair_gavetas.py`): a planilha Obras Lineares vira objetos `trecho_tubo`, com
+  fatos e evidência de aba e linha; as sondagens viram `furo_sondagem` com geometria de ponto e o executor de quem
+  escreveu o arquivo; a escolha de método do obra.json vira fato `decidido`. Valor vazio não vira fato.
+- **Paridade** (`gavetas.paridade`): o cálculo das gavetas é comparado, serviço a serviço, com o
+  `obras_lineares.quantificar`. Sem eixo, os furos citados na planilha entram na memória de cálculo.
+- **IA aponta a gaveta**: os lotes da escada dizem em que gaveta cada classe de arquivo grava
+  (`extracao.gavetas_da_classe`); `extracao.fatos_do_retorno` transforma o retorno conferido em fatos `inferido`,
+  com o executor e o trecho citado, e recusa o que estiver fora do de-para.
+- **Base no build**: a etapa `gavetas` grava `saida/<obra>/base/` (parquet), `paridade.json` e `resumo.json`; o build
+  segue mesmo se a etapa falhar.
+- Lição L020.
+
+## 0.25.0 — 2026-11-01 · Rodada 21: as caixas — formato das gavetas medido e escolhido
+- **Gerador sintético** (`camadas/sintetico.py`, `base_linear(km)`): adutora com eixo em UTM, trechos de 20 m, furos
+  a cada 200 m e fatos com evidência; 100 km em 0,17 s, a mesma base para a mesma semente.
+- **Formatos nas gavetas** (`camadas/gavetas.py`): parquet (tipo nativo nas colunas homogêneas, JSON nas outras),
+  geoparquet (WKB e metadados `geo` 1.1.0 com o CRS) e duckdb, além de jsonl e csv; ida e volta sem perda nos cinco.
+- **Bancada** (`scripts/bancada_gavetas.py`): tamanho, gravação, leitura, RAM (pico de RSS num subprocesso) e três
+  consultas p50/p95 pelo motor comum DuckDB e pelo nativo; `decidir` aplica o critério fixado antes de medir.
+- **Decisão**: `formato.atual = parquet` (`conceitos/gavetas.json`, com a evidência). Em 100 km, 8× menor que o JSONL
+  e consulta pelo motor comum 13× mais rápida; RAM maior (117 × 54 MB). Registros versionados no git continuam em
+  JSONL. `pyarrow` passa a ser dependência obrigatória.
+- Lição L019.
+
+## 0.24.0 — 2026-10-31 · Memória espacial: gavetas e os três de-para
+- **Gavetas** (`conceitos/gavetas.json`, `camadas/gavetas.py`): objetos, geometria, fatos, evidências, pendências e
+  serviços, com campos obrigatórios e valores permitidos. Um fato só entra com propriedade declarada, natureza
+  (observado, projetado, inferido, decidido) e evidência existente (`conferir_base`).
+- **Três de-para**: documento → gaveta (`de_para_extracao.json`), gaveta → serviço (`de_para_servicos.json`) e
+  serviço → EAP (`de_para_eap.json`); `conferir_de_para` reprova propriedade, função ou nó inexistente.
+- **Serviços só das gavetas** (`calcular`): vala aberta e MND pelo `obras_lineares.quantificar`, com a sondagem
+  colocada pela posição (furo mais próximo de cada metro do eixo, no raio de influência). Cada serviço guarda os
+  fatos e a versão da regra (memória de cálculo); fato obrigatório faltando vira pendência e nenhum serviço. A decisão
+  do método troca a regra sem reler documento.
+- **EAP lastreada** (`para_eap`): soma por nó com os serviços e objetos que a sustentam.
+- **Formato físico como experimento**: JSONL (atual) e CSV com ida e volta sem perda; Parquet, DuckDB e os demais
+  candidatos ficam para G05/G08, com as métricas listadas em `gavetas.json`.
+- `docs/MEMORIA_ESPACIAL.md` v0.3: formato das gavetas, inventário e escada de executores, sondagens e memória de
+  cálculo. Lição L018.
+
 ## 0.23.0 — 2026-10-31 · Rodada 20, PR 3: o loop de extração fecha sozinho
 - **Executor da escada** (`camadas/escada.py`, `python -m camadas.escada <obra.json>`): cada pendência sobe pelos
   `degraus` de `conceitos/fontes.json` (código: baixar, reler, carimbo em 300 dpi, extrair o zip; depois Haiku, Sonnet,

@@ -31,6 +31,7 @@ from . import (
     escopo_obra,
     evidencias,
     extracao,
+    extrair_gavetas,
     geo,
     georef_prancha,
     inventario,
@@ -731,6 +732,10 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     lote; os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor; a EAP
     (`camadas.eap`), que dá código e quantidade a cada elemento; e o loop de evidências (`camadas.evidencias`)."""
     pacotes["obras_lineares"] = obras_lineares.etapa(cfg, dados["sondagens"], out, log=_log)   # vala (MOS) da planilha
+    try:                                                       # a base das gavetas não pode derrubar o build
+        dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log)
+    except Exception as erro:  # noqa: BLE001 - a etapa nova nunca derruba o build
+        _log(f"Gavetas: etapa não concluída ({type(erro).__name__}: {erro})")
     if fichas:
         dados["fichas"] = prancha.para_html(fichas)
         if dados.get("vertical"):
