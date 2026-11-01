@@ -59,8 +59,8 @@ def onde(localizador: dict) -> str:
     return json.dumps(localizador, ensure_ascii=False, separators=(",", ":"), default=str)
 
 
-def _local(base: dict, objeto_id: str) -> str:
-    return str(gavetas.fatos_do_objeto(base, objeto_id).get("local", {}).get("valor", objeto_id))
+def _local(base: dict, objeto_id: str, ind: dict | None = None) -> str:
+    return str(gavetas.fatos_do_objeto(base, objeto_id, ind).get("local", {}).get("valor", objeto_id))
 
 
 def _evidencia(ev: dict | None) -> dict:
@@ -86,6 +86,7 @@ def _fato(f: dict, evidencias: dict) -> dict:
 
 def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dict | None = None) -> dict:
     """`dados["eap"]`: nós, pendências e resumo, tudo em texto pronto para o HTML."""
+    ind = gavetas.indice(base)
     fatos = {f["fato_id"]: f for f in base.get("fatos", [])}
     evidencias = {e["evidencia_id"]: e for e in base.get("evidencias", [])}
     por_id = {s["servico_id"]: s for s in servicos}
@@ -94,13 +95,13 @@ def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dic
         itens = []
         for sid in no["servicos"]:
             s = por_id[sid]
-            itens.append({"servico_id": sid, "objeto_id": s["objeto_id"], "local": _local(base, s["objeto_id"]),
+            itens.append({"servico_id": sid, "objeto_id": s["objeto_id"], "local": _local(base, s["objeto_id"], ind),
                           "regra": s["regra"], "versao_regra": str(s["versao_regra"]),
                           "valor_txt": br(s["valor"], 0 if no["unidade"] == "un" else 2),
                           "fatos": [_fato(_lastro(fatos, evidencias, sid, i), evidencias) for i in s["fatos"]]})
         nos.append({"eap": no["eap"], "descricao": no["descricao"], "unidade": no["unidade"],
                     "valor_txt": br(no["valor"], 0 if no["unidade"] == "un" else 2), "servicos": itens})
-    lista = [{"objeto_id": p["objeto_id"], "local": _local(base, p["objeto_id"]), "motivo": p["motivo"]} for p in pendencias]
+    lista = [{"objeto_id": p["objeto_id"], "local": _local(base, p["objeto_id"], ind), "motivo": p["motivo"]} for p in pendencias]
     contagem = {"servicos": len(servicos), "nos": len(nos), "pendencias": len(lista), "diferencas_paridade": 0,
                 "recalculados": 0, "reaproveitados": 0}
     dado = resumo or {}                                   # só as chaves do contrato; o resto do resumo fica fora do HTML
