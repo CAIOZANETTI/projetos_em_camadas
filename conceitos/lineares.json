@@ -1,11 +1,52 @@
 {
  "metadata": {
-  "fonte": "convenção brasileira de estaqueamento de obras lineares: estaca inteira a cada 20 m, posição escrita 'N+DD,DD' (N estacas inteiras mais DD,DD metros); rodada 25, tarefa L1 (docs/plano/2026-11-01_rodada25.md)",
+  "fonte": "convenção brasileira de estaqueamento de obras lineares: estaca inteira a cada 20 m, posição escrita 'N+DD,DD' (N estacas inteiras mais DD,DD metros); rodada 25, tarefas L1 e L2 (docs/plano/2026-11-01_rodada25.md)",
   "estado": "premissa",
   "data_referencia": "2026-11",
   "observacoes": "Na obra linear a estaca (progressiva) é a coordenada; E/N servem só para desenhar. Exemplo: '12+10,00' = 12 x 20 + 10,00 = 250,00 m. A tolerância é absoluta, em metros (cotas e coordenadas). O passo de 20 m é convenção, não norma: projetos com estaca de 10 m ou 25 m declaram o passo na chamada."
  },
  "passo_estaca_m": 20,
  "formato_estaca": "N+DD,DD",
- "tolerancia_m": 0.001
+ "tolerancia_m": 0.001,
+ "perfil": {
+  "rotulos": {
+   "estaca": [
+    "ESTACA",
+    "ESTACAS",
+    "ESTAQUEAMENTO"
+   ],
+   "terreno": [
+    "COTA DO TERRENO",
+    "COTA TERRENO",
+    "COTA DO TERRENO NATURAL",
+    "TERRENO",
+    "TERRENO NATURAL"
+   ],
+   "geratriz": [
+    "COTA DA GERATRIZ INFERIOR",
+    "GERATRIZ INFERIOR",
+    "COTA DA GERATRIZ",
+    "GERATRIZ",
+    "COTA DO TUBO"
+   ],
+   "profundidade": [
+    "PROFUNDIDADE",
+    "PROFUNDIDADE DA VALA",
+    "ALTURA DE ESCAVACAO",
+    "ALTURA DA ESCAVACAO"
+   ],
+   "fundo": [
+    "COTA DO FUNDO",
+    "COTA DO FUNDO DA VALA",
+    "COTA DE FUNDO"
+   ]
+  },
+  "tolerancia_linha_pt": 3.0,
+  "tolerancia_coluna_pt": 12.0,
+  "min_palavras_texto": 10,
+  "dpi_ocr": 300,
+  "estado": "premissa",
+  "fonte": "rodada 25, tarefa L2 (docs/plano/2026-11-01_rodada25.md): grade do perfil com linhas rotuladas e valores alinhados na mesma coluna (mesma abscissa) sob a estaca; rótulos sem acento e em maiúsculas; tolerâncias em pt da folha (distância entre centros de palavras); validado só em PDF sintético, o perfil real de Foz (AAT) fica para o Caio conferir",
+  "observacao_fundo": "'fundo' é a cota do fundo da vala: a profundidade é terreno − fundo, sem somar o berço; a geratriz inferior é fundo + berço. Separado da geratriz na revisão do Fable (rodada 25): somar o berço a uma cota de fundo deixava a vala 10 cm mais funda."
+ }
 }

@@ -459,9 +459,13 @@ def test_incremental_ve_as_constantes_da_regra(monkeypatch):
     """Aceite da rodada 23: mudar uma constante do MOS (empolamento) muda a chave e recalcula, sem subir a versão."""
     base = _base()
     servicos, _, _ = gv.calcular_incremental(base)
-    regras = copy.deepcopy(ol.REGRAS)
-    regras["empolamento"]["valor"] = regras["empolamento"]["valor"] * 2
-    monkeypatch.setattr(ol, "REGRAS", regras)
+    # desde a rodada 25 o empolamento mora no modelo geotécnico (conceitos/geotecnia.json), de que o MOS depende;
+    # PREMISSAS é lido do JSON no import, então trocar o atributo equivale a trocar o arquivo
+    from camadas import geotecnia as geo
+    premissas = copy.deepcopy(geo.PREMISSAS)
+    premissas["empolamento"]["solo"] = premissas["empolamento"]["solo"] * 2
+    monkeypatch.setattr(geo, "PREMISSAS", premissas)
+    monkeypatch.setattr(geo, "EMPOLAMENTO_SOLO", geo.EMPOLAMENTO_SOLO * 2)
     novos, _, est = gv.calcular_incremental(base, anterior=servicos)
     assert est["reaproveitados"] == 0 and est["recalculados"] >= 1
     antes = {s["servico_id"]: s["valor"] for s in servicos}

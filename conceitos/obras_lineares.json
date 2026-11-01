@@ -40,34 +40,11 @@
   "estado": "confirmado",
   "fonte": "planilha, coluna AD: =SE(AC>1,25;\"sim\";\"não\"); NR-18: escavação com mais de 1,25 m de profundidade precisa de escoramento (ou talude estável)"
  },
- "empolamento": {
-  "valor": 1.3,
-  "estado": "confirmado",
-  "fonte": "planilha, coluna AK (argila)"
- },
  "caximbo": {
   "a_cada_m": 80,
   "area_m2": 4.5,
   "estado": "confirmado",
   "fonte": "planilha, aba Obras Lineares, PREMISSAS: caximbo 1 a cada 80 m, área 4,5 m²"
- },
- "raio_influencia_m": {
-  "valor": 60.0,
-  "estado": "calibrar",
-  "fonte": "metro de tubo além disso de qualquer furo fica 'sem sondagem' (a malha de Foz tem furos a 30–80 m); conferir com o geotécnico"
- },
- "solos": {
-  "estado": "premissa",
-  "fonte": "descrição da camada da sondagem (NBR 6484); a 1ª palavra que casa decide; categoria de escavação Sanepar: 1ª = solo, 2ª = rocha branda/alterada, 3ª = rocha sã",
-  "classes": [
-   {"classe": "aterro", "regex": "ATERRO|ENTULHO", "categoria": "1ª categoria"},
-   {"classe": "rocha_alterada", "regex": "ALTERA|BRANDA|SAPROL|MATAC", "categoria": "2ª categoria"},
-   {"classe": "rocha", "regex": "ROCHA|BASALTO|IMPENETR", "categoria": "3ª categoria"},
-   {"classe": "argila", "regex": "ARGIL", "categoria": "1ª categoria"},
-   {"classe": "silte", "regex": "SILT", "categoria": "1ª categoria"},
-   {"classe": "areia", "regex": "AREI", "categoria": "1ª categoria"},
-   {"classe": "pedregulho", "regex": "PEDREG|CASCALH", "categoria": "1ª categoria"}
-  ]
  },
  "pavimentos": {
   "estado": "premissa",

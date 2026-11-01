@@ -30,6 +30,7 @@ import numpy as np
 import openpyxl
 import pandas as pd
 
+from . import geotecnia as geo
 from . import pdf_cad, valas
 
 REGRAS = json.loads((pdf_cad.CONCEITOS / "obras_lineares.json").read_text(encoding="utf-8"))
@@ -83,27 +84,13 @@ def largura(dn_mm: float, material: str, prof_m: float, escorado: bool, junta: s
 # --------------------------------------------------------------------------------------------------------------------
 
 def classe_solo(descricao: str, classe: str | None = None) -> dict:
-    """Classe e categoria de escavação de uma camada da sondagem pela descrição (ou pela classe já dada)."""
-    texto = norm(f"{classe or ''} {descricao or ''}")
-    for c in REGRAS["solos"]["classes"]:
-        if re.search(c["regex"], texto):
-            return c
-    return {"classe": "indefinido", "categoria": "a definir"}
+    """Classe e categoria de escavação de uma camada da sondagem (delega ao modelo geotécnico único)."""
+    return geo.classe_solo(descricao, classe)
 
 
 def solo_na_vala(furo: dict, prof_m: float) -> dict[str, float]:
-    """Fração da altura da vala (0 a prof_m) em cada classe de solo do furo."""
-    fatias: dict[str, float] = {}
-    for c in furo.get("camadas", []):
-        de, ate = c.get("de"), c.get("ate")
-        if de is None or ate is None or de >= prof_m:
-            continue
-        cl = classe_solo(c.get("descricao"), c.get("classe"))["classe"]
-        fatias[cl] = fatias.get(cl, 0.0) + (min(ate, prof_m) - de) / prof_m
-    resto = 1.0 - sum(fatias.values())
-    if resto > 1e-6:
-        fatias["indefinido"] = fatias.get("indefinido", 0.0) + resto
-    return fatias
+    """Fração da altura da vala (0 a prof_m) em cada classe de solo do furo (delega ao modelo geotécnico único)."""
+    return geo.solo_na_faixa(furo, 0.0, prof_m)
 
 
 @lru_cache(maxsize=65536)
@@ -114,30 +101,29 @@ def id_furo(texto) -> str:
 
 
 def furos_com_xy(furos: list[dict]) -> tuple[list[dict], np.ndarray]:
-    """Os furos com E e N, na ordem original, e a matriz (n, 2) das posições: o que `furo_por_metro` prepara a cada
-    chamada. Quem chama muitas vezes com a mesma lista de furos calcula uma vez e passa em `preparado`."""
-    com_xy = [f for f in furos if f.get("E") is not None and f.get("N") is not None]
+    """Os furos com E e N válidos (o mesmo critério de `geotecnia.furo_mais_proximo`), na ordem original, e a matriz
+    (n, 2) das posições. Quem chama muitas vezes com a mesma lista calcula uma vez e passa em `preparado`."""
+    com_xy = [f for f in furos if geo._numero(f.get("E")) and geo._numero(f.get("N"))]
     return com_xy, np.array([[f["E"], f["N"]] for f in com_xy], float).reshape(-1, 2)
 
 
 def furo_por_metro(pts: np.ndarray, furos: list[dict], preparado: tuple | None = None) -> list[str | None]:
     """Id do furo mais próximo de cada ponto do eixo (UTM) dentro do raio de influência; None fora dele.
 
-    Só entram na conta os furos dentro da caixa do eixo ampliada pelo raio (com folga de 1 µm): o mais próximo de um
-    ponto que está no raio sempre está na caixa, e a ordem original resolve o empate (primeiro da lista), então o
-    resultado é o mesmo da conta contra todos os furos. `preparado`: o par de `furos_com_xy(furos)`, se já calculado."""
+    A conta é a de `geotecnia.furo_mais_proximo` (fonte única), só sobre os furos dentro da caixa do eixo ampliada
+    pelo raio (folga de 1 µm): o mais próximo de um ponto que está no raio sempre está na caixa, e a ordem original
+    resolve o empate, então o resultado é o mesmo da conta contra todos os furos. `preparado`: `furos_com_xy(furos)`."""
     com_xy, xy = preparado if preparado is not None else furos_com_xy(furos)
+    pts = np.asarray(pts, float).reshape(-1, 2)
     if not com_xy or len(pts) == 0:
         return [None] * len(pts)
-    raio = REGRAS["raio_influencia_m"]["valor"]
+    raio = geo.RAIO_INFLUENCIA_M
     folga = raio + 1e-6
     dentro = np.all((xy >= pts.min(axis=0) - folga) & (xy <= pts.max(axis=0) + folga), axis=1)
-    if not dentro.any():
-        return [None] * len(pts)
-    com_xy, xy = [f for f, d in zip(com_xy, dentro) if d], xy[dentro]
-    d = np.linalg.norm(pts[:, None, :] - xy[None, :, :], axis=2)
-    perto = d.argmin(axis=1)
-    return [com_xy[k]["id"] if d[i, k] <= raio else None for i, k in enumerate(perto)]
+    candidatos = [f for f, d in zip(com_xy, dentro, strict=True) if d]
+    indices, distancias_m = geo.furo_mais_proximo(pts, candidatos)
+    return [candidatos[k]["id"] if k >= 0 and d <= raio else None
+            for k, d in zip(indices, distancias_m, strict=True)]
 
 
 def cobertura(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) -> dict[str | None, float]:
@@ -171,7 +157,7 @@ def geotecnia(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) ->
     if not nas and trecho.get("na_m") is not None:            # só o NA da planilha
         nas.append(trecho["na_m"])
         esgota = 1.0 - sem if prof and trecho["na_m"] < prof else 0.0
-    cat = {c["classe"]: c["categoria"] for c in REGRAS["solos"]["classes"]}
+    cat = geo.CATEGORIA_POR_CLASSE
     return {"solos": {k: round(v, 3) for k, v in solos.items()},
             "categorias": {c: round(sum(v for k, v in solos.items() if cat.get(k, "a definir") == c), 3)
                            for c in sorted({cat.get(k, "a definir") for k in solos})},
@@ -231,7 +217,7 @@ def vca(t: dict, larg: float) -> dict:
     esc = comp * larg * prof
     pav = {k: round(v * larg, 2) for k, v in (t.get("pavimentos") or {}).items() if v}
     return {"largura_m": larg, "area_m2": round(comp * larg, 3), "escavacao_m3": round(esc, 3),
-            "reaterro_m3": round(esc - tubo, 3), "bota_fora_m3": round(tubo * REGRAS["empolamento"]["valor"], 3),
+            "reaterro_m3": round(esc - tubo, 3), "bota_fora_m3": round(tubo * geo.EMPOLAMENTO_SOLO, 3),
             "escoramento_m2": round(2 * comp * prof, 2) if t["escorado"] else 0.0,
             "supressao_m2": round(comp * larg * (t.get("supressao_frac") or 0.0), 3),
             "pavimento_m2": pav, "caximbos": 0}
