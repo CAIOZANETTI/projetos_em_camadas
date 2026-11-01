@@ -125,3 +125,60 @@ def test_etapa_sem_planilha_devolve_none(tmp_path):
     assert eg.etapa({}, [], tmp_path) is None
     cfg = {"obras_lineares": {"planilha": str(tmp_path / "nao_existe.xlsx")}}
     assert eg.etapa(cfg, [], tmp_path, log=lambda *_: None) is None
+
+
+def test_decisao_vale_para_todos_os_trechos_do_mesmo_local():
+    trechos = [{"linha": 4, "local": "Rede B", "dn_mm": 160.0, "material": "PEAD", "comp_m": 10.0, "metodo": "VCA"},
+               {"linha": 5, "local": "rede b", "dn_mm": 160.0, "material": "PEAD", "comp_m": 20.0, "metodo": "VCA"}]
+    base = eg.de_decisoes({"REDE B": "MND"}, trechos, "obra.json")
+    assert [f["fato_id"] for f in base["fatos"]] == ["OL-004.metodo.decidido", "OL-005.metodo.decidido"]
+    assert [e["evidencia_id"] for e in base["evidencias"]] == ["EV-DEC-4", "EV-DEC-5"]
+    assert {f["evidencia_id"] for f in base["fatos"]} == {e["evidencia_id"] for e in base["evidencias"]}
+    assert base["pendencias"] == []
+
+
+def _planilha_em_branco(tmp_path):
+    """Uma linha com método, material e observação em branco (e uma com tudo preenchido)."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Obras Lineares"
+    cab = ["Local", "DN do tubo", "Tipo do tubo", "Sondagem", None, "NA (m)", "Tipo de solo", "Prof. Média",
+           "Escoramento", "Comprimento Total", "Método Construtivo", "Observações"]
+    for j, v in enumerate(cab, start=22):
+        ws.cell(2, j, v)
+    for i, linha in enumerate([["Vazio", 200, None, "SP-02", "SP-02", 9, "argila", 2.0, "não", 10, None, None],
+                               ["Cheio", 200, "FD", "SP-02", "SP-02", 9, "argila", 2.0, "não", 10, "VCA", "Supressão - 50%"]],
+                              start=4):
+        for j, v in enumerate(linha, start=22):
+            ws.cell(i, j, v)
+    caminho = tmp_path / "branco.xlsx"
+    wb.save(caminho)
+    return caminho
+
+
+def test_leitor_guarda_o_cru_e_celula_em_branco_nao_vira_fato(tmp_path):
+    trechos = ol.ler_obras_lineares(_planilha_em_branco(tmp_path))
+    vazio, cheio = trechos
+    assert vazio["metodo"] == "VCA" and vazio["metodo_lido"] is None and vazio["supressao_lida"] is False
+    assert cheio["metodo_lido"] == "VCA" and cheio["supressao_lida"] is True
+    base = eg.de_obras_lineares(trechos, "branco.xlsx")
+    props = {(f["objeto_id"], f["propriedade"]) for f in base["fatos"]}
+    assert not {("OL-004", "metodo"), ("OL-004", "supressao_frac"), ("OL-004", "material")} & props
+    assert {("OL-005", "metodo"), ("OL-005", "supressao_frac"), ("OL-005", "material")} <= props
+    _, pend = gavetas.calcular(eg.juntar(base))
+    motivos = [p["motivo"] for p in pend if p["objeto_id"] == "OL-004"]
+    assert motivos == ["faltam fatos obrigatórios: material"]
+
+
+def test_trecho_sem_as_chaves_novas_mantem_o_comportamento_antigo():
+    t = {"linha": 7, "local": "A", "dn_mm": 300.0, "material": "FD", "prof_m": 2.0, "comp_m": 10.0, "metodo": "VCA",
+         "supressao_frac": 0.0}
+    props = {f["propriedade"] for f in eg.de_obras_lineares([t], "p.xlsx")["fatos"]}
+    assert {"metodo", "supressao_frac", "material"} <= props
+
+
+def test_etapa_com_gavetas_nulo_nao_quebra(tmp_path):
+    out = tmp_path / "saida"
+    out.mkdir()
+    resumo = eg.etapa(_cfg(tmp_path, gavetas=None), [], out, log=lambda *_: None)
+    assert resumo is not None
