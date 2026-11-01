@@ -57,7 +57,9 @@ def test_decidir_reprova_p95_acima_de_50_ms_na_maior_carga():
     r = bg.decidir(linhas)
     assert any(m.startswith("jsonl: reprovado no critério 2") for m in r["motivos"])
     assert "csv: cumpre os critérios 1 e 2" in r["motivos"]
-    assert "parquet: cumpre os critérios 1 e 2" in r["motivos"]     # o melhor entre motor comum e nativo
+    assert any(m.startswith("parquet: reprovado no critério 2") for m in r["motivos"])  # vale o motor comum
+    r = bg.decidir(linhas, {**bg.CRITERIO, "motores_criterio_2": ["motor", "nativo"]})
+    assert "parquet: cumpre os critérios 1 e 2" in r["motivos"]     # com o nativo, o melhor dos dois
 
 
 def test_decidir_ranking_por_soma_de_posicoes():

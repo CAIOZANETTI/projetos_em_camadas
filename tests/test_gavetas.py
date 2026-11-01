@@ -212,3 +212,10 @@ def test_geoparquet_poligono_com_furo(tmp_path):
     gv.gravar(tmp_path, {"geometria": [reg]}, "geoparquet")
     g = shapely.from_wkb(pq.read_table(tmp_path / "geometria.parquet").column("geometry")[0].as_py())
     assert g.area == pytest.approx(100 - 2) and gv.ler(tmp_path, "geoparquet")["geometria"] == [reg]
+
+
+def test_ler_pasta_de_outro_formato_avisa_em_vez_de_devolver_vazio(tmp_path):
+    gv.gravar(tmp_path, _base(), "jsonl")
+    with pytest.raises(ValueError, match="só em jsonl"):
+        gv.ler(tmp_path, "parquet")
+    assert gv.ler(tmp_path / "nao_existe", "parquet")["fatos"] == []

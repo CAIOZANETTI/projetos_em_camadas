@@ -313,7 +313,21 @@ def gravar(pasta, base: dict, formato: str | None = None) -> list[Path]:
 def ler(pasta, formato: str | None = None) -> dict:
     """A base gravada por `gravar`; gaveta sem arquivo (ou sem tabela) volta vazia."""
     formato = formato or REGRAS["formato"]["atual"]
-    return _LER[formato](Path(pasta))
+    pasta = Path(pasta)
+    _conferir_formato_da_pasta(pasta, formato)
+    return _LER[formato](pasta)
+
+
+_EXTENSAO = {"jsonl": "*.jsonl", "csv": "*.csv", "parquet": "*.parquet", "geoparquet": "*.parquet", "duckdb": "base.duckdb"}
+
+
+def _conferir_formato_da_pasta(pasta: Path, formato: str) -> None:
+    """Pasta com gavetas de outro formato e nenhuma deste: erro, em vez de devolver a base vazia em silêncio."""
+    if not pasta.is_dir() or any(pasta.glob(_EXTENSAO[formato])):
+        return
+    outros = sorted({f for f, padrao in _EXTENSAO.items() if any(pasta.glob(padrao))})
+    if outros:
+        raise ValueError(f"{pasta} não tem gavetas em {formato}, só em {', '.join(outros)}: passe o formato")
 
 
 # --------------------------------------------------------------------------------------------------------------------

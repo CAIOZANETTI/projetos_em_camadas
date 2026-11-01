@@ -33,6 +33,8 @@ CRITERIO = {
     "fonte": "docs/plano/2026-10-31_rodada21.md §4 (Critério de decisão)",
     "consultas": ["fatos_objeto", "intervalo_prog", "furos_raio"],
     "p95_max_ms": 50.0,
+    "motores_criterio_2": ["motor"],   # emenda de 01/11 (aceite do Fable): o nativo é Python puro sobre a base já lida
+                                       # e não depende do formato; o critério 2 vale pelo motor comum (DuckDB no arquivo)
     "empate": 0.20,
     "ranking": ["bytes", "ler_s", "ram_mb"],
     "dependencias": {"jsonl": 0, "csv": 0, "parquet": 1, "geoparquet": 2, "duckdb": 3},
@@ -261,9 +263,9 @@ def rodar(kms: list, formatos: list, repeticoes: int, semente: int, avisar=print
 # Decisão (critério do plano) e quadro
 # --------------------------------------------------------------------------------------------------------------------
 
-def _p95(linha: dict, consulta: str) -> tuple[float, str]:
-    """Melhor p95 entre motor comum e nativo, e qual dos dois foi."""
-    opcoes = [(linha["consultas"][m][consulta]["p95_ms"], m) for m in MOTORES if linha["consultas"].get(m)]
+def _p95(linha: dict, consulta: str, motores: list = MOTORES) -> tuple[float, str]:
+    """Melhor p95 entre os `motores` (motor comum e/ou nativo), e qual foi."""
+    opcoes = [(linha["consultas"][m][consulta]["p95_ms"], m) for m in motores if linha["consultas"].get(m)]
     return min(opcoes) if opcoes else (float("inf"), "-")
 
 
@@ -274,7 +276,8 @@ def _reprovacao(linhas: list, maior: float, criterio: dict) -> str | None:
     lentas = []
     for l in (x for x in linhas if x["km"] == maior):
         lentas += [f"{c} {p:.1f} ms ({m})" for c in criterio["consultas"]
-                   for p, m in [_p95(l, c)] if p > criterio["p95_max_ms"]]
+                   for p, m in [_p95(l, c, criterio.get("motores_criterio_2", MOTORES))]
+                   if p > criterio["p95_max_ms"]]
     return f"reprovado no critério 2: p95 > {criterio['p95_max_ms']} ms em " + ", ".join(lentas) if lentas else None
 
 
