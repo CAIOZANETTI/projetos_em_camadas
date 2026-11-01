@@ -116,32 +116,45 @@ def de_decisoes(metodo_por_local: dict, trechos: list[dict], documento: str) -> 
 CRITERIOS_DE_DESENHO = ("divisas", "quadras", "meio_fio")
 
 
-def de_valas(redes: list[dict], crs_h: str = "EPSG:31982") -> dict:
-    """Redes de `valas.rede` → objetos `rede_vala` `RV-<id>`, eixo em linha, fatos e evidência (pranchas e critério).
+def _evidencia_da_ortofoto(rede: dict, ortofoto: str | Path | None) -> dict:
+    """Segunda evidência da rede: a classe por metro sai da cor da ortofoto, não do desenho."""
+    documento = str(ortofoto) if ortofoto else "ortofoto"
+    return {"evidencia_id": f"EV-RV-{rede['id']}-ORTO", "classe": "ortofoto", "documento": documento,
+            "localizador": {"arquivo": documento, "chave": "classe por metro pela cor da ortofoto"},
+            "trecho": rede["id"], "metodo": "geometria", "executor": "código"}
 
-    `de_mm` e `extensao_m` são projetados. Classe, peso e superfície final são `projetado` quando o critério é o
-    desenho (divisas, quadras, meio_fio) e `inferido` quando é a ortofoto. A rede guarda um só critério, não a
-    origem de cada metro: a natureza vale para a rede inteira."""
+
+def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path | None = None) -> dict:
+    """Redes de `valas.rede` → objetos `rede_vala` `RV-<id>`, eixo em linha, fatos e evidência (pranchas, layers e critério).
+
+    `de_mm` e `extensao_m` são projetados e apontam para a evidência da prancha. Classe, peso e superfície final são
+    `projetado` quando o critério é o desenho (divisas, quadras, meio_fio), com a mesma evidência; quando é a ortofoto são
+    `inferido` e apontam para uma segunda evidência (classe "ortofoto", documento = `ortofoto`, método "geometria").
+    A rede guarda um só critério, não a origem de cada metro: a natureza vale para a rede inteira."""
     base = _base_vazia()
     propriedades = _propriedades("eixo da rede")
     for rede in redes:
         objeto_id, evidencia_id = f"RV-{rede['id']}", f"EV-RV-{rede['id']}"
         pranchas = list(rede.get("pranchas", []))
+        por_desenho = rede["criterio"] in CRITERIOS_DE_DESENHO
         base["objetos"].append({"objeto_id": objeto_id, "classe": "rede_vala"})
         base["geometria"].append({"objeto_id": objeto_id, "tipo": "linha", "coords": np.round(rede["pts"], 3).tolist(),
                                   "crs_h": crs_h, "datum_v": "ortométrico"})
         base["evidencias"].append({
             "evidencia_id": evidencia_id, "classe": "projeto", "documento": ", ".join(pranchas) or str(rede["id"]),
-            "localizador": {"pranchas": pranchas, "criterio": rede["criterio"]}, "trecho": rede["id"],
-            "metodo": "geometria", "executor": "código"})
+            "localizador": {"pranchas": pranchas, "layers": list(rede.get("layers", [])), "criterio": rede["criterio"]},
+            "trecho": rede["id"], "metodo": "geometria", "executor": "código"})
+        if not por_desenho:
+            base["evidencias"].append(_evidencia_da_ortofoto(rede, ortofoto))
         dados = {"de_mm": rede["de_mm"], "extensao_m": rede["extensao_m"], "classes_por_metro": list(rede["classes"]),
                  "pesos_m": np.asarray(rede["peso"], float).tolist(), "finais": rede.get("finais")}
-        amostrado = "projetado" if rede["criterio"] in CRITERIOS_DE_DESENHO else "inferido"
         for propriedade in propriedades:
             if _vazio(dados.get(propriedade)):
                 continue
-            natureza = "projetado" if propriedade in ("de_mm", "extensao_m") else amostrado
-            base["fatos"].append(_fato(objeto_id, propriedade, dados[propriedade], natureza, evidencia_id))
+            nasce_do_desenho = por_desenho or propriedade in ("de_mm", "extensao_m")
+            base["fatos"].append(_fato(objeto_id, propriedade, dados[propriedade],
+                                       "projetado" if nasce_do_desenho else "inferido",
+                                       evidencia_id if nasce_do_desenho else f"{evidencia_id}-ORTO"))
     return base
 
 
@@ -213,6 +226,33 @@ def _ler_retornos(pasta: Path) -> tuple[list[dict], list[dict]]:
     return retornos, pendencias
 
 
+def _classe_calculada(retorno: dict, avaliacao: dict | None) -> str | None:
+    """Classe (id de fontes.json) do arquivo do retorno, calculada pelo código e não declarada pela IA: a da
+    `avaliacao`, quando dada, senão o classificador do inventário (`extracao.classe`) sobre arquivo, pasta e carimbo.
+    None quando não há como classificar (sem nome de arquivo, ou classe `outro`)."""
+    if avaliacao and avaliacao.get("classe"):
+        return _id_da_classe(avaliacao["classe"])
+    if not retorno.get("arquivo"):
+        return None
+    calculada = extracao.classe({"arquivo": str(retorno["arquivo"]), "pasta_drive": retorno.get("pasta_drive"),
+                                 "carimbo": retorno.get("carimbo"), "codigo": retorno.get("codigo")})
+    return None if calculada == "outro" else calculada
+
+
+def _id_da_classe(classe: str | None) -> str | None:
+    """O id da classe em fontes.json (aceita o id ou o nome); texto desconhecido fica como está."""
+    return next((c["id"] for c in extracao.FONTES["classes"] if classe in (c["id"], c["nome"])), classe)
+
+
+def _recusa_de_classe(retorno: dict, avaliacao: dict | None) -> dict | None:
+    """Pendência que recusa o retorno inteiro quando a classe declarada pela IA não é a calculada pelo código."""
+    declarada, calculada = _id_da_classe(retorno.get("classe")), _classe_calculada(retorno, avaliacao)
+    if calculada is not None and declarada == calculada:
+        return None
+    return _recusa(retorno, retorno.get("arquivo"), "classe",
+                   f"classe do arquivo não conferida: declarada {declarada}, calculada {calculada or 'não classificável'}")
+
+
 def de_retornos(pasta: Path, avaliacoes: dict | None = None) -> dict:
     """Retornos de IA (`pasta/*.jsonl`) → base com fatos `inferido`, evidências (executor e trecho) e objetos.
 
@@ -225,7 +265,11 @@ def de_retornos(pasta: Path, avaliacoes: dict | None = None) -> dict:
     for retorno in retornos:
         chave = f"{retorno.get('pasta_drive')}/{retorno.get('arquivo')}"
         avaliacao = (avaliacoes or {}).get(chave) or (avaliacoes or {}).get(retorno.get("arquivo"))
-        saida = extracao.fatos_do_retorno(retorno, avaliacao)
+        recusa = _recusa_de_classe(retorno, avaliacao)
+        if recusa:                                     # a classe do arquivo é do código, não da IA: retorno inteiro fora
+            base["pendencias"].append(recusa)
+            continue
+        saida = extracao.fatos_do_retorno(retorno, avaliacao or {"classe": _classe_calculada(retorno, None)})
         base["pendencias"] += [_recusa(retorno, r.get("objeto_id"), r["propriedade"], r["motivo"])
                                for r in saida["recusas"]]
         classe_do_objeto = {o["objeto_id"]: o["classe"] for o in saida["objetos"]}
@@ -294,7 +338,7 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
     base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
                   de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))),
-                  de_valas(redes_vala or []))
+                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg"))
     if (Path(out) / "retornos_gavetas").is_dir():                       # fatos da IA: inferidos, com executor e trecho
         base = juntar(base, _conciliar_com_a_base(de_retornos(Path(out) / "retornos_gavetas"), base))
     erros = gavetas.conferir_base(base)

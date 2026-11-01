@@ -116,3 +116,17 @@ def test_etapa_devolve_as_redes_calculadas(monkeypatch, tmp_path):
     pacote = valas.etapa({"valas": {"redes": [{"id": "R1", "pranchas": ["P1"], "criterio": "divisas", "de_mm": 300}]}},
                          [], [], None, tmp_path, 31982, log=lambda *_: None, redes_saida=saida)
     assert saida == [r] and pacote["redes"][0]["id"] == "R1"
+
+
+def test_rede_devolve_os_layers_lidos(monkeypatch):
+    tracos = [_traco("T", [(0, 10), (100, 10)]), _traco("T2", [(0, 20), (100, 20)]),
+              _traco("LIM", [(0, 5), (100, 5)]), _traco("LIM", [(0, 15), (100, 15)])]
+    monkeypatch.setattr(valas.pdf_cad, "extrair", lambda pdf, clip=None: tracos)
+    pranchas = {pid: {"id": pid, "pdf": "x.pdf", "layer_tubo": layer, "M": np.eye(3), "clip": None, "clip_mapa": None}
+                for pid, layer in (("P1", "T"), ("P2", "T2"))}
+    v = valas.rede({"id": "R1", "pranchas": ["P1", "P2"], "criterio": "divisas", "de_mm": 300, "layer_limite": "LIM"},
+                   pranchas, None, None)
+    assert v["layers"] == ["T", "T2", "LIM"]
+    v = valas.rede({"id": "R2", "pranchas": ["P1"], "criterio": "divisas", "de_mm": 300, "layer": "T", "layer_limite": "LIM"},
+                   pranchas, None, None)
+    assert v["layers"] == ["T", "LIM"]

@@ -37,6 +37,9 @@ def test_onde():
     assert eh.onde({"arquivo": "a.json", "chave": "k"}) == "a.json, k"
     assert eh.onde({"pagina": 3, "pasta_drive": "Projeto/Civil"}) == "Projeto/Civil, p. 3"
     assert eh.onde({"x": 1}) == '{"x":1}'
+    assert eh.onde({"pranchas": ["AAT00_01", "AAT00_02"], "layers": ["X", "Y"], "criterio": "divisas"}) == \
+        "pranchas AAT00_01, AAT00_02; layers X, Y; critério divisas"
+    assert eh.onde({"pranchas": ["P1"], "criterio": "ortofoto"}) == "pranchas P1; critério ortofoto"
 
 
 def test_caminho_de_volta_completo():
