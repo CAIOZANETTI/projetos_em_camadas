@@ -240,6 +240,14 @@
    "executor": "codigo",
    "itens": 0,
    "fonte": "camadas/extrair_gavetas.etapa (0.26.0); itens = trechos de Foz, a medir no build real"
+  },
+  {
+   "id": "dimensionador_vala",
+   "portao": "G4",
+   "nome": "Dimensionador único de vala (largura MOS, NR-18, tipo de escoramento e esgotamento pela sondagem, profundidade pelo perfil) e trechos do eixo",
+   "executor": "codigo",
+   "itens": 0,
+   "fonte": "camadas/lineares.py dimensionar_vala, trechos (0.31.0); itens = trechos de Foz, a medir no build real"
   }
  ]
 }

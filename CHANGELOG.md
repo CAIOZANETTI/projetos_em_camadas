@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.31.0 — 2026-11-01 · Rodada 25, PR 4: dimensionador único de vala, trechos e conferências no build
+- **Dimensionador único de vala** (`lineares.dimensionar_vala`): profundidade pelo perfil longitudinal (média
+  ponderada pela extensão, sem extrapolar; sem perfil, premissa com alerta), largura pelo MOS Sanepar, escoramento pela
+  NR-18 (acima de 1,25 m) com tipo por faixa de profundidade (pontaleteamento, descontínuo, contínuo, especial) e
+  agravantes da sondagem (areia ou aterro, solo mole, NSPT < 4, fundo abaixo do NA), esgotamento por bomba ou
+  ponteiras pela altura de água e pelo solo da faixa submersa, `alerta_na` sazonal. Regras em
+  `conceitos/lineares.json › vala`, todas como premissa com fonte. `obras_lineares.quantificar` delega a ele; o
+  gabarito da aba Obras Lineares passa sem alteração.
+- **Valas das adutoras pelo mesmo dimensionador (D2)**: `valas.secao` deixa a NBR 12266 e usa o MOS; cada rede ganha
+  `material` (FD de premissa, com alerta) e `dn_mm`. Caso DE 0,30 m na pista, 10 m: largura 0,90 → 0,75 m, volume
+  12,6 → 10,5 m³ (`results/iteracoes/rodada25_D2_nbr_x_mos.md`). O hash do conjunto de referência muda só no
+  `caso_valas_por_classe` (conferido caso a caso).
+- **Trechos do eixo** (`lineares.trechos`): corta nas fronteiras de superfície, no ponto médio entre furos e nos PVs;
+  a soma dos trechos é o comprimento do eixo.
+- **Conferências geotécnicas no build** (`obra._conferencias_geotecnia`): boca do furo × terreno, estaca sem
+  coordenada, estaca × impenetrável, cava × NA; vão para `dados["geotecnia"]` e para `pendencias.json`.
+- **Impressão da regra** com fecho transitivo dos módulos e dos imports tardios declarados em `DEPENDENCIAS`.
+- PDCA: L3a por um Opus, L3b e F por Sonnet; o Fable aceitou com ressalvas não bloqueantes. Lições L026 e L027.
+
+## 0.30.0 — 2026-11-01 · Rodada 24 da memória espacial: valas, fatos da IA e escala de 100 km
+- **Valas das redes nas gavetas**: `extrair_gavetas.de_valas` grava a rede como objeto `rede_vala`, com o eixo
+  amostrado e a classe de superfície de cada metro como fato (natureza `inferido` quando a classe vem da ortofoto). A
+  regra `vala_rede` (`valas.quantificar_gavetas`) dá demolição, recomposição e escavação por classe, que entram na
+  EAP como RD.01 a RD.03. A paridade com `valas.quantificar` usa os serviços gravados.
+- **Fatos da IA no build**: `extrair_gavetas.de_retornos` lê `retornos_gavetas/*.jsonl`. O que passa vira fato
+  `inferido`, com executor e trecho; recusa, linha inválida ou classe divergente vira pendência com motivo. O fato
+  da IA nunca vence o do documento.
+- **Escala** (`scripts/bancada_calculo.py`, critério fixado antes):
+  - `gavetas.indice` monta a base uma vez e o `anterior` é indexado;
+  - `furo_por_metro` filtra os furos pela caixa do eixo antes de delegar a `geotecnia.furo_mais_proximo`, com
+    resultado idêntico (300 casos aleatórios; o hash da referência não mudou);
+  - `id_furo` com cache e `para_eap` linear;
+  - em 20 km, o 1º cálculo caiu de 70,4 s para 0,4 s;
+  - em 100 km (5 501 objetos e 31 503 fatos): cálculo completo em 4,3 s, montagem da EAP em 2,2 s e pico de 466 MB,
+    todos dentro do critério;
+  - **o critério do 2º cálculo reprovou** (1,38 s contra o limite de 10 %, 0,43 s): ele monta a entrada de cada
+    objeto para obter a chave, e isso é um custo fixo.
+- Lição L025.
+
 ## 0.29.0 — 2026-11-01 · Rodada 25, PR 3: modelo geotécnico único, conferências e leitor de perfil
 - **Modelo geotécnico único** (`camadas/geotecnia.py`): `classe_solo`, `solo_na_faixa`, `categoria_escavacao`,
   `na_m`, `topo_rocha_m`, `perfil_em` (furo mais próximo, vetorizado, com a distância e o raio) e `alerta_na` (fundo

@@ -195,3 +195,52 @@ def test_tubos_da_eta_sao_unidade_1_e_o_perfil_hidraulico_nao_e_linear():
     linear = json.loads((pdf_cad.CONCEITOS / "tipos_prancha.json").read_text(encoding="utf-8"))["linear"]
     assert not re.search(linear, "005-SAA-0017-7471-PBHI-DE-0001ETAVILACPERFILHIDRAU-R1")
     assert re.search(linear, "001-SAA-0000-0000-PBEN-DE-0000AAT00PLANTAPERF01-R0")
+
+
+def _furo_por_metro_referencia(pts, furos):
+    """Implementação anterior (contra todos os furos), cópia fiel, como referência."""
+    com_xy = [f for f in furos if f.get("E") is not None and f.get("N") is not None]
+    if not com_xy:
+        return [None] * len(pts)
+    xy = np.array([[f["E"], f["N"]] for f in com_xy], float)
+    d = np.linalg.norm(pts[:, None, :] - xy[None, :, :], axis=2)
+    perto = d.argmin(axis=1)
+    raio = ol.geo.RAIO_INFLUENCIA_M
+    return [com_xy[k]["id"] if d[i, k] <= raio else None for i, k in enumerate(perto)]
+
+
+def test_furo_por_metro_com_caixa_igual_a_referencia_em_casos_aleatorios():
+    rng = np.random.default_rng(24)
+    raio = ol.geo.RAIO_INFLUENCIA_M
+    for caso in range(300):
+        n = int(rng.integers(0, 30))
+        base = rng.uniform(0, 600, (n, 2)).round(int(rng.integers(0, 3)))
+        pts = np.column_stack([np.linspace(0, 400, 40) + 0.5, np.full(40, 100.0)]) if caso % 3 else base[:5]
+        furos = [{"id": f"F{i}", "E": float(x), "N": float(y)} for i, (x, y) in enumerate(base)]
+        if n:
+            furos.append({"id": "SEM-XY", "E": None, "N": None})
+            furos.append({"id": "NO-RAIO", "E": float(pts[0, 0] + raio), "N": float(pts[0, 1])})   # exato no raio
+            furos.append({"id": "EMPATE-A", "E": float(pts[0, 0] - 3), "N": float(pts[0, 1])})
+            furos.append({"id": "EMPATE-B", "E": float(pts[0, 0] + 3), "N": float(pts[0, 1])})     # distância igual
+            furos.append({"id": "EMPATE-C", "E": float(pts[0, 0] - 3), "N": float(pts[0, 1])})     # idem, repetido
+        esperado = _furo_por_metro_referencia(pts, furos)
+        assert ol.furo_por_metro(pts, furos) == esperado
+        assert ol.furo_por_metro(pts, furos, ol.furos_com_xy(furos)) == esperado
+    assert ol.furo_por_metro(np.zeros((0, 2)), []) == []
+    assert ol.furo_por_metro(np.zeros((0, 2)), [{"id": "A", "E": 0.0, "N": 0.0}]) == []
+
+
+def test_furo_por_metro_com_linha_nan_igual_a_referencia():
+    pts = np.array([[10.0, 10.0], [np.nan, np.nan], [12.0, 10.0], [np.nan, 5.0]])
+    furos = [{"id": "A", "E": 10.0, "N": 11.0}, {"id": "B", "E": 12.0, "N": 12.0}]
+    esperado = _furo_por_metro_referencia(pts, furos)
+    assert esperado == ["A", None, "B", None]
+    assert ol.furo_por_metro(pts, furos) == esperado
+    assert ol.furo_por_metro(np.full((2, 2), np.nan), furos) == [None, None]
+
+
+def test_id_furo_aceita_argumento_nao_hashable_e_separa_tipos():
+    assert ol.id_furo(["SP-02"]) == ol.id_furo(str(["SP-02"]))
+    assert ol.id_furo(None) == ol.id_furo(None)
+    assert ol.id_furo(2) == "2" and ol.id_furo(2.0) == "20"
+    assert ol.id_furo("SP-02") == "SP2"

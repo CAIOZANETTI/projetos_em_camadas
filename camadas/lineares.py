@@ -32,6 +32,10 @@ import numpy as np
 
 from . import geotecnia as geo
 
+# módulos de que o cálculo depende mas que este importa só dentro das funções (para não haver ciclo de import):
+# `gavetas.impressao_regra` também os percorre, para que a chave de um serviço veja a Tabela I do MOS
+DEPENDENCIAS = ("camadas.obras_lineares", "camadas.valas")
+
 REGRAS = json.loads(
     (Path(__file__).resolve().parent.parent / "conceitos" / "lineares.json").read_text(
         encoding="utf-8"

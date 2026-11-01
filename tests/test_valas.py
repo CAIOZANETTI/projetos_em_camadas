@@ -112,3 +112,49 @@ def test_fora_da_tabela_do_mos_cai_na_largura_da_nbr_com_alerta():
     q = valas.quantificar(["pista"], np.ones(1), 3.0, material="FD", dn_mm=3000)[0]
     assert q["largura_m"] == pytest.approx(3.6, abs=0.001)
     assert any("Tabela I do MOS" in a for a in q["alertas"])
+
+
+def _rede_sintetica(criterio="divisas", finais=None):
+    n = 40
+    pts = np.c_[np.arange(n) + 0.5, np.zeros(n)]
+    classes = ["pista"] * 25 + ["calcada"] * 10 + ["vegetacao"] * 5
+    return {"id": "R1", "de_mm": 300, "fonte_de": "teste", "criterio": criterio, "pranchas": ["P1", "P2"],
+            "extensao_m": float(n), "pts": pts, "tang": np.tile([1.0, 0.0], (n, 1)), "peso": np.ones(n),
+            "classes": classes, "finais": finais, "quadro": []}
+
+
+def test_quantificar_gavetas_bate_com_quantificar():
+    r = _rede_sintetica(finais=[None] * 35 + ["grama"] * 5)
+    q = valas.quantificar(r["classes"], r["peso"], 0.3, r["finais"])
+    g = valas.quantificar_gavetas({"classes_por_metro": r["classes"], "pesos_m": r["peso"].tolist(), "de_mm": 300,
+                                   "finais": r["finais"]})
+    assert g["alertas"] == [] and sum(g["volume_vala_m3"].values()) == pytest.approx(sum(x["volume_vala_m3"] for x in q))
+    assert sum(g["demolicao_m2"].values()) == pytest.approx(sum(x["demolicao_m2"] for x in q))
+    assert sum(g["recomposicao_m2"].values()) == pytest.approx(sum(x["recomposicao_m2"] for x in q))
+    assert "vegetacao/grama" in g["volume_vala_m3"] and "vegetacao/grama" not in g["recomposicao_m2"]
+    verde = valas.quantificar_gavetas({"classes_por_metro": ["vegetacao"], "pesos_m": [1], "de_mm": 300})
+    assert "vegetacao" not in verde["demolicao_m2"] and "vegetacao" in verde["recomposicao_m2"]
+
+
+def test_etapa_devolve_as_redes_calculadas(monkeypatch, tmp_path):
+    r = _rede_sintetica()
+    monkeypatch.setattr(valas, "ortofoto", lambda caminho: None)
+    monkeypatch.setattr(valas, "rede", lambda *a, **k: r)
+    saida: list = []
+    pacote = valas.etapa({"valas": {"redes": [{"id": "R1", "pranchas": ["P1"], "criterio": "divisas", "de_mm": 300}]}},
+                         [], [], None, tmp_path, 31982, log=lambda *_: None, redes_saida=saida)
+    assert saida == [r] and pacote["redes"][0]["id"] == "R1"
+
+
+def test_rede_devolve_os_layers_lidos(monkeypatch):
+    tracos = [_traco("T", [(0, 10), (100, 10)]), _traco("T2", [(0, 20), (100, 20)]),
+              _traco("LIM", [(0, 5), (100, 5)]), _traco("LIM", [(0, 15), (100, 15)])]
+    monkeypatch.setattr(valas.pdf_cad, "extrair", lambda pdf, clip=None: tracos)
+    pranchas = {pid: {"id": pid, "pdf": "x.pdf", "layer_tubo": layer, "M": np.eye(3), "clip": None, "clip_mapa": None}
+                for pid, layer in (("P1", "T"), ("P2", "T2"))}
+    v = valas.rede({"id": "R1", "pranchas": ["P1", "P2"], "criterio": "divisas", "de_mm": 300, "layer_limite": "LIM"},
+                   pranchas, None, None)
+    assert v["layers"] == ["T", "T2", "LIM"]
+    v = valas.rede({"id": "R2", "pranchas": ["P1"], "criterio": "divisas", "de_mm": 300, "layer": "T", "layer_limite": "LIM"},
+                   pranchas, None, None)
+    assert v["layers"] == ["T", "LIM"]

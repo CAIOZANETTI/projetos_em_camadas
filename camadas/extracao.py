@@ -331,7 +331,8 @@ def fatos_do_retorno(retorno: dict, avaliacao: dict | None = None) -> dict:
     cit = retorno.get("citacao") or {}
     trecho = (cit.get("trecho") or "").strip()
     if not trecho:
-        saida["recusas"] = [{"propriedade": f.get("propriedade"), "motivo": "sem trecho citado"} for f in pedidos]
+        saida["recusas"] = [{"objeto_id": f.get("objeto_id"), "propriedade": f.get("propriedade"), "motivo": "sem trecho citado"}
+                            for f in pedidos]
         return saida
     entradas = _entradas_da_classe((avaliacao or retorno).get("classe"))
     arquivo, executor = retorno.get("arquivo"), retorno.get("executor")
@@ -342,13 +343,13 @@ def fatos_do_retorno(retorno: dict, avaliacao: dict | None = None) -> dict:
         prop, obj_id, dado = f.get("propriedade"), f.get("objeto_id"), f.get("classe_objeto")
         casam = [e for e in entradas if prop in e["propriedades"] and (not dado or e["objeto"] == dado)]
         if not casam:
-            saida["recusas"].append({"propriedade": prop, "motivo": f"propriedade {prop} fora do de-para da classe do arquivo"})
+            saida["recusas"].append({"objeto_id": obj_id, "propriedade": prop, "motivo": f"propriedade {prop} fora do de-para da classe do arquivo"})
             continue
         if not obj_id or not executor:
-            saida["recusas"].append({"propriedade": prop, "motivo": "fato sem objeto_id" if not obj_id else "retorno sem executor"})
+            saida["recusas"].append({"objeto_id": obj_id, "propriedade": prop, "motivo": "fato sem objeto_id" if not obj_id else "retorno sem executor"})
             continue
         if f.get("valor") is None or f.get("valor") == "":
-            saida["recusas"].append({"propriedade": prop, "motivo": "sem valor"})
+            saida["recusas"].append({"objeto_id": obj_id, "propriedade": prop, "motivo": "sem valor"})
             continue
         objetos.setdefault(obj_id, {"objeto_id": obj_id, "classe": casam[0]["objeto"]})
         saida["fatos"].append({"fato_id": f"{obj_id}.{prop}.ia", "objeto_id": obj_id, "propriedade": prop,

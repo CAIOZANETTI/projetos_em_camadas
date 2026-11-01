@@ -345,35 +345,109 @@ def _conferir_formato_da_pasta(pasta: Path, formato: str) -> None:
 # Da gaveta ao serviço (de-para 2)
 # --------------------------------------------------------------------------------------------------------------------
 
-def fatos_do_objeto(base: dict, objeto_id: str) -> dict[str, dict]:
-    """Um fato por propriedade: a natureza mais forte vence (decidido > observado > projetado > inferido)."""
+def _evidencia_de_ia(evidencia: dict) -> bool:
+    """Evidência de IA = método "IA" (a IA leu o documento). O executor não serve de critério: "Sonnet" ou "Haiku"
+    também rodam leitores de código (método "json", "planilha", "geometria"), e esses fatos são determinísticos."""
+    return evidencia.get("metodo") == "IA"
+
+
+def evidencias_de_ia(base: dict) -> frozenset[str]:
+    """Ids das evidências de IA da base."""
+    return frozenset(e["evidencia_id"] for e in base.get("evidencias", []) if _evidencia_de_ia(e))
+
+
+def _fato_de_ia(fato: dict, ia: frozenset[str] | set[str]) -> bool:
+    """Fato apoiado em evidência de IA."""
+    return fato["evidencia_id"] in ia
+
+
+def _vencedores(fatos: list[dict], ia: frozenset[str] | set[str] = frozenset()) -> dict[str, dict]:
+    """Um fato por propriedade: a natureza mais forte vence; em empate, o fato de código vence o de IA (`ia`: ids das
+    evidências de IA) em qualquer ordem da lista, e entre iguais o último da lista."""
     ordem = {n: i for i, n in enumerate(REGRAS["prioridade_natureza"])}
     escolhidos: dict[str, dict] = {}
-    for f in base.get("fatos", []):
-        if f["objeto_id"] != objeto_id:
-            continue
+    for f in fatos:
         atual = escolhidos.get(f["propriedade"])
-        if atual is None or ordem[f["natureza"]] <= ordem[atual["natureza"]]:
+        if atual is None:
+            escolhidos[f["propriedade"]] = f
+            continue
+        a, b = (ordem[f["natureza"]], _fato_de_ia(f, ia)), (ordem[atual["natureza"]], _fato_de_ia(atual, ia))
+        if a <= b:                       # natureza mais forte; no empate, False (código) < True (IA)
             escolhidos[f["propriedade"]] = f
     return escolhidos
 
 
-def _geometria(base: dict, objeto_id: str) -> dict | None:
+def _furo_do_objeto(o: dict, g: dict | None, fatos: dict) -> dict:
+    xy = g["coords"][:2] if g else (None, None)           # sem geometria: só pelo nome citado (sem eixo)
+    return {"id": o["objeto_id"], "E": xy[0], "N": xy[1],
+            "na_m": fatos.get("na_m", {}).get("valor"), "camadas": fatos.get("camadas", {}).get("valor", []),
+            "fatos": [f["fato_id"] for f in fatos.values()]}
+
+
+def indice(base: dict) -> dict:
+    """Monta uma vez o que `entrada` consulta por objeto: {"fatos": {objeto_id: vencedores por propriedade, de todos
+    os fatos}, "fatos_codigo": {objeto_id: vencedores sem os fatos de IA, os que alimentam as regras}, "geometria":
+    {objeto_id: 1ª geometria}, "furos": {classe: furos no formato de `furos`, só com fatos de código}, "furos_xy":
+    {classe: `ol.furos_com_xy` dos furos}}. Passe-o como `ind`
+    a `fatos_do_objeto`, `furos`, `entrada` e `paridade`: o resultado é o mesmo, sem varrer a base a cada objeto.
+    Atenção: as listas e dicionários devolvidos com o índice são compartilhados, não cópias; não os altere."""
+    ia = evidencias_de_ia(base)
+    por_objeto: dict[str, list[dict]] = {}
+    for f in base.get("fatos", []):
+        por_objeto.setdefault(f["objeto_id"], []).append(f)
+    fatos, codigo = {}, {}
+    for oid, lista in por_objeto.items():
+        fatos[oid] = _vencedores(lista, ia)
+        de_codigo = [f for f in lista if not _fato_de_ia(f, ia)]
+        codigo[oid] = fatos[oid] if len(de_codigo) == len(lista) else _vencedores(de_codigo, ia)
+    geometria: dict[str, dict] = {}
+    for g in base.get("geometria", []):
+        geometria.setdefault(g["objeto_id"], g)
+    por_classe: dict[str, list[dict]] = {}
+    for o in base.get("objetos", []):
+        g, de_codigo = geometria.get(o["objeto_id"]), codigo.get(o["objeto_id"], {})
+        if (g and g["tipo"] != "ponto") or not (g or de_codigo):     # objeto só de IA não é insumo de regra
+            continue
+        por_classe.setdefault(o["classe"], []).append(_furo_do_objeto(o, g, de_codigo))
+    return {"fatos": fatos, "fatos_codigo": codigo, "geometria": geometria, "furos": por_classe,
+            "furos_xy": {c: ol.furos_com_xy(lista) for c, lista in por_classe.items()}}
+
+
+def fatos_do_objeto(base: dict, objeto_id: str, ind: dict | None = None) -> dict[str, dict]:
+    """Um fato por propriedade: a natureza mais forte vence (decidido > observado > projetado > inferido; em empate,
+    o de código vence o de IA). Inclui os fatos de IA: eles ficam visíveis, mas não alimentam regra (`entrada`)."""
+    if ind is not None:
+        return ind["fatos"].get(objeto_id, {})
+    return _vencedores([f for f in base.get("fatos", []) if f["objeto_id"] == objeto_id], evidencias_de_ia(base))
+
+
+def fatos_de_codigo(base: dict, objeto_id: str, ind: dict | None = None) -> dict[str, dict]:
+    """Como `fatos_do_objeto`, sem os fatos de IA: o que as regras podem usar (a IA só vira fato de regra depois de
+    conferida por código ou por você, com outra evidência)."""
+    if ind is not None:
+        return ind["fatos_codigo"].get(objeto_id, {})
+    ia = evidencias_de_ia(base)
+    return _vencedores([f for f in base.get("fatos", []) if f["objeto_id"] == objeto_id and not _fato_de_ia(f, ia)], ia)
+
+
+def _geometria(base: dict, objeto_id: str, ind: dict | None = None) -> dict | None:
+    if ind is not None:
+        return ind["geometria"].get(objeto_id)
     return next((g for g in base.get("geometria", []) if g["objeto_id"] == objeto_id), None)
 
 
-def furos(base: dict, classe: str) -> list[dict]:
-    """Sondagens da classe no formato de `obras_lineares`: com ponto (E, N) ou sem geometria (E e N None, só pelo nome)."""
+def furos(base: dict, classe: str, ind: dict | None = None) -> list[dict]:
+    """Sondagens da classe no formato de `obras_lineares`: com ponto (E, N) ou sem geometria (E e N None, só pelo nome).
+    Objeto sem geometria e sem nenhum fato de código (criado só pela IA) não entra: não é insumo de regra."""
+    if ind is not None:
+        return ind["furos"].get(classe, [])
     saida = []
     for o in base.get("objetos", []):
         g = _geometria(base, o["objeto_id"])
-        if o["classe"] != classe or (g and g["tipo"] != "ponto"):
+        de_codigo = fatos_de_codigo(base, o["objeto_id"]) if o["classe"] == classe else {}
+        if o["classe"] != classe or (g and g["tipo"] != "ponto") or not (g or de_codigo):   # só de IA: fora
             continue
-        fatos = fatos_do_objeto(base, o["objeto_id"])
-        xy = g["coords"][:2] if g else (None, None)           # sem geometria: só pelo nome citado (sem eixo)
-        saida.append({"id": o["objeto_id"], "E": xy[0], "N": xy[1],
-                      "na_m": fatos.get("na_m", {}).get("valor"), "camadas": fatos.get("camadas", {}).get("valor", []),
-                      "fatos": [f["fato_id"] for f in fatos.values()]})
+        saida.append(_furo_do_objeto(o, g, de_codigo))
     return saida
 
 
@@ -391,29 +465,33 @@ def regra_de(classe: str, fatos: dict) -> str | None:
     """A regra do objeto pelo fato `metodo` (`quando`); sem o fato, a primeira regra da classe."""
     candidatas = [n for n, r in SERVICOS["regras"].items() if r["objeto"] == classe]
     metodo = ol.norm(fatos.get("metodo", {}).get("valor") or "")
-    casou = [n for n in candidatas if metodo and ol.norm(SERVICOS["regras"][n]["quando"]["metodo"]) == metodo]
+    casou = [n for n in candidatas if metodo and ol.norm(SERVICOS["regras"][n].get("quando", {}).get("metodo") or "") == metodo]
     return (casou or candidatas or [None])[0]
 
 
-def entrada(base: dict, objeto: dict) -> dict:
-    """Tudo o que a regra precisa, lido só das gavetas: dados, furos, eixo, fatos usados e o que falta."""
-    fatos = fatos_do_objeto(base, objeto["objeto_id"])
+def entrada(base: dict, objeto: dict, ind: dict | None = None) -> dict:
+    """Tudo o que a regra precisa, lido só das gavetas: dados, furos, eixo, fatos usados e o que falta.
+    `ind`: o `indice(base)`, para não varrer a base a cada objeto."""
+    fatos = fatos_de_codigo(base, objeto["objeto_id"], ind)                  # fato de IA não alimenta regra
     nome = regra_de(objeto["classe"], fatos)
     if nome is None:
         return {"regra": None}
     r = SERVICOS["regras"][nome]
     usados = [p for p in r["exige"] + r["opcionais"] if p in fatos]
-    pts = eixo(_geometria(base, objeto["objeto_id"]))
-    fs = furos(base, r["sondagens"]) if r.get("sondagens") else []
+    pts = eixo(_geometria(base, objeto["objeto_id"], ind))
+    fs = furos(base, r["sondagens"], ind) if r.get("sondagens") else []
     dados = {"local": objeto["objeto_id"], **{p: fatos[p]["valor"] for p in usados}}
     if pts is not None:                          # com eixo: o furo mais próximo de cada metro
-        perto = set(ol.furo_por_metro(pts, fs)) if fs else set()
+        prep = ind["furos_xy"].get(r["sondagens"]) if ind is not None else None
+        perto = set(ol.furo_por_metro(pts, fs, prep)) if fs else set()
         ids = {f["id"] for f in fs if f["id"] in perto}
     else:                                        # sem eixo: os furos citados em sond_ini/sond_fim (como `cobertura`)
         citados = {ol.id_furo(dados[p]) for p in ("sond_ini", "sond_fim") if dados.get(p)}
         ids = {f["id"] for f in fs if ol.id_furo(f["id"]) in citados}
+    faltam = [p for p in r["exige"] if p not in fatos]
+    so_ia = [p for p in faltam if p in fatos_do_objeto(base, objeto["objeto_id"], ind)]    # existe, mas só como IA
     return {"regra": nome, "dados": dados, "furos": fs, "pts": pts, "furos_usados": [f for f in fs if f["id"] in ids],
-            "faltam": [p for p in r["exige"] if p not in fatos],
+            "faltam": faltam, "depende_de_ia": so_ia,
             "fatos": [fatos[p]["fato_id"] for p in usados] + [i for f in fs if f["id"] in ids for i in f["fatos"]]}
 
 
@@ -436,7 +514,7 @@ def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict
 def impressao_regra(regra: str) -> str:
     """sha1 curto do código e das constantes (`REGRAS`, `PREMISSAS`, de `conceitos/`) do módulo da função da regra e
     de todos os módulos `camadas.*` de que ele depende, direta ou indiretamente (fecho transitivo dos módulos
-    importados no topo, com conjunto de visitados, em ordem de nome): mudar o empolamento, a Tabela I do MOS, uma
+    importados no topo e dos declarados em `DEPENDENCIAS`, com conjunto de visitados, em ordem de nome): mudar o empolamento, a Tabela I do MOS, uma
     premissa do dimensionador ou o próprio cálculo muda a chave, sem depender de alguém subir a `versao`."""
     if regra not in SERVICOS["regras"]:
         return ""
@@ -451,6 +529,8 @@ def impressao_regra(regra: str) -> str:
         visitados[modulo.__name__] = modulo
         pendentes += [m for m in vars(modulo).values()
                       if isinstance(m, types.ModuleType) and m.__name__.startswith("camadas.")]
+        # os importados só dentro das funções (ex.: lineares → obras_lineares), declarados em DEPENDENCIAS
+        pendentes += [importlib.import_module(nome) for nome in getattr(modulo, "DEPENDENCIAS", ())]
     modulos = [visitados[nome] for nome in sorted(visitados)]
     corpo = b"".join(Path(m.__file__).read_bytes() + json.dumps(
         [getattr(m, "REGRAS", None), getattr(m, "PREMISSAS", None)], sort_keys=True, default=str).encode("utf-8")
@@ -469,9 +549,17 @@ def chave_servico(regra: str, versao: str, dados: dict, fatos_usados: list[str],
     return hashlib.sha1(texto, usedforsecurity=False).hexdigest()[:12]   # identidade do cálculo, não segurança
 
 
-def _reaproveitavel(anterior: list[dict], objeto_id: str, regra: str, chave: str) -> list[dict] | None:
-    """Serviços do `anterior` do mesmo objeto e regra, se todos têm a mesma chave; senão None."""
-    antigos = [s for s in anterior if s["objeto_id"] == objeto_id and s["regra"] == regra]
+def _indexar_anterior(anterior: list[dict]) -> dict[tuple, list[dict]]:
+    """Serviços do `anterior` agrupados por (objeto_id, regra), na ordem original."""
+    grupos: dict[tuple, list[dict]] = {}
+    for s in anterior:
+        grupos.setdefault((s["objeto_id"], s["regra"]), []).append(s)
+    return grupos
+
+
+def _reaproveitavel(anterior: dict[tuple, list[dict]], objeto_id: str, regra: str, chave: str) -> list[dict] | None:
+    """Serviços do `anterior` (de `_indexar_anterior`) do mesmo objeto e regra, se todos têm a mesma chave; senão None."""
+    antigos = anterior.get((objeto_id, regra), [])
     return antigos if antigos and all(s.get("chave_calculo") == chave for s in antigos) else None
 
 
@@ -488,23 +576,32 @@ def _calcular_objeto(o: dict, e: dict, chave: str) -> tuple[list[dict], list[dic
     return linhas, [{"objeto_id": o["objeto_id"], "regra": e["regra"], "motivo": a} for a in alertas]
 
 
+def _pendencias_de_falta(objeto_id: str, e: dict) -> list[dict]:
+    """Pendências de um objeto sem todos os obrigatórios: os ausentes de verdade e os que só existem como fato de IA
+    (esses não são ausentes, mas também não foram conferidos)."""
+    ausentes = [p for p in e["faltam"] if p not in e["depende_de_ia"]]
+    motivos = ([f"faltam fatos obrigatórios: {', '.join(ausentes)}"] if ausentes else []) + (
+        [f"depende de fato de IA não conferido: {', '.join(e['depende_de_ia'])}"] if e["depende_de_ia"] else [])
+    return [{"objeto_id": objeto_id, "regra": e["regra"], "motivo": m} for m in motivos]
+
+
 def calcular_incremental(base: dict, anterior: list[dict] | None = None) -> tuple[list[dict], list[dict], dict]:
     """Como `calcular`, mais {recalculados, reaproveitados} por objeto. Serviços do `anterior` com a mesma
     `chave_calculo` (e os alertas guardados no 1º serviço) voltam sem chamar a função da regra.
     O campo `chave` do serviço já é a subchave do dicionário (pavimento); o hash fica em `chave_calculo`."""
     servicos, pendencias, est = [], [], {"recalculados": 0, "reaproveitados": 0}
     impressoes = {r: impressao_regra(r) for r in SERVICOS["regras"]}      # uma leitura por regra e por cálculo
+    ind, antigos_por_chave = indice(base), _indexar_anterior(anterior or [])
     for o in base.get("objetos", []):
-        e = entrada(base, o)
+        e = entrada(base, o, ind)
         if e["regra"] is None:
             continue
         if e["faltam"]:
-            pendencias.append({"objeto_id": o["objeto_id"], "regra": e["regra"],
-                               "motivo": "faltam fatos obrigatórios: " + ", ".join(e["faltam"])})
+            pendencias += _pendencias_de_falta(o["objeto_id"], e)
             continue
         chave = chave_servico(e["regra"], SERVICOS["regras"][e["regra"]]["versao"], e["dados"], e["fatos"],
                               e["furos_usados"], e["pts"], impressoes[e["regra"]])
-        antigos = _reaproveitavel(anterior or [], o["objeto_id"], e["regra"], chave)
+        antigos = _reaproveitavel(antigos_por_chave, o["objeto_id"], e["regra"], chave)
         if antigos is not None:
             linhas = [dict(s) for s in antigos]
             pends = [{"objeto_id": o["objeto_id"], "regra": e["regra"], "motivo": a}
@@ -547,9 +644,10 @@ def _diferencas(objeto_id: str, obtido: dict, esperado: dict, tol: float, prefix
     return difs
 
 
-def _paridade_do_objeto(base: dict, o: dict, trecho: dict, furos: list[dict], obtido: dict, tol: float) -> list[dict]:
+def _paridade_do_objeto(base: dict, o: dict, trecho: dict, furos: list[dict], obtido: dict, tol: float,
+                        ind: dict | None = None) -> list[dict]:
     """Um trecho: método, quantidades e geotecnia das gavetas contra o `quantificar` do trecho recebido."""
-    e = entrada(base, o)
+    e = entrada(base, o, ind)
     if e["regra"] is None:
         return []
     metodo_regra = SERVICOS["regras"][e["regra"]]["quando"]["metodo"]
@@ -581,12 +679,12 @@ def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.
     for s in servicos:
         por_objeto.setdefault(s["objeto_id"], {})[(s["saida"], s.get("chave"))] = s["valor"]
     por_linha = {t["linha"]: t for t in trechos}
-    difs = []
+    difs, ind = [], indice(base)
     for o in base.get("objetos", []):
         achou = re.fullmatch(r"OL-(\d+)", o["objeto_id"])
         trecho = por_linha.get(int(achou[1])) if achou and o["classe"] == "trecho_tubo" else None
         if trecho:
-            difs += _paridade_do_objeto(base, o, trecho, furos, por_objeto.get(o["objeto_id"], {}), tol)
+            difs += _paridade_do_objeto(base, o, trecho, furos, por_objeto.get(o["objeto_id"], {}), tol, ind)
     return difs
 
 
@@ -597,6 +695,7 @@ def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.
 def para_eap(servicos: list[dict]) -> list[dict]:
     """Soma por nó da EAP, com os serviços e objetos que a lastreiam (o caminho de volta até a evidência)."""
     nos: dict[str, dict] = {}
+    vistos: dict[str, set] = {}                    # objetos já listados por nó (ordem da 1ª aparição)
     for s in servicos:
         n = EAP["saidas"][s["saida"]]
         cod = f"{n['eap']}.{s['chave']}" if s.get("chave") else n["eap"]
@@ -604,7 +703,9 @@ def para_eap(servicos: list[dict]) -> list[dict]:
                                   "unidade": n["unidade"], "valor": 0.0, "servicos": [], "objetos": []})
         no["valor"] = round(no["valor"] + s["valor"], 3)
         no["servicos"].append(s["servico_id"])
-        no["objetos"] = list(dict.fromkeys(no["objetos"] + [s["objeto_id"]]))
+        if s["objeto_id"] not in vistos.setdefault(cod, set()):
+            vistos[cod].add(s["objeto_id"])
+            no["objetos"].append(s["objeto_id"])
     return [nos[k] for k in sorted(nos)]
 
 

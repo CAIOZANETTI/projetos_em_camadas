@@ -771,12 +771,13 @@ def _reavaliar(inv: dict, out: Path, cfg: dict, geotecnia_dados: dict | None = N
     return {**resumo, "pendencias": p["pendencias"]}
 
 
-def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict) -> None:
+def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict,
+                 redes_vala: list | None = None) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
     lote; e os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor."""
     pacotes["obras_lineares"] = obras_lineares.etapa(cfg, dados["sondagens"], out, log=_log)   # vala (MOS) da planilha
     try:                                                       # a base das gavetas não pode derrubar o build
-        dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log)
+        dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log, redes_vala=redes_vala)
         if dados["gavetas"]:                                    # aba EAP: só apresenta o que o Python montou
             dados["eap"] = dados["gavetas"].pop("eap_html")
     except Exception as erro:  # noqa: BLE001 - a etapa nova nunca derruba o build
@@ -801,6 +802,14 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
 
 
 # 5 ---------------------------------------------------------------------------
+def _sondagens_no_build(dados: dict, cfg: dict, furos: list, esc: dict | None, epsg: int, vertical) -> None:
+    """Conferências projeto × sondagem em `dados["geotecnia"]` e o perfil dos furos no 3D (só com a nuvem em cota)."""
+    dados["geotecnia"] = _conferencias_geotecnia(furos, _estacas_do_csv(cfg), _cavas_para_conferir(esc, epsg),
+                                                 _terreno_dos_furos(furos))
+    if vertical:
+        dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
+
+
 def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     cfg = json.loads(Path(cfg_path).read_text())
     out = Path(cfg["saida"])
@@ -821,7 +830,8 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     if escopo:
         escopo["tubo_x_desenho"] = tubo_contrato_x_desenho(escopo, lista, cfg)
     fichas = prancha.etapa(cfg, pranchas, escopo, out, log=_log)           # prancha lida em camadas (pilotos)
-    vala = valas.etapa(cfg, pranchas, lista, escopo, out, epsg, log=_log)   # pista × calçada × lote em cada rede
+    redes_vala: list = []
+    vala = valas.etapa(cfg, pranchas, lista, escopo, out, epsg, log=_log, redes_saida=redes_vala)   # pista × calçada × lote
     vetores += [v for v in (
         {"id": "cameras", "nome": "Fotos do drone (posição e visada)", "grupo": "Levantamento", "subgrupo": "Drone",
          "visivel": False, "geojson": vetores_cameras(rel, epsg), "fotos": True, "estilo": {"color": "#f5c518", "weight": 2}},
@@ -855,11 +865,8 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "anotacoes": {"type": "FeatureCollection", "features": []},
         "info": _info(cfg, crs, rel, desloc, orto, vertical, lista),
     }
-    dados["geotecnia"] = _conferencias_geotecnia(furos, _estacas_do_csv(cfg), _cavas_para_conferir(esc, epsg),
-                                                 _terreno_dos_furos(furos))
-    if vertical:                                      # perfil dos furos no 3D só com a nuvem em cota
-        dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
-    _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala})
+    _sondagens_no_build(dados, cfg, furos, esc, epsg, vertical)
+    _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala}, redes_vala)
     return _gravar(cfg, out, dados, pranchas, epsg)
 
 

@@ -25,6 +25,7 @@ import json
 import math
 import re
 import unicodedata
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -94,17 +95,48 @@ def solo_na_vala(furo: dict, prof_m: float) -> dict[str, float]:
     return geo.solo_na_faixa(furo, 0.0, prof_m)
 
 
-def id_furo(texto) -> str:
-    """Id comparável de sondagem: 'SP-02', 'SP02', 'SPT-2' e 'SP 2' são o mesmo furo."""
+def _id_furo_calculado(texto) -> str:
     t = re.sub(r"[^A-Z0-9]", "", norm(texto)).replace("SPT", "SP")
     return re.sub(r"(?<=[A-Z])0+(?=\d)", "", t)
 
 
-def furo_por_metro(pts: np.ndarray, furos: list[dict]) -> list[str | None]:
-    """Id do furo mais próximo de cada ponto do eixo (UTM) dentro do raio de influência; None fora dele."""
-    indices, distancias_m = geo.furo_mais_proximo(pts, furos)
+_id_furo_em_cache = lru_cache(maxsize=None, typed=True)(_id_furo_calculado)
+
+
+def id_furo(texto) -> str:
+    """Id comparável de sondagem: 'SP-02', 'SP02', 'SPT-2' e 'SP 2' são o mesmo furo. Só str, int e float usam o
+    cache (tipos separados: 2 e 2.0 não se misturam); qualquer outro tipo, mesmo não hashable, é calculado direto."""
+    if type(texto) in (str, int, float):
+        return _id_furo_em_cache(texto)
+    return _id_furo_calculado(texto)
+
+
+def furos_com_xy(furos: list[dict]) -> tuple[list[dict], np.ndarray]:
+    """Os furos com E e N válidos (o mesmo critério de `geotecnia.furo_mais_proximo`), na ordem original, e a matriz
+    (n, 2) das posições. Quem chama muitas vezes com a mesma lista calcula uma vez e passa em `preparado`."""
+    com_xy = [f for f in furos if geo._numero(f.get("E")) and geo._numero(f.get("N"))]
+    return com_xy, np.array([[f["E"], f["N"]] for f in com_xy], float).reshape(-1, 2)
+
+
+def furo_por_metro(pts: np.ndarray, furos: list[dict], preparado: tuple | None = None) -> list[str | None]:
+    """Id do furo mais próximo de cada ponto do eixo (UTM) dentro do raio de influência; None fora dele.
+
+    A conta é a de `geotecnia.furo_mais_proximo` (fonte única), só sobre os furos dentro da caixa do eixo ampliada
+    pelo raio (folga de 1 µm): o mais próximo de um ponto que está no raio sempre está na caixa, e a ordem original
+    resolve o empate, então o resultado é o mesmo da conta contra todos os furos. `preparado`: `furos_com_xy(furos)`."""
+    com_xy, xy = preparado if preparado is not None else furos_com_xy(furos)
+    pts = np.asarray(pts, float).reshape(-1, 2)
+    if not com_xy or len(pts) == 0:
+        return [None] * len(pts)
     raio = geo.RAIO_INFLUENCIA_M
-    return [furos[k]["id"] if k >= 0 and d <= raio else None for k, d in zip(indices, distancias_m, strict=True)]
+    folga = raio + 1e-6
+    if np.isnan(pts).all(axis=0).any():                  # coluna sem nenhum valor: nenhum ponto tem distância
+        return [None] * len(pts)
+    dentro = np.all((xy >= np.nanmin(pts, axis=0) - folga) & (xy <= np.nanmax(pts, axis=0) + folga), axis=1)
+    candidatos = [f for f, d in zip(com_xy, dentro, strict=True) if d]
+    indices, distancias_m = geo.furo_mais_proximo(pts, candidatos)
+    return [candidatos[k]["id"] if k >= 0 and d <= raio else None
+            for k, d in zip(indices, distancias_m, strict=True)]
 
 
 def cobertura(trecho: dict, furos: list[dict], pts: np.ndarray | None = None) -> dict[str | None, float]:
@@ -444,7 +476,7 @@ def metadados() -> dict:
         "modulo": "obras_lineares",
         "descricao": "seção de vala pelo MOS Sanepar, escoramento, solo e NA pela sondagem, pavimento pela ortofoto e "
                      "quantidades VCA/MND por trecho; conferência com a planilha e conciliação com o CUSTO CIVIL",
-        "funcoes": ["sobrelargura", "escorar", "largura", "classe_solo", "solo_na_vala", "furo_por_metro", "cobertura",
+        "funcoes": ["sobrelargura", "escorar", "largura", "classe_solo", "solo_na_vala", "furos_com_xy", "furo_por_metro", "cobertura",
                     "furos_do_trecho", "geotecnia", "brilho", "pavimentos_ortofoto", "no_eixo", "vca", "mnd", "quantificar", "ler_obras_lineares",
                     "ler_custo_civil", "conferir", "casar", "conciliar", "quadro", "para_html", "etapa", "id_furo"],
         "bibliografia": [

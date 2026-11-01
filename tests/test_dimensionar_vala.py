@@ -323,3 +323,13 @@ def test_impressao_da_regra_ve_as_premissas_do_dimensionador(monkeypatch):
     regras["vala"]["agravantes"]["nspt_min"] = 5
     monkeypatch.setattr(lineares, "REGRAS", regras)
     assert gv.impressao_regra(regra) != antes
+
+
+def test_impressao_da_vala_das_redes_ve_a_tabela_do_mos(monkeypatch):
+    """Lição L026: a regra `vala_rede` mora em valas, que chama lineares, que importa obras_lineares (Tabela I do MOS)
+    só dentro das funções; mudar a Tabela I tem de mudar a chave do serviço."""
+    antes = gv.impressao_regra("vala_rede")
+    regras = copy.deepcopy(ol.REGRAS)
+    regras["constante_de_teste"] = 1.0
+    monkeypatch.setattr(ol, "REGRAS", regras)
+    assert gv.impressao_regra("vala_rede") != antes

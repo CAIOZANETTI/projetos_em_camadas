@@ -32,5 +32,14 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 25,2º aceite do L2,revisor (aceite),claude-fable-5-1,109092,2,18,True,nenhum,L2 aceita
 2026-11-01,rodada 25,aceite da correção da impressão da regra,revisor (aceite),claude-fable-5-1,122913,3,48,True,nenhum,aceita
 2026-11-01,rodada 25,F (conferências geotécnicas no build),implementador,claude-sonnet-5-5,99250,24,179,True,nenhum,entregue; aguarda aceite
-2026-11-01,rodada25,L3a dimensionador único de vala,executor,opus,203073,52,3892,sim,0,"35 testes novos; gabaritos intactos; hash da referência igual; achado classe_solo areia fina argilosa"
-2026-11-01,rodada25,L3b valas pelo dimensionador (D2) e trechos,executor,sonnet,126484,35,246,sim,0,"hash muda só no caso_valas_por_classe (conferido caso a caso); D2 NBR 0,90→MOS 0,75"
+2026-11-01,rodada 25,L3a (dimensionador único de vala),implementador,claude-opus-5-5,203073,52,3892,True,nenhum,hash da referência igual; gabaritos intactos
+2026-11-01,rodada 25,"L3b (valas pelo dimensionador, D2, trechos)",implementador,claude-sonnet-5-5,126484,35,246,True,nenhum,hash muda só no caso_valas_por_classe (D2)
+2026-11-01,rodada 25,aceite da L3 e do F,revisor (aceite),claude-fable-5-1,113895,9,122,True,nenhum,ACEITO COM RESSALVAS não bloqueantes
+2026-11-01,rodada 24,E3 (fatos da IA na etapa),implementador,claude-sonnet-5-5,79045,13,130,True,devolução do gerente,devolvida 1 vez: os testes não tinham entrado no commit; corrigido
+2026-11-01,rodada 24,E3 (correção: testes no commit),implementador,claude-sonnet-5-5,8344,9,49,True,nenhum,"aceita pelo Opus (21 testes, conferido git show)"
+2026-11-01,rodada 24,desempenho: índice da base,implementador,claude-sonnet-5-5,87247,23,466,True,nenhum,"aceito pelo Opus; 20 km 70,4 s → 0,86 s; meta do 2º cálculo ainda não"
+2026-11-01,rodada 24,"desempenho: furo_por_metro, id_furo, para_eap",implementador,claude-sonnet-5-5,26764,21,384,True,nenhum,"aceito pelo Opus; resultado idêntico, hash da referência inalterado"
+2026-11-01,rodada 24,aceite da rodada 24,gerente (aceite),claude-fable-5-1,42122,13,181,True,nenhum,"REVISAR: E1 (evidência sem layers/ortofoto), E3 (fato de IA vira serviço; empate pela ordem; classe declarada pela IA)"
+2026-11-01,rodada 24,"revisão do 1º aceite (IA fora do cálculo, classe, evidência)",implementador,claude-sonnet-5-5,161821,54,459,True,ajuste do gerente,aceita pelo Opus com ajuste (só a classe aponta para a ortofoto)
+2026-11-01,rodada 24,2º aceite da rodada 24,gerente (aceite),claude-fable-5-1,25044,9,100,True,nenhum,REVISAR só pelo furo criado pela IA como insumo; o resto aceito
+2026-11-01,rodada 24,3º aceite da rodada 24,gerente (aceite),claude-fable-5-1,5836,4,69,True,nenhum,ACEITA

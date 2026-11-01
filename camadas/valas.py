@@ -262,10 +262,12 @@ def classificar(am: dict, criterio: str, limites: dict, orto: dict | None = None
 def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict | None:
     """Uma rede (uma ou várias pranchas): amostras classificadas e o quadro por classe."""
     pts, tang, peso, classes, finais = [], [], [], [], []
+    layers = []                                           # os layers lidos: tubo de cada prancha e os de apoio da rede
     for pid in r["pranchas"]:
         p = por_id.get(pid)
         if p is None or p.get("M") is None:
             continue
+        layers.append(r.get("layer") or p["layer_tubo"])
         tr = pdf_cad.extrair(p["pdf"], clip=p.get("clip"))
         am = amostras(tr, r.get("layer") or re.escape(p["layer_tubo"]), p["M"], p.get("clip_mapa"), linha=bool(r.get("layer")))
         limites = {k: shapely.union_all([LineString(geo.aplicar(np.asarray(p["M"]), np.asarray(q))) for t in tr
@@ -279,12 +281,27 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
         finais += f or [None] * len(c)
     if not classes:
         return None
+    apoio = [r[k] for k in ("layer_limite", "layer_meio_fio", "layer_alinhamento") if r.get(k)]
     peso = np.concatenate(peso)
     return {"id": r["id"], "de_mm": r["de_mm"], "fonte_de": r.get("fonte_de", ""),
             "material": r.get("material") or MATERIAL_PADRAO, "dn_mm": r.get("dn_mm") or r["de_mm"], "criterio": r["criterio"],
+            "pranchas": list(r["pranchas"]), "layers": list(dict.fromkeys(layers + apoio)), "finais": finais if any(finais) else None,
             "extensao_m": round(float(peso.sum()), 1), "pts": np.vstack(pts), "tang": np.vstack(tang), "peso": peso,
             "classes": classes, "quadro": quantificar(classes, peso, r["de_mm"] / 1000, finais if any(finais) else None,
                                                     r.get("material"), r.get("dn_mm"))}
+
+
+def quantificar_gavetas(dados: dict, furos=None, pts=None) -> dict:
+    """Regra `vala_rede` das gavetas: demolição, recomposição e volume de vala por classe (e superfície final)."""
+    quadro = quantificar(dados["classes_por_metro"], np.asarray(dados["pesos_m"], float), dados["de_mm"] / 1000,
+                         dados.get("finais"))
+    saida: dict = {"demolicao_m2": {}, "recomposicao_m2": {}, "volume_vala_m3": {}, "alertas": []}
+    for q in quadro:
+        chave = f"{q['classe']}/{q['final']}" if q["final"] else q["classe"]
+        for nome in ("demolicao_m2", "recomposicao_m2", "volume_vala_m3"):
+            if q[nome] > 0 or nome == "volume_vala_m3":
+                saida[nome][chave] = q[nome]
+    return saida
 
 
 def de_do_escopo(pranchas: list[str], tubo_x_desenho: list[dict]) -> tuple[int | None, str]:
@@ -297,8 +314,10 @@ def de_do_escopo(pranchas: list[str], tubo_x_desenho: list[dict]) -> tuple[int |
     return None, ""
 
 
-def etapa(cfg: dict, pranchas: list, lista: list, escopo: dict | None, out, epsg: int, log=print) -> dict | None:
-    """Etapa da obra: classifica as valas de cada rede declarada em `valas.redes` e devolve o pacote do HTML."""
+def etapa(cfg: dict, pranchas: list, lista: list, escopo: dict | None, out, epsg: int, log=print,
+          redes_saida: list | None = None) -> dict | None:
+    """Etapa da obra: classifica as valas de cada rede declarada em `valas.redes` e devolve o pacote do HTML.
+    `redes_saida`, se passada, recebe os dicts das redes calculadas (os de `rede`) para as gavetas."""
     c = cfg.get("valas")
     if not c:
         return None
@@ -321,6 +340,8 @@ def etapa(cfg: dict, pranchas: list, lista: list, escopo: dict | None, out, epsg
         if v:
             redes.append(v)
             log(f"Valas {v['id']} (DE {de}): " + "; ".join(f"{q['nome']} {q['extensao_m']:.0f} m" for q in v["quadro"]))
+    if redes_saida is not None:
+        redes_saida.extend(redes)
     return para_html(redes, c, final, epsg) if redes else None
 
 
@@ -354,7 +375,7 @@ def metadados() -> dict:
         "descricao": "classe da superfície em cada metro de tubo (desenho ou ortofoto) e o quadro de demolição, "
                      "recomposição e volume de vala por rede",
         "funcoes": ["amostras", "cruzamentos", "classe_divisas", "classe_quadras", "classe_meio_fio", "ortofoto", "classe_ortofoto",
-                    "urbanizacao", "secao", "quantificar", "classificar", "rede", "de_do_escopo", "etapa", "para_html"],
+                    "urbanizacao", "secao", "quantificar", "quantificar_gavetas", "classificar", "rede", "de_do_escopo", "etapa", "para_html"],
         "bibliografia": [
             {"obra": "ABNT NBR 12266 — Projeto e execução de valas para assentamento de tubulação de água, esgoto ou "
                      "drenagem urbana", "ano": 1992, "editora": "ABNT",
