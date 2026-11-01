@@ -289,3 +289,42 @@ def test_versao_e_nome_do_html():
     assert VERSAO == topo
     assert obra.nome_html({"id": "foz-vilac"}, "2026-10-29") == f"foz-vilac_camadas_v{VERSAO}_2026-10-29.html"
     assert obra.nome_html({"id": "x", "nome_html": "{id}-{versao}"}) == f"x-{VERSAO}.html"
+
+
+def test_cavas_para_conferir_converte_centro_e_usa_o_fundo_mais_baixo():
+    def anel(e, n, lado):
+        pts = [(e, n), (e + lado, n), (e + lado, n + lado), (e, n + lado), (e, n)]
+        return [list(geo.para_lonlat(x, y, 31981)) for x, y in pts]
+    esc = {"geojson": {"features": [
+        {"geometry": {"type": "Polygon", "coordinates": [anel(745800.0, 7182900.0, 20.0)]},
+         "properties": {"id": "C01", "fundo_m": [95.5, 96.2]}},
+        {"geometry": {"type": "Polygon", "coordinates": [anel(745900.0, 7182900.0, 10.0)]},
+         "properties": {"id": "C02", "fundo_m": None}}]}}
+    cavas = obra._cavas_para_conferir(esc, 31981)
+    assert [c["id"] for c in cavas] == ["C01"]
+    assert cavas[0]["cota_fundo_m"] == 95.5
+    assert 745800 < cavas[0]["E_m"] < 745820 and 7182900 < cavas[0]["N_m"] < 7182920
+    assert obra._cavas_para_conferir(None, 31981) == []
+
+
+def test_conferencias_geotecnia_formato_e_pendencias(tmp_path):
+    furos = [{"id": "SP-01", "E": 1000.0, "N": 2000.0, "cota_boca": 100.0, "na_m": 2.0, "profundidade_m": 8.0,
+              "camadas": [{"de": 0.0, "ate": 8.0, "descricao": "Argila"}],
+              "controle_vertical": {"situacao": "usado", "terreno_m": 99.0, "diferenca_m": 1.0}}]
+    estacas = [{"id": "E1", "E": None, "N": None, "cota_arrasamento": 99.0, "comprimento_m": 5.0}]
+    cavas = [{"id": "C01", "E_m": 1005.0, "N_m": 2000.0, "cota_fundo_m": 96.0}]
+    terreno = obra._terreno_dos_furos(furos)
+    assert terreno == [{"id": "SP-01", "terreno_m": 99.0}]
+    g = obra._conferencias_geotecnia(furos, estacas, cavas, terreno)
+    assert set(g) == {"conferencias", "resumo"}
+    assert g["resumo"] == {"sem_coordenada": 1, "cava_x_na": 1, "boca_x_terreno": 1}
+    assert sum(g["resumo"].values()) == len(g["conferencias"])
+    assert obra._conferencias_geotecnia([], estacas, cavas, terreno) is None   # sem sondagens: nada quebra
+
+    out = tmp_path / "saida"
+    out.mkdir()
+    obra._reavaliar({"itens": []}, out, {"inventario": {}}, g)
+    pend = json.loads((out / "pendencias.json").read_text(encoding="utf-8"))
+    assert pend["geotecnia"] == g
+    obra._reavaliar({"itens": []}, out, {"inventario": {}})
+    assert json.loads((out / "pendencias.json").read_text(encoding="utf-8"))["geotecnia"] is None

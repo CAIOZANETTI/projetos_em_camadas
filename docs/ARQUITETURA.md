@@ -222,13 +222,14 @@ localiza por estaca ao longo de um eixo, se mede em metro de rede e gira em torn
 | documento-chave | forma, armadura, locação e cargas | planta e perfil juntos (o perfil dá a profundidade real) |
 | só dela | — | interferências, travessias e MND, PVs, ligações prediais |
 
-**Módulo de obras lineares** (a fazer, nesta ordem):
-1. eixo e estaqueamento como espinha;
-2. leitor do perfil: estaca, cota do terreno e cota da geratriz;
-3. segmentação em trechos por PV, superfície e sondagem;
-4. **um único dimensionador de vala** (MOS Sanepar), alimentado pelo modelo geotécnico. Ele substitui os três que existem
-   hoje: `valas.py`, `obras_lineares.py` e o dimensionador do ramo da EAP;
-5. interferências e travessias.
+**Módulo de obras lineares** (`camadas/lineares.py`, `conceitos/lineares.json`; estado em 0.31.0):
+1. eixo e estaqueamento como espinha (feito, 0.27.0);
+2. leitor do perfil: estaca, cota do terreno, cota da geratriz ou do fundo da vala (piloto, 0.29.0);
+3. segmentação em trechos por PV, superfície e sondagem (`lineares.trechos`, 0.31.0);
+4. **um único dimensionador de vala** (MOS Sanepar), alimentado pelo modelo geotécnico (`lineares.dimensionar_vala`,
+   0.31.0): `valas.py` e `obras_lineares.py` delegam a ele. O dimensionador do ramo da EAP não foi integrado; suas
+   faixas de escoramento entraram como premissa (D3). Falta unificar `gavetas.eixo` com `lineares.eixo`;
+5. interferências e travessias (a fazer).
 
 A EAP já separa as duas (U1 ETA × U2 adutoras).
 

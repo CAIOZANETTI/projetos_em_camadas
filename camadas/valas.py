@@ -6,7 +6,8 @@
     quadras   = entre quadras é rua; até `calcada_quadra_m` do alinhamento é calçada, além é pista
     ortofoto  = superfície existente pela cor (vegetação, solo exposto, pavimentado); a recomposição segue a superfície
                 final do projeto de urbanização quando ela cobre o trecho
-    vala      = largura b = DE + folga (mínimo), profundidade h = recobrimento da classe + DE + berço
+    vala      = largura e escoramento do dimensionador único (`lineares.dimensionar_vala`, MOS: L = D + SL + X + Y);
+                profundidade h = recobrimento da classe + DE + berço
     demolição = recomposição = extensão × (b + 2 × sobrelargura de recorte)
 
 Regras e premissas em `conceitos/valas.json`. É posição no desenho, não cadastro de pavimento: conferir em campo.
@@ -22,10 +23,11 @@ import shapely
 import shapely.affinity
 from shapely.geometry import LineString, Polygon, mapping
 
-from . import geo, pdf_cad
+from . import geo, lineares, pdf_cad
 
 REGRAS = json.loads((pdf_cad.CONCEITOS / "valas.json").read_text(encoding="utf-8"))
 VALOR = {k: v["valor"] for k, v in REGRAS.items() if isinstance(v, dict) and "valor" in v}
+MATERIAL_PADRAO = "FD"                                   # premissa até o contrato dizer o tipo do tubo
 
 
 def _amostrar(linha, passo: float) -> tuple[np.ndarray, np.ndarray]:
@@ -180,27 +182,57 @@ def urbanizacao(tracos: list, M, camadas: dict, janela=None) -> dict:
     return out
 
 
-def secao(classe: str, de_m: float) -> tuple[float, float]:
-    """Largura e profundidade da vala para a classe e o diâmetro externo."""
-    lv = REGRAS["largura_vala"]
-    b = max(de_m + lv["folga_m"], lv["minimo_m"])
-    return b, REGRAS["recobrimento_m"][REGRAS["classes"][classe]["recobrimento"]] + de_m + VALOR["berco_m"]
+def _dimensionar(classe: str, de_m: float, material: str, dn_mm: float) -> dict:
+    """Vala de 1 m de tubo da classe pelo dimensionador único (`lineares.dimensionar_vala`): largura pelo MOS
+    (L = D + SL + X + Y). Profundidade de premissa = recobrimento da classe + DE + berço (sem perfil)."""
+    prof_m = REGRAS["recobrimento_m"][REGRAS["classes"][classe]["recobrimento"]] + de_m + VALOR["berco_m"]
+    trecho = {"local": classe, "dn_mm": dn_mm, "material": material, "prof_m": round(prof_m, 3), "comp_m": 1.0,
+              "metodo": "VCA"}
+    return lineares.dimensionar_vala(trecho)
 
 
-def quantificar(classes: list[str], pesos: np.ndarray, de_m: float, finais: list | None = None) -> list[dict]:
-    """Extensão, demolição, recomposição e volume de vala por classe (e superfície final, quando há urbanização)."""
+def secao(classe: str, de_m: float, material: str = MATERIAL_PADRAO, dn_mm: float | None = None) -> tuple[float, float]:
+    """Largura e profundidade da vala (m) para a classe e o diâmetro externo, vindas do dimensionador único (MOS).
+    Se a Tabela I do MOS não cobre o material e o DN, a largura cai para DE + folga (NBR 12266) e `quantificar` avisa."""
+    d = _dimensionar(classe, de_m, material, dn_mm or round(de_m * 1000))
+    if d["largura_m"] is None:
+        lv = REGRAS["largura_vala"]
+        return max(de_m + lv["folga_m"], lv["minimo_m"]), d["profundidade_m"]
+    return d["largura_m"], d["profundidade_m"]
+
+
+def quantificar(classes: list[str], pesos: np.ndarray, de_m: float, finais: list | None = None,
+                material: str | None = None, dn_mm: float | None = None) -> list[dict]:
+    """Extensão, demolição, recomposição e volume de vala por classe (e superfície final, quando há urbanização).
+    Largura, profundidade e escoramento vêm do dimensionador único; `material` (padrão FD, com alerta) e `dn_mm`
+    (padrão = DE) definem a largura pelo MOS. Demolição/recomposição seguem aqui: sobrelargura de recorte, classe e
+    a regra 'coberta pela urbanização'."""
+    alertas_rede = []
+    if material is None:
+        material = MATERIAL_PADRAO
+        alertas_rede.append(f"material de premissa ({MATERIAL_PADRAO}): confirmar o tipo do tubo no contrato")
+    dn_mm = dn_mm or round(de_m * 1000)
     grupos: dict[tuple, float] = {}
     for i, c in enumerate(classes):
         chave = (c, finais[i] if finais else None)
         grupos[chave] = grupos.get(chave, 0.0) + float(pesos[i])
     linhas = []
     for (c, final), ext in sorted(grupos.items(), key=lambda kv: -kv[1]):
-        b, h = secao(c, de_m)
+        d = _dimensionar(c, de_m, material, dn_mm)
+        alertas = [*alertas_rede, *d["alertas"]]
+        if d["largura_m"] is None:
+            b, h = secao(c, de_m, material, dn_mm)
+            alertas.append(f"largura pela NBR 12266 (DE + folga): {material} DN {dn_mm} fora da Tabela I do MOS")
+        else:
+            b, h = d["largura_m"], d["profundidade_m"]
         faixa = b + 2 * VALOR["sobrelargura_recorte_m"]
         k = REGRAS["classes"][c]
         recomp = f"coberta pela urbanização ({final})" if final else k["recomposicao"]
         linhas.append({"classe": c, "nome": k["nome"], "final": final, "extensao_m": round(ext, 1),
+                       "material": material, "dn_mm": dn_mm,
                        "largura_m": round(b, 2), "profundidade_m": round(h, 2),
+                       "escorado": d["escorado"], "tipo_escoramento": d["tipo_escoramento"],
+                       "alertas": alertas,
                        "demolicao": k["demolicao"], "demolicao_m2": round(ext * faixa, 1) if k["demolicao"] else 0.0,
                        "recomposicao": recomp,
                        "recomposicao_m2": round(ext * faixa, 1) if (k["recomposicao"] and not final) else 0.0,
@@ -251,10 +283,12 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
         return None
     apoio = [r[k] for k in ("layer_limite", "layer_meio_fio", "layer_alinhamento") if r.get(k)]
     peso = np.concatenate(peso)
-    return {"id": r["id"], "de_mm": r["de_mm"], "fonte_de": r.get("fonte_de", ""), "criterio": r["criterio"],
+    return {"id": r["id"], "de_mm": r["de_mm"], "fonte_de": r.get("fonte_de", ""),
+            "material": r.get("material") or MATERIAL_PADRAO, "dn_mm": r.get("dn_mm") or r["de_mm"], "criterio": r["criterio"],
             "pranchas": list(r["pranchas"]), "layers": list(dict.fromkeys(layers + apoio)), "finais": finais if any(finais) else None,
             "extensao_m": round(float(peso.sum()), 1), "pts": np.vstack(pts), "tang": np.vstack(tang), "peso": peso,
-            "classes": classes, "quadro": quantificar(classes, peso, r["de_mm"] / 1000, finais if any(finais) else None)}
+            "classes": classes, "quadro": quantificar(classes, peso, r["de_mm"] / 1000, finais if any(finais) else None,
+                                                    r.get("material"), r.get("dn_mm"))}
 
 
 def quantificar_gavetas(dados: dict, furos=None, pts=None) -> dict:
@@ -326,7 +360,8 @@ def para_html(redes: list[dict], c: dict, final: dict | None, epsg: int) -> dict
                           "properties": {"rede": v["id"], "classe": cl, "tipo": REGRAS["classes"][cl]["nome"],
                                          "cor": REGRAS["classes"][cl]["cor"], "extensao_m": round(float(v["peso"][sel].sum()), 1),
                                          "estimado": True}})
-    tabela = [{k: v[k] for k in ("id", "de_mm", "fonte_de", "criterio", "extensao_m", "quadro")} for v in redes]
+    tabela = [{k: v[k] for k in ("id", "de_mm", "fonte_de", "criterio", "extensao_m", "quadro")}
+              | {"material": v.get("material", MATERIAL_PADRAO), "dn_mm": v.get("dn_mm", v["de_mm"])} for v in redes]
     return {"redes": tabela, "classes": {k: {"nome": v["nome"], "cor": v["cor"]} for k, v in REGRAS["classes"].items()},
             "urbanizacao_m2": {n: round(g.area, 1) for n, g in (final or {}).items()},
             "fonte": c.get("fonte", ""), "fora": c.get("fora", []), "premissas": REGRAS["metadata"]["observacoes"],
@@ -344,7 +379,7 @@ def metadados() -> dict:
         "bibliografia": [
             {"obra": "ABNT NBR 12266 — Projeto e execução de valas para assentamento de tubulação de água, esgoto ou "
                      "drenagem urbana", "ano": 1992, "editora": "ABNT",
-             "aplicacao": {"secao": ["largura = DE + 0,60 m", "recobrimento 1,0 m via / 0,6 m passeio"]}},
+             "aplicacao": {"secao": ["recobrimento 1,0 m via / 0,6 m passeio", "largura DE + 0,60 m só se o MOS não cobre o caso"]}},
             {"obra": "Woebbecke et al. — Color indices for weed identification (ExG = 2G − R − B)", "ano": 1995,
              "editora": "Transactions of the ASAE", "aplicacao": {"classe_ortofoto": ["exg_verde=0,06"]}},
         ],

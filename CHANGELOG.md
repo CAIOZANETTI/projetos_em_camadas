@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.31.0 — 2026-11-01 · EAP codificada como linha mestra
+## 0.32.0 — 2026-11-01 · EAP codificada como linha mestra
 - **EAP (WBS)** (`camadas/eap.py`, `conceitos/eap.json`, `docs/EAP.md`): código `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM`
   sobre as unidades e os sistemas de `unidades_construtivas.json` (obra localizada × linear); disciplinas Geotecnia
   (fundações: estacas, blocos, contenções; movimentação de solo), Civil (estruturas de concreto: piso, viga, pilar,
@@ -63,6 +63,25 @@
 - O build grava `dados.eap`, `dados.evidencias` e o código `eap` em cada elemento da aba Obra, além de
   `evidencias.jsonl`, `fatos.csv`, `cobertura.csv` e `associados.csv`. A aba EAP no HTML fica para a próxima rodada
   (`docs/EAP.md` §9).
+## 0.31.0 — 2026-11-01 · Rodada 25, PR 4: dimensionador único de vala, trechos e conferências no build
+- **Dimensionador único de vala** (`lineares.dimensionar_vala`): profundidade pelo perfil longitudinal (média
+  ponderada pela extensão, sem extrapolar; sem perfil, premissa com alerta), largura pelo MOS Sanepar, escoramento pela
+  NR-18 (acima de 1,25 m) com tipo por faixa de profundidade (pontaleteamento, descontínuo, contínuo, especial) e
+  agravantes da sondagem (areia ou aterro, solo mole, NSPT < 4, fundo abaixo do NA), esgotamento por bomba ou
+  ponteiras pela altura de água e pelo solo da faixa submersa, `alerta_na` sazonal. Regras em
+  `conceitos/lineares.json › vala`, todas como premissa com fonte. `obras_lineares.quantificar` delega a ele; o
+  gabarito da aba Obras Lineares passa sem alteração.
+- **Valas das adutoras pelo mesmo dimensionador (D2)**: `valas.secao` deixa a NBR 12266 e usa o MOS; cada rede ganha
+  `material` (FD de premissa, com alerta) e `dn_mm`. Caso DE 0,30 m na pista, 10 m: largura 0,90 → 0,75 m, volume
+  12,6 → 10,5 m³ (`results/iteracoes/rodada25_D2_nbr_x_mos.md`). O hash do conjunto de referência muda só no
+  `caso_valas_por_classe` (conferido caso a caso).
+- **Trechos do eixo** (`lineares.trechos`): corta nas fronteiras de superfície, no ponto médio entre furos e nos PVs;
+  a soma dos trechos é o comprimento do eixo.
+- **Conferências geotécnicas no build** (`obra._conferencias_geotecnia`): boca do furo × terreno, estaca sem
+  coordenada, estaca × impenetrável, cava × NA; vão para `dados["geotecnia"]` e para `pendencias.json`.
+- **Impressão da regra** com fecho transitivo dos módulos e dos imports tardios declarados em `DEPENDENCIAS`.
+- PDCA: L3a por um Opus, L3b e F por Sonnet; o Fable aceitou com ressalvas não bloqueantes. Lições L026 e L027.
+
 ## 0.30.0 — 2026-11-01 · Rodada 24 da memória espacial: valas, fatos da IA e escala de 100 km
 - **Valas das redes nas gavetas**: `extrair_gavetas.de_valas` grava a rede como objeto `rede_vala`, com o eixo
   amostrado e a classe de superfície de cada metro como fato (natureza `inferido` quando a classe vem da ortofoto). A
