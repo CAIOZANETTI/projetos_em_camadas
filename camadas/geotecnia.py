@@ -38,7 +38,9 @@ _RE_NUM = re.compile(_NUM)
 _RE_COORD = re.compile(
     rf"\b(?P<id>{_ID})\b(?P<resto>(?:\s+(?:{_NUM}))+)", re.IGNORECASE
 )
-_RE_NA = re.compile(r"\bN\.?\s?A\b\.?|NIVEL\s+D['’`]?\s?AGUA")
+# "N.A." com ponto, "NA" seguido de ':', '=' ou '(', ou a expressão por extenso; "NA" solto é a preposição "na" em
+# maiúsculas ("ARGILA MOLE NA COTA 3,00") e não pode virar nível d'água (revisão do Fable, rodada 25)
+_RE_NA = re.compile(r"\bN\.\s?A\.?|\bNA\b(?=\s*[:=(])|NIVEL\s+D['’`]?\s?AGUA|LENCOL\s+FREATICO")
 _RE_SEM_NA = re.compile(r"NAO\s+ATINGID|\bSECO\b|NAO\s+ENCONTRAD|AUSENTE")
 _RE_NUM_M = re.compile(rf"(?<![\d.,])({_NUM})(?:\s*m\b)?", re.IGNORECASE)
 _RE_CAMADA = re.compile(

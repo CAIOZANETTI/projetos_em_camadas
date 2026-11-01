@@ -225,3 +225,12 @@ def test_premissas_da_decisao_d1():
 
 def test_metadados():
     assert geo.metadados()["modulo"] == "geotecnia"
+
+
+def test_preposicao_na_nao_vira_nivel_dagua():
+    """Revisão do Fable (rodada 25): "na" em maiúsculas na descrição da camada não é N.A.; o NA sai da linha certa."""
+    linhas = ["0,00 - 2,00 ARGILA MOLE NA COTA 3,00 M", "N.A.: 1,00 m"]
+    assert geo._nivel_dagua(linhas) == (True, 1.0)
+    assert geo._nivel_dagua(["AREIA FINA NA BASE"]) == (False, None)
+    assert geo._nivel_dagua(["NA: 2,40"]) == (True, 2.4)
+    assert geo._nivel_dagua(["LENÇOL FREÁTICO NÃO ATINGIDO"]) == (True, None)
