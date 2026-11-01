@@ -402,10 +402,15 @@ def entrada(base: dict, objeto: dict) -> dict:
     usados = [p for p in r["exige"] + r["opcionais"] if p in fatos]
     pts = eixo(_geometria(base, objeto["objeto_id"]))
     fs = furos(base, r["sondagens"]) if r.get("sondagens") else []
-    perto = set(ol.furo_por_metro(pts, fs)) if pts is not None and fs else set()
-    return {"regra": nome, "dados": {"local": objeto["objeto_id"], **{p: fatos[p]["valor"] for p in usados}},
-            "furos": fs, "pts": pts, "faltam": [p for p in r["exige"] if p not in fatos],
-            "fatos": [fatos[p]["fato_id"] for p in usados] + [i for f in fs if f["id"] in perto for i in f["fatos"]]}
+    dados = {"local": objeto["objeto_id"], **{p: fatos[p]["valor"] for p in usados}}
+    if pts is not None:                          # com eixo: o furo mais próximo de cada metro
+        perto = set(ol.furo_por_metro(pts, fs)) if fs else set()
+        ids = {f["id"] for f in fs if f["id"] in perto}
+    else:                                        # sem eixo: os furos citados em sond_ini/sond_fim (como `cobertura`)
+        citados = {ol.id_furo(dados[p]) for p in ("sond_ini", "sond_fim") if dados.get(p)}
+        ids = {f["id"] for f in fs if ol.id_furo(f["id"]) in citados}
+    return {"regra": nome, "dados": dados, "furos": fs, "pts": pts, "faltam": [p for p in r["exige"] if p not in fatos],
+            "fatos": [fatos[p]["fato_id"] for p in usados] + [i for f in fs if f["id"] in ids for i in f["fatos"]]}
 
 
 def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict]:
@@ -442,6 +447,45 @@ def calcular(base: dict) -> tuple[list[dict], list[dict]]:
     return servicos, pendencias
 
 
+def _achatar(saidas: dict, nomes: list[str]) -> dict[tuple, float]:
+    """{(saída, chave): valor} das saídas pedidas; dicionário abre uma entrada por chave, None some."""
+    plano = {}
+    for saida in nomes:
+        valor = saidas.get(saida)
+        for chave, v in (valor.items() if isinstance(valor, dict) else [(None, valor)]):
+            if v is not None:
+                plano[(saida, chave)] = v
+    return plano
+
+
+def paridade(base: dict, trechos: list[dict], furos: list[dict], tol: float = 0.001) -> list[dict]:
+    """Diferenças entre o cálculo das gavetas e o `obras_lineares.quantificar` dos trechos da planilha (`OL-<linha>`).
+
+    O método do `quantificar` é o do fato que venceu na base (sem fato: VCA, como a regra das gavetas). Devolve só o que
+    difere por mais de `tol`: {objeto_id, saida, chave, gavetas, obras_lineares}; o que um lado não calculou vem None.
+    """
+    servicos, _ = calcular(base)
+    por_objeto: dict[str, dict] = {}
+    for s in servicos:
+        por_objeto.setdefault(s["objeto_id"], {})[(s["saida"], s.get("chave"))] = s["valor"]
+    por_linha = {t["linha"]: t for t in trechos}
+    difs = []
+    for o in base.get("objetos", []):
+        achou = re.fullmatch(r"OL-(\d+)", o["objeto_id"])
+        trecho = por_linha.get(int(achou[1])) if achou and o["classe"] == "trecho_tubo" else None
+        nome = regra_de(o["classe"], fatos_do_objeto(base, o["objeto_id"])) if trecho else None
+        if nome is None:
+            continue
+        metodo = fatos_do_objeto(base, o["objeto_id"]).get("metodo", {}).get("valor") or "VCA"
+        esperado = _achatar(ol.quantificar({**trecho, "metodo": metodo}, furos), SERVICOS["regras"][nome]["saidas"])
+        obtido = por_objeto.get(o["objeto_id"], {})
+        for saida, chave in sorted(set(esperado) | set(obtido), key=lambda k: (k[0], k[1] or "")):
+            g, q = obtido.get((saida, chave)), esperado.get((saida, chave))
+            if g is None or q is None or abs(g - q) > tol:
+                difs.append({"objeto_id": o["objeto_id"], "saida": saida, "chave": chave, "gavetas": g, "obras_lineares": q})
+    return difs
+
+
 # --------------------------------------------------------------------------------------------------------------------
 # Do serviço à EAP (de-para 3)
 # --------------------------------------------------------------------------------------------------------------------
@@ -466,7 +510,7 @@ def metadados() -> dict:
         "modulo": "gavetas",
         "descricao": "memória espacial: gavetas com evidência, serviços calculados só a partir delas e EAP lastreada",
         "funcoes": ["validar", "conferir_base", "conferir_de_para", "gravar", "ler", "fatos_do_objeto", "furos",
-                    "eixo", "regra_de", "entrada", "calcular", "para_eap"],
+                    "eixo", "regra_de", "entrada", "calcular", "paridade", "para_eap"],
         "conceitos": ["gavetas.json", "de_para_extracao.json", "de_para_servicos.json", "de_para_eap.json"],
         "formato": REGRAS["formato"]["atual"],
         "estado": REGRAS["metadata"]["estado"],
