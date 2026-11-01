@@ -20,3 +20,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-01,rodada 25,G1 (schema do furo e leitor de laudo),implementador,claude-sonnet-5-5,94357,16,278,True,nenhum,entregue; 9 testes
 2026-11-01,rodada 25,aceite do PR 2 (G1 e L1),revisor (aceite),claude-fable-5-1,110686,15,143,False,ajuste do gerente,L1 aceita; G1 revisar (preposição 'na' virava NA); corrigido pelo Opus
 2026-11-01,rodada 25,2º aceite do G1,revisor (aceite),claude-fable-5-1,113188,1,13,True,nenhum,G1 aceita
+2026-11-01,rodada 25,L2 (leitor do perfil longitudinal),implementador,claude-sonnet-5-5,95094,19,228,True,nenhum,entregue; 11 testes (OCR pulado sem tesseract)
