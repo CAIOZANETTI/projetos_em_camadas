@@ -28,7 +28,9 @@ def _base_vazia() -> dict:
 
 
 def _fato(objeto_id: str, propriedade: str, valor, natureza: str, evidencia_id: str) -> dict:
-    return {"fato_id": f"{objeto_id}.{propriedade}", "objeto_id": objeto_id, "propriedade": propriedade,
+    """A decisão tem id próprio (`.decidido`): convive com o fato da planilha e vence pela natureza."""
+    sufixo = ".decidido" if natureza == "decidido" else ""
+    return {"fato_id": f"{objeto_id}.{propriedade}{sufixo}", "objeto_id": objeto_id, "propriedade": propriedade,
             "valor": valor, "natureza": natureza, "evidencia_id": evidencia_id}
 
 
@@ -46,7 +48,7 @@ def de_obras_lineares(trechos: list[dict], documento: str, aba: str = "Obras Lin
             "executor": "código"})
         for propriedade in propriedades:
             valor = trecho.get(propriedade)
-            if _vazio(valor):
+            if _vazio(valor) or (propriedade == "comp_m" and not valor):   # o leitor troca comp vazio por 0
                 continue
             natureza = "observado" if propriedade in OBSERVADAS_NA_PLANILHA else "projetado"
             base["fatos"].append(_fato(objeto_id, propriedade, valor, natureza, evidencia_id))

@@ -81,3 +81,16 @@ def test_juntar_idempotente_e_conflito(tmp_path):
     b = eg.de_obras_lineares(trechos, "outra.xlsx")
     with pytest.raises(ValueError, match="EV-OL-4"):
         eg.juntar(a, b)
+
+
+def test_decisao_convive_com_o_metodo_da_planilha_e_comp_zero_nao_vira_fato():
+    from camadas import gavetas
+    trechos = [{"linha": 7, "local": "Entrada de água bruta", "dn_mm": 300.0, "material": "FD", "prof_m": 2.0,
+                "comp_m": 10.0, "metodo": "VCA"},
+               {"linha": 8, "local": "Descarga", "dn_mm": 200.0, "material": "FD", "prof_m": 1.5, "comp_m": 0.0,
+                "metodo": "VCA"}]
+    base = eg.juntar(eg.de_obras_lineares(trechos, "p.xlsx"),
+                     eg.de_decisoes({"ENTRADA DE AGUA BRUTA": "MND"}, trechos, "obra.json"))
+    assert gavetas.conferir_base(base) == []
+    assert gavetas.fatos_do_objeto(base, "OL-007")["metodo"]["natureza"] == "decidido"
+    assert "comp_m" not in gavetas.fatos_do_objeto(base, "OL-008")
