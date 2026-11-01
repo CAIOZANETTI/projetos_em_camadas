@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from camadas import extracao
 
 
@@ -208,6 +210,7 @@ def _complementos(tmp_path):
 
 
 def test_retorno_com_trecho_certo_completa_o_item(tmp_path):
+    pytest.importorskip("pymupdf")
     item = _projeto_parcial(tmp_path)
     inv = _inv(item)
     assert extracao.pendencias(inv)["avaliacoes"][0]["estado"] == "parcial"
@@ -219,6 +222,7 @@ def test_retorno_com_trecho_certo_completa_o_item(tmp_path):
 
 
 def test_trecho_errado_e_arquivo_fora_do_inventario_sao_recusados(tmp_path):
+    pytest.importorskip("pymupdf")
     item = _projeto_parcial(tmp_path)
     _retornar(tmp_path, _linha(item, trecho="escala 1:500"), {**_linha(item), "arquivo": "outro.pdf"})
     rel = extracao.aplicar_retornos(tmp_path, _inv(item))
@@ -232,6 +236,7 @@ def test_trecho_errado_e_arquivo_fora_do_inventario_sao_recusados(tmp_path):
 
 
 def test_campo_fora_do_retorno_da_classe_e_ignorado_e_anotado(tmp_path):
+    pytest.importorskip("pymupdf")
     item = _projeto_parcial(tmp_path)
     _retornar(tmp_path, _linha(item, {"carimbo.escala": "1:100", "furos": 3}))
     rel = extracao.aplicar_retornos(tmp_path, _inv(item))
@@ -241,7 +246,8 @@ def test_campo_fora_do_retorno_da_classe_e_ignorado_e_anotado(tmp_path):
 
 
 def test_pagina_sem_texto_aceita_sem_conferir(tmp_path):
-    img = _item("Relatorio sondagem.pdf", leitor="ler_pdf", texto="pouco ou nenhum (traço/SHX ou imagem)",
+    pytest.importorskip("pymupdf")
+    img =_item("Relatorio sondagem.pdf", leitor="ler_pdf", texto="pouco ou nenhum (traço/SHX ou imagem)",
                 caminho=_pdf(tmp_path / "i.pdf", ""))
     _retornar(tmp_path, _linha(img, {"texto": "SP-01 areia", "furos": 1}, trecho="areia"))
     rel = extracao.aplicar_retornos(tmp_path, _inv(img))
@@ -261,6 +267,7 @@ def test_docx_sem_leitor_completa_com_o_texto_do_retorno(tmp_path):
 
 
 def test_mesmo_arquivo_de_retornos_duas_vezes_nao_duplica_tentativas(tmp_path):
+    pytest.importorskip("pymupdf")
     item = _projeto_parcial(tmp_path)
     inv = _inv(item)
     _retornar(tmp_path, _linha(item))
@@ -271,7 +278,8 @@ def test_mesmo_arquivo_de_retornos_duas_vezes_nao_duplica_tentativas(tmp_path):
 
 
 def test_esperado_x_encontrado_enxerga_titulo_vindo_de_retorno(tmp_path):
-    item = _item("001-SAA-0017-8820-PBES-DE-0000X-R1.pdf", "PBES", leitor="ler_pdf", texto="sim", carimbo={},
+    pytest.importorskip("pymupdf")
+    item =_item("001-SAA-0017-8820-PBES-DE-0000X-R1.pdf", "PBES", leitor="ler_pdf", texto="sim", carimbo={},
                  caminho=_pdf(tmp_path / "c.pdf", "MOD01 FORMA"))
     inv = _inv(item)
     achar = lambda itens: next(l for l in extracao.esperado_x_encontrado({"itens": itens}, _sis()) if l["documento"] == "forma")

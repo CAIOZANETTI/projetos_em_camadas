@@ -23,8 +23,12 @@ URL = "https://drive.usercontent.google.com/download?id={id}&export=download&con
 
 def baixar(file_id: str, destino: Path, tamanho: int | None = None, timeout: float = 300.0) -> dict:
     """Um arquivo: grava em `destino` se vier um PDF do tamanho da listagem; senão devolve o motivo."""
+    url = URL.format(id=file_id)
+    if not url.startswith("https://"):
+        raise ValueError("só https é aceito")
     try:
-        with urllib.request.urlopen(URL.format(id=file_id), timeout=timeout) as r:
+        # esquema https verificado acima (bandit B310)
+        with urllib.request.urlopen(url, timeout=timeout) as r:  # nosec B310
             dados = r.read()
     except OSError as e:
         return {"ok": False, "bytes": 0, "motivo": f"{type(e).__name__}: {e}"[:160]}

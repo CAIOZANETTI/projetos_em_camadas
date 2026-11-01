@@ -4,3 +4,7 @@ __pycache__/
 dados/
 saida/
 *.zip
+.venv/
+.claude/worktrees/
+.coverage
+results/snapshots.parquet
