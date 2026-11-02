@@ -1,5 +1,6 @@
 """Cavas nas gavetas (memória espacial, rodada 5, E1): superfície em .npz, regra `cavas`, paridade e etapa."""
 import copy
+import importlib.util
 import json
 
 import numpy as np
@@ -8,6 +9,10 @@ from shapely.geometry import LineString, box
 
 from camadas import escavacao, gavetas
 from camadas import extrair_gavetas as eg
+
+# o escavacao.calcular desenha o contorno da cava por camadas.supressao, que usa rasterio (dependência opcional, extra
+# `sig` do pyproject); sem ela, estes testes pulam, como os de tests/test_escavacao.py (lição L016)
+precisa_rasterio = pytest.mark.skipif(importlib.util.find_spec("rasterio") is None, reason="rasterio não instalado")
 
 CRS = "EPSG:31981"
 
@@ -35,6 +40,7 @@ def _base_das_cavas(pasta, grade=None):
     return base, grade, escavacao.calcular(bases, marcas, cristas, grade)
 
 
+@precisa_rasterio
 def test_paridade_zero_e_conferencias_vazias(tmp_path):
     base, _, direto = _base_das_cavas(tmp_path)
     assert gavetas.conferir_base(base) == [] and gavetas.conferir_de_para() == []
@@ -47,6 +53,7 @@ def test_paridade_zero_e_conferencias_vazias(tmp_path):
     assert [d["saida"] for d in eg.paridade_cavas(base, defasado, servicos)] == ["escavacao_cava_m3"]
 
 
+@precisa_rasterio
 def test_nos_cv_na_eap_e_fatos_projetados(tmp_path):
     base, _, _ = _base_das_cavas(tmp_path)
     servicos, _ = gavetas.calcular(base, tmp_path)
@@ -76,6 +83,7 @@ def test_npz_deterministico_e_ida_e_volta(tmp_path):
         gavetas.gravar_superficie(tmp_path, "../fora", _grade())
 
 
+@precisa_rasterio
 @pytest.mark.parametrize("formato", gavetas.REGRAS["formato"]["implementados"])
 def test_gaveta_superficies_vai_e_volta_em_todo_formato(tmp_path, formato):
     base, _, _ = _base_das_cavas(tmp_path / "npz")
@@ -84,6 +92,7 @@ def test_gaveta_superficies_vai_e_volta_em_todo_formato(tmp_path, formato):
     assert gavetas.ler(pasta, formato)["superficies"] == base["superficies"]
 
 
+@precisa_rasterio
 def test_validar_e_conferir_base_cobrem_superficies(tmp_path):
     base, _, _ = _base_das_cavas(tmp_path)
     ruim = copy.deepcopy(base)
@@ -94,6 +103,7 @@ def test_validar_e_conferir_base_cobrem_superficies(tmp_path):
     assert any("S2: falta arquivo" in e for e in erros) and any("S2: falta evidencia_id" in e for e in erros)
 
 
+@precisa_rasterio
 def test_terreno_diferente_muda_o_sha_e_recalcula(tmp_path):
     base, grade, _ = _base_das_cavas(tmp_path)
     servicos, _, est = gavetas.calcular_incremental(base, pasta_base=tmp_path)
@@ -108,6 +118,7 @@ def test_terreno_diferente_muda_o_sha_e_recalcula(tmp_path):
     assert est3 == {"recalculados": 1, "reaproveitados": 0}
 
 
+@precisa_rasterio
 def test_npz_adulterado_vira_pendencia_sem_servico(tmp_path):
     base, _, _ = _base_das_cavas(tmp_path)
     arquivo = tmp_path / base["superficies"][0]["arquivo"]
@@ -126,6 +137,7 @@ def test_npz_adulterado_vira_pendencia_sem_servico(tmp_path):
     assert "não está na gaveta" in gavetas.calcular(sem_registro, tmp_path)[1][0]["motivo"]
 
 
+@precisa_rasterio
 def test_quantificar_gavetas_alerta_base_sem_marca_e_marca_fora_da_faixa():
     _, bases, cristas = _entradas()
     dados = {"bases": [{"coords": list(b["geom"].exterior.coords), "etapa": b["etapa"]} for b in bases]
@@ -150,6 +162,7 @@ def _saida_da_escavacao():
             "resultado": {"cavas": [{k: c[k] for k in campos} for c in direto["cavas"]]}}
 
 
+@precisa_rasterio
 def test_etapa_das_gavetas_com_cavas_grava_a_superficie(tmp_path):
     out = tmp_path / "saida"
     out.mkdir()

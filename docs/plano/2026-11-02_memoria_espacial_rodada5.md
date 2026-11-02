@@ -110,3 +110,9 @@ Contrato já escrito em `conceitos/` pelo gerente:
   uma dobra de 5 m³ (abaixo do limite da soma). O docstring registra que a troca de setor não aparece na soma e é
   garantida pelos testes de `setor_de` e `setor_dos_servicos`.
 - 02/11, **3º aceite do Fable: ACEITA.** As dobras de 5, 30 e 50 m³ foram acusadas e não houve falso alarme nos 35 mil serviços. Risco registrado: o registro da superfície não marca a natureza `observado` do MDS.
+- 02/11, **CI do PR #35.** O passo de testes do CI falhou em 12 testes de `tests/test_cavas_gavetas.py`: o ambiente
+  mínimo do CI não tem `rasterio`, e o `escavacao.calcular` precisa dele (o contorno é desenhado por
+  `supressao.poligonos`). Os testes rodavam aqui com `--with rasterio`. Correção: os 12 testes recebem
+  `@precisa_rasterio` (pulam sem a dependência, como `tests/test_escavacao.py`, lição L016). Os 3 que não precisam
+  dela, entre eles o do setor de cada cava, continuam rodando no CI. Reproduzido: sem `rasterio`, 12 falhas antes e
+  445 passed com 47 skipped depois; com tudo instalado, 523 passed.
