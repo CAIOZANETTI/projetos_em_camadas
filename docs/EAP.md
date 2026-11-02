@@ -249,7 +249,7 @@ declarados no `obra.json` (laje, viga, parede, baldrame com as dimensões do pro
 | impermeabilização | parede, laje, baldrame | A_imperm | `{item}` · impermeabilização |
 | arrasamento | estaca | 1 | `{item}` · arrasamento |
 | escavação / reaterro | cava de fundação, vala corrida | V_esc · V_reat | GEO.MOV.ESC · GEO.MOV.REA |
-| vala (15 regras) | vala | corte, demolição, recomposição (condição: há pavimento), escavação solo/rocha, escoramento `escoramento_{tipo}` (condição: escorada), berço, envoltória, assentamento, reaterro, bota-fora, esgotamento ou ponteiras (condição: água) | `{item_pavimento}`, GEO.MOV.VAL, HID.TUB.RED |
+| vala (17 regras) | vala | corte, demolição, recomposição (condição: há pavimento), escavação solo/rocha, escoramento `escoramento_{tipo}` e total `escoramento` (condição: escorada), berço, envoltória, assentamento, reaterro, bota-fora, esgotamento ou ponteiras (condição: água) | `{item_pavimento}`, GEO.MOV.VAL, HID.TUB.RED |
 
 `{item}` é o item EAP do próprio elemento (bloco → GEO.FUN.BLO, laje → CIV.EST.PIS). Para acrescentar um serviço,
 basta uma linha no JSONL. Exemplo: "chapisco = A_forma · 1" para paredes. Para acrescentar um tipo de elemento,
@@ -345,6 +345,7 @@ Exemplo AAT06 (PEAD DE 630, 120 m em pista e 30 m em calçada, furo SP-07 a 80 m
 | demolição / recomposição de asfalto | 207,6 m² | 129,6 m² | conflito 37,6 % | NBR soma 0,15 m de corte de cada lado; MOS = comprimento × L |
 | escavação de vala | 288,7 m³ | 267,3 m³ | conflito 7,4 % | NBR b = 1,43 abaixo do pavimento; MOS L = 1,08 × h inteira |
 | escoramento | contínuo 495 m² | pontaleteamento 495 m² | um tipo em cada | o MOS não vê o furo (raio 60 m < 80 m): sem aterro, sem NA |
+| escoramento total | 495 m² | 495 m² | convergente | regra `escoramento_vala_total`: o mesmo fato (GEO.MOV.VAL, `escoramento`, m²), qualquer tipo; compara métodos e fontes que não dizem o tipo |
 | rebaixamento | 120 m, 80 h | — | fonte única | idem: para o MOS a vala não atinge o NA |
 | reaterro | 67,8 m³ | 220,5 m³ | conflito 69,3 % | NBR desconta berço e envoltória; MOS = escavação − tubo |
 | bota-fora | 382,7 m³ | 60,8 m³ | conflito 84,1 % | NBR: excedente de solo + entulho do pavimento; MOS: volume do tubo × empolamento |
@@ -354,6 +355,22 @@ bota-fora. A escolha é do engenheiro, registrada como `decisao`. O build contin
 de obra. Método que não se aplica ao tubo (material fora da Tabela I do MOS) fica de fora, com alerta em todos os
 elementos do trecho. Valores dados por um método (os volumes do MOS) vencem os cálculos genéricos do tipo `vala`
 (`dimensoes.dimensionar`). `validar()` reprova o método declarado sem código.
+
+### 7.3 A planilha Obras Lineares como fonte (`evidencias.de_obras_lineares`, `de_obras_lineares_mos`)
+
+A aba "Obras Lineares" da planilha Sanepar traz, por trecho, valores digitados (comprimento, escavação, reaterro,
+bota-fora, supressão vegetal). Cada um vira uma evidência `parcela` do documento da planilha (método `planilha`, regra
+`obras_lineares.planilha`), com o local e a linha no localizador. O escoramento da planilha é "sim/não", sem área, e por
+isso não gera evidência. Os mesmos trechos são recalculados pelo MOS (`lineares.dimensionar_vala`) e entram como
+`metodo:mos_sanepar:obras_lineares` (id distinto do `metodo:mos_sanepar` das valas dos elementos, para que as parcelas
+não se somem no mesmo documento), nos mesmos fatos (escavação, reaterro, bota-fora e o escoramento total em m²).
+Digitado igual ao recalculado é convergente; diferente é conflito, com as duas afirmações e a diferença em %.
+O comprimento não é recalculado (o MOS só o copia da entrada), então o assentamento e a supressão ficam só com a
+planilha (fonte única). Trecho em MND tem recálculo (só os caximbos escavam, sem largura); em VCA, sem profundidade ou
+com material fora da Tabela I, não tem. A aba faz parte da planilha de orçamento do contrato Sanepar e, de propósito,
+conta como edital (`TIPOS_EDITAL` inclui `planilha`): em `cobertura` o item aparece como "só edital" e em
+`associados_x_edital` o serviço citado na aba sai como "citado no edital". A base do código é `U1.LINEARES` e se muda em `obras_lineares.eap` no
+obra.json; `evidencias.etapa` soma as duas fontes quando `obras_lineares.planilha` existe no disco.
 
 ## 8. Quantificação das pranchas e verificação de proposta (`camadas/eap.py`)
 

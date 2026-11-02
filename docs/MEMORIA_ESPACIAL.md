@@ -198,7 +198,7 @@ por fim a EAP, que é o que o usuário vê.
 | De-para 3: serviço → EAP | `de_para_eap.json` (OL.01–07, RD.01–03, provisórios) | feito; a casar com a EAP do PR #18 |
 | EAP no HTML | `eap_html.py` + aba EAP | feito; nó → serviço → fato → evidência; o JS só apresenta |
 | Recálculo incremental | `calcular_incremental`, chave com a impressão da regra | feito; mudar um fato recalcula um objeto |
-| Cavas | gaveta `superficies` (MDS em `.npz` com sha256), regra `cavas`, CV.01–03 | feito (rodada 5, 0.33.0); paridade 0 com `escavacao.calcular` |
+| Cavas | gaveta `superficies` (MDS em `.npz` com sha256), regra `cavas`, CV.01–03 | feito (rodada 5, 0.34.0); paridade 0 com `escavacao.calcular` |
 | Setores da ETA | `obra.json` `gavetas.setores`, `setor_de`, `setor_dos_servicos`, EAP por setor | feito (rodada 5); a soma dos setores confere com o total |
 | Escala | `scripts/bancada_calculo.py` | 100 km em 4,3 s; o 2º cálculo sem mudança reprovou no critério de 10 % |
 
@@ -211,7 +211,7 @@ e rastreável, sem perder o resultado.
 **O que falta para fechar a tese:**
 1. o build real de Foz (`python -m camadas.obra exemplos/foz/obra.json`, com `dados/foz/`), com `paridade.json` vazio
    e a aba EAP conferida pelo Caio;
-2. ~~cavas~~ e ~~setores da ETA~~: feitos na rodada 5 (0.33.0); falta o MDS e os setores reais de Foz;
+2. ~~cavas~~ e ~~setores da ETA~~: feitos na rodada 5 (0.34.0); falta o MDS e os setores reais de Foz;
 3. casar OL, RD e CV com a EAP codificada do PR #18, que agora está na `main`;
 4. uma chave barata para o 2º cálculo, se o custo fixo de 1,4 s em 100 km incomodar;
 5. o acesso do CI ao `vibe_code_metrics` (segredo `VCM_TOKEN`), para o balanço rodar no PR.
