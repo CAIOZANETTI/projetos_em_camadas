@@ -630,3 +630,61 @@ def test_furo_criado_so_pela_ia_nao_e_insumo_da_regra():
     base["fatos"].append({"fato_id": "SP-99.na_m", "objeto_id": "SP-99", "propriedade": "na_m", "valor": 0.5,
                           "natureza": "observado", "evidencia_id": "E2"})         # com fato de código, entra
     assert [f["id"] for f in gv.furos(base, "furo_sondagem")] == ["SP-99"]
+
+
+# --- setores da obra localizada (rodada 5) --------------------------------------------------------------------------
+
+def _base_com_setores():
+    """Dois setores retangulares lado a lado (A: x 0-50; B: x 50-100) e objetos em cada situação."""
+    objetos, geometria = [], []
+
+    def geo(i, classe, tipo, coords):
+        objetos.append({"objeto_id": i, "classe": classe})
+        geometria.append({"objeto_id": i, "tipo": tipo, "coords": coords, "crs_h": "EPSG:31982", "datum_v": "ortométrico"})
+    for i, x0, x1 in (("SET-A", 0, 50), ("SET-B", 50, 100)):
+        geo(i, "setor", "poligono", [[x0, 0], [x1, 0], [x1, 40], [x0, 40], [x0, 0]])
+    geo("P-DENTRO", "furo_sondagem", "ponto", [10, 10])
+    geo("L-ATRAVESSA", "trecho_tubo", "linha", [[40, 20], [90, 20]])        # meio em x = 65: setor B
+    geo("L-MEIO-A", "trecho_tubo", "linha", [[10, 20], [60, 20]])           # meio em x = 35: setor A
+    geo("G-POLIGONO", "bloco", "poligono", [[60, 5], [80, 5], [80, 15], [60, 15], [60, 5]])
+    geo("P-FORA", "furo_sondagem", "ponto", [500, 500])
+    objetos.append({"objeto_id": "SEM-GEO", "classe": "bloco"})
+    return {"objetos": objetos, "geometria": geometria, "fatos": [], "evidencias": [], "pendencias": [], "servicos": []}
+
+
+def test_setor_de_ponto_linha_poligono_e_fora():
+    base = _base_com_setores()
+    mapa, pend = gv.setor_de(base)
+    assert mapa == {"P-DENTRO": "SET-A", "L-ATRAVESSA": "SET-B", "L-MEIO-A": "SET-A", "G-POLIGONO": "SET-B", "P-FORA": None}
+    assert pend == []                                           # fora de todos: sem pendência; sem geometria: não aparece
+    assert gv.setor_de(base, gv.indice(base)) == (mapa, pend)
+
+
+def test_setores_sobrepostos_viram_pendencia():
+    base = _base_com_setores()
+    base["geometria"][1]["coords"] = [[30, 0], [100, 0], [100, 40], [30, 40], [30, 0]]       # B passa a cobrir x 30-100
+    mapa, pend = gv.setor_de(base)
+    assert mapa["P-DENTRO"] == "SET-A" and mapa["L-MEIO-A"] is None
+    assert pend == [{"objeto_id": "L-MEIO-A", "motivo": "setores sobrepostos: SET-A, SET-B"}]
+
+
+def _servicos_por_setor():
+    def serv(i, obj, saida, valor):
+        return {"servico_id": i, "objeto_id": obj, "regra": "vala_aberta", "versao_regra": "1", "saida": saida,
+                "valor": valor, "unidade": "m³", "fatos": []}
+    return [serv("s1", "P-DENTRO", "escavacao_m3", 10.0), serv("s2", "L-ATRAVESSA", "escavacao_m3", 20.5),
+            serv("s3", "P-FORA", "escavacao_m3", 4.25), serv("s4", "SEM-GEO", "escavacao_m3", 1.0),
+            serv("s5", "L-MEIO-A", "reaterro_m3", 7.0)]
+
+
+def test_eap_por_setor_soma_igual_ao_total_de_cada_no():
+    mapa, _ = gv.setor_de(_base_com_setores())
+    servicos = _servicos_por_setor()
+    grupos = gv.para_eap_por_setor(servicos, mapa, ["SET-A", "SET-B"])
+    assert [g["setor_id"] for g in grupos] == ["SET-A", "SET-B", None]
+    for total in gv.para_eap(servicos):
+        nos = [n for g in grupos for n in g["nos"] if n["eap"] == total["eap"]]
+        assert sum(n["valor"] for n in nos) == pytest.approx(total["valor"], abs=1e-9)
+        assert sum(n["n_servicos"] for n in nos) == len(total["servicos"])
+    escavacao = [n for n in grupos[-1]["nos"] if n["unidade"] == "m³"]
+    assert sum(n["valor"] for n in escavacao) == pytest.approx(5.25)       # P-FORA e o objeto sem geometria

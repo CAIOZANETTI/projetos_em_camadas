@@ -177,6 +177,36 @@ def paridade_valas(base: dict, redes: list[dict], tol: float = 0.1, servicos: li
     return difs
 
 
+def de_setores(setores: list[dict], documento: str, crs_h: str = "EPSG:31982") -> dict:
+    """Setores `{id, nome, coords}` do obra.json (`gavetas.setores`) → objetos `setor` `SET-<id>` com polígono, fato
+    `nome` decidido e evidência "decisao" (executor "você"). Polígono inválido (menos de 3 pontos ou autointerseção)
+    vira pendência, sem objeto."""
+    from shapely import geometry as sg
+    base = _base_vazia()
+    for setor in setores:
+        objeto_id, evidencia_id = f"SET-{setor['id']}", f"EV-SET-{setor['id']}"
+        coords = setor.get("coords") or []
+        try:
+            valido = len(coords) >= 3 and sg.Polygon(coords).is_valid
+        except (TypeError, ValueError):
+            valido = False
+        if not valido:
+            base["pendencias"].append({"objeto_id": objeto_id,
+                                       "motivo": "setor com polígono inválido (menos de 3 pontos ou autointerseção)"})
+            continue
+        base["objetos"].append({"objeto_id": objeto_id, "classe": "setor"})
+        base["geometria"].append({"objeto_id": objeto_id, "tipo": "poligono", "coords": [list(p) for p in coords],
+                                  "crs_h": crs_h, "datum_v": "ortométrico"})
+        base["evidencias"].append({
+            "evidencia_id": evidencia_id, "classe": "decisao", "documento": documento,
+            "localizador": {"arquivo": documento, "chave": "gavetas.setores"}, "trecho": str(setor.get("nome", "")),
+            "metodo": "decisão", "executor": "você"})
+        for propriedade in _propriedades("setores da obra"):
+            if not _vazio(setor.get(propriedade)):
+                base["fatos"].append(_fato(objeto_id, propriedade, setor[propriedade], "decidido", evidencia_id))
+    return base
+
+
 def juntar(*bases: dict) -> dict:
     """Une as gavetas; chave repetida idêntica entra uma vez, com conteúdo diferente é `ValueError`."""
     unida = _base_vazia()
@@ -338,10 +368,14 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
     base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
                   de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))),
-                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg"))
+                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg"),
+                  de_setores((cfg.get("gavetas") or {}).get("setores") or [], str(cfg.get("_caminho", "obra.json"))))
     if (Path(out) / "retornos_gavetas").is_dir():                       # fatos da IA: inferidos, com executor e trecho
         base = juntar(base, _conciliar_com_a_base(de_retornos(Path(out) / "retornos_gavetas"), base))
     erros = gavetas.conferir_base(base)
+    setores = (cfg.get("gavetas") or {}).get("setores")
+    por_setor, pend_setores = gavetas.setor_de(base) if setores else (None, [])
+    base["pendencias"] = base["pendencias"] + pend_setores
     pasta = Path(out) / "base"
     anterior = gavetas.ler(pasta)["servicos"] if (pasta / "servicos.parquet").exists() else None
     servicos, pend_calculo, est = gavetas.calcular_incremental(base, anterior)
@@ -351,11 +385,13 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     pasta.mkdir(parents=True, exist_ok=True)
     gavetas.gravar(pasta, {**base, "servicos": servicos})
     resumo = {**_resumo(base, erros, difs, servicos), **est}
+    if por_setor is not None:
+        resumo["objetos_por_setor"] = dict(Counter(s or "fora" for s in por_setor.values()))
     (Path(out) / "paridade.json").write_text(json.dumps(difs, ensure_ascii=False, indent=1), encoding="utf-8")
     (Path(out) / "resumo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas: {len(base['objetos'])} objetos, {len(base['fatos'])} fatos, {len(base['pendencias'])} pendências, "
         f"{len(servicos)} serviços, {len(erros)} erros de conferência, {len(difs)} diferenças de paridade")
-    return {**resumo, "eap_html": eap_html.montar(base, servicos, base["pendencias"], resumo)}   # aba EAP do HTML
+    return {**resumo, "eap_html": eap_html.montar(base, servicos, base["pendencias"], resumo, por_setor)}   # aba EAP do HTML
 
 
 def metadados() -> dict:
@@ -364,6 +400,6 @@ def metadados() -> dict:
         "modulo": "extrair_gavetas",
         "descricao": "leitores (planilha de obras lineares, sondagens, decisões) gravam objetos, fatos e evidências "
                      "nas gavetas; valor ausente não vira fato; retornos de IA entram como inferido e a recusa vira pendência",
-        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "de_valas", "paridade_valas", "de_retornos", "juntar", "etapa"],
+        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "de_setores", "de_valas", "paridade_valas", "de_retornos", "juntar", "etapa"],
         "conceitos": ["gavetas.json", "de_para_extracao.json"],
     }
