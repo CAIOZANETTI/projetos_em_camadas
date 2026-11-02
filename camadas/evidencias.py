@@ -276,6 +276,8 @@ def de_obras_lineares_mos(trechos: list[dict], furos: list[dict] | None = None, 
 # Conferência da citação de IA: o trecho, o par (valor, unidade) e o item têm de estar na MESMA linha do documento -------
 LIMITE_DO_VALOR = 1e12       # |valor| acima disso é erro de digitação (ou ataque), não quantidade de obra
 PALAVRAS_ATE_O_ITEM = 8     # número e unidade valem para o item se o termo dele está a no máximo 8 palavras, na linha
+LINHAS_DO_BLOCO = 3         # bloco de linha de tabela: até 3 linhas seguidas do trecho, o par (valor, unidade) na última
+_BRANCO = "\f"              # marca, na página normalizada, de uma ou mais linhas em branco entre duas linhas com texto
 _ASPAS_E_TRACOS = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'",
                                  "–": "-", "—": "-", "−": "-"})
 _UNIDADES_RE = "|".join(re.escape(g) for g in sorted(vocabulario.GRAFIAS, key=len, reverse=True))
@@ -283,15 +285,26 @@ _NUMERO_INTEIRO = vocabulario.NUMERO + r"(?![\d]|[.,]\d)"
 _NAO_E_NUMERO = r"(?<![\d.,ØA-Z])(?<![A-Z]-)"      # "DN150", "C30", "CA-50" não são quantidades
 _NUMERO_ANTES_DA_UNIDADE = re.compile(_NAO_E_NUMERO + _NUMERO_INTEIRO + r"\s*(" + _UNIDADES_RE + r")(?![A-Z0-9])")
 _UNIDADE_ANTES_DO_NUMERO = re.compile(r"(?<![A-Z0-9])(" + _UNIDADES_RE + r")\s*[:|-]*\s*" + _NAO_E_NUMERO + _NUMERO_INTEIRO)
+_DIMENSAO = re.compile(r"(?:Ø|DN|DIAMETRO|DIAM\.?)\s*[:=]?\s*" + _NUMERO_INTEIRO + r"(?:\s*(?:MM|CM|M|POL)(?![A-Z0-9]))?")
 _NUMERO_ANTES_DO_TERMO = re.compile(_NAO_E_NUMERO + _NUMERO_INTEIRO + r"\s*(?:\([^)]*\)\s*)?(?:[A-Z]+\s+){0,2}$")
 
 
-def _linhas_normalizadas(texto) -> list[str]:
+def _linhas_normalizadas(texto, marcar_brancos: bool = False) -> list[str]:
     """Linhas não vazias do texto, normalizadas (maiúsculas, sem acento, aspas e travessões unificados); o hífen de fim
-    de linha ('esta-' + 'cas') é desfeito antes."""
+    de linha ('esta-' + 'cas') é desfeito antes. Com `marcar_brancos`, onde havia linha em branco entre duas linhas com
+    texto entra a marca `_BRANCO` (o bloco de tabela não passa por ela)."""
     t = str(texto or "").translate(_ASPAS_E_TRACOS)
     t = re.sub(r"(?<=[A-Za-zÀ-ÿ])-[ \t]*\r?\n[ \t]*(?=[A-Za-zÀ-ÿ])", "", t)
-    return [n for n in (normalizar(linha) for linha in t.splitlines()) if n]
+    linhas, em_branco = [], False
+    for n in map(normalizar, t.splitlines()):
+        if not n:
+            em_branco = bool(linhas)
+            continue
+        if em_branco and marcar_brancos:
+            linhas.append(_BRANCO)
+        linhas.append(n)
+        em_branco = False
+    return linhas
 
 
 def _item_do_codigo(codigo) -> dict | None:
@@ -312,7 +325,7 @@ def _unidades_do_item(item: dict, servico: str = "") -> list[str]:
 
 def _paginas_normalizadas(paginas: list[str]) -> list[str]:
     """Texto de cada página normalizado, uma linha por linha do documento: feito uma vez por documento."""
-    return ["\n".join(_linhas_normalizadas(p)) for p in paginas]
+    return ["\n".join(_linhas_normalizadas(p, marcar_brancos=True)) for p in paginas]
 
 
 def _termos_da_linha(linha: str) -> list[tuple[int, int, str]]:
@@ -342,10 +355,12 @@ def _pares_da_linha(linha: str, termos: list[tuple[int, int, str]]) -> tuple[lis
                     if u in vocabulario.REGRAS["conversoes"]], donos
 
 
-def _situacao_do_item(linha: str, item: dict, termos: list, donos: set, posicao: tuple[int, int] | None = None) -> str:
+def _situacao_do_item(linha: str, item: dict, termos: list, donos: set, posicao: tuple[int, int] | None = None,
+                      linha_final: int = 0) -> str:
     """'citado', 'ausente' ou 'outro' (o número pertence a outro item). O item é citado se o termo dele (ou um sinônimo)
     está na linha; dado o número, o termo livre dele tem de estar a no máximo PALAVRAS_ATE_O_ITEM palavras e ser o termo
-    de item mais próximo (empate = outro). Termo que outro número já tomou ('2 estacas') não conta."""
+    de item mais próximo (empate = outro). Termo que outro número já tomou ('2 estacas') não conta. Em bloco de tabela,
+    `linha_final` é onde começa a última linha: termo de linha anterior fica isento do limite de palavras (vale o bloco)."""
     meus = [t for t in termos if t[2] == item["codigo"]]
     if not meus:
         return "citado" if re.search(item["termos"], preparar(linha)[1]) else "ausente"
@@ -363,7 +378,7 @@ def _situacao_do_item(linha: str, item: dict, termos: list, donos: set, posicao:
     candidatos = meus_livres or ([] if outros else meus)       # o termo já tomado por outro número só serve sem rival
     if not candidatos:
         return "outro" if outros else "ausente"
-    perto = [t for t in candidatos if palavras(t) <= PALAVRAS_ATE_O_ITEM]
+    perto = [t for t in candidatos if t[0] < linha_final or palavras(t) <= PALAVRAS_ATE_O_ITEM]
     if not perto:
         return "ausente"
     return "outro" if outros and min(map(distancia, outros)) <= min(map(distancia, perto)) else "citado"
@@ -371,16 +386,44 @@ def _situacao_do_item(linha: str, item: dict, termos: list, donos: set, posicao:
 
 def _confere_fragmento(fragmento: str, valor, unidade: str | None, item: dict) -> tuple[bool, str]:
     """(o par existe na linha, situação do item: 'citado', 'ausente' ou 'outro'). Sem valor (menção), só o item."""
-    linha = preparar(fragmento)[0]
+    return _confere_linha(preparar(fragmento)[0], valor, unidade, item)
+
+
+def _confere_linha(linha: str, valor, unidade: str | None, item: dict, a_partir_de: int = 0) -> tuple[bool, str]:
+    """`_confere_fragmento` sobre a linha já preparada; só valem os pares que começam em `a_partir_de` ou depois."""
     termos = _termos_da_linha(linha)
     pares, donos = _pares_da_linha(linha, termos)
     if valor is None:
         return True, _situacao_do_item(linha, item, termos, donos)
-    achados = [(pos, via) for n, u, pos, via in pares if abs(n - valor) < 1e-9 and u == unidade]
+    achados = [(pos, via) for n, u, pos, via in pares if abs(n - valor) < 1e-9 and u == unidade and pos[0] >= a_partir_de]
     situacoes = [(("citado" if via == item["codigo"] else "outro"
                    if _situacao_do_item(linha, item, termos, donos) == "citado" else "ausente")
-                  if via else _situacao_do_item(linha, item, termos, donos, pos)) for pos, via in achados]
+                  if via else _situacao_do_item(linha, item, termos, donos, pos, a_partir_de)) for pos, via in achados]
     return bool(achados), "citado" if "citado" in situacoes else "outro" if "outro" in situacoes else "ausente"
+
+
+def _tem_quantidade(linha: str) -> bool:
+    """A linha afirma alguma quantidade (número com unidade ou com termo de item)? Dimensão de especificação
+    ('Ø40 cm', 'DN 150', 'diâmetro 40 cm') não conta; qualquer outro número com unidade ('12 m', 'un 30') conta."""
+    sem_dimensao = _DIMENSAO.sub(" ", linha)
+    return bool(_pares_da_linha(sem_dimensao, _termos_da_linha(sem_dimensao))[0])
+
+
+def _confere_bloco(linhas: list[str], valor, unidade: str | None, item: dict) -> tuple[bool, str]:
+    """Conferência por bloco de linha de tabela: as `linhas` (2 a LINHAS_DO_BLOCO, sem linha em branco entre elas, todas
+    do mesmo trecho e da mesma página) valem como uma linha só, desde que as anteriores à última não afirmem nenhuma
+    quantidade. O par (valor, unidade) tem de começar na última linha; o termo do item pode estar em qualquer uma, e
+    continua valendo o item mais próximo do número e o limite de palavras."""
+    preparadas = [preparar(linha)[0] for linha in linhas]
+    if any(_tem_quantidade(p) for p in preparadas[:-1]):
+        return False, "ausente"
+    return _confere_linha(" ".join(preparadas), valor, unidade, item, len(" ".join(preparadas[:-1])) + 1)
+
+
+def _bloco_do_trecho(casado: str) -> list[str] | None:
+    """Linhas do trecho casado como candidato a bloco: 2 a LINHAS_DO_BLOCO linhas e nenhuma marca de linha em branco."""
+    linhas = casado.split("\n")
+    return linhas if 2 <= len(linhas) <= LINHAS_DO_BLOCO and _BRANCO not in linhas else None
 
 
 def _achar(padrao: str, tokens: list[str], normalizadas: list[str], pagina: int | None) -> dict[int, list]:
@@ -398,8 +441,10 @@ def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | Non
     """Evidência de IA conferida contra as páginas do documento (`normalizadas`: o `_paginas_normalizadas` delas, se já
     feito). O trecho (3 palavras ou 15 caracteres e uma letra) tem de estar numa página, com fronteira de palavra e de
     número ('250 estacas' não está em '1250', '1 250' nem '1.250 estacas'); pode atravessar linhas, nunca páginas. Com
-    valor, o par (valor, unidade) e o termo do item do código têm de vir da MESMA linha do trecho (`_confere_fragmento`),
-    e o item tem de ser o termo mais próximo do número; sem valor (menção), o item tem de ser citado. Se o localizador
+    valor, o par (valor, unidade) e o termo do item do código têm de vir da MESMA linha do trecho (`_confere_fragmento`)
+    ou de um BLOCO de 2 a 3 linhas seguidas do trecho (`_confere_bloco`: par na última linha, nenhuma quantidade nas
+    anteriores, sem linha em branco), e o item tem de ser o termo mais próximo do número; sem valor (menção), o item
+    tem de ser citado. Se o localizador
     diz 'p. N' ou 'pág. N' (índice da página no PDF), o trecho tem de estar na página N."""
     normalizadas = _paginas_normalizadas(paginas) if normalizadas is None else normalizadas
     trecho = " ".join(_linhas_normalizadas(ev.get("trecho", "")))
@@ -408,7 +453,7 @@ def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | Non
     tokens = trecho.split()
     curto = not (re.search("[A-Z]", trecho) and (len(tokens) >= 3 or len(trecho) >= 15))
     padrao = (r"(?<![A-Z0-9])(?<![0-9][.,])" + (r"(?<!(?<![A-Z])[0-9] )" if trecho[:1].isdigit() else "")   # "1 250"; mas "M3 120" vale
-              + r"[ \n]+".join(map(re.escape, tokens)) + r"(?![A-Z0-9])(?![.,][0-9])")
+              + r"[ \n\f]+".join(map(re.escape, tokens)) + r"(?![A-Z0-9])(?![.,][0-9])")
     achados = {} if curto else _achar(padrao, tokens, normalizadas, int(cita[1]) if cita else None)
     if curto:
         status = "trecho curto demais"
@@ -422,10 +467,13 @@ def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | Non
                                     and abs(valor) <= LIMITE_DO_VALOR):
         status = "valor não está no trecho"
     else:
-        fragmentos = dict.fromkeys(f for ms in achados.values() for m in ms for f in m.group().split("\n"))
+        casados = [m.group() for ms in achados.values() for m in ms]
+        fragmentos = dict.fromkeys(f for c in casados for f in c.split("\n") if f != _BRANCO)
+        blocos = dict.fromkeys(tuple(b) for c in casados if valor is not None and (b := _bloco_do_trecho(c)))
         pares = []
-        for fragmento in fragmentos:                   # cada texto de linha só uma vez; para no primeiro que confere
-            pares.append(_confere_fragmento(fragmento, valor, unidade, item))
+        for confere in [lambda f=f: _confere_fragmento(f, valor, unidade, item) for f in fragmentos] \
+                + [lambda b=b: _confere_bloco(list(b), valor, unidade, item) for b in blocos]:
+            pares.append(confere())                    # cada linha e cada bloco só uma vez; para no primeiro que confere
             if pares[-1] == (True, "citado"):
                 break
         status = ("valor não está no trecho" if valor is not None and not any(p for p, _ in pares)
