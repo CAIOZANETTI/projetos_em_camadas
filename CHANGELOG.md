@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.35.0 — 2026-11-02 · Aba EAP: árvore codificada, fatos e evidências
+- **Fim da colisão em `dados["eap"]`** (`camadas/obra.py`): a árvore das gavetas fica em `dados["eap_gavetas"]`
+  e a EAP codificada em `dados["eap"]` (convenção da 0.34.0); o painel é montado a partir da codificada.
+- **`camadas/eap_painel.py`** (`dados["eap_painel"]`): árvore codificada com quantidades somadas por nó (nunca entre
+  unidades ou tipos de item diferentes) e os ids dos elementos; fatos com conflito primeiro e afirmações; serviços
+  associados × edital; resumo por status. Tudo em texto pt-BR, calculado em Python.
+- **Aba EAP do visualizador**: aparece também só com `eap_painel` e ganha três seções (EAP codificada com "ver no mapa",
+  Fatos e evidências com filtro por status, Serviços associados × edital). O destaque no mapa reutiliza o halo da aba Obra.
+
 ## 0.34.0 — 2026-11-02 · Memória espacial, rodada 5: cavas e setores da ETA
 - **Gaveta `superficies`**: o terreno (MDS do drone) vai para `base/superficies/<id>.npz`, gravado byte a byte
   determinístico, e a gaveta guarda o sha256, o CRS, o datum e a evidência. `ler_superficie` confere o sha256: um

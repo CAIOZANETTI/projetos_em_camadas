@@ -121,6 +121,137 @@ def test_sem_eap_a_aba_fica_escondida(navegador, tmp_path):
     pagina.close()
 
 
+def _painel(com_conflito: bool = True) -> dict:
+    from test_eap_painel import sinteticos
+
+    from camadas import eap_painel
+    return eap_painel.montar(*sinteticos(com_conflito))
+
+
+def _ids_do_no(dados: dict, codigo: str) -> list[str]:
+    """Os ids que o Python entregou para o nó (conferência do teste; o JS só os usa)."""
+    return next(n["elementos"] for n in dados["eap_painel"]["arvore"] if n["codigo"] == codigo)
+
+
+def test_aba_eap_apresenta_painel_codificado_fatos_e_associados(navegador, tmp_path):
+    painel = _painel()
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_painel": painel})   # sem `eap`: a aba aparece só pelo painel
+    assert pagina.locator("#t-eap").is_visible()
+    pagina.click("#t-eap")
+    aba = pagina.locator("#aba-eap")
+    assert aba.is_visible()
+    # árvore codificada: todo código do painel, com nome e quantidades prontas
+    pagina.evaluate("document.querySelectorAll('#eapCod details').forEach(d => d.open = true)")
+    arvore = aba.locator("#eapCod").inner_text()
+    for no in painel["arvore"]:
+        assert no["codigo"] in arvore and no["nome"] in arvore
+        for q in no["quantidades_txt"]:
+            assert q in arvore
+    assert aba.locator('#eapCod details[data-codigo="U1.FILTROS.GEO.FUN.BLO"]').count() == 1
+    assert aba.locator("#eapCod [data-eap-ids]").count() == 0           # sem a camada de elementos construtivos, sem botão
+    # resumo por status = os números do Python
+    for s in painel["resumo"]["por_status"]:
+        assert aba.locator(f'#eapFiltro b[data-k="{s["status"]}"]').inner_text() == str(s["n"])
+    assert aba.locator('#eapFiltro b[data-k="todos"]').inner_text() == str(painel["resumo"]["fatos"])
+    # fato em conflito: selo, e as afirmações ao abrir
+    conflito = aba.locator('#eapFatos details.eap-fato[data-status="conflito"]').first
+    assert "conflito" in conflito.locator("summary .st").inner_text()
+    assert "U1.*.GEO.FUN.EST" in conflito.locator("summary").inner_text()
+    conflito.locator("summary").click()
+    texto = conflito.inner_text()
+    assert "memorial_fundacoes.pdf" in texto and "250 un" in texto and "300 un" in texto and "modelo:construtivos" in texto
+    assert "16,7 %" in texto
+    # filtro por status: só o conflito fica visível; "todos" restaura
+    total = aba.locator("#eapFatos details.eap-fato").count()
+    assert total == len(painel["fatos"]) and total > 1
+    aba.locator('#eapFiltro [data-eap-status="conflito"]').click()
+    visiveis = aba.locator("#eapFatos details.eap-fato:visible")
+    assert visiveis.count() == painel["resumo"]["por_status"][0]["n"]
+    assert {visiveis.nth(i).get_attribute("data-status") for i in range(visiveis.count())} == {"conflito"}
+    aba.locator('#eapFiltro [data-eap-status=""]').click()
+    assert aba.locator("#eapFatos details.eap-fato:visible").count() == total
+    # associados × edital
+    assert aba.locator("#eapAssoc tbody tr").count() == len(painel["associados"])
+    assert aba.locator("#eapAssoc tr.nao-citado").count() == painel["resumo"]["nao_citados"] > 0
+    assert "não citado no edital" in aba.locator("#eapAssoc tr.nao-citado").first.inner_text()
+    assert aba.locator('b[data-k="nao_citados"]').inner_text() == str(painel["resumo"]["nao_citados"])
+    assert erros == []
+    pagina.close()
+
+
+def test_painel_ver_no_mapa_destaca_so_os_elementos_do_no(navegador, tmp_path):
+    from test_construtivos import CFG, _dados
+
+    from camadas import construtivos
+    bruto = _dados()
+    bruto["construtivos"] = construtivos.montar(bruto, CFG)
+    dados = {**dados_minimos(), "construtivos": bruto["construtivos"], "eap_painel": _painel(com_conflito=False)}
+    pagina, erros = _abrir(navegador, tmp_path, dados)
+    pagina.click("#t-eap")
+    pagina.evaluate("document.querySelectorAll('#eapCod details').forEach(d => d.open = true)")
+    botao = pagina.locator('#eapCod details[data-codigo="U1.FILTROS.GEO.FUN.BLO"] > .eap-q [data-eap-ids]')
+    assert botao.count() == 1 and "ver no mapa" in botao.inner_text()
+    botao.click()
+    assert pagina.evaluate("window.__viz.obra.sel") == "u1-FILTROS-bloco-P5"          # um elemento: selecionado e enquadrado
+    # nó alto (vários elementos): camada ligada e halo só sobre os ids do nó
+    pagina.locator('#eapCod > details[data-codigo="U1"] > .eap-q [data-eap-ids]').click()
+    assert pagina.evaluate("document.querySelector('#obMapa').checked")
+    n_ids = len(_ids_do_no(dados, "U1"))
+    assert n_ids > 1
+    assert pagina.evaluate("window.__viz.obra.halo.getLayers().length") == 2 * n_ids      # anel escuro + branco por elemento
+    assert erros == []
+    pagina.close()
+
+
+def _dados_com_mapa(**extra) -> dict:
+    from test_construtivos import CFG, _dados
+
+    from camadas import construtivos
+
+    bruto = _dados()
+    bruto["construtivos"] = construtivos.montar(bruto, CFG)
+    return {**dados_minimos(), "construtivos": bruto["construtivos"], **extra}
+
+
+def test_aba_eap_com_gavetas_e_painel_juntos(navegador, tmp_path):
+    eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))
+    painel = _painel()
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap, "eap_painel": painel})
+    pagina.click("#t-eap")
+    aba = pagina.locator("#aba-eap")
+    for chave, valor in eap["resumo"].items():                              # parte das gavetas intacta
+        assert aba.locator(f'b[data-k="{chave}"]').inner_text() == str(valor)
+    assert aba.locator("details.eap-n:not([data-codigo])").count() == len(eap["nos"])
+    for secao in ("#eapCod", "#eapFiltro", "#eapFatos", "#eapAssoc"):       # e as seções novas
+        assert aba.locator(secao).count() == 1
+    assert erros == []
+    pagina.close()
+
+
+def test_ver_no_mapa_multiplo_nao_acumula_halo_nem_deixa_popup_antigo(navegador, tmp_path):
+    dados = _dados_com_mapa(eap_painel=_painel(com_conflito=False))
+    pagina, erros = _abrir(navegador, tmp_path, dados)
+    pagina.click("#t-eap")
+    pagina.evaluate("document.querySelectorAll('#eapCod details').forEach(d => d.open = true)")
+    halo = "window.__viz.obra.halo.getLayers().length"
+    aberto = "!!window.__viz.obra.popup && window.__viz.map.hasLayer(window.__viz.obra.popup)"
+    pagina.evaluate("window.__viz.obra.selecionar('u1-FILTROS-bloco-P5', {abrir: false})")
+    assert pagina.evaluate(halo) == 2 and pagina.evaluate(aberto)
+    pagina.locator('#eapCod > details[data-codigo="U1"] > .eap-q [data-eap-ids]').click()
+    n_ids = len(_ids_do_no(dados, "U1"))
+    assert pagina.evaluate(halo) == 2 * n_ids                               # só o anel dos elementos do nó
+    pagina.evaluate("window.__viz.obra.definirSoEscopo(true)")              # refaz a camada: o anel múltiplo é refeito, não duplicado
+    assert pagina.evaluate(halo) == 2 * n_ids
+    assert pagina.evaluate("window.__viz.obra.sel") is None
+    assert not pagina.evaluate(aberto)                                      # popup do elemento anterior fechado
+    assert pagina.locator("#obFicha").inner_text().strip() == ""            # e a ficha, limpa
+    pagina.evaluate("window.__viz.obra.selecionar('u1-FILTROS-pilar-P5', {abrir: false})")
+    assert pagina.evaluate(halo) == 2                                       # o anel múltiplo não fica
+    assert pagina.evaluate("window.__viz.obra.sel") == "u1-FILTROS-pilar-P5" and pagina.evaluate(aberto)
+    assert erros == []
+    pagina.close()
+
+
 def test_eap_codificada_em_dados_eap_nao_some_com_a_aba_das_gavetas(navegador, tmp_path):
     """Aceite da rodada 5: as duas EAP convivem; a aba das gavetas lê `eap_gavetas`, não a EAP codificada."""
     eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))

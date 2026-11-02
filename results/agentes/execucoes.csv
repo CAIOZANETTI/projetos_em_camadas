@@ -51,3 +51,6 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-02,memória espacial rodada 5,aceite da rodada 5,gerente (aceite),claude-fable-5-1,71554,14,160,True,nenhum,REVISAR: as duas EAP colidiam em dados['eap'] (PR #18); bandit B324 de evidencias.py; E1 e ajuste aceitos
 2026-11-02,memória espacial rodada 5,2º aceite da rodada 5,gerente (aceite),claude-fable-5-1,14437,7,62,True,nenhum,REVISAR só pela tolerância que escondia dobra em nó grande
 2026-11-02,memória espacial rodada 5,3º aceite da rodada 5,gerente (aceite),claude-fable-5-1,3924,3,49,True,nenhum,ACEITA
+2026-11-02,EAP 0.35.0,aba EAP: correção da colisão de dados["eap"]; eap_painel (árvore codificada; fatos; associados × edital) e três seções no template,executor,claude-sonnet-5-5,166329,46,423,True,ajuste do gerente,entregue com 449 testes; 4 achados da revisão devolvidos
+2026-11-02,EAP 0.35.0,revisão independente do commit ae362be,revisor,claude-sonnet-5-5,106911,11,113,True,nenhum,sem bloqueantes; 4 importantes (popup antigo no destaque múltiplo; escopo ignorava multi; decisões cruas em JS; tamanho do HTML)
+2026-11-02,EAP 0.35.0,correção dos achados da revisão,executor,claude-sonnet-5-5,184885,18,198,True,ajuste do gerente,451 testes; no merge com a main (0.34.0) o gerente alinhou ao contrato eap_gavetas/eap
