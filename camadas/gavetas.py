@@ -899,6 +899,161 @@ def para_eap_por_setor(servicos: list[dict], setor_por_objeto: dict[str, str | N
             for sid, lista in grupos.items()]
 
 
+# --------------------------------------------------------------------------------------------------------------------
+# Código completo da EAP codificada (rodada 6): UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM em cada serviço
+# --------------------------------------------------------------------------------------------------------------------
+
+UNIDADES_CONSTRUTIVAS = _ler("unidades_construtivas")
+
+
+def _no_eap(servico: dict) -> dict | None:
+    """`codigo_eap` do de-para 3 da saída do serviço (item, por_chave, servicos); None = sem item na EAP codificada."""
+    return EAP["saidas"][servico["saida"]].get("codigo_eap")
+
+
+def _item_eap(servico: dict) -> str | None:
+    """Item `DISCIPLINA.PACOTE.ITEM` do serviço: `por_chave` troca o item pela chave (vale o prefixo antes de '/')."""
+    no = _no_eap(servico)
+    if not no:
+        return None
+    prefixo = str(servico.get("chave") or "").split("/", 1)[0]
+    return no.get("por_chave", {}).get(prefixo, no["item"])
+
+
+def codigo_eap(servico: dict, unidade: str | None, sistema: str | None) -> str | None:
+    """Código completo `UNIDADE.SISTEMA.ITEM`, o mesmo formato de `eap.estrutura` (unidade em maiúsculas, sistema como
+    em `unidades_construtivas.json`; ex.: `U1.AB_ENTRADA.GEO.MOV.VAL`). None se a saída não tem item na EAP codificada
+    ou se falta a unidade ou o sistema (quem chama distingue os dois casos)."""
+    item = _item_eap(servico)
+    return f"{unidade.upper()}.{sistema}.{item}" if item and unidade and sistema else None
+
+
+def _motivo_do_par(unidade: str, sistema: str) -> str | None:
+    """Motivo da pendência se o sistema não existe em `unidades_construtivas.json` ou não é da unidade; senão None."""
+    cadastro = UNIDADES_CONSTRUTIVAS["sistemas"].get(sistema)
+    if cadastro is None:
+        return f"sistema {sistema} não existe em unidades_construtivas"
+    if str(unidade).lower() != cadastro["unidade"]:
+        return f"sistema {sistema} não pertence à unidade {unidade}"
+    return None
+
+
+def _sistemas_do_local(local: str) -> list[str]:
+    """Sistemas cujas `chaves` o texto do `local` cita (a regra de `escopo_obra`, com a chave ambígua e o `exclui`)."""
+    from . import escopo_obra
+    texto = escopo_obra._norm(str(local))
+    return [c for c in UNIDADES_CONSTRUTIVAS["sistemas"] if escopo_obra._casa(c, texto)]
+
+
+def _par_do_objeto(fatos: dict, fatos_setor: dict, padrao: dict | None) -> tuple[tuple[str, str] | None, str | None]:
+    """((unidade, sistema), None) ou (None, motivo). Ordem: (a) fatos do setor, (b) `local` com as chaves,
+    (c) padrão do obra.json. Achado o par em uma fonte, as seguintes não são consultadas."""
+    if fatos_setor.get("unidade") and fatos_setor.get("sistema"):
+        par = (str(fatos_setor["unidade"]["valor"]), str(fatos_setor["sistema"]["valor"]))
+    elif "local" in fatos and (achados := _sistemas_do_local(fatos["local"]["valor"])):
+        if len(achados) > 1:
+            return None, f"mais de um sistema pelo local: {', '.join(achados)}"
+        par = (UNIDADES_CONSTRUTIVAS["sistemas"][achados[0]]["unidade"], achados[0])
+    elif padrao and padrao.get("unidade") and padrao.get("sistema"):
+        par = (str(padrao["unidade"]), str(padrao["sistema"]))
+    else:
+        return None, "unidade e sistema não definidos"
+    motivo = _motivo_do_par(*par)
+    return (None, motivo) if motivo else (par, None)
+
+
+def unidade_sistema(base: dict, ind: dict | None, cfg: dict, setor_por_servico: dict | None = None,
+                    servicos: list[dict] | None = None) -> tuple[dict, list[dict]]:
+    """({objeto_id: (unidade, sistema)}, pendências) dos objetos com regra de serviço (fora os `setor`). Busca: (a) fatos
+    `unidade` e `sistema` do setor do objeto (`setor_de`), (b) `local` casado com as `chaves` de
+    `unidades_construtivas.json`, (c) `cfg["gavetas"]["unidade_sistema_padrao"]`. Sem nenhuma, com mais de um sistema
+    pelo local ou com sistema de outra unidade: pendência, sem par. Com `servicos` e `setor_por_servico`
+    (`setor_dos_servicos`), o serviço com `ponto` cujo setor declara unidade e sistema entra no mapa pelo seu
+    `servico_id`, que vale mais que o do objeto."""
+    ind = ind or indice(base)
+    padrao = (cfg.get("gavetas") or {}).get("unidade_sistema_padrao")
+    setor_por_objeto, _ = setor_de(base, ind)
+    mapa, pendencias = {}, []
+    for o in base.get("objetos", []):
+        fatos = ind["fatos"].get(o["objeto_id"], {})
+        if o["classe"] == "setor" or regra_de(o["classe"], fatos) is None:
+            continue
+        setor = setor_por_objeto.get(o["objeto_id"])
+        par, motivo = _par_do_objeto(fatos, ind["fatos"].get(setor, {}) if setor else {}, padrao)
+        if par:
+            mapa[o["objeto_id"]] = par
+        else:
+            pendencias.append({"objeto_id": o["objeto_id"], "regra": regra_de(o["classe"], fatos), "motivo": motivo})
+    for s in servicos or []:
+        fatos_setor = ind["fatos"].get((setor_por_servico or {}).get(s["servico_id"]) or "", {})
+        if fatos_setor.get("unidade") and fatos_setor.get("sistema"):
+            par, motivo = _par_do_objeto({}, fatos_setor, None)
+            if par:
+                mapa[s["servico_id"]] = par
+            else:
+                pendencias.append({"objeto_id": s["servico_id"], "regra": s["regra"], "motivo": motivo})
+    return mapa, pendencias
+
+
+def anotar_codigo_eap(servicos: list[dict], mapa: dict, pendencias: list[dict]) -> tuple[dict, list[dict]]:
+    """Grava `codigo_eap` (completo ou None) e `servicos_eap` (os serviços da EAP codificada) em cada serviço; é anotação,
+    não entra na chave do incremental. Devolve ({saída: n} dos serviços sem item na EAP codificada, pendências de
+    quem tem item mas não tem unidade e sistema, e de quem teria um código fora de `eap.estrutura`: o item não vale
+    para o tipo de obra ou o escopo da unidade, e o código não é gravado)."""
+    from . import eap  # a estrutura instanciada: só os itens do tipo de obra da unidade
+    validos = {n["codigo"] for n in eap.estrutura() if n["nivel"] == "item"}
+    sem_codigo: dict[str, int] = {}
+    sem_par: set[str] = set()
+    fora: dict[str, dict] = {}
+    for s in servicos:
+        no = _no_eap(s)
+        par = mapa.get(s["servico_id"]) or mapa.get(s["objeto_id"])
+        s["servicos_eap"] = list(no["servicos"]) if no else []
+        s["codigo_eap"] = codigo_eap(s, *par) if par else None
+        if s["codigo_eap"] and s["codigo_eap"] not in validos:   # ex.: cava (obra localizada) numa unidade linear
+            fora.setdefault(s["objeto_id"], {"objeto_id": s["objeto_id"], "motivo": (
+                f"item não pertence à unidade: {s['codigo_eap']} não existe na EAP codificada (tipo de obra ou escopo)")})
+            s["codigo_eap"] = None
+        if no is None:
+            sem_codigo[s["saida"]] = sem_codigo.get(s["saida"], 0) + 1
+        elif par is None:
+            sem_par |= {s["servico_id"], s["objeto_id"]}
+    return sem_codigo, [p for p in pendencias if p["objeto_id"] in sem_par] + list(fora.values())
+
+
+def conciliar_eap(servicos: list[dict], quantidades_codificada: list[dict], tol: float = 0.01) -> list[dict]:
+    """Confronta, por (código completo, unidade), a soma das gavetas com a quantidade da EAP codificada
+    (`dados["eap"]["quantidades"]`). Situação: "confere" (diferença absoluta até `tol`, na unidade), "difere",
+    "só nas gavetas", "só na EAP codificada" (item que as gavetas medem) ou "fora das gavetas" (item que elas não
+    medem, ex.: estacas). Só entra a saída marcada `mede` no de-para 3 (a medida do item), para não somar serviços
+    diferentes do mesmo código. Unidades diferentes nunca se misturam. Ordem: código, unidade."""
+    medida = {saida for saida, n in EAP["saidas"].items() if (n.get("codigo_eap") or {}).get("mede")}
+    itens = {(n["codigo_eap"]["item"]) for n in EAP["saidas"].values() if (n.get("codigo_eap") or {}).get("mede")}
+    tocados = {s["codigo_eap"].split(".", 2)[-1] for s in servicos if s.get("codigo_eap")}
+    gavetas_: dict[tuple, float] = {}
+    for s in servicos:
+        if s.get("codigo_eap") and s["saida"] in medida:          # só a medida do item (`mede`), nada somado de fora
+            chave = (s["codigo_eap"], s["unidade"])
+            gavetas_[chave] = gavetas_.get(chave, 0.0) + float(s["valor"])
+    codificada: dict[tuple, float] = {}
+    for q in quantidades_codificada:
+        chave = (q["codigo"], q["unidade"])
+        codificada[chave] = codificada.get(chave, 0.0) + float(q["quantidade"])
+    linhas = []
+    for chave in sorted(gavetas_.keys() | codificada.keys()):
+        g, c = gavetas_.get(chave), codificada.get(chave)
+        dif = None if g is None or c is None else g - c
+        item = chave[0].split(".", 2)[-1]
+        coberto = item in itens                                     # o item é medido pelas gavetas (`mede`)?
+        sem_medida = item in tocados and not coberto                # as gavetas têm o item, mas sem medida declarada
+        situacao = ("não conciliado (sem medida declarada)" if g is None and sem_medida
+                    else "fora das gavetas" if g is None and not coberto else "só na EAP codificada" if g is None
+                    else "só nas gavetas" if c is None else "confere" if abs(dif) <= tol else "difere")
+        linhas.append({"codigo": chave[0], "unidade": chave[1], "gavetas": g, "codificada": c, "diferenca": dif,
+                       "situacao": situacao})
+    return linhas
+
+
 def metadados() -> dict:
     """Rastreabilidade do método e das constantes (regra 9 do estilo)."""
     return {
@@ -907,8 +1062,9 @@ def metadados() -> dict:
         "funcoes": ["validar", "conferir_base", "conferir_de_para", "gravar", "ler", "gravar_superficie", "ler_superficie",
                     "fatos_do_objeto", "furos", "eixo", "regra_de", "entrada", "chave_servico", "calcular",
                     "calcular_incremental", "paridade", "para_eap", "setor_de", "setor_dos_servicos",
-                    "para_eap_por_setor"],
-        "conceitos": ["gavetas.json", "de_para_extracao.json", "de_para_servicos.json", "de_para_eap.json"],
+                    "para_eap_por_setor", "codigo_eap", "unidade_sistema", "anotar_codigo_eap", "conciliar_eap"],
+        "conceitos": ["gavetas.json", "de_para_extracao.json", "de_para_servicos.json", "de_para_eap.json",
+                      "unidades_construtivas.json"],
         "formato": REGRAS["formato"]["atual"],
         "estado": REGRAS["metadata"]["estado"],
     }

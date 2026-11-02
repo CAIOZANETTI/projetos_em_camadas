@@ -18,6 +18,11 @@ def br(valor, casas: int = 2) -> str:
     return texto.replace(",", "\0").replace(".", ",").replace("\0", ".")
 
 
+SEM_CODIGO = "—"
+SITUACOES_CONCILIACAO = ("confere", "difere", "só nas gavetas", "só na EAP codificada", "não conciliado (sem medida declarada)",
+                         "fora das gavetas")
+
+
 def _unidade(propriedade: str) -> str | None:
     return gavetas.REGRAS["propriedades"].get(propriedade, {}).get("unidade")
 
@@ -119,6 +124,17 @@ def _por_setor(base: dict, servicos: list[dict], nos: list[dict], setor_por_obje
     return saida
 
 
+def conciliacao(linhas: list[dict]) -> dict:
+    """`dados["eap_gavetas"]["conciliacao"]`: as linhas de `gavetas.conciliar_eap` já formatadas e a contagem por
+    situação. Quantidade e diferença com a unidade do código; o que uma das EAP não mede fica '—'."""
+    texto = lambda v, un: "—" if v is None else f"{br(v, 0 if un == 'un' else 2)} {un}"
+    return {"resumo": {s: sum(1 for l in linhas if l["situacao"] == s) for s in SITUACOES_CONCILIACAO},
+            "linhas": [{"codigo": l["codigo"], "unidade": l["unidade"], "gavetas_txt": texto(l["gavetas"], l["unidade"]),
+                        "codificada_txt": texto(l["codificada"], l["unidade"]),
+                        "diferenca_txt": texto(l["diferenca"], l["unidade"]), "situacao": l["situacao"]}
+                       for l in linhas if l["situacao"] != "fora das gavetas"]}   # fora: só a contagem no resumo
+
+
 def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dict | None = None,
            setores: dict | None = None) -> dict:
     """`dados["eap_gavetas"]`: nós, pendências e resumo, tudo em texto pronto para o HTML. Com `setores` (o mapa de
@@ -134,9 +150,12 @@ def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dic
             s = por_id[sid]
             itens.append({"servico_id": sid, "objeto_id": s["objeto_id"], "local": _local(base, s["objeto_id"], ind),
                           "regra": s["regra"], "versao_regra": str(s["versao_regra"]),
+                          "codigo_eap": s.get("codigo_eap") or SEM_CODIGO,
                           "valor_txt": br(s["valor"], 0 if no["unidade"] == "un" else 2),
                           "fatos": [_fato(_lastro(fatos, evidencias, sid, i), evidencias) for i in s["fatos"]]})
+        codigos = {i["codigo_eap"] for i in itens}
         nos.append({"eap": no["eap"], "descricao": no["descricao"], "unidade": no["unidade"],
+                    "codigo_eap": codigos.pop() if len(codigos) == 1 else SEM_CODIGO,      # só se todos os serviços têm o mesmo
                     "valor_txt": br(no["valor"], 0 if no["unidade"] == "un" else 2), "servicos": itens})
     lista = [{"objeto_id": p["objeto_id"], "local": _local(base, p["objeto_id"], ind), "motivo": p["motivo"]} for p in pendencias]
     contagem = {"servicos": len(servicos), "nos": len(nos), "pendencias": len(lista), "diferencas_paridade": 0,
@@ -153,7 +172,7 @@ def metadados() -> dict:
     return {
         "modulo": "eap_html",
         "descricao": "EAP lastreada formatada em português do Brasil para a aba EAP do visualizador",
-        "funcoes": ["br", "valor_txt", "onde", "montar"],
+        "funcoes": ["br", "valor_txt", "onde", "conciliacao", "montar"],
         "formato_numero": "vírgula decimal e ponto de milhar",
         "contrato": "dados['eap'] = {nos, pendencias, resumo} (docs/plano/2026-11-01_rodada23.md)",
     }

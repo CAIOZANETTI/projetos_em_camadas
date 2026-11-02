@@ -259,3 +259,35 @@ def test_eap_codificada_em_dados_eap_nao_some_com_a_aba_das_gavetas(navegador, t
     pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap": codificada, "eap_gavetas": eap})
     pagina.click("#t-eap")
     assert eap["nos"][0]["valor_txt"] in pagina.locator("#aba-eap").inner_text() and not erros
+
+
+def test_aba_eap_mostra_o_codigo_real_ao_lado_do_provisorio_e_a_conciliacao(navegador, tmp_path):
+    eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
+    pagina.click("#t-eap")
+    aba = pagina.locator("#aba-eap")
+    no = aba.locator("details.eap-n").first
+    assert no.locator("summary .cod").first.inner_text() == eap["nos"][0]["eap"]          # provisório
+    assert no.locator('summary [data-cod="no"]').inner_text() == eap["nos"][0]["codigo_eap"] == "—"   # serviços com códigos diferentes
+    no2 = aba.locator("details.eap-n").nth(1)
+    assert no2.locator('summary [data-cod="no"]').inner_text() == "U1.AB_ENTRADA.GEO.MOV.VAL"
+    pagina.evaluate("document.querySelectorAll('#aba-eap details').forEach(d => d.open = true)")
+    codigos = aba.locator('[data-cod="servico"]').all_inner_texts()
+    assert codigos == [s["codigo_eap"] for n in eap["nos"] for s in n["servicos"]]
+    tabela = aba.locator("table.eap-conc")
+    assert tabela.count() == 1
+    texto = tabela.inner_text()
+    for linha in eap["conciliacao"]["linhas"]:
+        for campo in ("codigo", "gavetas_txt", "codificada_txt", "diferenca_txt", "situacao"):
+            assert linha[campo] in texto, linha[campo]
+    assert aba.locator("table.eap-setor").count() == len(eap["setores"])     # a tabela da conciliação não é de setor
+    assert erros == []
+    pagina.close()
+
+
+def test_sem_conciliacao_nao_ha_tabela(navegador, tmp_path):
+    eap = {k: v for k, v in json.loads(EXEMPLO.read_text(encoding="utf-8")).items() if k != "conciliacao"}
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
+    pagina.click("#t-eap")
+    assert pagina.locator("#aba-eap table.eap-conc").count() == 0 and erros == []
+    pagina.close()

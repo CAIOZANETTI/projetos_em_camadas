@@ -436,6 +436,15 @@ def _base_das_cavas(cfg: dict, out: Path, pasta: Path, cavas: dict) -> dict:
                     registro["crs_h"], mds=Path(out) / "sfm" / "ortofoto_mds.png", layers=layers)
 
 
+def _anotar_codigo_eap(base: dict, servicos: list[dict], cfg: dict, por_servico: dict) -> dict:
+    """Código completo da EAP codificada em cada serviço (anotação, fora da chave do incremental). Unidade e sistema
+    sem definição viram pendência da base. Devolve {saída: n} dos serviços sem item na EAP codificada."""
+    mapa, pendencias = gavetas.unidade_sistema(base, gavetas.indice(base), cfg, por_servico, servicos)
+    sem_codigo, pend_codigo = gavetas.anotar_codigo_eap(servicos, mapa, pendencias)
+    base["pendencias"] = base["pendencias"] + pend_codigo
+    return sem_codigo
+
+
 def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[dict] | None = None,
           cavas: dict | None = None) -> dict | None:
     """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
@@ -476,19 +485,23 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     base["pendencias"] = base["pendencias"] + pend_calculo
     pasta.mkdir(parents=True, exist_ok=True)
     contagem_setores = dict(Counter(x or "fora" for x in por_setor.values())) if por_setor is not None else None
+    por_servico: dict = {}
     if por_setor is not None:                                            # serviço com ponto (cada cava) cai no seu setor
         por_servico, pend_servicos = gavetas.setor_dos_servicos(base, servicos)
         por_setor = {**por_setor, **por_servico}
         base["pendencias"] = base["pendencias"] + pend_servicos
+    sem_codigo = _anotar_codigo_eap(base, servicos, cfg, por_servico)
     gavetas.gravar(pasta, {**base, "servicos": servicos})
-    resumo = {**_resumo(base, erros, difs, servicos), **est}
+    resumo = {**_resumo(base, erros, difs, servicos), **est, "sem_codigo_eap": sem_codigo}
     if por_setor is not None:
         resumo["objetos_por_setor"] = contagem_setores
     (Path(out) / "paridade.json").write_text(json.dumps(difs, ensure_ascii=False, indent=1), encoding="utf-8")
     (Path(out) / "resumo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas: {len(base['objetos'])} objetos, {len(base['fatos'])} fatos, {len(base['pendencias'])} pendências, "
         f"{len(servicos)} serviços, {len(erros)} erros de conferência, {len(difs)} diferenças de paridade")
-    return {**resumo, "eap_html": eap_html.montar(base, servicos, base["pendencias"], resumo, por_setor)}   # aba EAP do HTML
+    # `eap_html` é a aba EAP do HTML; `servicos_eap` (com o código completo) alimenta a conciliação em `obra`; ambos saem do resumo lá
+    return {**resumo, "eap_html": eap_html.montar(base, servicos, base["pendencias"], resumo, por_setor),
+            "servicos_eap": servicos}
 
 
 def metadados() -> dict:
