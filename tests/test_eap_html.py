@@ -139,3 +139,43 @@ def test_servico_contado_em_dobro_num_no_grande_e_erro(monkeypatch):
     monkeypatch.setattr(gavetas, "para_eap_por_setor", dobrada)
     with pytest.raises(ValueError, match="serviços"):
         eh.montar(base, servicos, [], None, mapa)
+
+
+# --- código da EAP codificada e conciliação (rodada 6) ---------------------------------------------------------------
+
+def test_servico_e_no_levam_o_codigo_completo_ou_traco():
+    base = _base()
+    servicos, pend = gavetas.calcular(base)
+    for s in servicos:
+        s["codigo_eap"] = "U1.AB_ENTRADA.GEO.MOV.VAL" if s["saida"] == "escavacao_m3" else None
+    eap = eh.montar(base, servicos, pend)
+    for no in eap["nos"]:
+        codigos = {s["codigo_eap"] for s in no["servicos"]}
+        assert no["codigo_eap"] == (codigos.pop() if len(codigos) == 1 else "—")
+    escavacao = next(n for n in eap["nos"] if n["eap"] == "OL.01")
+    assert escavacao["codigo_eap"] == "U1.AB_ENTRADA.GEO.MOV.VAL"
+    assert {n["codigo_eap"] for n in eap["nos"] if n["eap"] != "OL.01"} == {"—"}
+
+
+def test_no_com_codigos_diferentes_fica_com_traco():
+    base = _base()
+    servicos, pend = gavetas.calcular(base)
+    outro = dict(next(s for s in servicos if s["saida"] == "escavacao_m3"), servico_id="T01:vala_aberta:outro")
+    for s, codigo in zip([*servicos, outro], ["U1.A.GEO.MOV.VAL"] * len(servicos) + ["U1.B.GEO.MOV.VAL"]):
+        s["codigo_eap"] = codigo
+    eap = eh.montar(base, [*servicos, outro], pend)
+    assert next(n for n in eap["nos"] if n["eap"] == "OL.01")["codigo_eap"] == "—"
+
+
+def test_conciliacao_formatada_em_python():
+    linhas = [{"codigo": "U1.A.GEO.MOV.ESC", "unidade": "m³", "gavetas": 1234.5, "codificada": 1230.0, "diferenca": 4.5,
+               "situacao": "difere"},
+              {"codigo": "U1.A.GEO.MOV.REA", "unidade": "m³", "gavetas": 10.0, "codificada": None, "diferenca": None,
+               "situacao": "só nas gavetas"},
+              {"codigo": "U1.A.GEO.FUN.EST", "unidade": "un", "gavetas": None, "codificada": 48.0, "diferenca": None,
+               "situacao": "só na EAP codificada"}]
+    c = eh.conciliacao(linhas)
+    assert c["resumo"] == {"confere": 0, "difere": 1, "só nas gavetas": 1, "só na EAP codificada": 1}
+    assert c["linhas"][0] == {"codigo": "U1.A.GEO.MOV.ESC", "unidade": "m³", "gavetas_txt": "1.234,50 m³",
+                              "codificada_txt": "1.230,00 m³", "diferenca_txt": "4,50 m³", "situacao": "difere"}
+    assert c["linhas"][1]["codificada_txt"] == "—" and c["linhas"][2]["codificada_txt"] == "48 un"

@@ -27,11 +27,13 @@ import numpy as np
 from . import (
     construtivos,
     eap,
+    eap_html,
     escavacao,
     escopo_obra,
     evidencias,
     extracao,
     extrair_gavetas,
+    gavetas,
     geo,
     georef_prancha,
     geotecnia,
@@ -773,17 +775,32 @@ def _reavaliar(inv: dict, out: Path, cfg: dict, geotecnia_dados: dict | None = N
     return {**resumo, "pendencias": p["pendencias"]}
 
 
+def _conciliar_eaps(dados: dict, servicos: list | None, out: Path) -> None:
+    """Confronta as quantidades das gavetas com as da EAP codificada (`gavetas.conciliar_eap`), grava
+    `conciliacao_eap.json` e põe o resumo formatado em `dados["eap_gavetas"]["conciliacao"]`. Nunca derruba o build."""
+    if not (servicos and dados.get("eap_gavetas") and dados.get("eap")):
+        return
+    try:
+        linhas = gavetas.conciliar_eap(servicos, dados["eap"]["quantidades"])
+        (out / "conciliacao_eap.json").write_text(json.dumps(linhas, ensure_ascii=False, indent=1), encoding="utf-8")
+        dados["eap_gavetas"]["conciliacao"] = eap_html.conciliacao(linhas)
+    except Exception as erro:  # noqa: BLE001 - a conciliação nunca derruba o build
+        _log(f"Conciliação das EAP não concluída ({type(erro).__name__}: {erro})")
+
+
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict,
                  redes_vala: list | None = None, cavas: dict | None = None) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
     lote; os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor; a EAP
     (`camadas.eap`), que dá código e quantidade a cada elemento; e o loop de evidências (`camadas.evidencias`)."""
     pacotes["obras_lineares"] = obras_lineares.etapa(cfg, dados["sondagens"], out, log=_log)   # vala (MOS) da planilha
+    servicos_gavetas = None
     try:                                                       # a base das gavetas não pode derrubar o build
         dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log, redes_vala=redes_vala,
                                                 cavas=cavas)
         if dados["gavetas"]:                                    # aba EAP das gavetas: só apresenta o que o Python montou
             dados["eap_gavetas"] = dados["gavetas"].pop("eap_html")   # chave própria: `dados["eap"]` é a EAP codificada
+            servicos_gavetas = dados["gavetas"].pop("servicos_eap", None)   # com o código completo, para a conciliação
     except Exception as erro:  # noqa: BLE001 - a etapa nova nunca derruba o build
         _log(f"Gavetas: etapa não concluída ({type(erro).__name__}: {erro})")
     if fichas:
@@ -804,6 +821,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     if dados["construtivos"]:                                       # escopo por unidade, decomposição e evidências
         dados["construtivos"]["escopo"] = escopo_obra.montar(dados, cfg)
     dados["eap"] = eap.montar(dados, cfg)          # EAP: elemento → item (código) → quantidade com evidência
+    _conciliar_eaps(dados, servicos_gavetas, out)  # gavetas × codificada: `conciliacao_eap.json` e o resumo da aba EAP
     dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
 
 
