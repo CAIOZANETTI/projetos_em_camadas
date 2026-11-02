@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.39.0 — 2026-11-02 · Leitura por IA com citação conferida
+- **Roteiro de leitura** (`evidencias.roteiro`, `roteiro_md`): por item da EAP geral (filtrado por escopo e tipo de obra),
+  código, nome, termos de busca legíveis (termos do item e sinônimos de `sinonimos.json`), serviços admitidos com
+  unidades e unidades aceitas.
+- **CLI** `python -m camadas.evidencias`: `roteiro [--escopo] [--obra] [--saida]` e `conferir IA.jsonl --pdf … --texto …
+  [--saida]`. `conferir_arquivo` valida o schema, localiza o documento por `documento.id`, aplica `conferir_citacao` e
+  recusa com motivo (JSON ou schema inválido, documento não fornecido, trecho não encontrado, valor fora do trecho). Só
+  as aceitas são gravadas; saída 0 mesmo com recusas, 2 sem o arquivo de entrada. `id` e `regra` ausentes são completados.
+- **Conferência endurecida** (vale para todo o caminho, inclusive `loop`/`etapa`): o trecho precisa ter 3 palavras ou
+  15 caracteres e estar no documento com fronteira de palavra; o par (valor, unidade) tem de ser um dos que o trecho
+  afirma (`vocabulario.QTD_DEPOIS`/`quantidade`; o 2 de M2 e o 50 de CA-50 não contam); unidade só do vocabulário; valor
+  não negativo. Campos do código (`citacao`, `derivada`, `id`, `autor`, `justificativa`) vindos da IA são descartados e o
+  `id` recalculado; o build reconfere as evidências `ia` e não confia no selo do arquivo. A leitura da IA é afirmação
+  própria (`ia:<arquivo>`): não soma com o regex e não aumenta a `forca`. `id` normaliza `250` e `250.0`.
+- **Skill `eap-evidencias`**: o passo a passo "a IA propõe, o código confere".
+- **Conferência por linha** (3ª rodada de revisão): o par (valor, unidade) e o termo do item (ou sinônimo) têm de estar
+  na mesma linha do documento, a até 8 palavras; o trecho não atravessa página. Recusados: pedaço de número ("250" de
+  "1.250", "5 m³" de "12,5 m³"); item inexistente na EAP geral, serviço não admitido pelo item ou unidade fora das do
+  serviço; `escopo` fora do enum; página do localizador que não contém o trecho. Aceitos: unidade antes do número
+  ("Escavação m³ 1.250,50"), número com parênteses por extenso, vários pares na mesma linha. Toneladas viram kg.
+  Linha malformada no JSONL (inclusive valor fora de ±1e12) vira recusa com motivo, sem derrubar `etapa` nem `conferir`.
+- **4ª rodada**: parcelas da IA no mesmo documento só colapsam com o mesmo trecho normalizado (B1 e B2 com 12 estacas
+  cada somam 24; a mesma frase em outra página conta uma vez); dedupe por `id` só para `ia` (as outras fontes somam
+  como antes); "3.000 metros de estacas" não vira unidade; o número pertence ao termo de item mais próximo na linha
+  (senão "número pertence a outro item"); número colado a letra ("DN150", "CA-50") não é quantidade para a IA;
+  milhar com espaço ("1 250") barrado; páginas normalizadas uma vez por documento (500 páginas × 200 evidências em
+  0,6 s, antes ~100 s).
+- Limites declarados: descrição de planilha em várias linhas e "Quantidade: 250 un" em linha própria são recusados;
+  ponto decimal ("1250.50") é recusado; "Escavação manual para blocos de estacas m³ 45" ainda pode virar estaca; o
+  serviço não precisa aparecer no trecho.
+- Lição L035.
+
 ## 0.38.0 — 2026-11-02 · Aba EAP: só pranchas desta disciplina
 - **Recorte dos layers CAD pelo nó da EAP** (`eap_painel.subgrupos_do_codigo`): cada nó da árvore codificada traz
   `subgrupos_mapa` e `pranchas_txt`, calculados em Python pelo mapa subgrupo → pacote de `conceitos/eap.json`
