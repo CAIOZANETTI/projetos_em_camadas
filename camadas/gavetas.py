@@ -18,9 +18,11 @@ import argparse
 import csv
 import hashlib
 import importlib
+import io
 import json
 import re
 import types
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -52,7 +54,8 @@ def validar(gaveta: str, registro: dict) -> list[str]:
     rotulo = registro.get(g["chave"]) if g["chave"] else registro.get("objeto_id")
     erros = [f"{gaveta} {rotulo}: falta {c}" for c in g["obrigatorios"] if registro.get(c) in (None, "")]
     regras = {("fatos", "natureza"): REGRAS["naturezas"], ("fatos", "propriedade"): list(REGRAS["propriedades"]),
-              ("evidencias", "executor"): REGRAS["executores"], ("geometria", "tipo"): REGRAS["tipos_geometria"]}
+              ("evidencias", "executor"): REGRAS["executores"], ("geometria", "tipo"): REGRAS["tipos_geometria"],
+              ("superficies", "tipo"): REGRAS["tipos_superficie"]}
     for (gav, campo), permitidos in regras.items():
         if gav == gaveta and registro.get(campo) not in (None, "") and registro[campo] not in permitidos:
             erros.append(f"{gaveta} {rotulo}: {campo} '{registro[campo]}' fora de {permitidos}")
@@ -70,6 +73,8 @@ def conferir_base(base: dict) -> list[str]:
             erros.append(f"fatos {f.get('fato_id')}: objeto {f.get('objeto_id')} não está em objetos")
         if f.get("evidencia_id") and f["evidencia_id"] not in evidencias:
             erros.append(f"fatos {f.get('fato_id')}: evidência {f['evidencia_id']} não existe")
+    erros += [f"superficies {s.get('superficie_id')}: evidência {s['evidencia_id']} não existe"
+              for s in base.get("superficies", []) if s.get("evidencia_id") and s["evidencia_id"] not in evidencias]
     for gav, g in REGRAS["gavetas"].items():
         ids = [r.get(g["chave"]) for r in base.get(gav, [])] if g["chave"] else []
         erros += [f"{gav}: {g['chave']} {i} repetido" for i in sorted({i for i in ids if ids.count(i) > 1})]
@@ -329,6 +334,63 @@ def ler(pasta, formato: str | None = None) -> dict:
     return _LER[formato](pasta)
 
 
+# Superfícies (rodada 5): a grade do terreno não cabe em fato; vai para um .npz ao lado da base, com o sha256 no registro.
+
+CHAVES_SUPERFICIE = ("terreno", "valido", "edificacao", "res", "e0", "n1", "forma")
+_DATA_FIXA_ZIP = (1980, 1, 1, 0, 0, 0)          # data fixa das entradas do zip: os bytes não dependem do relógio
+
+
+def _bytes_da_superficie(grade: dict) -> bytes:
+    """`.npz` determinístico: entradas sem compressão, na ordem de `CHAVES_SUPERFICIE`, com data e atributos fixos
+    (o `np.savez` grava a hora do relógio em cada entrada, e dois `gravar` dariam bytes diferentes)."""
+    valores = {"terreno": np.ascontiguousarray(grade["terreno"]), "valido": np.ascontiguousarray(grade["valido"], bool),
+               "edificacao": np.ascontiguousarray(grade["edificacao"], bool),
+               "res": np.asarray(grade["res"], np.float64), "e0": np.asarray(grade["e0"], np.float64),
+               "n1": np.asarray(grade["n1"], np.float64), "forma": np.asarray(grade["forma"], np.int64)}
+    pacote = io.BytesIO()
+    with zipfile.ZipFile(pacote, "w", zipfile.ZIP_STORED) as arquivo:
+        for chave in CHAVES_SUPERFICIE:
+            corpo = io.BytesIO()
+            np.lib.format.write_array(corpo, valores[chave], allow_pickle=False)
+            entrada_zip = zipfile.ZipInfo(f"{chave}.npy", date_time=_DATA_FIXA_ZIP)
+            entrada_zip.compress_type, entrada_zip.create_system, entrada_zip.external_attr = zipfile.ZIP_STORED, 3, 0o600 << 16
+            arquivo.writestr(entrada_zip, corpo.getvalue())
+    return pacote.getvalue()
+
+
+def gravar_superficie(pasta, superficie_id: str, grade: dict) -> dict:
+    """Grava `superficies/<superficie_id>.npz` na pasta da base e devolve o registro da gaveta `superficies`.
+    `grade`: terreno, valido, edificacao (matrizes), res, e0, n1, forma e epsg (o CRS horizontal). Duas gravações da
+    mesma grade dão o mesmo sha256."""
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", superficie_id):
+        raise ValueError(f"superficie_id {superficie_id!r} não serve de nome de arquivo")
+    corpo = _bytes_da_superficie(grade)
+    relativo = f"superficies/{superficie_id}.npz"
+    destino = Path(pasta) / relativo
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_bytes(corpo)
+    epsg = grade.get("epsg")
+    return {"superficie_id": superficie_id, "tipo": "mds", "arquivo": relativo, "sha256": hashlib.sha256(corpo).hexdigest(),
+            "crs_h": f"EPSG:{epsg}" if epsg else None, "datum_v": "ortométrico", "res_m": float(grade["res"]),
+            "evidencia_id": f"EV-{superficie_id}"}
+
+
+def ler_superficie(pasta, registro: dict) -> dict:
+    """Carrega a grade de um registro da gaveta `superficies` e confere o sha256: `ValueError` se o arquivo mudou
+    (ou sai da pasta da base); `FileNotFoundError` se não existe."""
+    raiz = Path(pasta).resolve()
+    arquivo = (raiz / registro["arquivo"]).resolve()
+    if raiz not in arquivo.parents:
+        raise ValueError(f"superfície {registro.get('superficie_id')}: arquivo {registro['arquivo']} fora da pasta da base")
+    corpo = arquivo.read_bytes()
+    if hashlib.sha256(corpo).hexdigest() != registro["sha256"]:
+        raise ValueError(f"superfície {registro.get('superficie_id')}: sha256 de {registro['arquivo']} difere do registrado")
+    with np.load(io.BytesIO(corpo), allow_pickle=False) as npz:
+        grade = {chave: npz[chave] for chave in CHAVES_SUPERFICIE}
+    return {**grade, "res": float(grade["res"]), "e0": float(grade["e0"]), "n1": float(grade["n1"]),
+            "forma": tuple(int(x) for x in grade["forma"])}
+
+
 _EXTENSAO = {"jsonl": "*.jsonl", "csv": "*.csv", "parquet": "*.parquet", "geoparquet": "*.parquet", "duckdb": "base.duckdb"}
 
 
@@ -469,9 +531,28 @@ def regra_de(classe: str, fatos: dict) -> str | None:
     return (casou or candidatas or [None])[0]
 
 
-def entrada(base: dict, objeto: dict, ind: dict | None = None) -> dict:
+def _com_superficie(e: dict, base: dict, pasta_base) -> dict:
+    """Regra que exige `superficie_id` (cavas): acha o registro na gaveta `superficies`, carrega a grade de
+    `pasta_base/<arquivo>` (`ler_superficie`, que confere o sha256) e põe em `dados["superficie"]`. A chave do cálculo
+    usa o sha256 e não a grade (`e["chave_dados"]`). Superfície ausente, ilegível ou adulterada: `e["erro"]` (pendência)."""
+    sid = e["dados"]["superficie_id"]
+    registro = next((s for s in base.get("superficies", []) if s.get("superficie_id") == sid), None)
+    if registro is None:
+        return {**e, "erro": f"superfície {sid} não está na gaveta superficies"}
+    if pasta_base is None:
+        return {**e, "erro": f"superfície {sid}: pasta da base não informada para ler {registro['arquivo']}"}
+    try:
+        grade = ler_superficie(pasta_base, registro)
+    except (OSError, ValueError, KeyError) as erro:
+        return {**e, "erro": f"superfície {sid} não pôde ser lida: {erro}"}
+    return {**e, "dados": {**e["dados"], "superficie": grade},
+            "chave_dados": {**e["dados"], "superficie_sha256": registro["sha256"]}}
+
+
+def entrada(base: dict, objeto: dict, ind: dict | None = None, pasta_base=None) -> dict:
     """Tudo o que a regra precisa, lido só das gavetas: dados, furos, eixo, fatos usados e o que falta.
-    `ind`: o `indice(base)`, para não varrer a base a cada objeto."""
+    `ind`: o `indice(base)`, para não varrer a base a cada objeto. `pasta_base`: a pasta da base gravada, de onde saem
+    os arquivos da gaveta `superficies` (só as regras com `superficie_id` leem; sem ela a regra vira pendência)."""
     fatos = fatos_de_codigo(base, objeto["objeto_id"], ind)                  # fato de IA não alimenta regra
     nome = regra_de(objeto["classe"], fatos)
     if nome is None:
@@ -490,9 +571,10 @@ def entrada(base: dict, objeto: dict, ind: dict | None = None) -> dict:
         ids = {f["id"] for f in fs if ol.id_furo(f["id"]) in citados}
     faltam = [p for p in r["exige"] if p not in fatos]
     so_ia = [p for p in faltam if p in fatos_do_objeto(base, objeto["objeto_id"], ind)]    # existe, mas só como IA
-    return {"regra": nome, "dados": dados, "furos": fs, "pts": pts, "furos_usados": [f for f in fs if f["id"] in ids],
-            "faltam": faltam, "depende_de_ia": so_ia,
-            "fatos": [fatos[p]["fato_id"] for p in usados] + [i for f in fs if f["id"] in ids for i in f["fatos"]]}
+    e = {"regra": nome, "dados": dados, "furos": fs, "pts": pts, "furos_usados": [f for f in fs if f["id"] in ids],
+         "faltam": faltam, "depende_de_ia": so_ia,
+         "fatos": [fatos[p]["fato_id"] for p in usados] + [i for f in fs if f["id"] in ids for i in f["fatos"]]}
+    return _com_superficie(e, base, pasta_base) if "superficie_id" in dados and not faltam else e
 
 
 def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict]:
@@ -507,7 +589,7 @@ def _servicos(objeto_id: str, nome: str, q: dict, fatos: list[str]) -> list[dict
             sid = ":".join(x for x in (objeto_id, nome, saida, chave) if x)
             linhas.append({"servico_id": sid, "objeto_id": objeto_id, "regra": nome, "versao_regra": r["versao"],
                            "saida": saida, **({"chave": chave} if chave else {}), "valor": v, "unidade": EAP["saidas"][saida]["unidade"],
-                           "fatos": fatos})
+                           "fatos": fatos, **({"ponto": q["pontos"][chave]} if chave in (q.get("pontos") or {}) else {})})
     return linhas
 
 
@@ -585,21 +667,26 @@ def _pendencias_de_falta(objeto_id: str, e: dict) -> list[dict]:
     return [{"objeto_id": objeto_id, "regra": e["regra"], "motivo": m} for m in motivos]
 
 
-def calcular_incremental(base: dict, anterior: list[dict] | None = None) -> tuple[list[dict], list[dict], dict]:
+def calcular_incremental(base: dict, anterior: list[dict] | None = None,
+                         pasta_base=None) -> tuple[list[dict], list[dict], dict]:
     """Como `calcular`, mais {recalculados, reaproveitados} por objeto. Serviços do `anterior` com a mesma
     `chave_calculo` (e os alertas guardados no 1º serviço) voltam sem chamar a função da regra.
-    O campo `chave` do serviço já é a subchave do dicionário (pavimento); o hash fica em `chave_calculo`."""
+    O campo `chave` do serviço já é a subchave do dicionário (pavimento); o hash fica em `chave_calculo`.
+    `pasta_base`: onde estão os arquivos das superfícies (regra `cavas`); a chave leva o sha256 da superfície."""
     servicos, pendencias, est = [], [], {"recalculados": 0, "reaproveitados": 0}
     impressoes = {r: impressao_regra(r) for r in SERVICOS["regras"]}      # uma leitura por regra e por cálculo
     ind, antigos_por_chave = indice(base), _indexar_anterior(anterior or [])
     for o in base.get("objetos", []):
-        e = entrada(base, o, ind)
+        e = entrada(base, o, ind, pasta_base)
         if e["regra"] is None:
             continue
         if e["faltam"]:
             pendencias += _pendencias_de_falta(o["objeto_id"], e)
             continue
-        chave = chave_servico(e["regra"], SERVICOS["regras"][e["regra"]]["versao"], e["dados"], e["fatos"],
+        if e.get("erro"):                         # superfície ausente ou adulterada: pendência, nenhum serviço
+            pendencias.append({"objeto_id": o["objeto_id"], "regra": e["regra"], "motivo": e["erro"]})
+            continue
+        chave = chave_servico(e["regra"], SERVICOS["regras"][e["regra"]]["versao"], e.get("chave_dados", e["dados"]), e["fatos"],
                               e["furos_usados"], e["pts"], impressoes[e["regra"]])
         antigos = _reaproveitavel(antigos_por_chave, o["objeto_id"], e["regra"], chave)
         if antigos is not None:
@@ -615,9 +702,9 @@ def calcular_incremental(base: dict, anterior: list[dict] | None = None) -> tupl
     return servicos, pendencias, est
 
 
-def calcular(base: dict) -> tuple[list[dict], list[dict]]:
+def calcular(base: dict, pasta_base=None) -> tuple[list[dict], list[dict]]:
     """Serviços de todos os objetos com regra; faltou fato obrigatório: pendência e nenhum serviço do objeto."""
-    return calcular_incremental(base)[:2]
+    return calcular_incremental(base, pasta_base=pasta_base)[:2]
 
 
 def _achatar(saidas: dict, nomes: list[str]) -> dict[tuple, float]:
@@ -763,6 +850,26 @@ def setor_de(base: dict, ind: dict | None = None) -> tuple[dict[str, str | None]
     return mapa, pendencias
 
 
+def setor_dos_servicos(base: dict, servicos: list[dict]) -> tuple[dict[str, str | None], list[dict]]:
+    """Setor de cada serviço que tem `ponto` (ex.: cada cava de um `conjunto_cavas`, que é um objeto só): o serviço
+    cai no setor que contém o seu ponto. Mesma regra de `setor_de` (sobreposição: None e pendência). Chave: servico_id."""
+    from shapely import geometry as sg
+    geometrias = {}
+    for g in base.get("geometria", []):
+        geometrias.setdefault(g["objeto_id"], g)
+    setores = _formas_dos_setores(base, geometrias)
+    mapa: dict[str, str | None] = {}
+    pendencias: list[dict] = []
+    for s in servicos:
+        if not s.get("ponto"):
+            continue
+        dentro = [sid for sid, poligono in setores.items() if poligono.covers(sg.Point(s["ponto"]))]
+        mapa[s["servico_id"]] = dentro[0] if len(dentro) == 1 else None
+        if len(dentro) > 1 and not any(p["objeto_id"] == s["servico_id"] for p in pendencias):
+            pendencias.append({"objeto_id": s["servico_id"], "motivo": f"setores sobrepostos: {', '.join(dentro)}"})
+    return mapa, pendencias
+
+
 def para_eap_por_setor(servicos: list[dict], setor_por_objeto: dict[str, str | None],
                        ordem_setores: list[str] | None = None) -> list[dict]:
     """EAP somada por setor: [{setor_id, nos: [{eap, descricao, unidade, valor, n_servicos}]}], na ordem dos
@@ -774,7 +881,7 @@ def para_eap_por_setor(servicos: list[dict], setor_por_objeto: dict[str, str | N
             ordem.append(sid)
     grupos: dict[str | None, list[dict]] = {sid: [] for sid in ordem} | {None: []}
     for s in servicos:
-        sid = setor_por_objeto.get(s["objeto_id"])
+        sid = setor_por_objeto.get(s["servico_id"], setor_por_objeto.get(s["objeto_id"]))   # o do serviço vence
         grupos[sid if sid in grupos else None].append(s)
     return [{"setor_id": sid, "nos": [{"eap": n["eap"], "descricao": n["descricao"], "unidade": n["unidade"],
                                        "valor": n["valor"], "n_servicos": len(n["servicos"])} for n in para_eap(lista)]}
@@ -786,9 +893,10 @@ def metadados() -> dict:
     return {
         "modulo": "gavetas",
         "descricao": "memória espacial: gavetas com evidência, serviços calculados só a partir delas e EAP lastreada",
-        "funcoes": ["validar", "conferir_base", "conferir_de_para", "gravar", "ler", "fatos_do_objeto", "furos",
-                    "eixo", "regra_de", "entrada", "chave_servico", "calcular", "calcular_incremental", "paridade", "para_eap",
-                    "setor_de", "para_eap_por_setor"],
+        "funcoes": ["validar", "conferir_base", "conferir_de_para", "gravar", "ler", "gravar_superficie", "ler_superficie",
+                    "fatos_do_objeto", "furos", "eixo", "regra_de", "entrada", "chave_servico", "calcular",
+                    "calcular_incremental", "paridade", "para_eap", "setor_de", "setor_dos_servicos",
+                    "para_eap_por_setor"],
         "conceitos": ["gavetas.json", "de_para_extracao.json", "de_para_servicos.json", "de_para_eap.json"],
         "formato": REGRAS["formato"]["atual"],
         "estado": REGRAS["metadata"]["estado"],
@@ -804,7 +912,7 @@ def principal(argv=None) -> None:
     erros = conferir_base(base) + conferir_de_para()
     for e in erros:
         print("ERRO", e)
-    servicos, pendencias = calcular(base)
+    servicos, pendencias = calcular(base, a.pasta)
     gravar(a.pasta, {**base, "servicos": servicos, "pendencias": base.get("pendencias", []) + pendencias}, a.formato)
     for no in para_eap(servicos):
         print(f"{no['eap']:<16} {no['descricao']:<55} {no['valor']:>12.3f} {no['unidade']}")

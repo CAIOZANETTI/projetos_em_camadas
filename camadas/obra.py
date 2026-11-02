@@ -772,12 +772,13 @@ def _reavaliar(inv: dict, out: Path, cfg: dict, geotecnia_dados: dict | None = N
 
 
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict,
-                 redes_vala: list | None = None) -> None:
+                 redes_vala: list | None = None, cavas: dict | None = None) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
     lote; e os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor."""
     pacotes["obras_lineares"] = obras_lineares.etapa(cfg, dados["sondagens"], out, log=_log)   # vala (MOS) da planilha
     try:                                                       # a base das gavetas não pode derrubar o build
-        dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log, redes_vala=redes_vala)
+        dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log, redes_vala=redes_vala,
+                                                cavas=cavas)
         if dados["gavetas"]:                                    # aba EAP: só apresenta o que o Python montou
             dados["eap"] = dados["gavetas"].pop("eap_html")
     except Exception as erro:  # noqa: BLE001 - a etapa nova nunca derruba o build
@@ -825,7 +826,8 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     pranchas = etapa_pranchas(cfg, out, "pranchas" in refazer)
     lista, vetores, pendentes = _pranchas_no_mapa(cfg, pranchas, orto["extensao_utm"], epsg)
     crs = visualizador.crs_info(epsg, [e0, n0, e1, n1], rel["alt_decolagem_m"])
-    esc = escavacao.etapa(cfg, pranchas, out, vertical, log=_log)     # cavas: escavação e reaterro
+    cavas_gavetas: dict = {}                          # o que a escavação entrega às gavetas (cavas)
+    esc = escavacao.etapa(cfg, pranchas, out, vertical, log=_log, saida_gavetas=cavas_gavetas)   # escavação e reaterro
     escopo = etapa_escopo(cfg)
     if escopo:
         escopo["tubo_x_desenho"] = tubo_contrato_x_desenho(escopo, lista, cfg)
@@ -866,7 +868,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "info": _info(cfg, crs, rel, desloc, orto, vertical, lista),
     }
     _sondagens_no_build(dados, cfg, furos, esc, epsg, vertical)
-    _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala}, redes_vala)
+    _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala}, redes_vala, cavas_gavetas)
     return _gravar(cfg, out, dados, pranchas, epsg)
 
 
