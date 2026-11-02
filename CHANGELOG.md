@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.40.0 — 2026-11-02 · Leitura por IA: conferência por bloco de linha de tabela
+- **Bloco de 2–3 linhas** (`evidencias.conferir_citacao`): descrição de planilha quebrada em várias linhas com a
+  quantidade na última ("Estaca hélice contínua, diâmetro 40 cm, inclusive⏎mobilização e desmobilização un 250") e
+  "Quantidade: 250 un" em linha própria passam a ser aceitas. O bloco é o trecho citado inteiro, na mesma página, sem
+  linha em branco; o par (valor, unidade) começa na última linha; as anteriores não afirmam quantidade (dimensões com
+  Ø, DN ou "diâmetro" são ignoradas); o termo do item pode estar em qualquer linha do bloco e valem item mais próximo,
+  item/serviço/unidade da EAP geral, página e dedupe.
+- Continuam recusados: duas linhas de tabela de itens diferentes, bloco de 4+ linhas, com linha em branco ou
+  atravessando página, e "Bloco de coroamento⏎un 30" proposto como estaca.
+- Fecha a pendência "conferência por bloco de linha de tabela" de `docs/EAP.md` §10.
+- Balanço vcm das iterações 0.38.0 e 0.39.0 em `results/iteracoes/8eb6034_a3dc7a8.*` (decisão humana: complexidade
+  média +1,1%; RAM −8,6% e cobertura +0,9%).
+- Lição L036.
+
 ## 0.39.0 — 2026-11-02 · Leitura por IA com citação conferida
 - **Roteiro de leitura** (`evidencias.roteiro`, `roteiro_md`): por item da EAP geral (filtrado por escopo e tipo de obra),
   código, nome, termos de busca legíveis (termos do item e sinônimos de `sinonimos.json`), serviços admitidos com

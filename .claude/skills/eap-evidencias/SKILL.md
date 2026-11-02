@@ -55,6 +55,11 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
 - **A mesma linha.** O número, a unidade e o termo do item têm de estar na mesma linha do documento, a no máximo 8
   palavras um do outro (o trecho pode ocupar mais linhas, nunca mais de uma página). Em tabela, copie a linha inteira
   ("Estaca hélice contínua Ø40 un 250"), não o número de uma linha com o nome de outra.
+- **Bloco de linha de tabela.** Descrição quebrada em até 3 linhas seguidas ("Estaca hélice contínua, diâmetro 40 cm,
+  inclusive⏎mobilização e desmobilização un 250" ou "Estacas hélice contínua Ø40 cm⏎Quantidade: 250 un") vale se o
+  `trecho` copiar as linhas do bloco inteiro, sem linha em branco nem quebra de página, com número e unidade na
+  **última** linha e nenhuma quantidade nas anteriores (Ø, DN e "diâmetro" não contam). Duas linhas de itens
+  diferentes, 4 linhas ou mais, linha em branco ou outra página: recusado.
 - **Item e serviço existem.** `codigo` com o item da EAP geral (`*` só em unidade e sistema), `servico` admitido pelo
   item (ou `""`) e `unidade` aceita por eles; o roteiro lista tudo. `localizador` "p. N" (ou "pág. N") é o **índice da página no PDF** (1 = primeira folha), não o número impresso, e tem de
   ser a página do trecho.
@@ -71,9 +76,8 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
   trecho diz "2,5 t", são `2.5` e `t`.
 - O documento citado em `documento.id` tem de ser um dos fornecidos a `conferir`.
 - Limitações conhecidas (pendências em `docs/EAP.md` §10): número colado a letra ou hífen ("DN150 m 320", "C30 m³ 45",
-  "CA-50 kg 1.200") não vale como quantidade, como no regex; descrição de planilha em várias linhas com a quantidade na
-  última, ou "Quantidade: 250 un" em linha própria, é recusada (o número, a unidade e o termo do item precisam estar na
-  mesma linha): procure a linha de tabela que os reúne ou devolva à escada.
+  "CA-50 kg 1.200") não vale como quantidade, como no regex; bloco de mais de 3 linhas, com linha em branco ou com
+  quantidade em linha anterior é recusado: procure a linha de tabela que reúne os três ou devolva à escada.
 - Texto puro (`--texto`): as páginas são separadas por quebra de página (`\f`); sem ela, é uma página só.
 - `id`, `citacao`, `derivada`, `autor` e `justificativa` são do código: se vierem na linha, são descartados e `id` é
   recalculado. `documento.id` com caminho vira o nome do arquivo.

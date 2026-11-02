@@ -165,7 +165,17 @@ do código têm de existir na EAP geral (`*` só em unidade e sistema) e a unida
 localizador "p. N", se houver, tem de ser a página do trecho; aspas curvas, travessões e hífen de fim de linha são
 unificados; toneladas viram kg, como no regex. O item citado tem de ser o termo de item mais próximo do número na linha
 ("Bloco de coroamento para 2 estacas un 12" é do bloco, não das estacas; empate = recusa "número pertence a outro item");
-"12 m de estaca" e "3.000 metros de estacas" não são contagem de estacas; valor acima de 1e12 é recusado. Propostas da IA
+"12 m de estaca" e "3.000 metros de estacas" não são contagem de estacas; valor acima de 1e12 é recusado.
+**Bloco de linha de tabela:** descrição de planilha em várias linhas, com a quantidade na última, também vale. Um bloco
+são 2 ou 3 linhas seguidas do trecho (o trecho citado é o próprio bloco), da mesma página e sem linha em branco entre
+elas; o par (valor, unidade) tem de começar na **última** linha e as anteriores não podem afirmar nenhuma quantidade
+(número com unidade de quantidade, "un 12", "12 estacas"). Dimensão de especificação (precedida de Ø, DN, "diâmetro" ou
+"diam.") e medida em unidade fora do vocabulário de quantidade ("40 cm") não contam e não encerram o bloco. O termo do
+item pode estar em qualquer linha do bloco, sem o limite de 8 palavras para as linhas anteriores; valem todas as outras
+regras (item mais próximo do número, item e serviço da EAP, unidade, página, dedupe). Duas linhas de tabela de itens
+diferentes, 4 ou mais linhas, linha em branco ou quebra de página no meio continuam recusadas. Exemplos aceitos:
+"Estaca hélice contínua, diâmetro 40 cm, inclusive⏎mobilização e desmobilização un 250" e
+"Estacas hélice contínua Ø40 cm⏎Quantidade: 250 un" (250 un de GEO.FUN.EST). Propostas da IA
 no mesmo documento só colapsam se o trecho normalizado for o mesmo (a mesma frase em outra página é total repetido);
 parcelas reais de valor igual ("Bloco B1 com 12 estacas", "Bloco B2 com 12 estacas") somam, e a mesma proposta (mesmo `id`,
 que inclui `parcela`) conta uma vez. Só a IA é deduplicada por `id`: as demais fontes mantêm a soma de parcelas iguais. O build não confia no
@@ -477,9 +487,8 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
   a IA lê edital, TR, memorial e laudo seguindo o roteiro e só entra com citação conferida pelo código (§5).
 - [x] Conferir também o localizador (a página citada contém o trecho).
 - [ ] Aceitar planilha como documento de leitura.
-- [ ] **Conferência por bloco de linha de tabela** (pendência da IA): descrição de planilha em várias linhas com a
-  quantidade na última, ou "Quantidade: 250 un" em linha própria, hoje são recusadas, porque o número, a unidade e o
-  termo do item têm de estar na mesma linha.
+- [x] **Conferência por bloco de linha de tabela** (IA): bloco de 2 a 3 linhas seguidas do trecho, sem linha em branco,
+  com o par (valor, unidade) na última linha e nenhuma quantidade nas anteriores (§5; `_confere_bloco`).
 - [ ] **Número colado a letra ou hífen em outro campo da linha** ("DN150 m 320", "C30 m³ 45", "CA-50 kg 1.200"): o
   número com letra colada não é lido como quantidade, e o regex que não é IA lê igual. Pendência comum aos dois métodos.
 - [x] Selo de status por nó da árvore, filtro por prefixo e só pranchas desta disciplina (§9).
