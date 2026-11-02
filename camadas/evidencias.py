@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import itertools
 import json
 import math
 import re
@@ -373,22 +374,43 @@ def _situacao_do_item(linha: str, item: dict, termos: list, donos: set, posicao:
         return "citado" if re.search(item["termos"], preparar(linha)[1]) else "ausente"
     if posicao is None:
         return "citado"
-    ini, fim = posicao
-    livres = [t for t in termos if t not in donos]
-    meus_livres, outros = [t for t in livres if t[2] == item["codigo"]], [t for t in livres if t[2] != item["codigo"]]
+    return _situacao_pelo_numero(linha, item, termos, donos, posicao, isento_antes_de, meus)
 
-    def distancia(t) -> int:
-        return max(0, t[0] - fim, ini - t[1])
 
-    def palavras(t) -> int:
-        return len((linha[t[1]:ini] if t[1] <= ini else linha[fim:t[0]] if fim <= t[0] else "").split())
+def _situacao_pelo_numero(linha: str, item: dict, termos: list, donos: set, posicao: tuple[int, int],
+                          isento_antes_de: int, meus: list) -> str:
+    """Situação do item dado o número na `posicao`: só os termos livres contam (`meus` já tomados só servem sem rival),
+    o do item tem de estar perto o bastante e não pode haver termo de outro item mais perto (ou à mesma distância)."""
+    meus_livres, outros = _termos_livres(item, termos, donos)
     candidatos = meus_livres or ([] if outros else meus)       # o termo já tomado por outro número só serve sem rival
     if not candidatos:
         return "outro" if outros else "ausente"
-    perto = [t for t in candidatos if t[0] < isento_antes_de or palavras(t) <= PALAVRAS_ATE_O_ITEM]
+    perto = [t for t in candidatos if t[0] < isento_antes_de or _palavras_ate_o_numero(linha, t, posicao) <= PALAVRAS_ATE_O_ITEM]
     if not perto:
         return "ausente"
-    return "outro" if outros and min(map(distancia, outros)) <= min(map(distancia, perto)) else "citado"
+    return "outro" if outros and _distancia_minima(outros, posicao) <= _distancia_minima(perto, posicao) else "citado"
+
+
+def _termos_livres(item: dict, termos: list, donos: set) -> tuple[list, list]:
+    """Termos que nenhum número tomou, separados em (do item, de outros itens)."""
+    livres = [t for t in termos if t not in donos]
+    return [t for t in livres if t[2] == item["codigo"]], [t for t in livres if t[2] != item["codigo"]]
+
+
+def _distancia_minima(termos: list, posicao: tuple[int, int]) -> int:
+    """Menor distância, em caracteres, entre os termos e o número na `posicao`."""
+    return min(_distancia_ao_numero(t, posicao) for t in termos)
+
+
+def _distancia_ao_numero(termo: tuple, posicao: tuple[int, int]) -> int:
+    """Caracteres entre o termo (início, fim, código) e o número (início, fim); 0 se encostam ou se sobrepõem."""
+    return max(0, termo[0] - posicao[1], posicao[0] - termo[1])
+
+
+def _palavras_ate_o_numero(linha: str, termo: tuple, posicao: tuple[int, int]) -> int:
+    """Palavras entre o termo e o número (0 se um contém o outro)."""
+    ini, fim = posicao
+    return len((linha[termo[1]:ini] if termo[1] <= ini else linha[fim:termo[0]] if fim <= termo[0] else "").split())
 
 
 def _confere_fragmento(fragmento: str, valor, unidade: str | None, item: dict) -> tuple[bool, str]:
@@ -470,6 +492,54 @@ def _achar(padrao: str, tokens: list[str], normalizadas: list[str], pagina: int 
     return {n: achou for n in range(1, len(normalizadas) + 1) if (achou := procurar(n))}
 
 
+def _padrao_do_trecho(trecho: str, tokens: list[str]) -> str:
+    """Regex do trecho normalizado: palavras separadas por espaço ou quebra, com fronteira de palavra e de número."""
+    return (r"(?<![A-Z0-9])(?<![0-9][.,])" + (r"(?<!(?<![A-Z])[0-9] )" if trecho[:1].isdigit() else "")   # "1 250"; mas "M3 120" vale
+            + r"[ \n\f\v]+".join(map(re.escape, tokens)) + r"(?![A-Z0-9])(?![.,][0-9])")
+
+
+def _recusa_antes_da_conferencia(curto: bool, achados: dict, pagina_citada: int | None, item: dict | None, valor) -> str | None:
+    """Motivo da recusa que não depende da leitura das linhas (trecho curto, ausente, fora da página citada, código sem
+    item, valor inválido); `None` se a conferência de linha e bloco pode seguir."""
+    if curto:
+        return "trecho curto demais"
+    if not achados:
+        return "trecho não encontrado no documento"
+    if pagina_citada is not None and pagina_citada not in achados:
+        return "página citada não contém o trecho"
+    if item is None:
+        return "código sem item na EAP geral"
+    if valor is not None and not (isinstance(valor, (int, float)) and not isinstance(valor, bool)
+                                  and abs(valor) <= LIMITE_DO_VALOR):
+        return "valor não está no trecho"
+    return None
+
+
+def _fragmentos_e_blocos(achados: dict[int, list], normalizadas: list[str], valor) -> tuple[dict, dict]:
+    """Linhas do trecho (sem marcas) e, com valor, blocos de linhas inteiras da página que o trecho cobre; sem repetição."""
+    casados = [m.group() for ms in achados.values() for m in ms]
+    fragmentos = dict.fromkeys(f.lstrip(_MINUSCULA) for c in casados for f in c.split("\n") if f != _BRANCO)
+    inteiras = [_linhas_inteiras(normalizadas[n - 1], m) for n, ms in achados.items() for m in ms]
+    return fragmentos, dict.fromkeys(tuple(b) for c in inteiras if valor is not None and (b := _bloco_do_trecho(c)))
+
+
+def _status_da_conferencia(achados: dict[int, list], normalizadas: list[str], valor, unidade: str | None, item: dict) -> str:
+    """Confere o par e o item em cada linha do trecho e em cada bloco de linhas inteiras, uma vez cada, parando no
+    primeiro que confere; devolve o status da citação a partir do conjunto dos resultados."""
+    fragmentos, blocos = _fragmentos_e_blocos(achados, normalizadas, valor)
+    pares = []
+    for par in itertools.chain((_confere_fragmento(f, valor, unidade, item) for f in fragmentos),
+                               (_confere_bloco(list(b), valor, unidade, item) for b in blocos)):
+        pares.append(par)
+        if par == (True, "citado"):
+            break
+    situacoes = [s for _, s in pares]
+    if valor is not None and not any(p for p, _ in pares):
+        return "valor não está no trecho"
+    return ("conferida" if "citado" in situacoes else "número pertence a outro item" if "outro" in situacoes
+            else "item não citado no trecho")
+
+
 def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | None = None) -> dict:
     """Evidência de IA conferida contra as páginas do documento (`normalizadas`: o `_paginas_normalizadas` delas, se já
     feito). O trecho (3 palavras ou 15 caracteres e uma letra) tem de estar numa página, com fronteira de palavra e de
@@ -483,37 +553,12 @@ def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | Non
     trecho = " ".join(_linhas_normalizadas(ev.get("trecho", "")))
     valor, unidade, item = ev.get("valor"), ev.get("unidade"), _item_do_codigo(ev.get("codigo"))
     cita = re.search(r"\b(?:PAG|P)\.?\s*(\d+)", normalizar(ev.get("localizador", "")))
+    pagina = int(cita[1]) if cita else None
     tokens = trecho.split()
     curto = not (re.search("[A-Z]", trecho) and (len(tokens) >= 3 or len(trecho) >= 15))
-    padrao = (r"(?<![A-Z0-9])(?<![0-9][.,])" + (r"(?<!(?<![A-Z])[0-9] )" if trecho[:1].isdigit() else "")   # "1 250"; mas "M3 120" vale
-              + r"[ \n\f\v]+".join(map(re.escape, tokens)) + r"(?![A-Z0-9])(?![.,][0-9])")
-    achados = {} if curto else _achar(padrao, tokens, normalizadas, int(cita[1]) if cita else None)
-    if curto:
-        status = "trecho curto demais"
-    elif not achados:
-        status = "trecho não encontrado no documento"
-    elif cita and int(cita[1]) not in achados:
-        status = "página citada não contém o trecho"
-    elif item is None:
-        status = "código sem item na EAP geral"
-    elif valor is not None and not (isinstance(valor, (int, float)) and not isinstance(valor, bool)
-                                    and abs(valor) <= LIMITE_DO_VALOR):
-        status = "valor não está no trecho"
-    else:
-        casados = [m.group() for ms in achados.values() for m in ms]
-        fragmentos = dict.fromkeys(f.lstrip(_MINUSCULA) for c in casados for f in c.split("\n") if f != _BRANCO)
-        inteiras = [_linhas_inteiras(normalizadas[n - 1], m) for n, ms in achados.items() for m in ms]
-        blocos = dict.fromkeys(tuple(b) for c in inteiras if valor is not None and (b := _bloco_do_trecho(c)))
-        pares = []
-        for confere in [lambda f=f: _confere_fragmento(f, valor, unidade, item) for f in fragmentos] \
-                + [lambda b=b: _confere_bloco(list(b), valor, unidade, item) for b in blocos]:
-            pares.append(confere())                    # cada linha e cada bloco só uma vez; para no primeiro que confere
-            if pares[-1] == (True, "citado"):
-                break
-        status = ("valor não está no trecho" if valor is not None and not any(p for p, _ in pares)
-                  else "conferida" if any(s == "citado" for _, s in pares)
-                  else "número pertence a outro item" if any(s == "outro" for _, s in pares)
-                  else "item não citado no trecho")
+    achados = {} if curto else _achar(_padrao_do_trecho(trecho, tokens), tokens, normalizadas, pagina)
+    status = (_recusa_antes_da_conferencia(curto, achados, pagina, item, valor)
+              or _status_da_conferencia(achados, normalizadas, valor, unidade, item))
     return {**ev, "citacao": status}
 
 
@@ -530,17 +575,21 @@ def _casa(padrao: str, codigo: str) -> bool:
     return len(p) == len(c) and all(a in ("*", b) for a, b in zip(p, c))
 
 
+def _grupos_do_documento(doc: str, do_doc: list[dict]) -> list[tuple[str, list[dict]]]:
+    """(nome, evidências) de cada afirmação de um documento: o grupo das parcelas, se houver, e um grupo por total."""
+    parcelas = [e for e in do_doc if e["parcela"]]
+    if doc.startswith("ia:"):         # a mesma frase em outra página é total repetido, não outra parcela
+        parcelas = list({" ".join(_linhas_normalizadas(e["trecho"])): e for e in parcelas}.values())
+    return ([("parcelas", parcelas)] if parcelas else []) + \
+           [(f"total {e['valor']:g}", [t for t in do_doc if not t["parcela"] and t["valor"] == e["valor"]])
+            for e in {e["valor"]: e for e in do_doc if not e["parcela"]}.values()]
+
+
 def _afirmacoes(evs: list[dict]) -> list[dict]:
     """Uma afirmação por documento e valor: parcelas somadas; totais repetidos (mesmo valor) contam uma vez."""
     saida = []
     for doc in dict.fromkeys(e["documento"]["id"] for e in evs):
-        do_doc = [e for e in evs if e["documento"]["id"] == doc]
-        parcelas = [e for e in do_doc if e["parcela"]]
-        if doc.startswith("ia:"):         # a mesma frase em outra página é total repetido, não outra parcela
-            parcelas = list({" ".join(_linhas_normalizadas(e["trecho"])): e for e in parcelas}.values())
-        grupos = ([("parcelas", parcelas)] if parcelas else []) + \
-                 [(f"total {e['valor']:g}", [t for t in do_doc if not t["parcela"] and t["valor"] == e["valor"]])
-                  for e in {e["valor"]: e for e in do_doc if not e["parcela"]}.values()]
+        grupos = _grupos_do_documento(doc, [e for e in evs if e["documento"]["id"] == doc])
         saida += [{"documento": doc, "tipo": g[0]["documento"]["tipo"],
                    "valor": sum(e["valor"] for e in g) if nome == "parcelas" else g[0]["valor"],
                    "evidencias": [e["id"] for e in g], "trechos": [e["trecho"] for e in g][:3],
@@ -554,13 +603,10 @@ def _derivadas(chave: tuple, valoradas: list[dict]) -> list[dict]:
     if "*" not in codigo:
         return []
     diretos = {e["documento"]["id"] for e in valoradas if (e["codigo"], e["servico"], e["unidade"]) == chave}
-    saida = []
-    for doc in dict.fromkeys(e["documento"]["id"] for e in valoradas):
-        partes = [e for e in valoradas if e["documento"]["id"] == doc and e["codigo"] != codigo and "*" not in e["codigo"]
-                  and _casa(codigo, e["codigo"]) and e["servico"] == servico and e["unidade"] == unidade]
-        if partes and doc not in diretos:
-            saida += [{**e, "parcela": True, "derivada": True} for e in partes]
-    return saida
+    partes = [e for e in valoradas if e["documento"]["id"] not in diretos and e["codigo"] != codigo and "*" not in e["codigo"]
+              and _casa(codigo, e["codigo"]) and (e["servico"], e["unidade"]) == (servico, unidade)]
+    return [{**e, "parcela": True, "derivada": True} for doc in dict.fromkeys(e["documento"]["id"] for e in valoradas)
+            for e in partes if e["documento"]["id"] == doc]
 
 
 def _fonte(documento: str) -> str:
@@ -579,6 +625,18 @@ def _grupos(afirm: list[dict], tol: float) -> list[list[dict]]:
     return sorted(grupos, key=lambda g: -len({_fonte(a["documento"]) for a in g}))
 
 
+def _status_e_valor_do_fato(decisoes: list[dict], afirm: list[dict], grupos: list[list[dict]], docs: set) -> tuple[str, float | None]:
+    """(status, valor) do fato: decidido (última decisão), só menção, conflito (mais de um grupo de valor), convergente
+    (mais de um documento no mesmo valor) ou fonte única."""
+    if decisoes:
+        return "decidido", decisoes[-1]["valor"]
+    if not afirm:
+        return "só menção", None
+    if len(grupos) > 1:
+        return "conflito", None
+    return ("convergente" if len(docs) > 1 else "fonte única"), grupos[0][0]["valor"]
+
+
 def _fato(chave: tuple, evs: list[dict], mencoes: list[dict], tol: float) -> dict:
     """Status de um fato a partir das afirmações por documento (decisão à parte)."""
     decisoes = [e for e in evs if e["metodo"] == "decisao"]
@@ -586,14 +644,7 @@ def _fato(chave: tuple, evs: list[dict], mencoes: list[dict], tol: float) -> dic
     grupos = _grupos(afirm, tol)
     valores = [a["valor"] for a in afirm]
     docs = {_fonte(a["documento"]) for a in afirm}
-    if decisoes:
-        status, valor = "decidido", decisoes[-1]["valor"]
-    elif not afirm:
-        status, valor = "só menção", None
-    elif len(grupos) > 1:
-        status, valor = "conflito", None
-    else:
-        status, valor = ("convergente" if len(docs) > 1 else "fonte única"), grupos[0][0]["valor"]
+    status, valor = _status_e_valor_do_fato(decisoes, afirm, grupos, docs)
     return {"codigo": chave[0], "servico": chave[1], "unidade": chave[2], "status": status, "valor": valor,
             "forca": len({_fonte(a["documento"]) for a in grupos[0]}) if grupos else 0, "n_documentos": len(docs),
             "diferenca_pct": round(100 * (max(valores) - min(valores)) / max(abs(max(valores)), 1e-9), 1)
@@ -614,22 +665,27 @@ def _sem_ia_repetida(evs: list[dict]) -> list[dict]:
     return saida
 
 
+def _fato_da_chave(chave: tuple, valoradas: list[dict], mencoes: list[dict], tol: float) -> dict:
+    """Fato de (código, serviço, unidade): as evidências com valor da chave, as derivadas dos sistemas e as menções."""
+    evs_fato = [e for e in valoradas if (e["codigo"], e["servico"], e["unidade"]) == chave] + _derivadas(chave, valoradas)
+    return _fato(chave, evs_fato, [m for m in mencoes if (m["codigo"], m["servico"]) == chave[:2]], tol)
+
+
+def _fatos_so_mencao(mencoes: list[dict], com_valor: set, tol: float) -> list[dict]:
+    """Um fato 'só menção' por (código, serviço) citado sem número em nenhum documento."""
+    chaves = dict.fromkeys((m["codigo"], m["servico"]) for m in mencoes if (m["codigo"], m["servico"]) not in com_valor)
+    return [_fato((*chave, None), [], [m for m in mencoes if (m["codigo"], m["servico"]) == chave], tol) for chave in chaves]
+
+
 def consolidar(evs: list[dict], tol: float = 0.005) -> pd.DataFrame:
     """Fatos (código, serviço, unidade) com o status: convergente, fonte única, conflito, só menção ou decidido.
     IA só entra com citação conferida. Menção (sem número) reforça o fato mas não dá valor."""
-    evs = _sem_ia_repetida(evs)
-    aceitas = [e for e in evs if e["metodo"] != "ia" or e.get("citacao") == "conferida"]
+    aceitas = [e for e in _sem_ia_repetida(evs) if e["metodo"] != "ia" or e.get("citacao") == "conferida"]
     valoradas = [e for e in aceitas if e["valor"] is not None and e["unidade"]]
     mencoes = [e for e in aceitas if e["valor"] is None]
     chaves = list(dict.fromkeys((e["codigo"], e["servico"], e["unidade"]) for e in valoradas))
-    fatos = []
-    for chave in chaves:
-        evs_fato = [e for e in valoradas if (e["codigo"], e["servico"], e["unidade"]) == chave] + _derivadas(chave, valoradas)
-        fatos.append(_fato(chave, evs_fato, [m for m in mencoes if (m["codigo"], m["servico"]) == chave[:2]], tol))
-    com_valor = {c[:2] for c in chaves}
-    for chave in dict.fromkeys((m["codigo"], m["servico"]) for m in mencoes if (m["codigo"], m["servico"]) not in com_valor):
-        fatos.append(_fato((*chave, None), [], [m for m in mencoes if (m["codigo"], m["servico"]) == chave], tol))
-    return pd.DataFrame(fatos)
+    fatos = [_fato_da_chave(chave, valoradas, mencoes, tol) for chave in chaves]
+    return pd.DataFrame(fatos + _fatos_so_mencao(mencoes, {c[:2] for c in chaves}, tol))
 
 
 def cobertura(evs: list[dict]) -> pd.DataFrame:
@@ -759,16 +815,21 @@ def _ler_ia(caminho: str | Path) -> list:
     return saida
 
 
+def _planilha_do_contrato(esc: dict) -> tuple | None:
+    """(itens, documento, catálogo) da planilha do contrato (`escopo.itens_csv` do obra.json), ou None sem o arquivo."""
+    from .orcamento_sanepar import catalogo
+    if not (esc.get("itens_csv") and Path(esc["itens_csv"]).exists()):
+        return None
+    df = pd.read_csv(esc["itens_csv"], sep=";", decimal=",", encoding="utf-8-sig")
+    cat = catalogo(esc["catalogo"]) if esc.get("catalogo") else None
+    return df, {"id": Path(esc["itens_csv"]).name, "tipo": "planilha", "nome": esc.get("fonte", "")}, cat
+
+
 def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     """Loop de evidências da obra: documentos, planilha do contrato, planilha Obras Lineares, pranchas medidas, IA e decisões do obra.json.
     Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv e dimensoes.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
-    from .orcamento_sanepar import catalogo
-    conf, esc = cfg.get("evidencias") or {}, cfg.get("escopo") or {}
-    planilha = None
-    if esc.get("itens_csv") and Path(esc["itens_csv"]).exists():
-        df = pd.read_csv(esc["itens_csv"], sep=";", decimal=",", encoding="utf-8-sig")
-        cat = catalogo(esc["catalogo"]) if esc.get("catalogo") else None
-        planilha = (df, {"id": Path(esc["itens_csv"]).name, "tipo": "planilha", "nome": esc.get("fonte", "")}, cat)
+    conf = cfg.get("evidencias") or {}
+    planilha = _planilha_do_contrato(cfg.get("escopo") or {})
     extras = {k: (ler if k == "decisoes" else _ler_ia)(conf[k]) if conf.get(k) and Path(conf[k]).exists() else []
               for k in ("ia", "decisoes")}
     recusadas_ia = []
@@ -890,41 +951,69 @@ def _conferir_ia(ev: dict, documentos: dict[str, list[str]], normalizadas: dict[
     return conferida
 
 
-def _problemas_ia(ev: dict) -> list[str]:
-    """Além do schema: uma proposta de IA tem método e tipo de documento `ia`; código com item da EAP geral (`*` só em
-    unidade e sistema); serviço que o item admite; escopo do enum; valor numérico não negativo com unidade do vocabulário
-    e do item (ou do serviço); `parcela` booleana. Nunca levanta exceção: linha malformada vira lista de problemas."""
-    if not isinstance(ev.get("documento"), dict) or not ev["documento"].get("id"):
-        return ["documento tem de ser um objeto com id (nome do arquivo) e tipo"]
-    tipos = [f"'{k}' tem de ser texto" for k in ("codigo", "servico", "localizador", "trecho", "regra")
-             if k in ev and not isinstance(ev[k], str)]
-    if tipos:
-        return tipos
-    problemas = validar_evidencia(ev)
-    if ev.get("metodo") != "ia" or ev["documento"].get("tipo") != "ia":
-        problemas.append("método e documento.tipo têm de ser 'ia'")
-    valor, unidade, servico = ev.get("valor"), ev.get("unidade"), ev.get("servico") or ""
-    item = _item_do_codigo(ev.get("codigo")) if "codigo" in ev else None
-    if "codigo" in ev and item is None and not problemas:
+def _problemas_do_codigo_e_servico(ev: dict, item: dict | None, servico: str, ja_ha_problemas: bool) -> list[str]:
+    """Código sem item na EAP geral (só se nada falhou antes), serviço que o item não admite e escopo fora do enum."""
+    problemas = []
+    if "codigo" in ev and item is None and not ja_ha_problemas:
         problemas.append(f"código '{ev['codigo']}' sem item na EAP geral ('*' só vale em unidade e sistema)")
     if item and servico and (servico not in item["servicos"] or servico not in {x["id"] for x in SERVICOS}):
         problemas.append(f"serviço '{servico}' não é admitido pelo item {item['codigo']}")
     if ev.get("escopo") not in SCHEMA["properties"]["escopo"]["enum"]:
         problemas.append(f"escopo '{ev.get('escopo')}' inválido")
-    if valor is None and unidade is not None and (not isinstance(unidade, str) or unidade not in vocabulario.REGRAS["unidades"]):
-        problemas.append(f"unidade '{unidade}' fora do vocabulário ({', '.join(vocabulario.REGRAS['unidades'])})")
-    if valor is not None and (isinstance(valor, bool) or not isinstance(valor, (int, float))):
-        problemas.append(f"valor '{str(valor)[:30]}' não é número")
-    elif valor is not None and not abs(valor) <= LIMITE_DO_VALOR:
-        problemas.append(f"valor fora do intervalo (|valor| até {LIMITE_DO_VALOR:g})")
-    elif valor is not None and (not isinstance(unidade, str) or unidade not in vocabulario.REGRAS["unidades"]):
-        problemas.append(f"unidade '{unidade}' fora do vocabulário ({', '.join(vocabulario.REGRAS['unidades'])})")
-    elif valor is not None and valor < 0:
-        problemas.append("valor negativo")
-    elif valor is not None and item and not (servico and servico not in item["servicos"]) \
-            and unidade not in _unidades_do_item(item, servico):
-        problemas.append(f"unidade '{unidade}' não é aceita por {item['codigo']}"
-                         + (f" / {servico}" if servico else "") + f" (aceitas: {', '.join(_unidades_do_item(item, servico))})")
+    return problemas
+
+
+def _problemas_do_valor_e_da_unidade(valor, unidade, item: dict | None, servico: str) -> list[str]:
+    """Primeiro problema do par (valor, unidade): sem valor, só a unidade solta é conferida; com valor, na ordem:
+    não é número, fora do intervalo, unidade fora do vocabulário, negativo, unidade que o item (ou serviço) não aceita."""
+    fora_do_vocabulario = f"unidade '{unidade}' fora do vocabulário ({', '.join(vocabulario.REGRAS['unidades'])})"
+    unidade_invalida = not isinstance(unidade, str) or unidade not in vocabulario.REGRAS["unidades"]
+    if valor is None:
+        return [fora_do_vocabulario] if unidade is not None and unidade_invalida else []
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+        return [f"valor '{str(valor)[:30]}' não é número"]
+    if not abs(valor) <= LIMITE_DO_VALOR:
+        return [f"valor fora do intervalo (|valor| até {LIMITE_DO_VALOR:g})"]
+    if unidade_invalida:
+        return [fora_do_vocabulario]
+    if valor < 0:
+        return ["valor negativo"]
+    return _problemas_da_unidade_no_item(unidade, item, servico)
+
+
+def _problemas_da_unidade_no_item(unidade: str, item: dict | None, servico: str) -> list[str]:
+    """Unidade que o item da EAP (ou o serviço dele) não aceita; serviço que o item não admite já é outro problema."""
+    if not item or (servico and servico not in item["servicos"]):
+        return []
+    aceitas = _unidades_do_item(item, servico)
+    if unidade in aceitas:
+        return []
+    return [f"unidade '{unidade}' não é aceita por {item['codigo']}" + (f" / {servico}" if servico else "")
+            + f" (aceitas: {', '.join(aceitas)})"]
+
+
+def _problemas_de_forma(ev: dict) -> list[str]:
+    """Problemas que impedem até a leitura do resto: documento que não é objeto com id, ou campo de texto de outro tipo."""
+    if not isinstance(ev.get("documento"), dict) or not ev["documento"].get("id"):
+        return ["documento tem de ser um objeto com id (nome do arquivo) e tipo"]
+    return [f"'{k}' tem de ser texto" for k in ("codigo", "servico", "localizador", "trecho", "regra")
+            if k in ev and not isinstance(ev[k], str)]
+
+
+def _problemas_ia(ev: dict) -> list[str]:
+    """Além do schema: uma proposta de IA tem método e tipo de documento `ia`; código com item da EAP geral (`*` só em
+    unidade e sistema); serviço que o item admite; escopo do enum; valor numérico não negativo com unidade do vocabulário
+    e do item (ou do serviço); `parcela` booleana. Nunca levanta exceção: linha malformada vira lista de problemas."""
+    problemas = _problemas_de_forma(ev)
+    if problemas:
+        return problemas
+    problemas = validar_evidencia(ev)
+    if ev.get("metodo") != "ia" or ev["documento"].get("tipo") != "ia":
+        problemas.append("método e documento.tipo têm de ser 'ia'")
+    servico = ev.get("servico") or ""
+    item = _item_do_codigo(ev.get("codigo")) if "codigo" in ev else None
+    problemas += _problemas_do_codigo_e_servico(ev, item, servico, bool(problemas))
+    problemas += _problemas_do_valor_e_da_unidade(ev.get("valor"), ev.get("unidade"), item, servico)
     if not isinstance(ev.get("parcela"), bool):
         problemas.append("'parcela' tem de ser true ou false")
     if not str(ev.get("trecho") or "").strip():
