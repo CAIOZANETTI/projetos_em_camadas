@@ -190,9 +190,9 @@ def test_etapa_grava_registro_e_tabelas(tmp_path):
     dados = _dados()
     dados["construtivos"] = construtivos.montar(dados, CFG)
     resumo = evidencias.etapa({}, tmp_path, dados, log=lambda *a: None)
-    assert {"fatos", "cobertura", "associados", "dimensoes"} <= set(resumo) and resumo["n_evidencias"] > 0
+    assert {"fatos", "cobertura", "associados", "dimensoes", "calibracao"} <= set(resumo) and resumo["n_evidencias"] > 0
     json.loads(json.dumps(resumo, allow_nan=False))                     # vai para o dados.json do HTML
-    assert all((tmp_path / n).exists() for n in ("evidencias.jsonl", "fatos.csv", "cobertura.csv", "associados.csv", "dimensoes.csv"))
+    assert all((tmp_path / n).exists() for n in ("evidencias.jsonl", "fatos.csv", "cobertura.csv", "associados.csv", "dimensoes.csv", "calibracao.csv"))
     assert all(evidencias.validar_evidencia(e) == [] for e in evidencias.ler(tmp_path / "evidencias.jsonl"))
 
 
