@@ -76,10 +76,15 @@ def validar_evidencia(ev: dict) -> list[str]:
 
 def _id_da_evidencia(campos: dict) -> str:
     """Id estável (hash) de documento, localizador, método, código, serviço, trecho, unidade, valor e autor."""
-    campos = {**campos, "valor": float(campos["valor"]) if isinstance(campos.get("valor"), (int, float))
-              and not isinstance(campos["valor"], bool) else campos.get("valor")}      # 250 e 250.0 são o mesmo id
-    chave = json.dumps([campos.get(k) for k in ("documento", "localizador", "metodo", "codigo", "servico", "trecho",
-                                                 "unidade", "valor", "autor")], ensure_ascii=False, sort_keys=True)
+    valor = campos.get("valor")
+    if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+        try:
+            valor = float(valor)                                                       # 250 e 250.0 são o mesmo id
+        except OverflowError:
+            pass                                                                       # inteiro gigante: fica como está
+    chaves = ("documento", "localizador", "metodo", "codigo", "servico", "trecho", "unidade", "valor", "autor")
+    chave = json.dumps([{**campos, "valor": valor}.get(k) for k in chaves]
+                       + ([campos.get("parcela")] if campos.get("metodo") == "ia" else []), ensure_ascii=False, sort_keys=True)
     return hashlib.sha1(chave.encode(), usedforsecurity=False).hexdigest()[:16]   # id, não segurança
 
 
@@ -269,21 +274,23 @@ def de_obras_lineares_mos(trechos: list[dict], furos: list[dict] | None = None, 
 
 
 # Conferência da citação de IA: o trecho, o par (valor, unidade) e o item têm de estar na MESMA linha do documento -------
+LIMITE_DO_VALOR = 1e12       # |valor| acima disso é erro de digitação (ou ataque), não quantidade de obra
 PALAVRAS_ATE_O_ITEM = 8     # número e unidade valem para o item se o termo dele está a no máximo 8 palavras, na linha
 _ASPAS_E_TRACOS = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'",
                                  "–": "-", "—": "-", "−": "-"})
 _UNIDADES_RE = "|".join(re.escape(g) for g in sorted(vocabulario.GRAFIAS, key=len, reverse=True))
 _NUMERO_INTEIRO = vocabulario.NUMERO + r"(?![\d]|[.,]\d)"
-_NUMERO_ANTES_DA_UNIDADE = re.compile(r"(?<![\d.,Ø])" + _NUMERO_INTEIRO + r"\s*(" + _UNIDADES_RE + r")(?![A-Z0-9])")
-_UNIDADE_ANTES_DO_NUMERO = re.compile(r"(?<![A-Z0-9])(" + _UNIDADES_RE + r")\s*[:|-]*\s*(?<![\d.,Ø])" + _NUMERO_INTEIRO)
-_NUMERO_ANTES_DO_TERMO = re.compile(r"(?<![\d.,Ø])" + _NUMERO_INTEIRO + r"\s*(?:\([^)]*\)\s*)?(?:[A-Z]+\s+){0,2}$")
+_NAO_E_NUMERO = r"(?<![\d.,ØA-Z])(?<![A-Z]-)"      # "DN150", "C30", "CA-50" não são quantidades
+_NUMERO_ANTES_DA_UNIDADE = re.compile(_NAO_E_NUMERO + _NUMERO_INTEIRO + r"\s*(" + _UNIDADES_RE + r")(?![A-Z0-9])")
+_UNIDADE_ANTES_DO_NUMERO = re.compile(r"(?<![A-Z0-9])(" + _UNIDADES_RE + r")\s*[:|-]*\s*" + _NAO_E_NUMERO + _NUMERO_INTEIRO)
+_NUMERO_ANTES_DO_TERMO = re.compile(_NAO_E_NUMERO + _NUMERO_INTEIRO + r"\s*(?:\([^)]*\)\s*)?(?:[A-Z]+\s+){0,2}$")
 
 
 def _linhas_normalizadas(texto) -> list[str]:
     """Linhas não vazias do texto, normalizadas (maiúsculas, sem acento, aspas e travessões unificados); o hífen de fim
     de linha ('esta-' + 'cas') é desfeito antes."""
     t = str(texto or "").translate(_ASPAS_E_TRACOS)
-    t = re.sub(r"(?<=[A-Za-zÀ-ÿ])-[ \t]*\r?\n[ \t]*(?=[a-zà-ÿ])", "", t)
+    t = re.sub(r"(?<=[A-Za-zÀ-ÿ])-[ \t]*\r?\n[ \t]*(?=[A-Za-zÀ-ÿ])", "", t)
     return [n for n in (normalizar(linha) for linha in t.splitlines()) if n]
 
 
@@ -303,56 +310,107 @@ def _unidades_do_item(item: dict, servico: str = "") -> list[str]:
     return list(dict.fromkeys(unidades)) or list(vocabulario.REGRAS["unidades"])
 
 
-def _pares_da_linha(linha: str) -> list[tuple[float, str, tuple[int, int], str | None]]:
-    """Todos os pares (número, unidade, posição, item) que uma linha normalizada afirma: 'número unidade' (20 m²),
-    'unidade número' (m³ 1.250,50; un - 250) e 'número termo de item' (250 estacas, 250 (duzentas) estacas → un, do item
-    do termo). Cada par também aparece convertido (12 t → 12000 kg). O número é um token inteiro: o 2 de M2, o 50 de
-    CA-50, o 5 de 12,5 e o 250 de 1.250 não contam."""
+def _paginas_normalizadas(paginas: list[str]) -> list[str]:
+    """Texto de cada página normalizado, uma linha por linha do documento: feito uma vez por documento."""
+    return ["\n".join(_linhas_normalizadas(p)) for p in paginas]
+
+
+def _termos_da_linha(linha: str) -> list[tuple[int, int, str]]:
+    """(início, fim, código do item) de todo termo de item da EAP geral que aparece na linha normalizada."""
+    return [(t.start(), t.end(), it["codigo"]) for it in eap.itens().values() for t in re.finditer(it["termos"], linha)]
+
+
+def _pares_da_linha(linha: str, termos: list[tuple[int, int, str]]) -> tuple[list[tuple], set]:
+    """Todos os pares (número, unidade, posição, item) que uma linha normalizada afirma, e os termos que um número já
+    tomou para si. Pares: 'número unidade' (20 m²), 'unidade número' (m³ 1.250,50; un - 250) e 'número termo de item'
+    (250 estacas, 250 (duzentas) estacas → un, do item do termo). O par número + termo não vale se entre os dois há uma
+    unidade ('12 m de estaca' é 12 m; 'un 250 Bloco' é a quantidade da linha anterior) nem se outro termo de item está mais perto do número. Cada par também aparece
+    convertido (12 t → 12000 kg). O número é um token inteiro: o 2 de M2, o 50 de CA-50, o 5 de 12,5 e o 250 de 1.250
+    não contam."""
     pares = [(numero_br(m[1]), vocabulario.GRAFIAS[m[2]], m.span(), None) for m in _NUMERO_ANTES_DA_UNIDADE.finditer(linha)]
     pares += [(numero_br(m[2]), vocabulario.GRAFIAS[m[1]], m.span(), None) for m in _UNIDADE_ANTES_DO_NUMERO.finditer(linha)]
-    for item in eap.itens().values():
-        for termo in re.finditer(item["termos"], linha):
-            if antes := _NUMERO_ANTES_DO_TERMO.search(linha[:termo.start()]):
-                pares.append((numero_br(antes[1]), "un", (antes.start(), termo.end()), item["codigo"]))
-    return pares + [(*vocabulario.converter(n, u), pos, via) for n, u, pos, via in pares if u in vocabulario.REGRAS["conversoes"]]
+    donos, depois_de_unidade = set(), {m.start(2) for m in _UNIDADE_ANTES_DO_NUMERO.finditer(linha)}
+    for ini, fim, codigo in termos:
+        antes = _NUMERO_ANTES_DO_TERMO.search(linha[:ini])
+        if not antes or antes.start(1) in depois_de_unidade or any(p in vocabulario.GRAFIAS for p in re.findall(r"[A-Z0-9]+", linha[antes.end(1):ini])):
+            continue
+        if any(antes.end(1) <= i2 < ini or (i2 == ini and c2 != codigo) for i2, _, c2 in termos):
+            continue
+        pares.append((numero_br(antes[1]), "un", (antes.start(), fim), codigo))
+        donos.add((ini, fim, codigo))
+    return pares + [(*vocabulario.converter(n, u), pos, via) for n, u, pos, via in pares
+                    if u in vocabulario.REGRAS["conversoes"]], donos
 
 
-def _item_citado(linha: str, item: dict, posicao: tuple[int, int] | None = None) -> bool:
-    """O termo do item está na linha (ou um sinônimo dele) e, dado o número, a no máximo PALAVRAS_ATE_O_ITEM palavras."""
-    termos = list(re.finditer(item["termos"], linha))
-    if not termos:
-        return bool(re.search(item["termos"], preparar(linha)[1]))        # só por sinônimo: vale na linha toda
+def _situacao_do_item(linha: str, item: dict, termos: list, donos: set, posicao: tuple[int, int] | None = None) -> str:
+    """'citado', 'ausente' ou 'outro' (o número pertence a outro item). O item é citado se o termo dele (ou um sinônimo)
+    está na linha; dado o número, o termo livre dele tem de estar a no máximo PALAVRAS_ATE_O_ITEM palavras e ser o termo
+    de item mais próximo (empate = outro). Termo que outro número já tomou ('2 estacas') não conta."""
+    meus = [t for t in termos if t[2] == item["codigo"]]
+    if not meus:
+        return "citado" if re.search(item["termos"], preparar(linha)[1]) else "ausente"
     if posicao is None:
-        return True
+        return "citado"
     ini, fim = posicao
-    return any(len((linha[t.end():ini] if t.end() <= ini else linha[fim:t.start()] if fim <= t.start() else "").split())
-               <= PALAVRAS_ATE_O_ITEM for t in termos)
+    livres = [t for t in termos if t not in donos]
+    meus_livres, outros = [t for t in livres if t[2] == item["codigo"]], [t for t in livres if t[2] != item["codigo"]]
+
+    def distancia(t) -> int:
+        return max(0, t[0] - fim, ini - t[1])
+
+    def palavras(t) -> int:
+        return len((linha[t[1]:ini] if t[1] <= ini else linha[fim:t[0]] if fim <= t[0] else "").split())
+    candidatos = meus_livres or ([] if outros else meus)       # o termo já tomado por outro número só serve sem rival
+    if not candidatos:
+        return "outro" if outros else "ausente"
+    perto = [t for t in candidatos if palavras(t) <= PALAVRAS_ATE_O_ITEM]
+    if not perto:
+        return "ausente"
+    return "outro" if outros and min(map(distancia, outros)) <= min(map(distancia, perto)) else "citado"
 
 
-def _confere_fragmento(fragmento: str, valor, unidade: str | None, item: dict) -> tuple[bool, bool]:
-    """(o par existe na linha, o par vale para o item). Sem valor (menção), só se pergunta se o item é citado."""
+def _confere_fragmento(fragmento: str, valor, unidade: str | None, item: dict) -> tuple[bool, str]:
+    """(o par existe na linha, situação do item: 'citado', 'ausente' ou 'outro'). Sem valor (menção), só o item."""
     linha = preparar(fragmento)[0]
+    termos = _termos_da_linha(linha)
+    pares, donos = _pares_da_linha(linha, termos)
     if valor is None:
-        citado = _item_citado(linha, item)
-        return citado, citado
-    achados = [(pos, via) for n, u, pos, via in _pares_da_linha(linha) if abs(n - valor) < 1e-9 and u == unidade]
-    return bool(achados), any(via == item["codigo"] if via else _item_citado(linha, item, pos) for pos, via in achados)
+        return True, _situacao_do_item(linha, item, termos, donos)
+    achados = [(pos, via) for n, u, pos, via in pares if abs(n - valor) < 1e-9 and u == unidade]
+    situacoes = [(("citado" if via == item["codigo"] else "outro"
+                   if _situacao_do_item(linha, item, termos, donos) == "citado" else "ausente")
+                  if via else _situacao_do_item(linha, item, termos, donos, pos)) for pos, via in achados]
+    return bool(achados), "citado" if "citado" in situacoes else "outro" if "outro" in situacoes else "ausente"
 
 
-def conferir_citacao(ev: dict, paginas: list[str]) -> dict:
-    """Evidência de IA conferida contra as páginas do documento. O trecho (3 palavras ou 15 caracteres e uma letra) tem
-    de estar numa página, com fronteira de palavra e de número ('250 estacas' não está em '1250' nem em '1.250 estacas');
-    pode atravessar linhas, mas nunca páginas. Com valor, o par (valor, unidade) e o termo do item do código têm de vir da
-    MESMA linha do trecho (`_confere_fragmento`); sem valor (menção), o item tem de ser citado. Se o localizador diz
-    'p. N', o trecho tem de estar na página N."""
+def _achar(padrao: str, tokens: list[str], normalizadas: list[str], pagina: int | None) -> dict[int, list]:
+    """Casamentos do trecho por página (1 = primeira). Com página citada, olha só ela se o trecho estiver lá; as
+    páginas sem todas as palavras do trecho nem passam pela regex."""
+    def procurar(n: int) -> list:
+        texto = normalizadas[n - 1]
+        return list(re.finditer(padrao, texto)) if all(t in texto for t in tokens) else []
+    if pagina and 1 <= pagina <= len(normalizadas) and (achou := procurar(pagina)):
+        return {pagina: achou}
+    return {n: achou for n in range(1, len(normalizadas) + 1) if (achou := procurar(n))}
+
+
+def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | None = None) -> dict:
+    """Evidência de IA conferida contra as páginas do documento (`normalizadas`: o `_paginas_normalizadas` delas, se já
+    feito). O trecho (3 palavras ou 15 caracteres e uma letra) tem de estar numa página, com fronteira de palavra e de
+    número ('250 estacas' não está em '1250', '1 250' nem '1.250 estacas'); pode atravessar linhas, nunca páginas. Com
+    valor, o par (valor, unidade) e o termo do item do código têm de vir da MESMA linha do trecho (`_confere_fragmento`),
+    e o item tem de ser o termo mais próximo do número; sem valor (menção), o item tem de ser citado. Se o localizador
+    diz 'p. N' ou 'pág. N' (índice da página no PDF), o trecho tem de estar na página N."""
+    normalizadas = _paginas_normalizadas(paginas) if normalizadas is None else normalizadas
     trecho = " ".join(_linhas_normalizadas(ev.get("trecho", "")))
     valor, unidade, item = ev.get("valor"), ev.get("unidade"), _item_do_codigo(ev.get("codigo"))
-    padrao = (r"(?<![A-Z0-9])(?<![0-9][.,])" + r"[ \n]+".join(map(re.escape, trecho.split()))
-              + r"(?![A-Z0-9])(?![.,][0-9])")
-    achados = {n: list(re.finditer(padrao, "\n".join(_linhas_normalizadas(p)))) for n, p in enumerate(paginas, 1)}
-    achados = {n: m for n, m in achados.items() if m}
-    cita = re.search(r"\bP\.?\s*(\d+)", normalizar(ev.get("localizador", "")))
-    if not (re.search("[A-Z]", trecho) and (len(trecho.split()) >= 3 or len(trecho) >= 15)):
+    cita = re.search(r"\b(?:PAG|P)\.?\s*(\d+)", normalizar(ev.get("localizador", "")))
+    tokens = trecho.split()
+    curto = not (re.search("[A-Z]", trecho) and (len(tokens) >= 3 or len(trecho) >= 15))
+    padrao = (r"(?<![A-Z0-9])(?<![0-9][.,])" + (r"(?<!(?<![A-Z])[0-9] )" if trecho[:1].isdigit() else "")   # "1 250"; mas "M3 120" vale
+              + r"[ \n]+".join(map(re.escape, tokens)) + r"(?![A-Z0-9])(?![.,][0-9])")
+    achados = {} if curto else _achar(padrao, tokens, normalizadas, int(cita[1]) if cita else None)
+    if curto:
         status = "trecho curto demais"
     elif not achados:
         status = "trecho não encontrado no documento"
@@ -360,13 +418,20 @@ def conferir_citacao(ev: dict, paginas: list[str]) -> dict:
         status = "página citada não contém o trecho"
     elif item is None:
         status = "código sem item na EAP geral"
-    elif valor is not None and not (isinstance(valor, (int, float)) and not isinstance(valor, bool)):
+    elif valor is not None and not (isinstance(valor, (int, float)) and not isinstance(valor, bool)
+                                    and abs(valor) <= LIMITE_DO_VALOR):
         status = "valor não está no trecho"
     else:
-        candidatos = achados[int(cita[1])] if cita else [m for ms in achados.values() for m in ms]
-        pares = [_confere_fragmento(f, valor, unidade, item) for m in candidatos for f in m.group().split("\n")]
+        fragmentos = dict.fromkeys(f for ms in achados.values() for m in ms for f in m.group().split("\n"))
+        pares = []
+        for fragmento in fragmentos:                   # cada texto de linha só uma vez; para no primeiro que confere
+            pares.append(_confere_fragmento(fragmento, valor, unidade, item))
+            if pares[-1] == (True, "citado"):
+                break
         status = ("valor não está no trecho" if valor is not None and not any(p for p, _ in pares)
-                  else "item não citado no trecho" if not any(ok for _, ok in pares) else "conferida")
+                  else "conferida" if any(s == "citado" for _, s in pares)
+                  else "número pertence a outro item" if any(s == "outro" for _, s in pares)
+                  else "item não citado no trecho")
     return {**ev, "citacao": status}
 
 
@@ -389,9 +454,8 @@ def _afirmacoes(evs: list[dict]) -> list[dict]:
     for doc in dict.fromkeys(e["documento"]["id"] for e in evs):
         do_doc = [e for e in evs if e["documento"]["id"] == doc]
         parcelas = [e for e in do_doc if e["parcela"]]
-        if doc.startswith("ia:"):         # a IA não distingue parcela de total repetido: o mesmo valor conta uma vez
-            totais = {e["valor"] for e in do_doc if not e["parcela"]}
-            parcelas = list({e["valor"]: e for e in parcelas if e["valor"] not in totais}.values())
+        if doc.startswith("ia:"):         # a mesma frase em outra página é total repetido, não outra parcela
+            parcelas = list({" ".join(_linhas_normalizadas(e["trecho"])): e for e in parcelas}.values())
         grupos = ([("parcelas", parcelas)] if parcelas else []) + \
                  [(f"total {e['valor']:g}", [t for t in do_doc if not t["parcela"] and t["valor"] == e["valor"]])
                   for e in {e["valor"]: e for e in do_doc if not e["parcela"]}.values()]
@@ -456,10 +520,22 @@ def _fato(chave: tuple, evs: list[dict], mencoes: list[dict], tol: float) -> dic
             "decisoes": [{"valor": d["valor"], "autor": d["autor"], "justificativa": d["justificativa"]} for d in decisoes]}
 
 
+def _sem_ia_repetida(evs: list[dict]) -> list[dict]:
+    """A mesma proposta de IA (mesmo id) conta uma vez; as outras fontes ficam como estão (duas parcelas iguais somam)."""
+    vistos, saida = set(), []
+    for e in evs:
+        if e["metodo"] == "ia":
+            if e["id"] in vistos:
+                continue
+            vistos.add(e["id"])
+        saida.append(e)
+    return saida
+
+
 def consolidar(evs: list[dict], tol: float = 0.005) -> pd.DataFrame:
     """Fatos (código, serviço, unidade) com o status: convergente, fonte única, conflito, só menção ou decidido.
     IA só entra com citação conferida. Menção (sem número) reforça o fato mas não dá valor."""
-    evs = list({e["id"]: e for e in evs}.values())          # a mesma evidência (mesmo id) conta uma vez
+    evs = _sem_ia_repetida(evs)
     aceitas = [e for e in evs if e["metodo"] != "ia" or e.get("citacao") == "conferida"]
     valoradas = [e for e in aceitas if e["valor"] is not None and e["unidade"]]
     mencoes = [e for e in aceitas if e["valor"] is None]
@@ -549,15 +625,16 @@ def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: di
     evs += associados.de_elementos(construtivos, epsg, sondagens, declarados)[0]
     evs += list(extras or [])
     paginas = {d["id"]: d["paginas"] for d in documentos}
+    normalizadas = {n: _paginas_normalizadas(p) for n, p in paginas.items()} if ia else {}
     for proposta in ia or []:                                  # nunca confia no selo que veio no arquivo
-        conferida = _conferir_ia(proposta, paginas) if isinstance(proposta, dict) else \
+        conferida = _conferir_ia(proposta, paginas, normalizadas) if isinstance(proposta, dict) else \
             {"citacao": "schema inválido: a linha não é um objeto JSON", "proposta": proposta}
         if conferida["citacao"].startswith("schema inválido"):    # sem estrutura para entrar nas tabelas: só se informa
             (recusadas_ia if recusadas_ia is not None else []).append({"motivo": conferida["citacao"], "evidencia": conferida})
         else:
             evs.append(conferida)
     evs += list(decisoes or [])
-    evs = list({e["id"]: e for e in evs}.values())
+    evs = _sem_ia_repetida(evs)
     return evs + associados.de_fatos(consolidar(evs))
 
 
@@ -713,7 +790,7 @@ def _sanear_ia(ev: dict) -> dict:
     return {"id": _id_da_evidencia(ev), **ev}
 
 
-def _conferir_ia(ev: dict, documentos: dict[str, list[str]]) -> dict:
+def _conferir_ia(ev: dict, documentos: dict[str, list[str]], normalizadas: dict[str, list[str]] | None = None) -> dict:
     """Proposta de IA saneada e conferida: `citacao` é 'conferida' ou o motivo da recusa (schema inválido, documento
     não fornecido, trecho curto demais ou não encontrado, valor fora do trecho). Serve ao `conferir` e ao build."""
     ev = _sanear_ia(ev)
@@ -723,7 +800,7 @@ def _conferir_ia(ev: dict, documentos: dict[str, list[str]]) -> dict:
     nome = _nome_do_documento(ev)
     if nome not in documentos:
         return {**ev, "citacao": f"documento não fornecido: {nome}"}
-    conferida = conferir_citacao(ev, documentos[nome])
+    conferida = conferir_citacao(ev, documentos[nome], (normalizadas or {}).get(nome))
     if conferida["citacao"] == "conferida" and conferida.get("valor") is not None:      # a mesma unidade do regex (t → kg)
         valor, unidade = vocabulario.converter(float(conferida["valor"]), conferida["unidade"])
         conferida = {**conferida, "valor": valor, "unidade": unidade}
@@ -752,8 +829,12 @@ def _problemas_ia(ev: dict) -> list[str]:
         problemas.append(f"serviço '{servico}' não é admitido pelo item {item['codigo']}")
     if ev.get("escopo") not in SCHEMA["properties"]["escopo"]["enum"]:
         problemas.append(f"escopo '{ev.get('escopo')}' inválido")
-    if valor is not None and (isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor)):
-        problemas.append(f"valor '{valor}' não é número")
+    if valor is None and unidade is not None and (not isinstance(unidade, str) or unidade not in vocabulario.REGRAS["unidades"]):
+        problemas.append(f"unidade '{unidade}' fora do vocabulário ({', '.join(vocabulario.REGRAS['unidades'])})")
+    if valor is not None and (isinstance(valor, bool) or not isinstance(valor, (int, float))):
+        problemas.append(f"valor '{str(valor)[:30]}' não é número")
+    elif valor is not None and not abs(valor) <= LIMITE_DO_VALOR:
+        problemas.append(f"valor fora do intervalo (|valor| até {LIMITE_DO_VALOR:g})")
     elif valor is not None and (not isinstance(unidade, str) or unidade not in vocabulario.REGRAS["unidades"]):
         problemas.append(f"unidade '{unidade}' fora do vocabulário ({', '.join(vocabulario.REGRAS['unidades'])})")
     elif valor is not None and valor < 0:
@@ -775,6 +856,7 @@ def conferir_arquivo(linhas: list, documentos: dict[str, list[str]]) -> tuple[li
     {linha, motivo, evidencia}. Os campos do código (`citacao`, `derivada`, `id`, `autor`, `justificativa`) que vierem
     na proposta são descartados e o `id` é sempre recalculado (`_sanear_ia`)."""
     aceitas, recusadas = [], []
+    normalizadas = {n: _paginas_normalizadas(p) for n, p in documentos.items()}        # uma vez por documento
     for n, bruta in enumerate((x for x in linhas if isinstance(x, dict) or str(x).strip()), 1):
         try:
             ev = bruta if isinstance(bruta, dict) else json.loads(bruta)
@@ -783,7 +865,7 @@ def conferir_arquivo(linhas: list, documentos: dict[str, list[str]]) -> tuple[li
         except (ValueError, TypeError) as erro:
             recusadas.append({"linha": n, "motivo": f"schema inválido: JSON inválido: {erro}", "evidencia": str(bruta)[:200]})
             continue
-        conferida = _conferir_ia(ev, documentos)
+        conferida = _conferir_ia(ev, documentos, normalizadas)
         if conferida["citacao"] == "conferida":
             aceitas.append(conferida)
         else:

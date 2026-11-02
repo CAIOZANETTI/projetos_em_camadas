@@ -56,15 +56,24 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
   palavras um do outro (o trecho pode ocupar mais linhas, nunca mais de uma página). Em tabela, copie a linha inteira
   ("Estaca hélice contínua Ø40 un 250"), não o número de uma linha com o nome de outra.
 - **Item e serviço existem.** `codigo` com o item da EAP geral (`*` só em unidade e sistema), `servico` admitido pelo
-  item (ou `""`) e `unidade` aceita por eles; o roteiro lista tudo. `localizador` "p. N" tem de ser a página do trecho.
-- **Parcelas iguais.** Duas parcelas com o mesmo valor no mesmo documento contam uma vez: para somar quantidades iguais,
-  cite o total (`parcela: false`).
+  item (ou `""`) e `unidade` aceita por eles; o roteiro lista tudo. `localizador` "p. N" (ou "pág. N") é o **índice da página no PDF** (1 = primeira folha), não o número impresso, e tem de
+  ser a página do trecho.
+- **Parcelas e totais.** `parcela: true` soma: "Bloco B1 com 12 estacas" e "Bloco B2 com 12 estacas" dão 24. O total
+  que o documento escreve (e a frase repetida em outra página) é `parcela: false`; a mesma frase com `parcela: true`
+  em duas páginas conta uma vez, mas um resumo com palavras diferentes soma de novo: não marque total como parcela.
+- **O número é do item mais próximo.** Se a linha tem dois itens ("Estaca … un 250 Bloco de coroamento un 30"), o número
+  vale para o termo de item mais próximo dele, e "12 m de estaca" é 12 m, não 12 estacas. Em dúvida, a conferência recusa
+  ("número pertence a outro item") e a linha volta para a escada.
 - **Nunca inventar número.** Sem número no trecho, `valor: null` (menção).
 - **Uma linha por afirmação.** Duas quantidades na mesma frase são duas linhas (com o mesmo trecho).
 - **Não somar no texto.** Duas parcelas em linhas diferentes são duas evidências `parcela: true`; quem soma é o código.
 - O `valor` tem de ser um número escrito no trecho (`1.200,5` no texto vira `1200.5`). Não converta unidade: se o
   trecho diz "2,5 t", são `2.5` e `t`.
 - O documento citado em `documento.id` tem de ser um dos fornecidos a `conferir`.
+- Limitações conhecidas (pendências em `docs/EAP.md` §10): número colado a letra ou hífen ("DN150 m 320", "C30 m³ 45",
+  "CA-50 kg 1.200") não vale como quantidade, como no regex; descrição de planilha em várias linhas com a quantidade na
+  última, ou "Quantidade: 250 un" em linha própria, é recusada (o número, a unidade e o termo do item precisam estar na
+  mesma linha): procure a linha de tabela que os reúne ou devolva à escada.
 - Texto puro (`--texto`): as páginas são separadas por quebra de página (`\f`); sem ela, é uma página só.
 - `id`, `citacao`, `derivada`, `autor` e `justificativa` são do código: se vierem na linha, são descartados e `id` é
   recalculado. `documento.id` com caminho vira o nome do arquivo.

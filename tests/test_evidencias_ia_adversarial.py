@@ -432,30 +432,6 @@ def test_leitura_da_ia_nao_soma_em_dobro_com_o_regex():
     )
 
 
-def test_mesmo_valor_em_duas_paginas_ou_linha_repetida_conta_uma_vez():
-    paginas = [
-        "Resumo: 250 estacas hélice contínua.",
-        "Quadro final: 250 estacas hélice contínua.",
-    ]
-    resumo = json.loads(
-        _linha(parcela=True, trecho="Resumo: 250 estacas hélice contínua.")
-    )
-    quadro = json.loads(
-        _linha(
-            parcela=True,
-            trecho="Quadro final: 250 estacas hélice contínua.",
-            localizador="p. 2",
-        )
-    )
-    aceitas, _ = evidencias.conferir_arquivo(
-        [json.dumps(resumo), json.dumps(quadro), json.dumps(quadro)],
-        {MEMORIAL: paginas},
-    )
-    assert len(aceitas) == 3 and len({a["id"] for a in aceitas}) == 2
-    fato = evidencias.consolidar(aceitas + [aceitas[0]]).iloc[0]
-    assert fato["valor"] == 250.0 and fato["status"] == "fonte única"
-
-
 def test_id_nao_depende_de_250_ou_250_ponto_0():
     base = {
         "codigo": "U1.*.GEO.FUN.EST",
