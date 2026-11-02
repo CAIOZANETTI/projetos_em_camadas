@@ -244,3 +244,15 @@ def test_id_furo_aceita_argumento_nao_hashable_e_separa_tipos():
     assert ol.id_furo(None) == ol.id_furo(None)
     assert ol.id_furo(2) == "2" and ol.id_furo(2.0) == "20"
     assert ol.id_furo("SP-02") == "SP2"
+
+
+def test_etapa_sem_a_aba_obras_lineares_e_pulada_com_motivo(tmp_path):
+    """Achado do build real de Foz: a planilha do contrato no Drive não tem a aba do protótipo."""
+    planilha = tmp_path / "contrato.xlsx"
+    wb = openpyxl.Workbook()
+    wb.active.title = "CUSTO CIVIL"
+    wb.save(planilha)
+    mensagens = []
+    cfg = {"obras_lineares": {"planilha": str(planilha), "aba": "Obras Lineares"}}
+    assert ol.etapa(cfg, [], tmp_path, log=mensagens.append) is None
+    assert any("Obras Lineares" in m and "NÃO CALCULADAS" in m for m in mensagens)

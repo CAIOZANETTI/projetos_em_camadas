@@ -453,10 +453,10 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     `cavas`: o `saida_gavetas` de `escavacao.etapa` (marcas, bases, cristas, grade e resultado); grava a superfície em
     `base/superficies/`, junta `de_cavas` e soma a paridade com o `escavacao.calcular` direto."""
     c = cfg.get("obras_lineares")
-    tem_planilha = bool(c) and Path(c["planilha"]).exists()
+    tem_planilha = bool(c) and ol.tem_aba(c)
+    if c and not tem_planilha:
+        log(f"Gavetas: sem trechos da planilha ({c['planilha']} ausente ou sem a aba '{c.get('aba', 'Obras Lineares')}')")
     if not tem_planilha and not cavas:
-        if c:
-            log(f"Gavetas: planilha {c['planilha']} não está no disco")
         return None
     aba = c.get("aba", "Obras Lineares") if tem_planilha else None
     trechos = ol.ler_obras_lineares(c["planilha"], aba) if tem_planilha else []

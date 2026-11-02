@@ -421,6 +421,13 @@ def para_html(qs: list[dict], conc: list[dict], c: dict) -> dict:
             "premissas": REGRAS["metadata"]["observacoes"], "mnd": REGRAS["mnd"]["orientacoes"]}
 
 
+def tem_aba(c: dict) -> bool:
+    """A planilha de `obras_lineares` existe e tem a aba declarada (a do contrato no Drive pode não ter)."""
+    if not Path(c["planilha"]).exists():
+        return False
+    return c.get("aba", "Obras Lineares") in openpyxl.load_workbook(c["planilha"], read_only=True).sheetnames
+
+
 def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
     """Etapa da obra (`obras_lineares` no obra.json): lê a planilha, aplica o método escolhido pelo usuário em cada
     trecho (`metodo`: {local: 'MND'}), cruza com as sondagens da obra e grava os CSVs em `out`."""
@@ -429,9 +436,13 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print) -> dict | None:
         if c:
             log(f"Obras lineares: planilha {c['planilha']} não está no disco")
         return None
+    aba = c.get("aba", "Obras Lineares")
+    if not tem_aba(c):
+        log(f"Obras lineares: NÃO CALCULADAS — a planilha {c['planilha']} não tem a aba '{aba}' (pendência; o build segue)")
+        return None
     escolha = {norm(k): v for k, v in (c.get("metodo") or {}).items()}
     trechos = [{**t, "metodo": escolha.get(norm(t["local"]), t["metodo"])}
-               for t in ler_obras_lineares(c["planilha"], c.get("aba", "Obras Lineares"))]
+               for t in ler_obras_lineares(c["planilha"], aba)]
     qs = [quantificar(t, furos) for t in trechos]
     conc = conciliar(trechos, ler_custo_civil(c["planilha"], c.get("aba_custo", "CUSTO CIVIL"), c.get("unidade", "UNIDADE 1")))
     for nome, df in (("obras_lineares.csv", quadro(qs)), ("obras_lineares_conciliacao.csv", pd.DataFrame(conc))):
