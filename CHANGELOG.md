@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.36.0 — 2026-11-02 · Aba EAP: selo por nó, filtro por prefixo e vista particular
+## 0.37.0 — 2026-11-02 · Aba EAP: selo por nó, filtro por prefixo e vista particular
 - **Selo de status por nó** (`eap_painel.status_do_no`, `arvore`): `status_no`, `n_fatos` e `n_conflitos` calculados em
   Python a partir dos fatos sob o nó. Fato com `*` no código vale para todo nó que casa segmento a segmento; fato de
   item vale para o item e os ancestrais. Conflito > fonte única (inclui só menção) > convergente (inclui decidido);
@@ -14,6 +14,19 @@
   item com vários elementos não abre popup com autoPan (o enquadramento manda); nó não-item com um elemento volta a
   selecionar e abrir popup sem trocar de aba (como antes); fatos e quantidades divididos uma vez, indexados por unidade.
 - Pendente: esmaecer layers CAD de outras disciplinas (ver `docs/EAP.md` §9).
+## 0.36.0 — 2026-11-02 · Memória espacial, rodada 6: as gavetas falam a EAP codificada
+- **De-para 3 com o código real** (`conceitos/de_para_eap.json`, `codigo_eap`): cada saída das gavetas aponta o
+  item (`eap_geral.jsonl`) e os serviços (`servicos.jsonl`) da EAP codificada. Vala vai para `GEO.MOV.VAL`,
+  pavimento para `CIV.PAV.REC`/`CAL`, supressão para `GEO.MOV.SUP` e cavas para `GEO.MOV.ESC`/`REA`. Caximbos e área
+  de cava ficam "sem código", à vista.
+- **Código completo por serviço** (`gavetas.codigo_eap`, `unidade_sistema`): `UNIDADE.SISTEMA.ITEM` no formato de
+  `eap.estrutura`. A unidade e o sistema vêm do setor, do `local` do trecho pelas `chaves` de
+  `unidades_construtivas.json` ou do padrão do obra.json. Sem nenhum, ou com mais de um sistema, vira pendência,
+  nunca código inventado.
+- **Conciliação das duas EAP** (`gavetas.conciliar_eap`, `obra._conciliar_eaps`): a medida de cada item das gavetas
+  é comparada com a quantidade da EAP codificada. As situações são confere, difere, só nas gavetas, só na EAP
+  codificada e fora das gavetas. O resultado vai para `conciliacao_eap.json` e para a tabela na aba EAP.
+- Lição L032.
 
 ## 0.35.0 — 2026-11-02 · Aba EAP: árvore codificada, fatos e evidências
 - **Fim da colisão em `dados["eap"]`** (`camadas/obra.py`): a árvore das gavetas fica em `dados["eap_gavetas"]`

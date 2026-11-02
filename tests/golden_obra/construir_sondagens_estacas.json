@@ -1,0 +1,1504 @@
+{
+ "anotacoes": {
+  "features": [],
+  "type": "FeatureCollection"
+ },
+ "area_obra": {
+  "area_m2": 905,
+  "fonte": "",
+  "fontes": [
+   "^cameras"
+  ],
+  "fracao_do_voo": 0.566,
+  "margem_m": 8.0,
+  "utm": [
+   [
+    745835.88,
+    7182884.58
+   ],
+   [
+    745835.31,
+    7182884.02
+   ],
+   [
+    745834.68,
+    7182883.51
+   ],
+   [
+    745834.01,
+    7182883.07
+   ],
+   [
+    745833.29,
+    7182882.71
+   ],
+   [
+    745832.54,
+    7182882.41
+   ],
+   [
+    745831.76,
+    7182882.2
+   ],
+   [
+    745830.97,
+    7182882.06
+   ],
+   [
+    745830.16,
+    7182882.0
+   ],
+   [
+    745829.36,
+    7182882.03
+   ],
+   [
+    745828.56,
+    7182882.13
+   ],
+   [
+    745827.78,
+    7182882.32
+   ],
+   [
+    745827.01,
+    7182882.58
+   ],
+   [
+    745826.28,
+    7182882.92
+   ],
+   [
+    745825.59,
+    7182883.33
+   ],
+   [
+    745824.94,
+    7182883.8
+   ],
+   [
+    745824.34,
+    7182884.34
+   ],
+   [
+    745804.34,
+    7182904.34
+   ],
+   [
+    745803.82,
+    7182904.92
+   ],
+   [
+    745803.36,
+    7182905.54
+   ],
+   [
+    745802.96,
+    7182906.21
+   ],
+   [
+    745802.62,
+    7182906.91
+   ],
+   [
+    745802.36,
+    7182907.64
+   ],
+   [
+    745802.16,
+    7182908.4
+   ],
+   [
+    745802.04,
+    7182909.16
+   ],
+   [
+    745802.0,
+    7182909.94
+   ],
+   [
+    745802.03,
+    7182910.72
+   ],
+   [
+    745802.14,
+    7182911.49
+   ],
+   [
+    745802.32,
+    7182912.24
+   ],
+   [
+    745802.58,
+    7182912.98
+   ],
+   [
+    745802.9,
+    7182913.69
+   ],
+   [
+    745803.29,
+    7182914.36
+   ],
+   [
+    745803.75,
+    7182914.99
+   ],
+   [
+    745804.26,
+    7182915.57
+   ],
+   [
+    745804.83,
+    7182916.1
+   ],
+   [
+    745805.44,
+    7182916.58
+   ],
+   [
+    745806.1,
+    7182916.99
+   ],
+   [
+    745806.8,
+    7182917.33
+   ],
+   [
+    745807.53,
+    7182917.61
+   ],
+   [
+    745808.28,
+    7182917.81
+   ],
+   [
+    745809.04,
+    7182917.94
+   ],
+   [
+    745809.82,
+    7182918.0
+   ],
+   [
+    745810.6,
+    7182917.98
+   ],
+   [
+    745811.37,
+    7182917.88
+   ],
+   [
+    745812.13,
+    7182917.71
+   ],
+   [
+    745840.0,
+    7182910.02
+   ],
+   [
+    745840.0,
+    7182890.0
+   ],
+   [
+    745836.4,
+    7182885.2
+   ],
+   [
+    745835.88,
+    7182884.58
+   ]
+  ]
+ },
+ "bases": [
+  {
+   "grupo": "Levantamento",
+   "h": 73,
+   "id": "orto",
+   "m": [
+    0.5,
+    0,
+    745802.0,
+    0,
+    -0.5,
+    7182918.0
+   ],
+   "nome": "Ortofoto drone (1 fotos nadirais)",
+   "src": "<blob>",
+   "visivel": true,
+   "w": 76
+  }
+ ],
+ "crs": {
+  "centro": [
+   -25.450618,
+   -54.555439
+  ],
+  "epsg": 31981,
+  "erro_afim_m": 3.2e-05,
+  "k": 1.000236,
+  "k_alt": 0.99989,
+  "k_proj": 1.000346,
+  "ll2utm": [
+   100596.68937,
+   2032.737865,
+   6285650.992202,
+   -1845.558604,
+   110799.353073,
+   9902126.749824
+  ],
+  "nome": "SIRGAS 2000 / UTM zone 21S",
+  "utm2ll": [
+   1e-05,
+   -0.0,
+   -60.65738,
+   0.0,
+   9e-06,
+   -90.380252
+  ]
+ },
+ "elementos": {
+  "a_demolir": {
+   "grupo": "Referência",
+   "nome": "Existente a desativar / demolir"
+  },
+  "armadura": {
+   "grupo": "Estrutura",
+   "nome": "Armadura"
+  },
+  "balao": {
+   "grupo": "Grafismo",
+   "nome": "Balão da lista de peças"
+  },
+  "bloco": {
+   "grupo": "Estrutura",
+   "nome": "Bloco / sapata / fundação"
+  },
+  "caixa": {
+   "grupo": "Hidráulica",
+   "nome": "Caixa / PV / poço / tampa"
+  },
+  "calcada": {
+   "grupo": "Civil",
+   "nome": "Calçada / passeio"
+  },
+  "carimbo": {
+   "grupo": "Grafismo",
+   "nome": "Carimbo / moldura"
+  },
+  "cerca": {
+   "grupo": "Civil",
+   "nome": "Cerca"
+  },
+  "chamada": {
+   "grupo": "Grafismo",
+   "nome": "Linha de chamada / indicação"
+  },
+  "concreto": {
+   "grupo": "Estrutura",
+   "nome": "Concreto (contorno)"
+  },
+  "conexao": {
+   "grupo": "Hidráulica",
+   "nome": "Conexão / flange / peça"
+  },
+  "corte": {
+   "grupo": "Grafismo",
+   "nome": "Indicação de corte / seção"
+  },
+  "cota": {
+   "grupo": "Grafismo",
+   "nome": "Cota / dimensão"
+  },
+  "edificacao": {
+   "grupo": "Civil",
+   "nome": "Edificação (cadastro)"
+  },
+  "eixo": {
+   "grupo": "Grafismo",
+   "nome": "Eixo / linha de centro"
+  },
+  "eletrica": {
+   "grupo": "Elétrica",
+   "nome": "Elétrica (circuito, painel, eletroduto)"
+  },
+  "equipamento": {
+   "grupo": "Hidráulica",
+   "nome": "Equipamento / bomba / comporta"
+  },
+  "escavacao": {
+   "grupo": "Civil",
+   "nome": "Escavação / talude"
+  },
+  "esquadria": {
+   "grupo": "Estrutura",
+   "nome": "Esquadria / guarda-corpo / escada"
+  },
+  "estaca": {
+   "grupo": "Estrutura",
+   "nome": "Estaca"
+  },
+  "existente": {
+   "grupo": "Referência",
+   "nome": "Existente"
+  },
+  "futuro": {
+   "grupo": "Referência",
+   "nome": "Futuro (outra etapa)"
+  },
+  "generico": {
+   "grupo": "Genérico",
+   "nome": "Genérico (pena / sem nome) — classificar pela geometria"
+  },
+  "hachura": {
+   "grupo": "Grafismo",
+   "nome": "Hachura"
+  },
+  "hidrografia": {
+   "grupo": "Civil",
+   "nome": "Hidrografia"
+  },
+  "interferencia": {
+   "grupo": "Civil",
+   "nome": "Interferência (rede existente)"
+  },
+  "lote": {
+   "grupo": "Civil",
+   "nome": "Lote / quadra / divisa"
+  },
+  "malha": {
+   "grupo": "Grafismo",
+   "nome": "Malha de coordenadas / grade"
+  },
+  "meio_fio": {
+   "grupo": "Civil",
+   "nome": "Meio-fio / via"
+  },
+  "parede": {
+   "grupo": "Estrutura",
+   "nome": "Parede / muro / alvenaria"
+  },
+  "pavimento": {
+   "grupo": "Civil",
+   "nome": "Pavimento"
+  },
+  "pilar": {
+   "grupo": "Estrutura",
+   "nome": "Pilar"
+  },
+  "projetado": {
+   "grupo": "Referência",
+   "nome": "Projetado (genérico)"
+  },
+  "texto": {
+   "grupo": "Grafismo",
+   "nome": "Texto"
+  },
+  "tirante": {
+   "grupo": "Estrutura",
+   "nome": "Tirante"
+  },
+  "topografia": {
+   "grupo": "Civil",
+   "nome": "Topografia / sondagem / marcos"
+  },
+  "tubo": {
+   "grupo": "Hidráulica",
+   "nome": "Tubulação"
+  },
+  "valvula": {
+   "grupo": "Hidráulica",
+   "nome": "Válvula / registro / ventosa / descarga"
+  },
+  "vegetacao": {
+   "grupo": "Civil",
+   "nome": "Vegetação"
+  },
+  "viga": {
+   "grupo": "Estrutura",
+   "nome": "Viga"
+  }
+ },
+ "escopo": {
+  "desenhos_por_tabela": {
+   "T1": "DES-001-R1.pdf"
+  },
+  "fonte": "teste",
+  "fonte_cadastro": "cadastro de materiais Sanepar (sanepar_mat, coletado em 08/2026), só especificação",
+  "itens": [
+   {
+    "alerta": null,
+    "cadastro": {
+     "descricao": "TUBO PVC DN200",
+     "dn": 200,
+     "familia": "tubo",
+     "situacao": "1 - licitável",
+     "unidade_medida": "M"
+    },
+    "codigo": "1001",
+    "descricao": "Tubo PVC DN200",
+    "etapa": "1ª etapa",
+    "item": "1",
+    "local": "ETA",
+    "material": "PVC",
+    "nome_tabela": "Tubulação",
+    "q1": 120.5,
+    "q2": 30.0,
+    "tabela": "T1",
+    "un": "M"
+   },
+   {
+    "alerta": null,
+    "cadastro": {
+     "descricao": "JOELHO",
+     "familia": "conexao",
+     "situacao": "6",
+     "unidade_medida": "UN"
+    },
+    "codigo": "1002",
+    "descricao": "Joelho 90",
+    "etapa": "",
+    "item": "2",
+    "local": "ETA",
+    "material": "PVC",
+    "nome_tabela": "Tubulação",
+    "q1": 2.0,
+    "q2": 0.0,
+    "tabela": "T1",
+    "un": "UN"
+   },
+   {
+    "alerta": "quantidade na planilha parece data do Excel (45000); código 9999 fora do cadastro de materiais Sanepar",
+    "cadastro": null,
+    "codigo": "9999",
+    "descricao": "Registro",
+    "etapa": "2ª etapa",
+    "item": "1",
+    "local": "ETA",
+    "material": "FoFo",
+    "nome_tabela": "Válvulas",
+    "q1": 0.0,
+    "q2": 1.0,
+    "tabela": "T2",
+    "un": "PÇ"
+   }
+  ],
+  "por_tabela": {
+   "T1": {
+    "n": 2,
+    "n_alerta": 0,
+    "n_q1": 2,
+    "n_q2": 1,
+    "nome": "Tubulação"
+   },
+   "T2": {
+    "n": 1,
+    "n_alerta": 1,
+    "n_q1": 0,
+    "n_q2": 1,
+    "nome": "Válvulas"
+   }
+  },
+  "totais": {
+   "com_alerta": 1,
+   "itens": 3,
+   "itens_q1": 2,
+   "itens_q2": 2,
+   "no_cadastro": 2
+  },
+  "tubo_x_desenho": []
+ },
+ "etapas": [
+  {
+   "cor": "#0b6fde",
+   "id": "1ª etapa"
+  }
+ ],
+ "folhas": [],
+ "fotos": {
+  "a.jpg": "<blob>",
+  "b.jpg": "<blob>"
+ },
+ "geotecnia": {
+  "conferencias": [
+   {
+    "distancia_m": null,
+    "furo": null,
+    "mensagem": "estaca E2: sem coordenada E/N, não dá para conferir o impenetrável",
+    "objeto_id": "E2",
+    "tipo": "sem_coordenada",
+    "valores": {}
+   }
+  ],
+  "resumo": {
+   "sem_coordenada": 1
+  }
+ },
+ "grupos": {
+  "Civil": [
+   "Geotecnia e fundação",
+   "Estrutura",
+   "Arquitetura",
+   "Urbanização",
+   "Drenagem",
+   "Pavimentação",
+   "Terraplenagem"
+  ],
+  "Elétrica e automação": [
+   "Força e iluminação",
+   "Comando e automação",
+   "Aterramento e SPDA"
+  ],
+  "Geral": [
+   "Existente",
+   "Base / outros"
+  ],
+  "Hidráulica": [
+   "Tubulações e conexões",
+   "Adutoras",
+   "Processo"
+  ],
+  "Mecânica": [
+   "Equipamentos"
+  ]
+ },
+ "id": "mini",
+ "info": [
+  [
+   "Versão",
+   "projetos_em_camadas <VERSAO> · gerado em <DATA>"
+  ],
+  [
+   "Sistema",
+   "SIRGAS 2000 / UTM zone 21S (EPSG:31981)"
+  ],
+  [
+   "Levantamento",
+   "2 fotos (1 oblíquas), SfM com reprojeção 0.80 px"
+  ],
+  [
+   "Posição absoluta",
+   "GPS do drone (RMSE 1.5 m) — sem pontos de controle em campo"
+  ],
+  [
+   "Ortofoto",
+   "verdadeira (MDS da nuvem), 10 cm/px; embutida a 50 cm/px"
+  ],
+  [
+   "Nuvem 3D",
+   "25.600 pontos (Z em cota)"
+  ],
+  [
+   "Cotas",
+   "plano ajustado a 7 furos SPT (bocas de SPT); validação cruzada 0.00 m; descartados (copa/edificação) —"
+  ]
+ ],
+ "intervencoes": [
+  {
+   "cor": "#dc2626",
+   "id": "supressao",
+   "nome": "Supressão vegetal (desmatamento)"
+  },
+  {
+   "cor": "#f59e0b",
+   "id": "limpeza",
+   "nome": "Limpeza / roçada"
+  },
+  {
+   "cor": "#7f1d1d",
+   "id": "demolicao",
+   "nome": "Demolição"
+  },
+  {
+   "cor": "#92400e",
+   "id": "escavacao",
+   "nome": "Escavação / movimento de terra"
+  },
+  {
+   "cor": "#9333ea",
+   "id": "interferencia",
+   "nome": "Interferência (rede existente)"
+  },
+  {
+   "cor": "#0f766e",
+   "id": "canteiro",
+   "nome": "Canteiro / área de apoio"
+  },
+  {
+   "cor": "#15803d",
+   "id": "app",
+   "nome": "APP / restrição ambiental"
+  },
+  {
+   "cor": "#475569",
+   "id": "outro",
+   "nome": "Outro"
+  }
+ ],
+ "limites_obra": [
+  [
+   -25.452639,
+   -54.557585
+  ],
+  [
+   -25.448597,
+   -54.553293
+  ]
+ ],
+ "modelo3d": {
+  "cameras": [
+   {
+    "angulo_vertical": 90.0,
+    "centro": [
+     -9.0,
+     11.0,
+     160.043
+    ],
+    "eixo": [
+     0,
+     0,
+     -1
+    ],
+    "nome": "a.jpg",
+    "tipo": "nadir"
+   },
+   {
+    "angulo_vertical": 45.0,
+    "centro": [
+     11.0,
+     -9.0,
+     150.003
+    ],
+    "eixo": [
+     3,
+     4,
+     -1
+    ],
+    "nome": "b.jpg",
+    "tipo": "obliqua"
+   }
+  ],
+  "n": 25600,
+  "origem": [
+   745819.0,
+   7182899.0,
+   0.0
+  ],
+  "pos_cm_gz": "<blob>",
+  "referencia_z": "cota (m), plano ajustado às sondagens",
+  "rgb_gz": "<gzip>",
+  "sondagens": [
+   {
+    "id": "SP1",
+    "impenetravel": false,
+    "segmentos": [
+     {
+      "classe": "argila",
+      "confirmado": true,
+      "descricao": "Argila",
+      "z_base": 99.02,
+      "z_topo": 102.02
+     },
+     {
+      "classe": null,
+      "confirmado": false,
+      "descricao": "sem descrição",
+      "z_base": 96.02,
+      "z_topo": 99.02
+     }
+    ],
+    "x": -14.0,
+    "y": -14.0,
+    "z_boca": 102.015,
+    "z_fundo": 96.02,
+    "z_na": 100.02
+   },
+   {
+    "id": "SP2",
+    "impenetravel": false,
+    "segmentos": [
+     {
+      "classe": "argila",
+      "confirmado": true,
+      "descricao": "Argila",
+      "z_base": 99.03,
+      "z_topo": 102.03
+     },
+     {
+      "classe": null,
+      "confirmado": false,
+      "descricao": "sem descrição",
+      "z_base": 96.03,
+      "z_topo": 99.03
+     }
+    ],
+    "x": -9.0,
+    "y": -14.0,
+    "z_boca": 102.025,
+    "z_fundo": 96.03,
+    "z_na": 100.03
+   },
+   {
+    "id": "SP3",
+    "impenetravel": false,
+    "segmentos": [
+     {
+      "classe": "argila",
+      "confirmado": true,
+      "descricao": "Argila",
+      "z_base": 99.03,
+      "z_topo": 102.03
+     },
+     {
+      "classe": null,
+      "confirmado": false,
+      "descricao": "sem descrição",
+      "z_base": 96.03,
+      "z_topo": 99.03
+     }
+    ],
+    "x": -4.0,
+    "y": -14.0,
+    "z_boca": 102.035,
+    "z_fundo": 96.03,
+    "z_na": 100.03
+   },
+   {
+    "id": "SP4",
+    "impenetravel": false,
+    "segmentos": [
+     {
+      "classe": "argila",
+      "confirmado": true,
+      "descricao": "Argila",
+      "z_base": 99.05,
+      "z_topo": 102.05
+     },
+     {
+      "classe": null,
+      "confirmado": false,
+      "descricao": "sem descrição",
+      "z_base": 96.05,
+      "z_topo": 99.05
+     }
+    ],
+    "x": 1.0,
+    "y": -14.0,
+    "z_boca": 102.045,
+    "z_fundo": 96.05,
+    "z_na": 100.05
+   },
+   {
+    "id": "SP5",
+    "impenetravel": false,
+    "segmentos": [
+     {
+      "classe": "argila",
+      "confirmado": true,
+      "descricao": "Argila",
+      "z_base": 99.02,
+      "z_topo": 102.02
+     },
+     {
+      "classe": null,
+      "confirmado": false,
+      "descricao": "sem descrição",
+      "z_base": 96.02,
+      "z_topo": 99.02
+     }
+    ],
+    "x": -14.0,
+    "y": -6.0,
+    "z_boca": 102.023,
+    "z_fundo": 96.02,
+    "z_na": 100.02
+   },
+   {
+    "id": "SP6",
+    "impenetravel": false,
+    "segmentos": [
+     {
+      "classe": "argila",
+      "confirmado": true,
+      "descricao": "Argila",
+      "z_base": 99.03,
+      "z_topo": 102.03
+     },
+     {
+      "classe": null,
+      "confirmado": false,
+      "descricao": "sem descrição",
+      "z_base": 96.03,
+      "z_topo": 99.03
+     }
+    ],
+    "x": -9.0,
+    "y": -6.0,
+    "z_boca": 102.033,
+    "z_fundo": 96.03,
+    "z_na": 100.03
+   },
+   {
+    "id": "SP7",
+    "impenetravel": false,
+    "segmentos": [
+     {
+      "classe": "argila",
+      "confirmado": true,
+      "descricao": "Argila",
+      "z_base": 99.04,
+      "z_topo": 102.04
+     },
+     {
+      "classe": null,
+      "confirmado": false,
+      "descricao": "sem descrição",
+      "z_base": 96.04,
+      "z_topo": 99.04
+     }
+    ],
+    "x": -4.0,
+    "y": -6.0,
+    "z_boca": 102.043,
+    "z_fundo": 96.04,
+    "z_na": 100.04
+   }
+  ]
+ },
+ "pendentes": {},
+ "pranchas": [],
+ "satelite": true,
+ "sondagens": [
+  {
+   "E": 745805.0,
+   "N": 7182885.0,
+   "camadas": [
+    {
+     "ate": 3.0,
+     "classe": "argila",
+     "de": 0.0,
+     "descricao": "Argila"
+    }
+   ],
+   "controle_vertical": {
+    "diferenca_m": 0.0,
+    "situacao": "usado",
+    "terreno_m": 102.01
+   },
+   "cota_boca": 102.015,
+   "id": "SP1",
+   "lat": -25.450756,
+   "lon": -54.555585,
+   "na_m": 2.0,
+   "profundidade_m": 6.0
+  },
+  {
+   "E": 745810.0,
+   "N": 7182885.0,
+   "camadas": [
+    {
+     "ate": 3.0,
+     "classe": "argila",
+     "de": 0.0,
+     "descricao": "Argila"
+    }
+   ],
+   "controle_vertical": {
+    "diferenca_m": 0.0,
+    "situacao": "usado",
+    "terreno_m": 102.02
+   },
+   "cota_boca": 102.025,
+   "id": "SP2",
+   "lat": -25.450755,
+   "lon": -54.555536,
+   "na_m": 2.0,
+   "profundidade_m": 6.0
+  },
+  {
+   "E": 745815.0,
+   "N": 7182885.0,
+   "camadas": [
+    {
+     "ate": 3.0,
+     "classe": "argila",
+     "de": 0.0,
+     "descricao": "Argila"
+    }
+   ],
+   "controle_vertical": {
+    "diferenca_m": 0.0,
+    "situacao": "usado",
+    "terreno_m": 102.03
+   },
+   "cota_boca": 102.035,
+   "id": "SP3",
+   "lat": -25.450754,
+   "lon": -54.555486,
+   "na_m": 2.0,
+   "profundidade_m": 6.0
+  },
+  {
+   "E": 745820.0,
+   "N": 7182885.0,
+   "camadas": [
+    {
+     "ate": 3.0,
+     "classe": "argila",
+     "de": 0.0,
+     "descricao": "Argila"
+    }
+   ],
+   "controle_vertical": {
+    "diferenca_m": 0.0,
+    "situacao": "usado",
+    "terreno_m": 102.04
+   },
+   "cota_boca": 102.045,
+   "id": "SP4",
+   "lat": -25.450753,
+   "lon": -54.555436,
+   "na_m": 2.0,
+   "profundidade_m": 6.0
+  },
+  {
+   "E": 745805.0,
+   "N": 7182893.0,
+   "camadas": [
+    {
+     "ate": 3.0,
+     "classe": "argila",
+     "de": 0.0,
+     "descricao": "Argila"
+    }
+   ],
+   "controle_vertical": {
+    "diferenca_m": 0.0,
+    "situacao": "usado",
+    "terreno_m": 102.02
+   },
+   "cota_boca": 102.023,
+   "id": "SP5",
+   "lat": -25.450684,
+   "lon": -54.555587,
+   "na_m": 2.0,
+   "profundidade_m": 6.0
+  },
+  {
+   "E": 745810.0,
+   "N": 7182893.0,
+   "camadas": [
+    {
+     "ate": 3.0,
+     "classe": "argila",
+     "de": 0.0,
+     "descricao": "Argila"
+    }
+   ],
+   "controle_vertical": {
+    "diferenca_m": 0.0,
+    "situacao": "usado",
+    "terreno_m": 102.03
+   },
+   "cota_boca": 102.033,
+   "id": "SP6",
+   "lat": -25.450683,
+   "lon": -54.555537,
+   "na_m": 2.0,
+   "profundidade_m": 6.0
+  },
+  {
+   "E": 745815.0,
+   "N": 7182893.0,
+   "camadas": [
+    {
+     "ate": 3.0,
+     "classe": "argila",
+     "de": 0.0,
+     "descricao": "Argila"
+    }
+   ],
+   "controle_vertical": {
+    "diferenca_m": 0.0,
+    "situacao": "usado",
+    "terreno_m": 102.04
+   },
+   "cota_boca": 102.043,
+   "id": "SP7",
+   "lat": -25.450682,
+   "lon": -54.555487,
+   "na_m": 2.0,
+   "profundidade_m": 6.0
+  }
+ ],
+ "subtitulo": "",
+ "titulo": "Obra mínima",
+ "titulo_curto": "Obra mínima",
+ "vertical": {
+  "centro": [
+   745811.428571,
+   7182888.428571
+  ],
+  "descartados": [],
+  "fonte": "bocas de SPT",
+  "inclinacao_e": -0.0,
+  "inclinacao_n": -0.0,
+  "modelo": "plano",
+  "offset_m": 100.003,
+  "ok": true,
+  "pontos": [
+   {
+    "E": 745805.0,
+    "N": 7182885.0,
+    "cota": 102.015,
+    "descartado": false,
+    "id": "SP1",
+    "n_pontos": 193,
+    "raio_m": 2.0,
+    "residuo_m": 0.0,
+    "z_nuvem": 2.012
+   },
+   {
+    "E": 745810.0,
+    "N": 7182885.0,
+    "cota": 102.025,
+    "descartado": false,
+    "id": "SP2",
+    "n_pontos": 193,
+    "raio_m": 2.0,
+    "residuo_m": 0.0,
+    "z_nuvem": 2.022
+   },
+   {
+    "E": 745815.0,
+    "N": 7182885.0,
+    "cota": 102.035,
+    "descartado": false,
+    "id": "SP3",
+    "n_pontos": 193,
+    "raio_m": 2.0,
+    "residuo_m": 0.0,
+    "z_nuvem": 2.032
+   },
+   {
+    "E": 745820.0,
+    "N": 7182885.0,
+    "cota": 102.045,
+    "descartado": false,
+    "id": "SP4",
+    "n_pontos": 193,
+    "raio_m": 2.0,
+    "residuo_m": 0.0,
+    "z_nuvem": 2.042
+   },
+   {
+    "E": 745805.0,
+    "N": 7182893.0,
+    "cota": 102.023,
+    "descartado": false,
+    "id": "SP5",
+    "n_pontos": 193,
+    "raio_m": 2.0,
+    "residuo_m": 0.0,
+    "z_nuvem": 2.02
+   },
+   {
+    "E": 745810.0,
+    "N": 7182893.0,
+    "cota": 102.033,
+    "descartado": false,
+    "id": "SP6",
+    "n_pontos": 193,
+    "raio_m": 2.0,
+    "residuo_m": 0.0,
+    "z_nuvem": 2.03
+   },
+   {
+    "E": 745815.0,
+    "N": 7182893.0,
+    "cota": 102.043,
+    "descartado": false,
+    "id": "SP7",
+    "n_pontos": 193,
+    "raio_m": 2.0,
+    "residuo_m": 0.0,
+    "z_nuvem": 2.04
+   }
+  ],
+  "rms_validacao_cruzada_m": 0.0,
+  "sem_nuvem": [],
+  "usados": 7
+ },
+ "vetores": [
+  {
+   "estilo": {
+    "color": "#f5c518",
+    "weight": 2
+   },
+   "fotos": true,
+   "geojson": {
+    "features": [
+     {
+      "geometry": {
+       "coordinates": [
+        [
+         -54.55554,
+         -25.450529
+        ],
+        [
+         -54.55554,
+         -25.450529
+        ]
+       ],
+       "type": "LineString"
+      },
+      "properties": {
+       "altura_m": 60.0,
+       "angulo_vertical": 90.0,
+       "foto": "a.jpg",
+       "nome": "a.jpg",
+       "tipo": "nadir"
+      },
+      "type": "Feature"
+     },
+     {
+      "geometry": {
+       "coordinates": [
+        [
+         -54.555338,
+         -25.450707
+        ],
+        [
+         -54.555251,
+         -25.450597
+        ]
+       ],
+       "type": "LineString"
+      },
+      "properties": {
+       "altura_m": 50.0,
+       "angulo_vertical": 45.0,
+       "foto": "b.jpg",
+       "nome": "b.jpg",
+       "tipo": "obliqua"
+      },
+      "type": "Feature"
+     }
+    ],
+    "type": "FeatureCollection"
+   },
+   "grupo": "Levantamento",
+   "id": "cameras",
+   "nome": "Fotos do drone (posição e visada)",
+   "subgrupo": "Drone",
+   "visivel": false
+  },
+  {
+   "estacas": true,
+   "estilo": {
+    "color": "#7c3aed",
+    "fillOpacity": 0.8,
+    "radius": 3,
+    "weight": 1
+   },
+   "geojson": {
+    "features": [
+     {
+      "geometry": {
+       "coordinates": [
+        -54.555576,
+        -25.450747
+       ],
+       "type": "Point"
+      },
+      "properties": {
+       "E": 745806.0,
+       "N": 7182886.0,
+       "comprimento_m": 12.0,
+       "cota_arrasamento": 101.5,
+       "desenho_origem": "FUND-01-R1.pdf",
+       "diametro_cm": 40.0,
+       "estrutura": "B1",
+       "id": "E1",
+       "tipo": "estaca"
+      },
+      "type": "Feature"
+     }
+    ],
+    "type": "FeatureCollection"
+   },
+   "grupo": "Civil",
+   "id": "estacas",
+   "nome": "Estacas hélice contínua (1)",
+   "subgrupo": "Geotecnia e fundação",
+   "visivel": false
+  },
+  {
+   "estilo": {
+    "color": "#0ea5e9",
+    "fillOpacity": 0.9,
+    "radius": 5,
+    "weight": 2
+   },
+   "geojson": {
+    "features": [
+     {
+      "geometry": {
+       "coordinates": [
+        -54.555141,
+        -25.450613
+       ],
+       "type": "Point"
+      },
+      "properties": {
+       "CLASSIFICAÇÃO": "MRRN",
+       "altitude_m": null,
+       "classificacao": "MRRN",
+       "destruido": false,
+       "distancia_m": 30.0,
+       "municipio": null,
+       "nome": "MRRN1",
+       "rede": "Sanepar",
+       "situacao": null,
+       "ultima_visita": null
+      },
+      "type": "Feature"
+     }
+    ],
+    "type": "FeatureCollection"
+   },
+   "grupo": "Levantamento",
+   "id": "marcos",
+   "nome": "Marcos geodésicos (1)",
+   "subgrupo": "Referências geodésicas",
+   "visivel": true
+  },
+  {
+   "estilo": {
+    "color": "#f97316",
+    "fillOpacity": 0,
+    "weight": 2
+   },
+   "geojson": {
+    "features": [
+     {
+      "geometry": {
+       "coordinates": [
+        [
+         [
+          -54.555278,
+          -25.450754
+         ],
+         [
+          -54.555284,
+          -25.45076
+         ],
+         [
+          -54.55529,
+          -25.450764
+         ],
+         [
+          -54.555297,
+          -25.450768
+         ],
+         [
+          -54.555304,
+          -25.450772
+         ],
+         [
+          -54.555311,
+          -25.450775
+         ],
+         [
+          -54.555319,
+          -25.450777
+         ],
+         [
+          -54.555327,
+          -25.450778
+         ],
+         [
+          -54.555335,
+          -25.450779
+         ],
+         [
+          -54.555343,
+          -25.450779
+         ],
+         [
+          -54.555351,
+          -25.450778
+         ],
+         [
+          -54.555359,
+          -25.450776
+         ],
+         [
+          -54.555366,
+          -25.450774
+         ],
+         [
+          -54.555374,
+          -25.450771
+         ],
+         [
+          -54.55538,
+          -25.450768
+         ],
+         [
+          -54.555387,
+          -25.450763
+         ],
+         [
+          -54.555393,
+          -25.450758
+         ],
+         [
+          -54.555595,
+          -25.450581
+         ],
+         [
+          -54.555601,
+          -25.450576
+         ],
+         [
+          -54.555605,
+          -25.450571
+         ],
+         [
+          -54.55561,
+          -25.450565
+         ],
+         [
+          -54.555613,
+          -25.450558
+         ],
+         [
+          -54.555616,
+          -25.450552
+         ],
+         [
+          -54.555618,
+          -25.450545
+         ],
+         [
+          -54.555619,
+          -25.450538
+         ],
+         [
+          -54.55562,
+          -25.450531
+         ],
+         [
+          -54.55562,
+          -25.450524
+         ],
+         [
+          -54.555619,
+          -25.450517
+         ],
+         [
+          -54.555617,
+          -25.450511
+         ],
+         [
+          -54.555615,
+          -25.450504
+         ],
+         [
+          -54.555611,
+          -25.450497
+         ],
+         [
+          -54.555608,
+          -25.450491
+         ],
+         [
+          -54.555603,
+          -25.450485
+         ],
+         [
+          -54.555598,
+          -25.45048
+         ],
+         [
+          -54.555593,
+          -25.450475
+         ],
+         [
+          -54.555587,
+          -25.450471
+         ],
+         [
+          -54.55558,
+          -25.450467
+         ],
+         [
+          -54.555573,
+          -25.450464
+         ],
+         [
+          -54.555566,
+          -25.450461
+         ],
+         [
+          -54.555559,
+          -25.450459
+         ],
+         [
+          -54.555551,
+          -25.450458
+         ],
+         [
+          -54.555543,
+          -25.450457
+         ],
+         [
+          -54.555536,
+          -25.450457
+         ],
+         [
+          -54.555528,
+          -25.450458
+         ],
+         [
+          -54.555521,
+          -25.45046
+         ],
+         [
+          -54.555242,
+          -25.450524
+         ],
+         [
+          -54.555239,
+          -25.450705
+         ],
+         [
+          -54.555273,
+          -25.450749
+         ],
+         [
+          -54.555278,
+          -25.450754
+         ]
+        ]
+       ],
+       "type": "Polygon"
+      },
+      "properties": {
+       "area_m2": 905,
+       "tipo": "Área da obra"
+      },
+      "type": "Feature"
+     }
+    ],
+    "type": "FeatureCollection"
+   },
+   "grupo": "Levantamento",
+   "id": "area_obra",
+   "nome": "Área da obra (recorte da ortofoto)",
+   "subgrupo": "Drone",
+   "visivel": false
+  }
+ ]
+}

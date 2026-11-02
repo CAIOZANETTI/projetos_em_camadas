@@ -289,6 +289,28 @@ def test_selo_de_status_aparece_em_cada_no_com_o_valor_do_python(navegador, tmp_
     raiz = next(n for n in painel["arvore"] if n["pai"] is None)
     assert raiz["status_no"] == "conflito"
     assert pagina.locator("#eapCod .st-conflito").count() >= 1
+
+
+def test_aba_eap_mostra_o_codigo_real_ao_lado_do_provisorio_e_a_conciliacao(navegador, tmp_path):
+    eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
+    pagina.click("#t-eap")
+    aba = pagina.locator("#aba-eap")
+    no = aba.locator("details.eap-n").first
+    assert no.locator("summary .cod").first.inner_text() == eap["nos"][0]["eap"]          # provisório
+    assert no.locator('summary [data-cod="no"]').inner_text() == eap["nos"][0]["codigo_eap"] == "—"   # serviços com códigos diferentes
+    no2 = aba.locator("details.eap-n").nth(1)
+    assert no2.locator('summary [data-cod="no"]').inner_text() == "U1.AB_ENTRADA.GEO.MOV.VAL"
+    pagina.evaluate("document.querySelectorAll('#aba-eap details').forEach(d => d.open = true)")
+    codigos = aba.locator('[data-cod="servico"]').all_inner_texts()
+    assert codigos == [s["codigo_eap"] for n in eap["nos"] for s in n["servicos"]]
+    tabela = aba.locator("table.eap-conc")
+    assert tabela.count() == 1
+    texto = tabela.inner_text()
+    for linha in eap["conciliacao"]["linhas"]:
+        for campo in ("codigo", "gavetas_txt", "codificada_txt", "diferenca_txt", "situacao"):
+            assert linha[campo] in texto, linha[campo]
+    assert aba.locator("table.eap-setor").count() == len(eap["setores"])     # a tabela da conciliação não é de setor
     assert erros == []
     pagina.close()
 
@@ -420,4 +442,11 @@ def test_item_com_varios_elementos_nao_abre_popup_com_autopan(navegador, tmp_pat
     pagina.locator(f'#eapCod details[data-codigo="{item["codigo"]}"] > .eap-q [data-eap-ids]').click()
     assert pagina.evaluate("window.__viz.obra.popup.options.autoPan") is False
     assert erros == []
+
+
+def test_sem_conciliacao_nao_ha_tabela(navegador, tmp_path):
+    eap = {k: v for k, v in json.loads(EXEMPLO.read_text(encoding="utf-8")).items() if k != "conciliacao"}
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
+    pagina.click("#t-eap")
+    assert pagina.locator("#aba-eap table.eap-conc").count() == 0 and erros == []
     pagina.close()

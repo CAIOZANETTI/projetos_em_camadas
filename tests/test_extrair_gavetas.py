@@ -423,3 +423,54 @@ def test_etapa_com_setores_no_cfg(tmp_path):
     assert [s["setor_id"] for s in resumo["eap_html"]["setores"]] == ["SET-A", "SET-B", None]
     base = gavetas.ler(out / "base")
     assert any(p["motivo"] == "setores sobrepostos: SET-A, SET-B" and p["objeto_id"] == "SP-03" for p in base["pendencias"])
+
+
+# --- código completo da EAP codificada (rodada 6) -------------------------------------------------------------------
+
+def test_de_setores_grava_os_fatos_unidade_e_sistema():
+    base = eg.de_setores([{"id": "A", "nome": "Entrada", "unidade": "u1", "sistema": "AB_ENTRADA", "coords": QUADRADO}],
+                         "obra.json")
+    fatos = {f["propriedade"]: (f["valor"], f["natureza"]) for f in base["fatos"]}
+    assert fatos == {"nome": ("Entrada", "decidido"), "unidade": ("u1", "decidido"), "sistema": ("AB_ENTRADA", "decidido")}
+    assert gavetas.conferir_base(base) == []
+
+
+def test_etapa_anota_o_codigo_completo_em_cada_servico(tmp_path):
+    """Setor com unidade e sistema: o trecho dentro dele sai com o código; o de fora, sem definição, vira pendência."""
+    setores = [{"id": "A", "nome": "Setor A", "unidade": "u1", "sistema": "ETA",
+                "coords": [[-10, -10], [100, -10], [100, 100], [-10, 100], [-10, -10]]}]
+    out = tmp_path / "saida"
+    out.mkdir()
+    cfg = _cfg(tmp_path, gavetas={"setores": setores})
+    resumo = eg.etapa(cfg, [], out, log=lambda *_: None)
+    servicos = gavetas.ler(out / "base")["servicos"]
+    assert servicos and all(s.get("codigo_eap") is None or s["codigo_eap"].startswith("U1.") for s in servicos)
+    assert "sem_codigo_eap" in resumo and "servicos_eap" in resumo
+    ids = {s["servico_id"] for s in resumo["servicos_eap"]}
+    assert ids == {s["servico_id"] for s in servicos}
+    assert json.loads((out / "resumo.json").read_text(encoding="utf-8"))["sem_codigo_eap"] == resumo["sem_codigo_eap"]
+    assert any(s.get("codigo_eap") for s in servicos)
+
+
+def test_etapa_sem_unidade_e_sistema_nao_inventa_codigo(tmp_path):
+    out = tmp_path / "saida"
+    out.mkdir()
+    cfg = _cfg(tmp_path)
+    cfg["obras_lineares"]["planilha"] = str(_planilha_sem_sistema(tmp_path))
+    resumo = eg.etapa(cfg, [], out, log=lambda *_: None)
+    com_item = [s for s in resumo["servicos_eap"] if gavetas._item_eap(s)]
+    assert com_item and all(s["codigo_eap"] is None for s in com_item)
+    base = gavetas.ler(out / "base")
+    assert any(p["motivo"] == "unidade e sistema não definidos" for p in base["pendencias"])
+    assert resumo["pendencias_por_motivo"]["unidade e sistema não definidos"] >= 1
+
+
+def _planilha_sem_sistema(tmp_path):
+    import openpyxl
+    wb = openpyxl.load_workbook(_planilha(tmp_path))
+    ws = wb.active
+    for linha in range(4, 7):
+        ws.cell(linha, 22, f"Trecho {linha}")                   # nenhum nome cita um sistema pelas chaves
+    caminho = tmp_path / "sem_sistema.xlsx"
+    wb.save(caminho)
+    return caminho
