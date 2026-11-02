@@ -3,7 +3,7 @@
   "fonte": "de-para 3 de docs/MEMORIA_ESPACIAL.md: serviço → nó da EAP",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Códigos provisórios do MVP (OL = obras lineares), a casar com a EAP do ramo EAP (evidencia.schema.json). Saída em dicionário (pavimento_m2) abre um nó por chave: OL.06.<superfície>. Sem preço e sem prazo. Rodada 6 da memória espacial: `codigo_eap` casa cada saída com o item (DISCIPLINA.PACOTE.ITEM de conceitos/eap_geral.jsonl) e os serviços (conceitos/servicos.jsonl) da EAP codificada; o código completo é UNIDADE.SISTEMA.ITEM, com unidade e sistema do objeto. `por_chave` troca o item pela subchave da saída (calçada → CIV.PAV.CAL; o prefixo da chave antes de '/' vale, ex. 'calcada/grama'). `codigo_eap: null` = sem item na EAP codificada (caximbos do MND, área de cava): aparece como 'sem código', nunca com um código forçado. Decisão do gerente, 02/11/2026."
+  "observacoes": "Códigos provisórios do MVP (OL = obras lineares), a casar com a EAP do ramo EAP (evidencia.schema.json). Saída em dicionário (pavimento_m2) abre um nó por chave: OL.06.<superfície>. Sem preço e sem prazo. Rodada 6 da memória espacial: `codigo_eap` casa cada saída com o item (DISCIPLINA.PACOTE.ITEM de conceitos/eap_geral.jsonl) e os serviços (conceitos/servicos.jsonl) da EAP codificada; o código completo é UNIDADE.SISTEMA.ITEM, com unidade e sistema do objeto. `por_chave` troca o item pela subchave da saída (calçada → CIV.PAV.CAL; o prefixo da chave antes de '/' vale, ex. 'calcada/grama'). `codigo_eap: null` = sem item na EAP codificada (caximbos do MND, área de cava): aparece como 'sem código', nunca com um código forçado. Decisão do gerente, 02/11/2026. `mede: true` = a saída é a medida do item na EAP codificada (a que `eap_geral.jsonl` mede); só ela entra na conciliação, para não somar serviços diferentes do mesmo item (ex.: escavação e reaterro de vala, ambos m³ em GEO.MOV.VAL)."
  },
  "saidas": {
   "escavacao_m3": {
@@ -125,7 +125,8 @@
    "unidade": "m³",
    "codigo_eap": {
     "item": "GEO.MOV.ESC",
-    "servicos": []
+    "servicos": [],
+    "mede": true
    }
   },
   "reaterro_cava_m3": {
@@ -134,7 +135,8 @@
    "unidade": "m³",
    "codigo_eap": {
     "item": "GEO.MOV.REA",
-    "servicos": []
+    "servicos": [],
+    "mede": true
    }
   },
   "area_cava_m2": {

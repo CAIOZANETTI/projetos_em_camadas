@@ -1016,11 +1016,14 @@ def anotar_codigo_eap(servicos: list[dict], mapa: dict, pendencias: list[dict]) 
 def conciliar_eap(servicos: list[dict], quantidades_codificada: list[dict], tol: float = 0.01) -> list[dict]:
     """Confronta, por (código completo, unidade), a soma das gavetas com a quantidade da EAP codificada
     (`dados["eap"]["quantidades"]`). Situação: "confere" (diferença absoluta até `tol`, na unidade), "difere",
-    "só nas gavetas" ou "só na EAP codificada". Unidades diferentes nunca se misturam (m³ só com m³); serviço sem
-    `codigo_eap` fica de fora. Ordem: código, unidade."""
+    "só nas gavetas", "só na EAP codificada" (item que as gavetas medem) ou "fora das gavetas" (item que elas não
+    medem, ex.: estacas). Só entra a saída marcada `mede` no de-para 3 (a medida do item), para não somar serviços
+    diferentes do mesmo código. Unidades diferentes nunca se misturam. Ordem: código, unidade."""
+    medida = {saida for saida, n in EAP["saidas"].items() if (n.get("codigo_eap") or {}).get("mede")}
+    itens = {(n["codigo_eap"]["item"]) for n in EAP["saidas"].values() if (n.get("codigo_eap") or {}).get("mede")}
     gavetas_: dict[tuple, float] = {}
     for s in servicos:
-        if s.get("codigo_eap"):
+        if s.get("codigo_eap") and s["saida"] in medida:          # só a medida do item (`mede`), nada somado de fora
             chave = (s["codigo_eap"], s["unidade"])
             gavetas_[chave] = gavetas_.get(chave, 0.0) + float(s["valor"])
     codificada: dict[tuple, float] = {}
@@ -1031,8 +1034,9 @@ def conciliar_eap(servicos: list[dict], quantidades_codificada: list[dict], tol:
     for chave in sorted(gavetas_.keys() | codificada.keys()):
         g, c = gavetas_.get(chave), codificada.get(chave)
         dif = None if g is None or c is None else g - c
-        situacao = ("só na EAP codificada" if g is None else "só nas gavetas" if c is None
-                    else "confere" if abs(dif) <= tol else "difere")
+        coberto = chave[0].split(".", 2)[-1] in itens              # o item é medido pelas gavetas?
+        situacao = ("fora das gavetas" if g is None and not coberto else "só na EAP codificada" if g is None
+                    else "só nas gavetas" if c is None else "confere" if abs(dif) <= tol else "difere")
         linhas.append({"codigo": chave[0], "unidade": chave[1], "gavetas": g, "codificada": c, "diferenca": dif,
                        "situacao": situacao})
     return linhas

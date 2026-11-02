@@ -133,22 +133,28 @@ def test_anotar_nao_muda_a_chave_do_incremental():
     assert [s["chave_calculo"] for s in novos] == chaves
 
 
-def test_conciliar_eap_as_quatro_situacoes():
+def test_conciliar_eap_as_situacoes_e_so_a_medida_do_item():
+    """Só a saída marcada `mede` entra (escavação de vala em GEO.MOV.VAL não soma com nada); item que as gavetas não
+    medem (estacas) é "fora das gavetas"."""
     servicos = [dict(_serv("escavacao_cava_m3", 100.004), codigo_eap="U1.ACT600.GEO.MOV.ESC"),
                 dict(_serv("escavacao_cava_m3", 50.0, objeto="T2"), codigo_eap="U1.ACT600.GEO.MOV.ESC"),
                 dict(_serv("reaterro_cava_m3", 30.0), codigo_eap="U1.ACT600.GEO.MOV.REA"),
+                dict(_serv("escavacao_cava_m3", 12.0, objeto="T3"), codigo_eap="U1.FILTROS.GEO.MOV.ESC"),
                 dict(_serv("escavacao_m3", 7.0), codigo_eap="U1.ETA.GEO.MOV.VAL"),
+                dict(_serv("reaterro_m3", 5.0), codigo_eap="U1.ETA.GEO.MOV.VAL"),
                 dict(_serv("caximbos", 3.0), codigo_eap=None)]
     codificada = [{"codigo": "U1.ACT600.GEO.MOV.ESC", "grandeza": "volume", "unidade": "m³", "quantidade": 150.0},
                   {"codigo": "U1.ACT600.GEO.MOV.REA", "grandeza": "volume", "unidade": "m³", "quantidade": 25.0},
+                  {"codigo": "U1.ACT360.GEO.MOV.ESC", "grandeza": "volume", "unidade": "m³", "quantidade": 80.0},
                   {"codigo": "U1.ACT600.GEO.FUN.EST", "grandeza": "contagem", "unidade": "un", "quantidade": 48.0}]
     linhas = {l["codigo"]: l for l in gv.conciliar_eap(servicos, codificada)}
     assert linhas["U1.ACT600.GEO.MOV.ESC"]["situacao"] == "confere"            # 150,004 contra 150,0: dentro de 0,01
     assert linhas["U1.ACT600.GEO.MOV.REA"]["situacao"] == "difere"
     assert linhas["U1.ACT600.GEO.MOV.REA"]["diferenca"] == pytest.approx(5.0)
-    assert linhas["U1.ETA.GEO.MOV.VAL"]["situacao"] == "só nas gavetas"
-    assert linhas["U1.ACT600.GEO.FUN.EST"]["situacao"] == "só na EAP codificada"
-    assert len(linhas) == 4                                                    # o serviço sem código não entra
+    assert linhas["U1.FILTROS.GEO.MOV.ESC"]["situacao"] == "só nas gavetas"
+    assert linhas["U1.ACT360.GEO.MOV.ESC"]["situacao"] == "só na EAP codificada"
+    assert linhas["U1.ACT600.GEO.FUN.EST"]["situacao"] == "fora das gavetas"
+    assert "U1.ETA.GEO.MOV.VAL" not in linhas                                  # vala: sem medida no item, não soma
     assert [l["codigo"] for l in gv.conciliar_eap(servicos, codificada)] == sorted(linhas)
     assert {l["situacao"] for l in gv.conciliar_eap(servicos, codificada, tol=10.0)
             if l["codigo"].endswith("MOV.REA")} == {"confere"}

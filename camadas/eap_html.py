@@ -19,7 +19,7 @@ def br(valor, casas: int = 2) -> str:
 
 
 SEM_CODIGO = "—"
-SITUACOES_CONCILIACAO = ("confere", "difere", "só nas gavetas", "só na EAP codificada")
+SITUACOES_CONCILIACAO = ("confere", "difere", "só nas gavetas", "só na EAP codificada", "fora das gavetas")
 
 
 def _unidade(propriedade: str) -> str | None:
@@ -131,7 +131,7 @@ def conciliacao(linhas: list[dict]) -> dict:
             "linhas": [{"codigo": l["codigo"], "unidade": l["unidade"], "gavetas_txt": texto(l["gavetas"], l["unidade"]),
                         "codificada_txt": texto(l["codificada"], l["unidade"]),
                         "diferenca_txt": texto(l["diferenca"], l["unidade"]), "situacao": l["situacao"]}
-                       for l in linhas]}
+                       for l in linhas if l["situacao"] != "fora das gavetas"]}   # fora: só a contagem no resumo
 
 
 def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dict | None = None,
