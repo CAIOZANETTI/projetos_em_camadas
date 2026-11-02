@@ -57,3 +57,4 @@
 {"rodada": "rodada 24", "data": "2026-11-01", "modelo": "fable", "papel": "gerente (aceite)", "tarefa": "3º aceite da rodada 24", "tokens": 5836, "segundos": 69, "ferramentas": 4, "resultado": "ACEITA"}
 {"rodada": "rodada 25", "data": "2026-11-01", "modelo": "fable", "papel": "revisor (aceite)", "tarefa": "aceite da L3 e do F", "tokens": 113895, "segundos": 122, "ferramentas": 9, "resultado": "ACEITO COM RESSALVAS"}
 {"rodada": "memória espacial rodada 5", "data": "2026-11-02", "modelo": "sonnet", "papel": "implementador", "tarefa": "E2 (setores da ETA)", "tokens": 127283, "segundos": 297, "ferramentas": 27, "resultado": "aceita pelo Opus"}
+{"rodada": "memória espacial rodada 5", "data": "2026-11-02", "modelo": "sonnet", "papel": "implementador", "tarefa": "E1 (cavas nas gavetas)", "tokens": 182959, "segundos": 497, "ferramentas": 37, "resultado": "aceita pelo Opus; gerente acrescentou o setor de cada cava pelo ponto do serviço"}

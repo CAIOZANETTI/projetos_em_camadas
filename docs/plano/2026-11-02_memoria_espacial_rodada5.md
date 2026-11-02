@@ -57,9 +57,9 @@ não muda nenhum cálculo.
 
 | # | Entrega | Agente | Estado |
 |---|---|---|---|
-| E1 | Cavas nas gavetas: gaveta `superficies`, `escavacao.quantificar_gavetas`, `extrair_gavetas.de_cavas`, paridade e ligação na etapa | Sonnet A | pendente |
-| E2 | Setores: `de_setores`, `gavetas.setor_de`, EAP por setor (Python e aba) | Sonnet B (paralelo; não toca `escavacao.py`) | pendente |
-| E3 | Integração, `vcm balanco`, aceite do Fable, PR | Opus; Fable | pendente |
+| E1 | Cavas nas gavetas: gaveta `superficies`, `escavacao.quantificar_gavetas`, `extrair_gavetas.de_cavas`, paridade e ligação na etapa | Sonnet A | feito — 14 testes; `.npz` determinístico (zip montado à mão); superfície pela `pasta_base` na `entrada`; a etapa roda também sem planilha, quando há cavas |
+| E2 | Setores: `de_setores`, `gavetas.setor_de`, EAP por setor (Python e aba) | Sonnet B (paralelo; não toca `escavacao.py`) | feito — soma por setor conferida (tolerância 0,005 pelo arredondamento de `para_eap`); tabela por setor no Chromium |
+| E3 | Integração, `vcm balanco`, aceite do Fable, PR | Opus; Fable | integração feita (0.33.0, L029); falta balanço e aceite |
 
 Contrato já escrito em `conceitos/` pelo gerente:
 - gaveta `superficies` e `tipos_superficie`;
@@ -69,3 +69,18 @@ Contrato já escrito em `conceitos/` pelo gerente:
 - nós CV.01 a CV.03.
 
 ## Emendas
+- 02/11, **integração (gerente).**
+  - O conjunto de cavas é um objeto só, sem geometria, e todas as cavas caíam em "fora dos setores". Para a ETA isso
+    não serve. O gerente acrescentou: `escavacao.quantificar_gavetas` devolve um ponto dentro de cada cava; o
+    serviço guarda `ponto`; `gavetas.setor_dos_servicos` põe cada cava no seu setor (o setor do serviço vence o do
+    objeto em `para_eap_por_setor`). Teste: `test_cada_cava_cai_no_seu_setor_pelo_ponto_do_servico`.
+  - A gaveta `superficies` quebrou a ida e volta da bancada de gavetas, porque o sintético não a trazia. O sintético
+    passou a montar todas as gavetas do contrato.
+  - Merge da `main`: o PR #18 (EAP codificada, 0.32.0) e a rodada 25 da outra sessão (0.31.0, dimensionador único de
+    vala). O hash da referência mudou para `0602c637…` no PR #33 da outra sessão; esta rodada não o muda.
+  - Decisões dos executores aceitas:
+    - um ponto na divisa de dois setores conta nos dois e vira pendência de sobreposição;
+    - o fato `superficie_id` aponta para a evidência da superfície;
+    - as marcas guardam `topo`;
+    - a etapa roda também sem a planilha de obras lineares, quando há cavas, para a ETA não perder as cavas em
+      silêncio.

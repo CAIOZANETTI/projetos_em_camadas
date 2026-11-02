@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.33.0 — 2026-11-02 · Memória espacial, rodada 5: cavas e setores da ETA
+- **Gaveta `superficies`**: o terreno (MDS do drone) vai para `base/superficies/<id>.npz`, gravado byte a byte
+  determinístico, e a gaveta guarda o sha256, o CRS, o datum e a evidência. `ler_superficie` confere o sha256: um
+  arquivo adulterado ou ausente vira pendência, sem cálculo.
+- **Cavas nas gavetas**: um objeto `conjunto_cavas` com as marcas de cota, as bases, as cristas e a superfície. A regra
+  `cavas` (`escavacao.quantificar_gavetas`) chama o `escavacao.calcular` atual, com paridade 0. A EAP ganha CV.01 a
+  CV.03 por cava, e trocar o MDS muda a chave e recalcula.
+- **Setores da ETA**: setores declarados no `obra.json` (`gavetas.setores`, natureza `decidido`). Cada objeto cai no
+  setor que contém o seu ponto representativo, e cada cava cai no seu pelo ponto do serviço. Sobreposição vira
+  pendência. A EAP mostra também a soma por setor, conferida contra o total de cada nó.
+- O gerador sintético monta todas as gavetas do contrato.
+- Lição L029.
+
 ## 0.32.0 — 2026-11-01 · EAP codificada como linha mestra
 - **EAP (WBS)** (`camadas/eap.py`, `conceitos/eap.json`, `docs/EAP.md`): código `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM`
   sobre as unidades e os sistemas de `unidades_construtivas.json` (obra localizada × linear); disciplinas Geotecnia
