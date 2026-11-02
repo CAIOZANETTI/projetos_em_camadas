@@ -157,6 +157,12 @@ o trecho copiado literalmente; `python -m camadas.evidencias conferir IA.jsonl -
 diz quantas foram aceitas e o motivo de cada recusa (schema, documento não fornecido, trecho não encontrado, valor
 fora do trecho); só as aceitas são gravadas. A skill `eap-evidencias` descreve o passo a passo.
 
+A conferência exige trecho com 3 palavras ou 15 caracteres, achado no documento com fronteira de palavra, e o par (valor,
+unidade) igual a um que o trecho afirma ("250 estacas" → 250 un; "20 m²" → 20 m², nunca o 2 de M2). O build não confia no
+selo `citacao` do arquivo: reconfere as evidências `ia` contra os documentos do `obra.json`. A leitura da IA vale como
+afirmação própria (`documento.id` = `ia:<arquivo>`), para nunca somar com o regex do mesmo documento; mas conta como a
+mesma fonte (L025/L029: fonte independente = documento diferente), então não aumenta a `forca`.
+
 **Cobertura**: para cada unidade e item, mostra se há evidência no projeto (pranchas, geometria) e no edital
 (edital, memorial, planilha):
 - `só projeto: verificar se o edital considera`;

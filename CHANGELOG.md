@@ -8,6 +8,12 @@
   [--saida]`. `conferir_arquivo` valida o schema, localiza o documento por `documento.id`, aplica `conferir_citacao` e
   recusa com motivo (JSON ou schema inválido, documento não fornecido, trecho não encontrado, valor fora do trecho). Só
   as aceitas são gravadas; saída 0 mesmo com recusas, 2 sem o arquivo de entrada. `id` e `regra` ausentes são completados.
+- **Conferência endurecida** (vale para todo o caminho, inclusive `loop`/`etapa`): o trecho precisa ter 3 palavras ou
+  15 caracteres e estar no documento com fronteira de palavra; o par (valor, unidade) tem de ser um dos que o trecho
+  afirma (`vocabulario.QTD_DEPOIS`/`quantidade`; o 2 de M2 e o 50 de CA-50 não contam); unidade só do vocabulário; valor
+  não negativo. Campos do código (`citacao`, `derivada`, `id`, `autor`, `justificativa`) vindos da IA são descartados e o
+  `id` recalculado; o build reconfere as evidências `ia` e não confia no selo do arquivo. A leitura da IA é afirmação
+  própria (`ia:<arquivo>`): não soma com o regex e não aumenta a `forca`. `id` normaliza `250` e `250.0`.
 - **Skill `eap-evidencias`**: o passo a passo "a IA propõe, o código confere".
 - Lição L032.
 
