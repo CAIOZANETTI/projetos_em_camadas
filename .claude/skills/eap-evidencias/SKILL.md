@@ -52,6 +52,13 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
 `id` (hash) e `regra` ("leitura por IA") ausentes são completados pelo `conferir`; não calcule hash.
 
 ## Regras
+- **A mesma linha.** O número, a unidade e o termo do item têm de estar na mesma linha do documento, a no máximo 8
+  palavras um do outro (o trecho pode ocupar mais linhas, nunca mais de uma página). Em tabela, copie a linha inteira
+  ("Estaca hélice contínua Ø40 un 250"), não o número de uma linha com o nome de outra.
+- **Item e serviço existem.** `codigo` com o item da EAP geral (`*` só em unidade e sistema), `servico` admitido pelo
+  item (ou `""`) e `unidade` aceita por eles; o roteiro lista tudo. `localizador` "p. N" tem de ser a página do trecho.
+- **Parcelas iguais.** Duas parcelas com o mesmo valor no mesmo documento contam uma vez: para somar quantidades iguais,
+  cite o total (`parcela: false`).
 - **Nunca inventar número.** Sem número no trecho, `valor: null` (menção).
 - **Uma linha por afirmação.** Duas quantidades na mesma frase são duas linhas (com o mesmo trecho).
 - **Não somar no texto.** Duas parcelas em linhas diferentes são duas evidências `parcela: true`; quem soma é o código.

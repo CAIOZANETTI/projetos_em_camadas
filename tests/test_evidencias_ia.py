@@ -60,7 +60,7 @@ def test_conferir_arquivo_aceita_a_citacao_certa_e_recusa_as_falhas():
     assert motivos[1] == "valor não está no trecho"
     assert motivos[2].startswith("documento não fornecido")
     assert all(m.startswith("schema inválido") for m in motivos[3:5])
-    assert motivos[5].startswith("JSON inválido")
+    assert motivos[5].startswith("schema inválido: JSON inválido")
     assert [r["linha"] for r in recusadas] == [2, 3, 4, 5, 6, 7]
 
 
