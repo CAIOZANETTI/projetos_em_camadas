@@ -101,7 +101,8 @@ construtivos e da EAP e grava estes arquivos em `saida/<obra>/`:
 - `evidencias.jsonl`: o registro;
 - `fatos.csv`;
 - `cobertura.csv`;
-- `associados.csv`.
+- `associados.csv`;
+- `calibracao.csv` (premissa × observado, §7.4).
 
 No `obra.json`:
 
@@ -410,6 +411,26 @@ conta como edital (`TIPOS_EDITAL` inclui `planilha`): em `cobertura` o item apar
 `associados_x_edital` o serviço citado na aba sai como "citado no edital". A base do código é `U1.LINEARES` e se muda em `obras_lineares.eap` no
 obra.json; `evidencias.etapa` soma as duas fontes quando `obras_lineares.planilha` existe no disco.
 
+### 7.4 Calibração de premissas (`camadas/calibracao.py`)
+
+Premissa × observado: quando um serviço associado tem um fato de fora (edital, planilha, memorial, IA conferida ou
+decisão), a tabela mostra o valor que a premissa teria de ter para reproduzir o observado. Só informa: **nunca
+sobrescreve** a premissa, que continua em `servicos_associados.jsonl` com `estado` e `fonte`; quem muda é o humano.
+
+- **Regra**: `premissa implícita = p × observado / calculado`, só para fórmula **linear numa única premissa**
+  (armadura = taxa × V; lastro = A_fundo × e). A linearidade é testada em cada elemento, avaliando a fórmula com a
+  premissa em 0, p/2, p e 2p (tolerância relativa de 1e-9). Fórmula com `max`, `if`, patamar ou termo constante, regra
+  sem premissa, mais de uma premissa proporcional ou mais de uma regra no mesmo serviço: `não calibrável`, com o
+  motivo e sem número. Premissa por tipo de elemento (taxa de armadura): `valor_premissa` é a média ponderada pelo
+  calculado.
+- **Observado**: o fato do mesmo (código, serviço, unidade), **sem contar os próprios serviços associados** (seria
+  circular). Convergente ou fonte única vale; decisão vale; conflito não calibra (`fato em conflito`). Associado sem
+  fato com valor não entra na tabela.
+- **Tolerância**: `confere` se observado/calculado difere de 1 em até 5 % (`TOLERANCIA_CONFERE`); acima, `diverge`.
+- **Saída**: `calibracao.csv` em `saida/<obra>/` e `dados["evidencias"]["calibracao"]`. Colunas: código, serviço,
+  unidade, regra, premissa, valor_premissa, calculado, observado, razao, premissa_implicita, diferenca_pct, situacao,
+  motivo, documentos.
+
 ## 8. Quantificação das pranchas e verificação de proposta (`camadas/eap.py`)
 
 - `eap.quantificar`: item EAP e grandeza → quantidade, com os ids dos elementos e as fontes. Elemento sem o
@@ -496,4 +517,8 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
   com o par (valor, unidade) na última linha e nenhuma quantidade nas anteriores (§5; `_confere_bloco`).
 - [ ] **Número colado a letra ou hífen em outro campo da linha** ("DN150 m 320", "C30 m³ 45", "CA-50 kg 1.200"): o
   número com letra colada não é lido como quantidade, e o regex que não é IA lê igual. Pendência comum aos dois métodos.
+- [x] **Calibração de premissas pela evidência** (`camadas/calibracao.py`, §7.4): premissa implícita e situação
+  (`confere`/`diverge`/`não calibrável`) por serviço associado com fato de fora; nunca sobrescreve a premissa.
+- [ ] Calibrar com dados reais de obra (lista de ferros, planilhas): decidir, premissa a premissa, quais valores mudam.
+- [ ] Calibração de premissas não lineares (patamares da vala): exige método próprio, não a proporção.
 - [x] Selo de status por nó da árvore, filtro por prefixo e só pranchas desta disciplina (§9).
