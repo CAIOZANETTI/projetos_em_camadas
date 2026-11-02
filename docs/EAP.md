@@ -415,15 +415,20 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
 
 5. **Selo de status por nó** (`eap_painel.status_do_no`): cada nó da árvore traz `status_no`, `n_fatos` e `n_conflitos`,
    agregados em Python. Um fato cobre o nó quando o código dele tem o mesmo número de segmentos ou mais e casa
-   segmento a segmento com o do nó; `*` casa qualquer segmento (`U1.*.GEO.FUN.EST` cobre `U1`, `U1.A`,
-   `U1.A.GEO.FUN`...), e um fato de item cobre o item e os ancestrais, não os filhos. Regra: algum conflito →
+   segmento a segmento com o do nó; `*` casa qualquer segmento, e um fato de item cobre o item e os ancestrais, não
+   os filhos. Fato com `*` é mais restrito: só cobre o nó se houver, sob ele, alguma quantidade da EAP codificada
+   cujo código case com o fato (`U1.*.GEO.FUN.EST` cobre `U1`, `U1.A` e `U1.A.GEO.FUN` apenas nos sistemas que têm
+   estaca; um sistema sem o item fica sem evidência, não em conflito). Fato sem `*` segue só a regra de prefixo.
+   Os textos do selo (`selo_title`, com o plural certo) e da vista (`rotulo_vista`, com `n_elementos` do nó) vêm
+   prontos do Python; `n_elementos` pode incluir ids sem geometria na camada do mapa. Regra: algum conflito →
    "conflito"; senão algum só menção ou fonte única → "fonte única"; senão todos convergentes ou decididos →
    "convergente"; sem fato → "sem evidência". O JS só mostra o selo (`st st-<slug>`) no `summary` do nó.
 6. **Filtro por prefixo e vista particular**: "ver no mapa" guarda os ids do nó em `OBRA.filtroEap` e `estiloObra`
    esmaece (sem remover) os elementos fora da lista; como `aplicarEscopoMapa` e `resetStyle` passam por
    `estiloObra`, o esmaecimento sobrevive à troca de escopo e à seleção de elementos. `limparSelecaoObra` não o
    desfaz; só o botão "limpar filtro EAP" da linha "Vista: código · nome (n elementos)", no topo da aba EAP, que
-   também limpa a seleção e o anel. Item: abre a ficha do primeiro elemento (aba Obra) e, com vários, enquadra e
+   também limpa a seleção e o anel (se o usuário escolheu outro elemento depois do filtro, a escolha fica). Com o
+   filtro ativo, a aba Obra mostra "Filtro EAP: código" com o mesmo botão de limpar. Item: abre a ficha do primeiro elemento (aba Obra) e, com vários, enquadra e
    destaca todos.
 
 Fica para depois: esmaecer as camadas de prancha (layers CAD) de outras disciplinas. O template já recebe `grupo` e

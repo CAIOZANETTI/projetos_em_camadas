@@ -9,6 +9,10 @@
   "limpar filtro EAP". O esmaecimento está em `estiloObra`, então sobrevive a `aplicarEscopoMapa` e à troca de escopo.
 - **Vista particular**: o item abre a ficha do primeiro elemento (e enquadra todos, se forem vários); linha
   "Vista: código · nome (n elementos)" no topo da aba EAP, com o botão de limpar.
+- Revisão: o `*` só cobre sistemas que têm o item (quantidade sob o nó); `selo_title` e `rotulo_vista` vêm do Python;
+  aviso "Filtro EAP: código" com botão de limpar também na aba Obra; limpar o filtro preserva a seleção feita depois;
+  item com vários elementos não abre popup com autoPan (o enquadramento manda); nó não-item com um elemento volta a
+  selecionar e abrir popup sem trocar de aba (como antes); fatos e quantidades divididos uma vez, indexados por unidade.
 - Pendente: esmaecer layers CAD de outras disciplinas (ver `docs/EAP.md` §9).
 
 ## 0.35.0 — 2026-11-02 · Aba EAP: árvore codificada, fatos e evidências

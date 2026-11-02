@@ -75,38 +75,76 @@ def _texto_quantidade(grupo: dict, nivel: str) -> str:
 
 
 SEM_EVIDENCIA = "sem evidência"
-STATUS_POUCA_EVIDENCIA = {"só menção", "fonte única"}
 STATUS_CONFIRMADOS = {"convergente", "decidido"}
+
+
+def _casa(fato: tuple[str, ...], outro: tuple[str, ...]) -> bool:
+    """Casa segmento a segmento (`*` do fato casa qualquer segmento); `outro` precisa ter o nível do fato ou mais."""
+    return len(outro) >= len(fato) and all(f in ("*", o) for f, o in zip(fato, outro))
 
 
 def _fato_cobre_no(codigo_fato: str, codigo_no: str) -> bool:
     """O fato vale para o nó quando casa segmento a segmento com o código do nó: `*` casa qualquer segmento e o fato
     precisa ser do nível do nó ou mais profundo (fato de item vale para o item e para os ancestrais, não para os filhos)."""
-    fato, no = codigo_fato.split("."), codigo_no.split(".")
+    fato, no = tuple(codigo_fato.split(".")), tuple(codigo_no.split("."))
     return len(fato) >= len(no) and all(f in ("*", n) for f, n in zip(fato, no))
 
 
-def status_do_no(codigo_no: str, lista_fatos: list[dict]) -> dict:
-    """Status agregado dos fatos sob o nó: conflito > fonte única (inclui só menção) > convergente (inclui decidido);
-    sem fato, "sem evidência". Devolve também `n_fatos` e `n_conflitos`."""
-    status = [
-        f["status"] for f in lista_fatos if _fato_cobre_no(f["codigo"], codigo_no)
-    ]
+def _indexar_fatos(lista_fatos: list[dict]) -> dict[str, list[tuple]]:
+    """Fatos com o código já dividido, agrupados pelo primeiro segmento (a unidade); `*` na unidade vale em todos os grupos
+    e fica em `"*"`. Cada item é (segmentos, status, tem_curinga)."""
+    indice: dict[str, list[tuple]] = {}
+    for f in lista_fatos:
+        partes = tuple(str(f["codigo"]).split("."))
+        indice.setdefault(partes[0], []).append((partes, f["status"], "*" in partes))
+    return indice
+
+
+def _codigos_sob_no(quantidades: list[dict]) -> dict[str, list[tuple[str, ...]]]:
+    """Por nó, os códigos (divididos, sem repetir) das quantidades que estão sob ele."""
+    sob: dict[str, dict[tuple[str, ...], None]] = {}
+    for codigo in dict.fromkeys(q["codigo"] for q in quantidades):
+        partes = tuple(codigo.split("."))
+        for no in _prefixos(codigo):
+            sob.setdefault(no, {})[partes] = None
+    return {no: list(v) for no, v in sob.items()}
+
+
+def _cobre(fato: tuple, no: tuple[str, ...], sob_no: list[tuple[str, ...]]) -> bool:
+    """Fato sem `*`: regra do nó. Fato com `*` só cobre o nó se houver, sob ele, alguma quantidade cujo código case com o
+    fato (o curinga não contamina sistema que não tem o item)."""
+    partes, _, curinga = fato
+    if len(partes) < len(no) or not all(f in ("*", n) for f, n in zip(partes, no)):
+        return False
+    return not curinga or any(_casa(partes, q) for q in sob_no)
+
+
+def status_do_no(
+    codigo_no: str,
+    indice_fatos: dict[str, list[tuple]],
+    codigos_sob_no: list[tuple[str, ...]],
+) -> dict:
+    """Status agregado dos fatos que cobrem o nó: conflito > fonte única (inclui só menção e status desconhecido) >
+    convergente (inclui decidido); sem fato, "sem evidência". Devolve `n_fatos`, `n_conflitos` e `selo_title`
+    (texto do selo, com o plural certo)."""
+    no = tuple(codigo_no.split("."))
+    candidatos = indice_fatos.get(no[0], []) + indice_fatos.get("*", [])
+    status = [f[1] for f in candidatos if _cobre(f, no, codigos_sob_no)]
     n_conflitos = status.count("conflito")
     if not status:
         agregado = SEM_EVIDENCIA
     elif n_conflitos:
         agregado = "conflito"
-    elif any(
-        s not in STATUS_CONFIRMADOS for s in status
-    ):  # só menção, fonte única ou status desconhecido: pouca evidência
+    elif any(s not in STATUS_CONFIRMADOS for s in status):
         agregado = "fonte única"
     else:
         agregado = "convergente"
+    n = len(status)
     return {
         "status_no": agregado,
-        "n_fatos": len(status),
+        "n_fatos": n,
         "n_conflitos": n_conflitos,
+        "selo_title": f"{n} {'fato' if n == 1 else 'fatos'} · {n_conflitos} em conflito",
     }
 
 
@@ -117,8 +155,9 @@ def arvore(
     agregado dos `lista_fatos` brutos (`evidencias["fatos"]`) que cobrem o nó."""
     if not eap_codificada:
         return []
-    lista_fatos = lista_fatos or []
     quantidades = eap_codificada.get("quantidades") or []
+    indice_fatos = _indexar_fatos(lista_fatos or [])
+    sob_no = _codigos_sob_no(quantidades)
     grupos, elementos = _grupos_do_no(quantidades), _elementos_do_no(quantidades)
     saida = []
     for no in eap_codificada.get("nos") or []:
@@ -136,7 +175,10 @@ def arvore(
                 ],
                 "elementos": ids,
                 "n_elementos": len(ids),
-                **status_do_no(no["codigo"], lista_fatos),
+                **status_do_no(
+                    no["codigo"], indice_fatos, sob_no.get(no["codigo"], [])
+                ),
+                "rotulo_vista": f"Vista: {no['codigo']} · {no['nome']} ({len(ids)} {'elemento' if len(ids) == 1 else 'elementos'})",
             }
         )
     return saida

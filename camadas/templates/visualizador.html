@@ -496,6 +496,7 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
           </div>
           <div class="acoes"><button class="btn mini" data-ob-acao="exportar" id="obExp">Exportar escolhas de escopo</button><button class="btn mini" data-ob-acao="restaurar" id="obRest">Restaurar do projeto</button></div>
         </div>
+        <div class="eap-vista" id="obFiltroEap" hidden></div>
         <div id="obFicha" aria-live="polite" tabindex="-1"></div>
         <div id="obRes" aria-live="polite" hidden></div>
         <div id="obArvore"></div>
@@ -2333,7 +2334,7 @@ function htmlEapArvore(P) {
     const sub = (filhos.get(n.codigo) || []).map(no).join(""), q = (n.quantidades_txt || []).map(esc).join(" · ");
     const ids = OB ? (n.elementos || []).filter(id => OBRA.camada.has(id)) : [];   // só os que existem na camada do mapa
     const ver = ids.length ? `<button class="btn mini" data-eap-ids="${esc(ids.join("\n"))}" title="${esc(n.n_elementos)} elementos">ver no mapa</button>` : "";
-    return `<details class="eap-n" data-codigo="${esc(n.codigo)}"><summary><span class="st st-${esc(slugStatus(n.status_no))}" title="${esc(n.n_fatos)} fatos · ${esc(n.n_conflitos)} em conflito">${esc(n.status_no)}</span><span class="cod">${esc(n.codigo)}</span><span class="nota-l">${esc(n.numero)}</span><span>${esc(n.nome)}</span></summary>
+    return `<details class="eap-n" data-codigo="${esc(n.codigo)}"><summary><span class="st st-${esc(slugStatus(n.status_no))}" title="${esc(n.selo_title)}">${esc(n.status_no)}</span><span class="cod">${esc(n.codigo)}</span><span class="nota-l">${esc(n.numero)}</span><span>${esc(n.nome)}</span></summary>
       ${q || ver ? `<div class="eap-q">${q}${ver ? " " + ver : ""}</div>` : ""}${sub}</details>`;
   };
   if (!(P.arvore || []).length) return "";
@@ -2364,27 +2365,34 @@ function verNoMapaEap(ids, no) {
   garantirVisivel(ids.map(id => OBRA.porId.get(id)).filter(Boolean));
   ligarObraMapa(true);
   if (vista !== "mapa") mostrarVista("mapa");
-  mostrarVistaEap(no, ids.length);
+  mostrarVistaEap(no);
   limparSelecaoObra();   // fecha popup e ficha do elemento anterior e zera o destaque
-  OBRA.multi = lays;
-  aplicarEscopoMapa();   // refaz os estilos com o filtro e o anel dos elementos do nó
-  if (no.nivel === "item") {
-    selecionarObra(ids.find(id => OBRA.camada.has(id)), {enquadrar: lays.length === 1, abrir: true});
+  OBRA.selEap = null;
+  const item = no.nivel === "item";
+  if (item || lays.length === 1) {
+    aplicarEscopoMapa();   // refaz os estilos com o filtro
+    const primeiro = ids.find(id => OBRA.camada.has(id));
+    OBRA.selEap = primeiro;
+    selecionarObra(primeiro, {enquadrar: lays.length === 1, abrir: item, semAutoPan: lays.length > 1});   // vários: o enquadramento abaixo manda, sem popup puxando o mapa
     if (lays.length > 1) { OBRA.multi = lays; OBRA.halo.clearLayers(); lays.forEach(haloObra); }
-  }
+  } else { OBRA.multi = lays; aplicarEscopoMapa(); }   // estilos com o filtro e o anel dos elementos do nó
   if (lays.length > 1) map.fitBounds(L.featureGroup(lays).getBounds(), {padding: [70, 70], maxZoom: 21});
 }
-/* linha "Vista: …" no topo da aba EAP, com o botão que desfaz o filtro; texto montado só com campos prontos do nó */
-function mostrarVistaEap(no, n) {
-  const el = $("#eapVista");
-  el.innerHTML = `<span>Vista: <b>${esc(no.codigo)}</b> · ${esc(no.nome)} (${esc(n)} ${n === 1 ? "elemento" : "elementos"})</span><button class="btn mini" data-eap-limpar>limpar filtro EAP</button>`;
-  el.hidden = false;
+/* linha de vista no topo da aba EAP e aviso na aba Obra, ambos com o botão que desfaz o filtro; os textos vêm prontos do Python
+   (`rotulo_vista` usa o `n_elementos` do nó, que pode incluir ids sem geometria na camada) */
+function mostrarVistaEap(no) {
+  const botao = `<button class="btn mini" data-eap-limpar>limpar filtro EAP</button>`;
+  for (const [el, txt] of [[$("#eapVista"), no.rotulo_vista], [$("#obFiltroEap"), "Filtro EAP: " + no.codigo]]) {
+    if (!el) continue;
+    el.innerHTML = `<span>${esc(txt)}</span>${botao}`; el.hidden = false;
+  }
 }
+/* desfaz o filtro; a seleção que o usuário fez depois dele fica (só o anel e o destaque do próprio filtro saem) */
 function limparFiltroEap() {
-  limparSelecaoObra();
-  OBRA.filtroEap = null;
-  aplicarEscopoMapa();   // volta aos estilos do escopo
-  const el = $("#eapVista"); el.hidden = true; el.innerHTML = "";
+  if (!OBRA.sel || OBRA.sel === OBRA.selEap) limparSelecaoObra(); else OBRA.multi = [];
+  OBRA.filtroEap = null; OBRA.selEap = null;
+  aplicarEscopoMapa();   // volta aos estilos do escopo (e refaz o anel da seleção que ficou)
+  for (const el of [$("#eapVista"), $("#obFiltroEap")]) if (el) { el.hidden = true; el.innerHTML = ""; }
 }
 function filtrarFatosEap(status) {
   document.querySelectorAll("#eapFatos .eap-fato").forEach(d => { d.hidden = status !== "" && d.dataset.status !== status; });
@@ -2394,10 +2402,10 @@ function montarEap() {
   const P = D.eap_painel, aba = $("#aba-eap");
   aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "");
   if (!P) return;
+  document.addEventListener("click", e => { if (e.target.closest("[data-eap-limpar]")) limparFiltroEap(); });   // botões da aba EAP e da aba Obra
   aba.addEventListener("click", e => {
     const ver = e.target.closest("[data-eap-ids]"), fl = e.target.closest("[data-eap-status]");
-    if (e.target.closest("[data-eap-limpar]")) limparFiltroEap();
-    else if (ver) verNoMapaEap(ver.dataset.eapIds.split("\n"), P.arvore.find(n => n.codigo === ver.closest("details").dataset.codigo));
+    if (ver) verNoMapaEap(ver.dataset.eapIds.split("\n"), P.arvore.find(n => n.codigo === ver.closest("details").dataset.codigo));
     else if (fl) filtrarFatosEap(fl.dataset.eapStatus);
   });
 }
@@ -2420,7 +2428,7 @@ function iniciarV2() {
 const OB = D.construtivos && D.construtivos.geojson ? D.construtivos : null;
 const ES = OB && OB.escopo && OB.escopo.sistemas ? OB.escopo : null;   // escopo por sistema (opcional): sem ele a aba funciona como antes, sem os controles
 const OBRA = {sel: null, itens: [], porId: new Map(), camada: new Map(), un: new Map(), sis: new Map(), geo: null, halo: L.layerGroup(), popup: null,
-  manual: {}, soEscopo: true, ordem: [], aviso: "", multi: [], filtroEap: null};   // filtroEap: Set de ids da aba EAP (os demais ficam esmaecidos) ou null
+  manual: {}, soEscopo: true, ordem: [], aviso: "", multi: [], filtroEap: null, selEap: null};   // filtroEap: Set de ids da aba EAP (os demais ficam esmaecidos) ou null
 const OB_MAX = 50, OB_MAX_CLASSE = 300, OB_COR_PADRAO = "#64748b";
 const ESTADOS_ESC = ["dentro", "fora", "a definir"];
 const CHAVE_OBRA = "camadas:obra-escopo:" + D.id;
@@ -2764,7 +2772,7 @@ function garantirVisivel(its) {
   return "Filtro “Só o escopo” desligado: este sistema está fora do escopo e ficaria oculto no mapa.";
 }
 /* abrir: false = clique no mapa (não troca de aba; o popup leva à ficha); a ficha é atualizada de qualquer jeito */
-function selecionarObra(id, {enquadrar = true, ll = null, abrir = true} = {}) {
+function selecionarObra(id, {enquadrar = true, ll = null, abrir = true, semAutoPan = false} = {}) {
   const it = OBRA.porId.get(id), lay = OBRA.camada.get(id);
   if (!it || !lay) return;
   const aviso = garantirVisivel([it]);
@@ -2778,7 +2786,7 @@ function selecionarObra(id, {enquadrar = true, ll = null, abrir = true} = {}) {
   renderFichaObra();
   document.querySelectorAll("#aba-obra [data-ob-id]").forEach(b => b.setAttribute("aria-current", b.dataset.obId === id));
   if (abaAtual === "obra") { if (window.innerWidth <= 760) $("#aba-obra").scrollTop = 0; else $("#obFicha").scrollIntoView({block: "nearest"}); }   // no celular a ficha fica no painel, sob o mapa
-  OBRA.popup = L.popup({autoPan: !enquadrar, autoPanPaddingTopLeft: OPCOES_POPUP.autoPanPaddingTopLeft, autoPanPaddingBottomRight: OPCOES_POPUP.autoPanPaddingBottomRight,
+  OBRA.popup = L.popup({autoPan: !enquadrar && !semAutoPan, autoPanPaddingTopLeft: OPCOES_POPUP.autoPanPaddingTopLeft, autoPanPaddingBottomRight: OPCOES_POPUP.autoPanPaddingBottomRight,
     maxWidth: 260, minWidth: 160, className: "obra-pop", offset: [0, -4]})
     .setLatLng(ll || ancoraObra(lay)).setContent(nodoPopupObra(it)).openOn(map);   // com enquadramento o mapa não se mexe: o elemento fica no centro
 }
