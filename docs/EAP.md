@@ -362,9 +362,14 @@ A aba "Obras Lineares" da planilha Sanepar traz, por trecho, valores digitados (
 bota-fora, supressão vegetal). Cada um vira uma evidência `parcela` do documento da planilha (método `planilha`, regra
 `obras_lineares.planilha`), com o local e a linha no localizador. O escoramento da planilha é "sim/não", sem área, e por
 isso não gera evidência. Os mesmos trechos são recalculados pelo MOS (`lineares.dimensionar_vala`) e entram como
-`metodo:mos_sanepar`, nos mesmos fatos (comprimento → assentamento, escavação, reaterro, bota-fora e o escoramento total
-em m²). Digitado igual ao recalculado é convergente; diferente é conflito, com as duas afirmações e a diferença em %.
-A supressão só existe na planilha (fonte única). A base do código é `U1.LINEARES` e se muda em `obras_lineares.eap` no
+`metodo:mos_sanepar:obras_lineares` (id distinto do `metodo:mos_sanepar` das valas dos elementos, para que as parcelas
+não se somem no mesmo documento), nos mesmos fatos (escavação, reaterro, bota-fora e o escoramento total em m²).
+Digitado igual ao recalculado é convergente; diferente é conflito, com as duas afirmações e a diferença em %.
+O comprimento não é recalculado (o MOS só o copia da entrada), então o assentamento e a supressão ficam só com a
+planilha (fonte única). Trecho em MND tem recálculo (só os caximbos escavam, sem largura); em VCA, sem profundidade ou
+com material fora da Tabela I, não tem. A aba faz parte da planilha de orçamento do contrato Sanepar e, de propósito,
+conta como edital (`TIPOS_EDITAL` inclui `planilha`): em `cobertura` o item aparece como "só edital" e em
+`associados_x_edital` o serviço citado na aba sai como "citado no edital". A base do código é `U1.LINEARES` e se muda em `obras_lineares.eap` no
 obra.json; `evidencias.etapa` soma as duas fontes quando `obras_lineares.planilha` existe no disco.
 
 ## 8. Quantificação das pranchas e verificação de proposta (`camadas/eap.py`)

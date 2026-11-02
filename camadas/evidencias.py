@@ -208,8 +208,8 @@ GRANDEZAS_LINEARES = (
     ("escoramento_m2", "GEO.MOV.VAL", "escoramento", "m²"),
     ("supressao_m2", "GEO.MOV.SUP", "", "m²"),
 )
-DOCUMENTO_MOS = {"id": "metodo:mos_sanepar", "tipo": "associado",
-                 "nome": "serviços associados · MOS Sanepar (lineares.dimensionar_vala), trechos da planilha"}
+DOCUMENTO_MOS = {"id": "metodo:mos_sanepar:obras_lineares", "tipo": "associado",   # distinto do das valas dos elementos
+                 "nome": "MOS Sanepar (lineares.dimensionar_vala) recalculando os trechos da planilha Obras Lineares"}
 
 
 def _de_trechos_lineares(trechos: list[dict], valores_do_trecho, documento: dict, metodo: str, regra: str,
@@ -242,17 +242,22 @@ def de_obras_lineares(trechos: list[dict], documento: dict, base: str = "U1.LINE
 
 
 def de_obras_lineares_mos(trechos: list[dict], furos: list[dict] | None = None, base: str = "U1.LINEARES") -> list[dict]:
-    """Recálculo dos mesmos trechos pelo MOS (`lineares.dimensionar_vala`): mesmas grandezas e mesmos fatos da
-    planilha, mais o escoramento em m² (serviço `escoramento`, o total). Trecho com material fora da Tabela I do MOS
-    não tem recálculo e fica de fora."""
-    from . import lineares
+    """Recálculo dos mesmos trechos pelo MOS (`lineares.dimensionar_vala`): escavação, reaterro e bota-fora da planilha,
+    mais o escoramento em m² (serviço `escoramento`, o total). O comprimento não entra: o MOS só o copia da entrada,
+    e repeti-lo daria uma confirmação falsa (o assentamento fica só com a planilha). Trecho em VCA sem profundidade ou
+    com material fora da Tabela I do MOS (sem largura) não tem recálculo; em MND a largura não existe, e vale o método."""
+    from . import lineares, obras_lineares
+    campos = [k for k, *_ in GRANDEZAS_LINEARES if k not in ("comp_m", "supressao_m2")]
 
     def recalcular(trecho: dict) -> dict:
         r = lineares.dimensionar_vala(trecho, furos or [])
-        if not r.get("largura_m"):
+        mnd = obras_lineares.norm(trecho.get("metodo") or "VCA") == "MND"
+        if not mnd and not r.get("largura_m"):
             return {}
-        return {**{k: r.get(k) for k, *_ in GRANDEZAS_LINEARES if k != "supressao_m2"},
-                "memoria": f"MOS: L = {r['largura_m']:g} m, h = {r['profundidade_m']:g} m, {r['tipo_escoramento']}"}
+        partes = [f"L = {r['largura_m']:g} m"] if r.get("largura_m") else ["MND: só os caximbos escavam"]
+        partes += [f"h = {r['profundidade_m']:g} m"] if r.get("profundidade_m") else []
+        partes.append(r.get("tipo_escoramento") or "sem escoramento")
+        return {**{k: r.get(k) for k in campos}, "memoria": "MOS: " + ", ".join(partes)}
     return _de_trechos_lineares(trechos, recalcular, DOCUMENTO_MOS, "associado", "obras_lineares.mos_sanepar", base)
 
 

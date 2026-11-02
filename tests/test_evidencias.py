@@ -230,18 +230,22 @@ def test_planilha_obras_lineares_vira_evidencia_por_trecho_e_grandeza():
 
 def test_mos_recalcula_os_mesmos_fatos_com_o_escoramento_total():
     mos = evidencias.de_obras_lineares_mos([_trecho_linear()], [])
-    assert {e["documento"]["id"] for e in mos} == {"metodo:mos_sanepar"} and {e["metodo"] for e in mos} == {"associado"}
+    assert {e["documento"]["id"] for e in mos} == {"metodo:mos_sanepar:obras_lineares"}
+    assert {e["metodo"] for e in mos} == {"associado"}
     q = {(e["servico"], e["unidade"]): e["valor"] for e in mos}
     assert q[("escavacao", "m³")] == pytest.approx(288.792) and q[("escoramento", "m²")] == pytest.approx(275.04)
     assert ("", "m²") not in q                                                  # supressão não é recalculada
+    assert ("assentamento", "m") not in q                                       # o comprimento é só cópia da entrada
+    assert not any("None" in e["trecho"] for e in mos)
     assert evidencias.de_obras_lineares_mos([{**_trecho_linear(), "material": "AMIANTO"}], []) == []
 
 
 def test_planilha_x_mos_do_mesmo_trecho_converge_quando_o_digitado_bate():
     fatos = _fatos_lineares(_trecho_linear())
     for chave in (("U1.LINEARES.GEO.MOV.VAL", "escavacao", "m³"), ("U1.LINEARES.GEO.MOV.VAL", "reaterro", "m³"),
-                  ("U1.LINEARES.GEO.MOV.VAL", "bota_fora", "m³"), ("U1.LINEARES.HID.TUB.RED", "assentamento", "m")):
+                  ("U1.LINEARES.GEO.MOV.VAL", "bota_fora", "m³")):
         assert fatos.loc[chave]["status"] == "convergente" and fatos.loc[chave]["forca"] == 2
+    assert fatos.loc[("U1.LINEARES.HID.TUB.RED", "assentamento", "m")]["status"] == "fonte única"   # sem conferência
     assert fatos.loc[("U1.LINEARES.GEO.MOV.VAL", "escoramento", "m²")]["status"] == "fonte única"   # só o MOS
     assert fatos.loc[("U1.LINEARES.GEO.MOV.SUP", "", "m²")]["status"] == "fonte única"              # só a planilha
 
@@ -251,7 +255,7 @@ def test_planilha_x_mos_do_mesmo_trecho_e_conflito_quando_o_digitado_difere():
     f = fatos.loc[("U1.LINEARES.GEO.MOV.VAL", "escavacao", "m³")]
     assert f["status"] == "conflito" and f["n_documentos"] == 2
     assert {a["documento"]: a["valor"] for a in f["afirmacoes"]} == {
-        "planilha_sanepar.xlsx": 320.0, "metodo:mos_sanepar": pytest.approx(288.792)}
+        "planilha_sanepar.xlsx": 320.0, "metodo:mos_sanepar:obras_lineares": pytest.approx(288.792)}
     assert f["diferenca_pct"] == pytest.approx(100 * (320 - 288.792) / 320, abs=0.1)
     assert fatos.loc[("U1.LINEARES.GEO.MOV.VAL", "reaterro", "m³")]["status"] == "convergente"      # os outros seguem
 
@@ -263,10 +267,41 @@ def test_etapa_soma_a_planilha_obras_lineares_quando_ela_esta_no_disco(tmp_path)
     cfg = {"obras_lineares": {"planilha": str(caminho), "eap": "U1.LINEARES"}}
     evidencias.etapa(cfg, tmp_path / "saida", dados, log=lambda *a: None)
     evs = evidencias.ler(tmp_path / "saida" / "evidencias.jsonl")
-    assert {"p.xlsx", "metodo:mos_sanepar"} <= {e["documento"]["id"] for e in evs}
+    assert {"p.xlsx", "metodo:mos_sanepar:obras_lineares"} <= {e["documento"]["id"] for e in evs}
     fatos = pd.read_csv(tmp_path / "saida" / "fatos.csv", sep=";", decimal=",", encoding="utf-8-sig")
     esc = fatos[(fatos["codigo"] == "U1.LINEARES.GEO.MOV.VAL") & (fatos["servico"] == "escavacao")]
     assert esc["status"].tolist() == ["convergente"]
     sem = evidencias.etapa({"obras_lineares": {"planilha": str(tmp_path / "nao_existe.xlsx")}}, tmp_path / "s2", dados,
                            log=lambda *a: None)
     assert sem is None
+
+
+def test_mnd_tem_recalculo_sem_largura_e_vca_sem_largura_nao():
+    mnd = {**_trecho_linear(), "metodo": "MND"}
+    q = {(e["servico"], e["unidade"]): e["valor"] for e in evidencias.de_obras_lineares_mos([mnd], [])}
+    assert q[("escavacao", "m³")] > 0 and q[("reaterro", "m³")] > 0 and ("bota_fora", "m³") not in q   # só os caximbos
+    assert evidencias.de_obras_lineares_mos([{**_trecho_linear(), "prof_m": None}], []) == []          # VCA sem profundidade
+    fatos = _fatos_lineares(mnd)
+    assert fatos.loc[("U1.LINEARES.GEO.MOV.VAL", "escavacao", "m³")]["status"] == "conflito"           # valas × caximbos
+
+
+def test_valas_dos_elementos_e_trechos_da_planilha_no_mesmo_codigo_nao_somam_no_mesmo_documento():
+    from test_dimensoes import _furo, _vala
+    _, vala, _, _ = _vala({"fora_da_via": 100.0}, de_mm=300, material="TUBO FD K7", metodos=("mos_sanepar",),
+                          sondagens=[_furo()])
+    planilha = evidencias.de_obras_lineares_mos([_trecho_linear()], [], base="U2.AAT06")
+    fatos = evidencias.consolidar(vala + planilha).set_index(["codigo", "servico", "unidade"])
+    esc = fatos.loc[("U2.AAT06.GEO.MOV.VAL", "escavacao", "m³")]
+    por_doc = {a["documento"]: a["valor"] for a in esc["afirmacoes"]}
+    assert set(por_doc) == {"metodo:mos_sanepar", "metodo:mos_sanepar:obras_lineares"}
+    assert por_doc["metodo:mos_sanepar:obras_lineares"] == pytest.approx(288.792)         # só o trecho, sem somar as valas
+
+
+def test_aba_obras_lineares_conta_como_edital_na_cobertura_e_nos_associados():
+    evs = evidencias.de_obras_lineares([_trecho_linear()], DOC_PLANILHA) + \
+        evidencias.de_obras_lineares_mos([_trecho_linear()], [])
+    ass = evidencias.associados_x_edital(evs).set_index(["item", "servico"])
+    assert ass.loc[("GEO.MOV.VAL", "escavacao"), "situacao"] == "citado no edital"
+    assert ass.loc[("GEO.MOV.VAL", "escoramento"), "situacao"].startswith("não citado no edital")   # a aba não traz m²
+    cob = evidencias.cobertura(evs).set_index(["unidade", "item"])
+    assert cob.loc[("U1", "GEO.MOV.VAL"), "situacao"] == "só edital: sem evidência no projeto"
