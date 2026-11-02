@@ -1,4 +1,60 @@
 data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retrabalho_gerente,observacao
+2026-10-31,rodada 21,E0: repositórios no GitHub para a memória espacial (PESQUISA_REPOSITORIOS §6),pesquisador,claude-sonnet-5-5,74279,12,127.0,True,ajuste do gerente,entregue; G04/G07 corrigidos pelo Opus
+2026-11-01,rodada 21,E1 (gerador sintético de base linear),implementador,claude-sonnet-5-5,84272,19,132.0,True,nenhum,aceita pelo Opus (testes e aferição verdes)
+2026-11-01,rodada 21,"E2 (parquet, geoparquet e duckdb nas gavetas)",implementador,claude-sonnet-5-5,84734,12,170.0,True,nenhum,"aceita pelo Opus (29 testes, aferição ok, ida e volta conferida nos 5 km sintéticos)"
+2026-11-01,rodada 21,E3 (bancada de formatos e decidir),implementador,claude-sonnet-5-5,32490,16,261.0,True,ajuste do gerente,aceita pelo Opus com ajuste: RAM por pico de RSS em subprocesso (tracemalloc não via a memória nativa)
+2026-11-01,rodada 21,E4 (rodar a bancada 5 e 100 km e conferir quadro × jsonl),braçal,claude-haiku-5-5,62169,7,231.0,True,nenhum,"entregue; 20 linhas, 0 divergências; conferido por amostra pelo Opus"
+2026-11-01,rodada 21,aceite da rodada 21 (E1 a E5),gerente (aceite),claude-fable-5-1,111545,15,223.0,True,nenhum,"ACEITA; 5 riscos, 2 tratados na hora (critério 2 pelo motor, ler de outro formato)"
+2026-11-01,rodada 22,E1 (leitores → gavetas),implementador,claude-sonnet-5-5,86572,19,182.0,True,ajuste do gerente,"aceita pelo Opus com 2 ajustes (fato_id da decisão, comp 0)"
+2026-11-01,rodada 22,E2 (paridade do cálculo),implementador,claude-sonnet-5-5,88668,17,123.0,True,nenhum,aceita pelo Opus
+2026-11-01,rodada 22,E3 (lote e retorno com gaveta),implementador,claude-sonnet-5-5,77484,21,125.0,True,nenhum,aceita pelo Opus
+2026-11-01,rodada 22,E4 (etapa gavetas no build),implementador,claude-sonnet-5-5,14955,11,68.0,True,nenhum,aceita pelo Opus
+2026-11-01,rodada 22,aceite da rodada 22 (E1 a E5),gerente (aceite),claude-fable-5-1,126997,23,239.0,True,nenhum,"REVISAR: E1, E2, E4, E5 (4 achados); E3 aceita"
+2026-11-01,rodada 23,"E1 (EAP para o HTML, eap_html.py)",implementador,claude-sonnet-5-5,74668,13,128.0,True,nenhum,entregue; integração depois do aceite da 22
+2026-11-01,rodada 23,E2 (aba EAP no visualizador),implementador,claude-sonnet-5-5,78292,23,171.0,True,nenhum,entregue; integração depois do aceite da 22
+2026-11-01,rodada 22,revisão: 4 achados do aceite,implementador,claude-sonnet-5-5,101515,25,169.0,True,devolução do Fable,"entregue; 9 testes novos, 7 falhavam antes"
+2026-11-01,rodada 22,2º aceite da rodada 22,gerente (aceite),claude-fable-5-1,20494,10,112.0,True,nenhum,ACEITA
+2026-11-01,rodada 25 (plano),aprovar o plano de geotecnia e obras lineares,revisor,claude-fable-5-1,128737,21,105.0,True,nenhum,aprovado com 7 ajustes
+2026-11-01,rodada 25,L1 (eixo e estaqueamento),implementador,claude-sonnet-5-5,81515,15,164.0,True,nenhum,entregue; 22 testes
+2026-11-01,rodada 25,lint ruff (mosaico.py e test_escada.py),braçal,claude-haiku-5-5,63260,18,51.0,True,nenhum,5 erros corrigidos
+2026-11-01,rodada 25,G1 (schema do furo e leitor de laudo),implementador,claude-sonnet-5-5,94357,16,278.0,True,nenhum,entregue; 9 testes
+2026-11-01,rodada 25,aceite do PR 2 (G1 e L1),revisor (aceite),claude-fable-5-1,110686,15,143.0,False,ajuste do gerente,L1 aceita; G1 revisar (preposição 'na' virava NA); corrigido pelo Opus
+2026-11-01,rodada 25,2º aceite do G1,revisor (aceite),claude-fable-5-1,113188,1,13.0,True,nenhum,G1 aceita
+2026-11-01,rodada 23,E3 (recálculo incremental),implementador,claude-sonnet-5-5,81511,17,171.0,True,nenhum,"aceita pelo Opus (campo chave_calculo, alertas no 1º serviço)"
+2026-11-01,rodada 23,E4 (conferência ponta a ponta da aba EAP),braçal,claude-haiku-5-5,71669,15,78.0,True,nenhum,"entregue; 146 valores, 256 evidências, 2 pendências, 0 números sem origem, 0 erros"
+2026-11-01,rodada 23,aceite da rodada 23,gerente (aceite),claude-fable-5-1,36844,10,154.0,True,nenhum,"REVISAR: E1 (omissão silenciosa), E3 (chave sem as constantes do MOS; paridade sobre recálculo fresco)"
+2026-11-01,rodada 24,E2 (bancada do cálculo),implementador,claude-sonnet-5-5,85661,19,133.0,True,nenhum,entregue; achou o 2º cálculo O(n²) (reprova o critério 2 já em 5 km)
+2026-11-01,rodada 24,E1 (valas nas gavetas),implementador,claude-sonnet-5-5,112297,28,185.0,True,nenhum,entregue; corrigiu também valor_txt de listas e regra_de sem quando
+2026-11-01,rodada 23,2º aceite da rodada 23,gerente (aceite),claude-fable-5-1,16274,7,92.0,True,nenhum,ACEITA
+2026-11-01,rodada 25,L2 (leitor do perfil longitudinal),implementador,claude-sonnet-5-5,95094,19,228.0,True,nenhum,entregue; 11 testes (OCR pulado sem tesseract)
+2026-11-01,rodada 25,G2 e G3 (modelo geotécnico e conferências),implementador,claude-sonnet-5-5,144694,32,380.0,True,nenhum,entregue; hash da referência igual
+2026-11-01,rodada 25,aceite do PR 3 (G2 G3 L2),revisor (aceite),claude-fable-5-1,102653,7,104.0,False,ajuste do gerente,G2 e G3 aceitas; L2 revisar (fundo da vala somava o berço); corrigido pelo Opus
+2026-11-01,rodada 25,2º aceite do L2,revisor (aceite),claude-fable-5-1,109092,2,18.0,True,nenhum,L2 aceita
+2026-11-01,rodada 25,aceite da correção da impressão da regra,revisor (aceite),claude-fable-5-1,122913,3,48.0,True,nenhum,aceita
+2026-11-01,rodada 25,F (conferências geotécnicas no build),implementador,claude-sonnet-5-5,99250,24,179.0,True,nenhum,entregue; aguarda aceite
+2026-11-01,rodada 25,L3a (dimensionador único de vala),implementador,claude-opus-5-5,203073,52,3892.0,True,nenhum,hash da referência igual; gabaritos intactos
+2026-11-01,rodada 25,"L3b (valas pelo dimensionador, D2, trechos)",implementador,claude-sonnet-5-5,126484,35,246.0,True,nenhum,hash muda só no caso_valas_por_classe (D2)
+2026-11-01,rodada 25,aceite da L3 e do F,revisor (aceite),claude-fable-5-1,113895,9,122.0,True,nenhum,ACEITO COM RESSALVAS não bloqueantes
+2026-11-01,rodada 24,E3 (fatos da IA na etapa),implementador,claude-sonnet-5-5,79045,13,130.0,True,devolução do gerente,devolvida 1 vez: os testes não tinham entrado no commit; corrigido
+2026-11-01,rodada 24,E3 (correção: testes no commit),implementador,claude-sonnet-5-5,8344,9,49.0,True,nenhum,"aceita pelo Opus (21 testes, conferido git show)"
+2026-11-01,rodada 24,desempenho: índice da base,implementador,claude-sonnet-5-5,87247,23,466.0,True,nenhum,"aceito pelo Opus; 20 km 70,4 s → 0,86 s; meta do 2º cálculo ainda não"
+2026-11-01,rodada 24,"desempenho: furo_por_metro, id_furo, para_eap",implementador,claude-sonnet-5-5,26764,21,384.0,True,nenhum,"aceito pelo Opus; resultado idêntico, hash da referência inalterado"
+2026-11-01,rodada 24,aceite da rodada 24,gerente (aceite),claude-fable-5-1,42122,13,181.0,True,nenhum,"REVISAR: E1 (evidência sem layers/ortofoto), E3 (fato de IA vira serviço; empate pela ordem; classe declarada pela IA)"
+2026-11-01,rodada 24,"revisão do 1º aceite (IA fora do cálculo, classe, evidência)",implementador,claude-sonnet-5-5,161821,54,459.0,True,ajuste do gerente,aceita pelo Opus com ajuste (só a classe aponta para a ortofoto)
+2026-11-01,rodada 24,2º aceite da rodada 24,gerente (aceite),claude-fable-5-1,25044,9,100.0,True,nenhum,REVISAR só pelo furo criado pela IA como insumo; o resto aceito
+2026-11-01,rodada 24,3º aceite da rodada 24,gerente (aceite),claude-fable-5-1,5836,4,69.0,True,nenhum,ACEITA
+2026-11-02,EAP 0.33.0,escoramento total da vala e planilha Obras Lineares como evidência (planilha × MOS),executor,claude-sonnet-5-5,148417,42,275.0,True,ajuste do gerente,entregue com 428 testes; 4 achados da revisão devolvidos
+2026-11-02,EAP 0.33.0,revisão independente do commit 15c3ce2,revisor,claude-sonnet-5-5,111610,10,89.0,True,nenhum,sem bloqueantes; 4 importantes (comp_m sem conferência real; MND sumia; id de documento colidindo; planilha como edital sem nota)
+2026-11-02,EAP 0.33.0,correção dos achados da revisão,executor,claude-sonnet-5-5,159262,8,81.0,True,nenhum,431 testes; hash de referência inalterado
+2026-11-02,memória espacial rodada 5,E2 (setores da ETA),implementador,claude-sonnet-5-5,127283,27,297.0,True,nenhum,aceita pelo Opus
+2026-11-02,memória espacial rodada 5,E1 (cavas nas gavetas),implementador,claude-sonnet-5-5,182959,37,497.0,True,ajuste do gerente,aceita pelo Opus; gerente acrescentou o setor de cada cava pelo ponto do serviço
+2026-11-02,memória espacial rodada 5,aceite da rodada 5,gerente (aceite),claude-fable-5-1,71554,14,160.0,True,nenhum,REVISAR: as duas EAP colidiam em dados['eap'] (PR #18); bandit B324 de evidencias.py; E1 e ajuste aceitos
+2026-11-02,memória espacial rodada 5,2º aceite da rodada 5,gerente (aceite),claude-fable-5-1,14437,7,62.0,True,nenhum,REVISAR só pela tolerância que escondia dobra em nó grande
+2026-11-02,memória espacial rodada 5,3º aceite da rodada 5,gerente (aceite),claude-fable-5-1,3924,3,49.0,True,nenhum,ACEITA
+2026-11-02,EAP 0.35.0,"aba EAP: correção da colisão de dados[""eap""]; eap_painel (árvore codificada; fatos; associados × edital) e três seções no template",executor,claude-sonnet-5-5,166329,46,423.0,True,ajuste do gerente,entregue com 449 testes; 4 achados da revisão devolvidos
+2026-11-02,EAP 0.35.0,revisão independente do commit ae362be,revisor,claude-sonnet-5-5,106911,11,113.0,True,nenhum,sem bloqueantes; 4 importantes (popup antigo no destaque múltiplo; escopo ignorava multi; decisões cruas em JS; tamanho do HTML)
+2026-11-02,EAP 0.35.0,correção dos achados da revisão,executor,claude-sonnet-5-5,184885,18,198.0,True,ajuste do gerente,451 testes; no merge com a main (0.34.0) o gerente alinhou ao contrato eap_gavetas/eap
+2026-11-02,caracterização,testes de caracterização do obra.py,executor_padrao,claude-sonnet-5-5,207649,68,792.0,True,baixo: golden fora de tests/dados (ignorado),cobertura obra.py 38% -> 90%; 8 comportamentos suspeitos registrados
 2026-10-31,rodada 21,E0: repositórios no GitHub para a memória espacial (PESQUISA_REPOSITORIOS §6),pesquisador,claude-sonnet-5-5,74279,12,127,True,ajuste do gerente,entregue; G04/G07 corrigidos pelo Opus
 2026-11-01,rodada 21,E1 (gerador sintético de base linear),implementador,claude-sonnet-5-5,84272,19,132,True,nenhum,aceita pelo Opus (testes e aferição verdes)
 2026-11-01,rodada 21,"E2 (parquet, geoparquet e duckdb nas gavetas)",implementador,claude-sonnet-5-5,84734,12,170,True,nenhum,"aceita pelo Opus (29 testes, aferição ok, ida e volta conferida nos 5 km sintéticos)"
