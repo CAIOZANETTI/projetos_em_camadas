@@ -271,6 +271,16 @@
   "nome": {
    "unidade": null,
    "tipo": "texto"
+  },
+  "unidade": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "unidade construtiva (u1, u2) de conceitos/unidades_construtivas.json"
+  },
+  "sistema": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "sistema (ACT600, AB_ENTRADA…) de conceitos/unidades_construtivas.json"
   }
  },
  "tipos_superficie": [

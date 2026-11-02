@@ -134,7 +134,9 @@
    "objeto": "setor",
    "geometria": "poligono",
    "propriedades": [
-    "nome"
+    "nome",
+    "unidade",
+    "sistema"
    ],
    "leitor": "obra.json gavetas.setores",
    "estado": "a ligar (rodada 5 da memória espacial)",

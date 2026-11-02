@@ -3,73 +3,145 @@
   "fonte": "de-para 3 de docs/MEMORIA_ESPACIAL.md: serviço → nó da EAP",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Códigos provisórios do MVP (OL = obras lineares), a casar com a EAP do ramo EAP (evidencia.schema.json). Saída em dicionário (pavimento_m2) abre um nó por chave: OL.06.<superfície>. Sem preço e sem prazo."
+  "observacoes": "Códigos provisórios do MVP (OL = obras lineares), a casar com a EAP do ramo EAP (evidencia.schema.json). Saída em dicionário (pavimento_m2) abre um nó por chave: OL.06.<superfície>. Sem preço e sem prazo. Rodada 6 da memória espacial: `codigo_eap` casa cada saída com o item (DISCIPLINA.PACOTE.ITEM de conceitos/eap_geral.jsonl) e os serviços (conceitos/servicos.jsonl) da EAP codificada; o código completo é UNIDADE.SISTEMA.ITEM, com unidade e sistema do objeto. `por_chave` troca o item pela subchave da saída (calçada → CIV.PAV.CAL; o prefixo da chave antes de '/' vale, ex. 'calcada/grama'). `codigo_eap: null` = sem item na EAP codificada (caximbos do MND, área de cava): aparece como 'sem código', nunca com um código forçado. Decisão do gerente, 02/11/2026."
  },
  "saidas": {
   "escavacao_m3": {
    "eap": "OL.01",
    "descricao": "Escavação de vala",
-   "unidade": "m³"
+   "unidade": "m³",
+   "codigo_eap": {
+    "item": "GEO.MOV.VAL",
+    "servicos": [
+     "escavacao"
+    ]
+   }
   },
   "escoramento_m2": {
    "eap": "OL.02",
    "descricao": "Escoramento de vala",
-   "unidade": "m²"
+   "unidade": "m²",
+   "codigo_eap": {
+    "item": "GEO.MOV.VAL",
+    "servicos": [
+     "escoramento"
+    ]
+   }
   },
   "reaterro_m3": {
    "eap": "OL.03",
    "descricao": "Reaterro de vala",
-   "unidade": "m³"
+   "unidade": "m³",
+   "codigo_eap": {
+    "item": "GEO.MOV.VAL",
+    "servicos": [
+     "reaterro"
+    ]
+   }
   },
   "bota_fora_m3": {
    "eap": "OL.04",
    "descricao": "Carga e bota-fora de material excedente",
-   "unidade": "m³"
+   "unidade": "m³",
+   "codigo_eap": {
+    "item": "GEO.MOV.VAL",
+    "servicos": [
+     "bota_fora"
+    ]
+   }
   },
   "supressao_m2": {
    "eap": "OL.05",
    "descricao": "Supressão vegetal",
-   "unidade": "m²"
+   "unidade": "m²",
+   "codigo_eap": {
+    "item": "GEO.MOV.SUP",
+    "servicos": []
+   }
   },
   "pavimento_m2": {
    "eap": "OL.06",
    "descricao": "Demolição e recomposição de pavimento",
-   "unidade": "m²"
+   "unidade": "m²",
+   "codigo_eap": {
+    "item": "CIV.PAV.REC",
+    "por_chave": {
+     "calcada": "CIV.PAV.CAL"
+    },
+    "servicos": [
+     "demolicao",
+     "recomposicao"
+    ]
+   }
   },
   "caximbos": {
    "eap": "OL.07",
    "descricao": "Caximbos do método não destrutivo",
-   "unidade": "un"
+   "unidade": "un",
+   "codigo_eap": null
   },
   "demolicao_m2": {
    "eap": "RD.01",
    "descricao": "Demolição de pavimento (redes)",
-   "unidade": "m²"
+   "unidade": "m²",
+   "codigo_eap": {
+    "item": "CIV.PAV.REC",
+    "por_chave": {
+     "calcada": "CIV.PAV.CAL"
+    },
+    "servicos": [
+     "demolicao"
+    ]
+   }
   },
   "recomposicao_m2": {
    "eap": "RD.02",
    "descricao": "Recomposição de pavimento (redes)",
-   "unidade": "m²"
+   "unidade": "m²",
+   "codigo_eap": {
+    "item": "CIV.PAV.REC",
+    "por_chave": {
+     "calcada": "CIV.PAV.CAL"
+    },
+    "servicos": [
+     "recomposicao"
+    ]
+   }
   },
   "volume_vala_m3": {
    "eap": "RD.03",
    "descricao": "Escavação de vala (redes)",
-   "unidade": "m³"
+   "unidade": "m³",
+   "codigo_eap": {
+    "item": "GEO.MOV.VAL",
+    "servicos": [
+     "escavacao"
+    ]
+   }
   },
   "escavacao_cava_m3": {
    "eap": "CV.01",
    "descricao": "Escavação de cava",
-   "unidade": "m³"
+   "unidade": "m³",
+   "codigo_eap": {
+    "item": "GEO.MOV.ESC",
+    "servicos": []
+   }
   },
   "reaterro_cava_m3": {
    "eap": "CV.02",
    "descricao": "Reaterro de cava",
-   "unidade": "m³"
+   "unidade": "m³",
+   "codigo_eap": {
+    "item": "GEO.MOV.REA",
+    "servicos": []
+   }
   },
   "area_cava_m2": {
    "eap": "CV.03",
    "descricao": "Área de cava (projeção)",
-   "unidade": "m²"
+   "unidade": "m²",
+   "codigo_eap": null
   }
  }
 }
