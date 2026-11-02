@@ -213,7 +213,6 @@ e rastreável, sem perder o resultado.
    e a aba EAP conferida pelo Caio;
 2. ~~cavas~~ e ~~setores da ETA~~: feitos na rodada 5 (0.33.0); falta o MDS e os setores reais de Foz;
 3. casar OL, RD e CV com a EAP codificada do PR #18, que agora está na `main`;
-4. o casamento dos códigos OL e RD com a EAP do PR #18;
-5. uma chave barata para o 2º cálculo, se o custo fixo de 1,4 s em 100 km incomodar;
-6. o acesso do CI ao `vibe_code_metrics` (segredo `VCM_TOKEN`), para o balanço rodar no PR.
+4. uma chave barata para o 2º cálculo, se o custo fixo de 1,4 s em 100 km incomodar;
+5. o acesso do CI ao `vibe_code_metrics` (segredo `VCM_TOKEN`), para o balanço rodar no PR.
 
