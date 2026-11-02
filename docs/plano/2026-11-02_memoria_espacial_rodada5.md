@@ -57,9 +57,9 @@ não muda nenhum cálculo.
 
 | # | Entrega | Agente | Estado |
 |---|---|---|---|
-| E1 | Cavas nas gavetas: gaveta `superficies`, `escavacao.quantificar_gavetas`, `extrair_gavetas.de_cavas`, paridade e ligação na etapa | Sonnet A | feito — 14 testes; `.npz` determinístico (zip montado à mão); superfície pela `pasta_base` na `entrada`; a etapa roda também sem planilha, quando há cavas |
-| E2 | Setores: `de_setores`, `gavetas.setor_de`, EAP por setor (Python e aba) | Sonnet B (paralelo; não toca `escavacao.py`) | feito — soma por setor conferida (tolerância 0,005 pelo arredondamento de `para_eap`); tabela por setor no Chromium |
-| E3 | Integração, `vcm balanco`, aceite do Fable, PR | Opus; Fable | integração feita (0.33.0, L029); falta balanço e aceite |
+| E1 | Cavas nas gavetas: gaveta `superficies`, `escavacao.quantificar_gavetas`, `extrair_gavetas.de_cavas`, paridade e ligação na etapa | Sonnet A | verificado — 14 testes; `.npz` determinístico (zip montado à mão); superfície pela `pasta_base` na `entrada`; a etapa roda também sem planilha, quando há cavas |
+| E2 | Setores: `de_setores`, `gavetas.setor_de`, EAP por setor (Python e aba) | Sonnet B (paralelo; não toca `escavacao.py`) | verificado — soma por setor conferida (tolerância 0,005 pelo arredondamento de `para_eap`); tabela por setor no Chromium |
+| E3 | Integração, `vcm balanco`, aceite do Fable, PR | Opus; Fable | verificado — 0.33.0, L029, balanço MANTER, 3º aceite do Fable |
 
 Contrato já escrito em `conceitos/` pelo gerente:
 - gaveta `superficies` e `tipos_superficie`;
@@ -109,3 +109,4 @@ Contrato já escrito em `conceitos/` pelo gerente:
   `ValueError`, de qualquer valor. Teste: `test_servico_contado_em_dobro_num_no_grande_e_erro`, com 40 001 serviços e
   uma dobra de 5 m³ (abaixo do limite da soma). O docstring registra que a troca de setor não aparece na soma e é
   garantida pelos testes de `setor_de` e `setor_dos_servicos`.
+- 02/11, **3º aceite do Fable: ACEITA.** As dobras de 5, 30 e 50 m³ foram acusadas e não houve falso alarme nos 35 mil serviços. Risco registrado: o registro da superfície não marca a natureza `observado` do MDS.
