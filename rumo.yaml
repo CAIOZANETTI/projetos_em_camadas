@@ -1,0 +1,28 @@
+objetivo: "Travar o comportamento atual do pipeline (camadas/obra.py) com testes de caracterização antes de novas mudanças"
+criterio_de_pronto:
+  - "cobertura de camadas/obra.py >= 55% (linha de base 38%)"
+  - "nenhuma alteração em camadas/; suíte verde com e sem as extras; aferição ok"
+  - "comportamentos suspeitos registrados, não corrigidos"
+base: "220ba08"
+etapas:
+  - id: E1
+    nome: "Testes de caracterização do obra.py e golden normalizados"
+    entregaveis: ["tests/test_obra_caracterizacao.py", "tests/golden_obra/*"]
+    depende_de: []
+    agente: sonnet
+    estimativa_min: 45
+    estimativa_tokens: 250000
+    status: feito
+    inicio: "2026-11-02T13:43:54Z"
+    fim: "2026-11-02T13:57:07Z"
+  - id: E2
+    nome: "Integração: golden fora de pasta ignorada, skill vcm-rumo, balanço e PR"
+    entregaveis: ["rumo.yaml", ".claude/skills/vcm-rumo/SKILL.md", "results/iteracoes/*", "results/agentes/execucoes.csv", ".gitignore"]
+    depende_de: [E1]
+    agente: opus
+    estimativa_min: 15
+    estimativa_tokens: 150000
+    status: fazendo
+    inicio: "2026-11-02T13:58:36Z"
+    fim: null
+historico: []

@@ -5,7 +5,7 @@ mudança intencional, a mudança precisa de justificativa no PR.
 
 Dois tipos de resultado esperado:
 - valores escritos no próprio teste (funções puras e de montagem, entradas pequenas e sintéticas);
-- "golden" em `tests/dados/caracterizacao_obra/*.json` (saída estruturada maior do pipeline completo, normalizada:
+- "golden" em `tests/golden_obra/*.json` (saída estruturada maior do pipeline completo, normalizada:
   caminhos temporários, datas, versão e blobs base64 viram marcadores; floats comparados com tolerância absoluta de
   1e-6 m).
 
@@ -30,7 +30,7 @@ import pytest
 
 from camadas import VERSAO, geo, obra, sfm, visualizador
 
-PASTA_GOLDEN = Path(__file__).parent / "dados" / "caracterizacao_obra"
+PASTA_GOLDEN = Path(__file__).parent / "golden_obra"
 TOLERANCIA_GOLDEN_M = 1e-6
 EXTENSAO_VOO = [745800.0, 7182880.0, 745840.0, 7182920.0]  # 40 m x 40 m, SIRGAS 2000 / UTM 21S (Foz do Iguaçu)
 EPSG = 31981
