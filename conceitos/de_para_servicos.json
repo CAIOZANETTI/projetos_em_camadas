@@ -88,6 +88,25 @@
     "recomposicao_m2",
     "volume_vala_m3"
    ]
+  },
+  "cavas": {
+   "versao": "1",
+   "objeto": "conjunto_cavas",
+   "funcao": "camadas.escavacao.quantificar_gavetas",
+   "exige": [
+    "bases",
+    "marcas_cota",
+    "superficie_id"
+   ],
+   "opcionais": [
+    "cristas"
+   ],
+   "sondagens": null,
+   "saidas": [
+    "escavacao_cava_m3",
+    "reaterro_cava_m3",
+    "area_cava_m2"
+   ]
   }
  }
 }
