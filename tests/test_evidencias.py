@@ -192,3 +192,81 @@ def test_etapa_grava_registro_e_tabelas(tmp_path):
     json.loads(json.dumps(resumo, allow_nan=False))                     # vai para o dados.json do HTML
     assert all((tmp_path / n).exists() for n in ("evidencias.jsonl", "fatos.csv", "cobertura.csv", "associados.csv", "dimensoes.csv"))
     assert all(evidencias.validar_evidencia(e) == [] for e in evidencias.ler(tmp_path / "evidencias.jsonl"))
+
+
+# planilha Obras Lineares como fonte ----------------------------------------------------------------------------------
+DOC_PLANILHA = {"id": "planilha_sanepar.xlsx", "tipo": "planilha", "nome": "aba Obras Lineares"}
+
+
+def _trecho_linear(**planilha):
+    """Trecho no formato de `ler_obras_lineares`: entrada + `planilha` com o que foi digitado (escoramento é sim/não)."""
+    return {"linha": 4, "local": "Entrada de água bruta", "dn_mm": 1000.0, "material": "FD", "prof_m": 2.4, "comp_m": 57.3,
+            "metodo": "VCA", "pavimentos": {"grama": 57.3}, "supressao_frac": 1.0,
+            "planilha": {"escoramento": "sim", "largura_m": 2.1, "area_m2": 120.33, "escavacao_m3": 288.792,
+                         "reaterro_m3": 243.789, "bota_fora_m3": 58.504, "supressao_m2": 120.33, **planilha}}
+
+
+def _fatos_lineares(trecho):
+    evs = evidencias.de_obras_lineares([trecho], DOC_PLANILHA) + evidencias.de_obras_lineares_mos([trecho], [])
+    assert all(evidencias.validar_evidencia(e) == [] for e in evs)
+    return evidencias.consolidar(evs).set_index(["codigo", "servico", "unidade"])
+
+
+def test_planilha_obras_lineares_vira_evidencia_por_trecho_e_grandeza():
+    evs = evidencias.de_obras_lineares([_trecho_linear(reaterro_m3=None)], DOC_PLANILHA)
+    q = {(e["codigo"], e["servico"], e["unidade"]): e["valor"] for e in evs}
+    assert q == {("U1.LINEARES.HID.TUB.RED", "assentamento", "m"): 57.3,
+                 ("U1.LINEARES.GEO.MOV.VAL", "escavacao", "m³"): 288.792,
+                 ("U1.LINEARES.GEO.MOV.VAL", "bota_fora", "m³"): 58.504,
+                 ("U1.LINEARES.GEO.MOV.SUP", "", "m²"): 120.33}                 # sem reaterro (None) e sem escoramento
+    assert all(e["parcela"] and e["metodo"] == "planilha" and e["regra"] == "obras_lineares.planilha" for e in evs)
+    assert all(e["localizador"] == "Entrada de água bruta, linha 4" and e["trecho"].startswith("Entrada de água bruta")
+               for e in evs)
+    assert all(evidencias.validar_evidencia(e) == [] for e in evs)
+    outra = evidencias.de_obras_lineares([_trecho_linear(escavacao_m3=0.0)], DOC_PLANILHA, base="U3.REDE")
+    assert {e["codigo"] for e in outra} == {"U3.REDE.HID.TUB.RED", "U3.REDE.GEO.MOV.VAL", "U3.REDE.GEO.MOV.SUP"}
+    assert not any(e["servico"] == "escavacao" for e in outra)                  # zero digitado não entra
+
+
+def test_mos_recalcula_os_mesmos_fatos_com_o_escoramento_total():
+    mos = evidencias.de_obras_lineares_mos([_trecho_linear()], [])
+    assert {e["documento"]["id"] for e in mos} == {"metodo:mos_sanepar"} and {e["metodo"] for e in mos} == {"associado"}
+    q = {(e["servico"], e["unidade"]): e["valor"] for e in mos}
+    assert q[("escavacao", "m³")] == pytest.approx(288.792) and q[("escoramento", "m²")] == pytest.approx(275.04)
+    assert ("", "m²") not in q                                                  # supressão não é recalculada
+    assert evidencias.de_obras_lineares_mos([{**_trecho_linear(), "material": "AMIANTO"}], []) == []
+
+
+def test_planilha_x_mos_do_mesmo_trecho_converge_quando_o_digitado_bate():
+    fatos = _fatos_lineares(_trecho_linear())
+    for chave in (("U1.LINEARES.GEO.MOV.VAL", "escavacao", "m³"), ("U1.LINEARES.GEO.MOV.VAL", "reaterro", "m³"),
+                  ("U1.LINEARES.GEO.MOV.VAL", "bota_fora", "m³"), ("U1.LINEARES.HID.TUB.RED", "assentamento", "m")):
+        assert fatos.loc[chave]["status"] == "convergente" and fatos.loc[chave]["forca"] == 2
+    assert fatos.loc[("U1.LINEARES.GEO.MOV.VAL", "escoramento", "m²")]["status"] == "fonte única"   # só o MOS
+    assert fatos.loc[("U1.LINEARES.GEO.MOV.SUP", "", "m²")]["status"] == "fonte única"              # só a planilha
+
+
+def test_planilha_x_mos_do_mesmo_trecho_e_conflito_quando_o_digitado_difere():
+    fatos = _fatos_lineares(_trecho_linear(escavacao_m3=320.0))
+    f = fatos.loc[("U1.LINEARES.GEO.MOV.VAL", "escavacao", "m³")]
+    assert f["status"] == "conflito" and f["n_documentos"] == 2
+    assert {a["documento"]: a["valor"] for a in f["afirmacoes"]} == {
+        "planilha_sanepar.xlsx": 320.0, "metodo:mos_sanepar": pytest.approx(288.792)}
+    assert f["diferenca_pct"] == pytest.approx(100 * (320 - 288.792) / 320, abs=0.1)
+    assert fatos.loc[("U1.LINEARES.GEO.MOV.VAL", "reaterro", "m³")]["status"] == "convergente"      # os outros seguem
+
+
+def test_etapa_soma_a_planilha_obras_lineares_quando_ela_esta_no_disco(tmp_path):
+    from test_obras_lineares import _planilha
+    caminho = _planilha(tmp_path)
+    dados = _dados()
+    cfg = {"obras_lineares": {"planilha": str(caminho), "eap": "U1.LINEARES"}}
+    evidencias.etapa(cfg, tmp_path / "saida", dados, log=lambda *a: None)
+    evs = evidencias.ler(tmp_path / "saida" / "evidencias.jsonl")
+    assert {"p.xlsx", "metodo:mos_sanepar"} <= {e["documento"]["id"] for e in evs}
+    fatos = pd.read_csv(tmp_path / "saida" / "fatos.csv", sep=";", decimal=",", encoding="utf-8-sig")
+    esc = fatos[(fatos["codigo"] == "U1.LINEARES.GEO.MOV.VAL") & (fatos["servico"] == "escavacao")]
+    assert esc["status"].tolist() == ["convergente"]
+    sem = evidencias.etapa({"obras_lineares": {"planilha": str(tmp_path / "nao_existe.xlsx")}}, tmp_path / "s2", dados,
+                           log=lambda *a: None)
+    assert sem is None
