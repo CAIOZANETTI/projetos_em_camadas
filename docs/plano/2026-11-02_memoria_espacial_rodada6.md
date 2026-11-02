@@ -40,8 +40,19 @@ conferidas uma contra a outra.
 | # | Etapa | Quem | Estado |
 |---|---|---|---|
 | 1 | Tabela de-para (`codigo_eap`), conferida contra os catálogos | Opus | feito |
-| 2 | Unidade e sistema do objeto, código completo em cada serviço, pendência sem código | Sonnet | pendente |
-| 3 | Conciliação das duas EAP e código real na aba EAP | Sonnet (mesmo executor, logo depois) | pendente |
-| 4 | Fechamento: testes, `vcm balanco`, aceite do Fable, PR | Opus; Fable | pendente |
+| 2 | Unidade e sistema do objeto, código completo em cada serviço, pendência sem código | Sonnet | feito — `codigo_eap`, `unidade_sistema`, `anotar_codigo_eap`; formato conferido contra `eap.estrutura` |
+| 3 | Conciliação das duas EAP e código real na aba EAP | Sonnet (mesmo executor, logo depois) | feito — `conciliar_eap`, `obra._conciliar_eaps`, tabela na aba; ajuste do gerente: só a medida do item (`mede`) e itens fora das gavetas só na contagem |
+| 4 | Fechamento: testes, `vcm balanco`, aceite do Fable, PR | Opus; Fable | em andamento — 0.36.0, L032 |
 
 ## Emendas
+- 02/11, **integração (gerente).**
+  - A conciliação passou a usar só a saída marcada `mede` no de-para 3, a medida que o item declara na EAP
+    codificada. Sem isso, escavação, reaterro e bota-fora de `GEO.MOV.VAL`, todos em m³, seriam somados quando a
+    codificada passasse a medir vala.
+  - Itens que as gavetas não medem (estacas, blocos) aparecem como "fora das gavetas" só na contagem, sem linha na
+    tabela.
+  - Merge com a 0.35.0 da outra sessão (#36, aba EAP codificada com `eap_painel`): a aba mostra as gavetas (com a
+    conciliação) e depois o painel codificado; os testes de `_aba_projeto` passaram a simular também o painel.
+  - Notas do executor, registradas e não mudadas:
+    - a planilha troca "calçada" por "concreto" (`obras_lineares.py:290`), então `CIV.PAV.CAL` só aparece nas redes;
+    - um `local` ambíguo ("Drenagem" casa DREN_DN400 e DN300) é pendência de propósito.

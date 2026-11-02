@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.36.0 — 2026-11-02 · Memória espacial, rodada 6: as gavetas falam a EAP codificada
+- **De-para 3 com o código real** (`conceitos/de_para_eap.json`, `codigo_eap`): cada saída das gavetas aponta o
+  item (`eap_geral.jsonl`) e os serviços (`servicos.jsonl`) da EAP codificada. Vala vai para `GEO.MOV.VAL`,
+  pavimento para `CIV.PAV.REC`/`CAL`, supressão para `GEO.MOV.SUP` e cavas para `GEO.MOV.ESC`/`REA`. Caximbos e área
+  de cava ficam "sem código", à vista.
+- **Código completo por serviço** (`gavetas.codigo_eap`, `unidade_sistema`): `UNIDADE.SISTEMA.ITEM` no formato de
+  `eap.estrutura`. A unidade e o sistema vêm do setor, do `local` do trecho pelas `chaves` de
+  `unidades_construtivas.json` ou do padrão do obra.json. Sem nenhum, ou com mais de um sistema, vira pendência,
+  nunca código inventado.
+- **Conciliação das duas EAP** (`gavetas.conciliar_eap`, `obra._conciliar_eaps`): a medida de cada item das gavetas
+  é comparada com a quantidade da EAP codificada. As situações são confere, difere, só nas gavetas, só na EAP
+  codificada e fora das gavetas. O resultado vai para `conciliacao_eap.json` e para a tabela na aba EAP.
+- Lição L032.
+
 ## 0.35.0 — 2026-11-02 · Aba EAP: árvore codificada, fatos e evidências
 - **Fim da colisão em `dados["eap"]`** (`camadas/obra.py`): a árvore das gavetas fica em `dados["eap_gavetas"]`
   e a EAP codificada em `dados["eap"]` (convenção da 0.34.0); o painel é montado a partir da codificada.

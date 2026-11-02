@@ -24,6 +24,7 @@ def _preparar(monkeypatch, servicos, quantidades):
     monkeypatch.setattr(obra.construtivos, "montar", lambda *a, **k: None)
     monkeypatch.setattr(obra.eap, "montar", lambda *a, **k: {"fonte": "camadas.eap", "quantidades": quantidades})
     monkeypatch.setattr(obra.evidencias, "etapa", lambda *a, **k: None)
+    monkeypatch.setattr(obra.eap_painel, "montar", lambda *a, **k: None)   # o painel da EAP codificada é outra entrega
 
 
 def test_aba_projeto_concilia_as_duas_eap_e_grava_o_json(tmp_path, monkeypatch):
