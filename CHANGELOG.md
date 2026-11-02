@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.33.0 — 2026-11-02 · Escoramento total e planilha Obras Lineares como evidência
+- **Escoramento total da vala** (`conceitos/servicos_associados.jsonl`, regra `escoramento_vala_total`): além do serviço
+  por tipo (`escoramento_continuo`…), toda vala escorada gera o fato (GEO.MOV.VAL, `escoramento`, m²). Métodos que
+  escolhem tipos diferentes (NBR contínuo × MOS pontaleteamento) e fontes que não dizem o tipo agora se comparam.
+- **Planilha Obras Lineares como fonte** (`evidencias.de_obras_lineares`): uma evidência por trecho e grandeza digitada
+  (comprimento, escavação, reaterro, bota-fora, supressão), código `U1.LINEARES.*` (configurável em
+  `obras_lineares.eap` no obra.json). O escoramento da planilha é sim/não, sem área, e não gera evidência.
+- **Planilha × MOS dos mesmos trechos** (`evidencias.de_obras_lineares_mos`): o recálculo por
+  `lineares.dimensionar_vala` entra como `metodo:mos_sanepar` nos mesmos fatos: digitado igual ao recalculado é
+  convergente, diferente é conflito com as duas afirmações. `evidencias.etapa` soma as duas fontes via `loop(extras=...)`.
+
 ## 0.32.0 — 2026-11-01 · EAP codificada como linha mestra
 - **EAP (WBS)** (`camadas/eap.py`, `conceitos/eap.json`, `docs/EAP.md`): código `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM`
   sobre as unidades e os sistemas de `unidades_construtivas.json` (obra localizada × linear); disciplinas Geotecnia

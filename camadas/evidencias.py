@@ -7,6 +7,7 @@
                           planilha do contrato     ─ cadastro de materiais + regex ─┤
                           pranchas medidas         ─ eap.quantificar ─┼─► evidências (evidencia.schema.json)
                           serviços associados      ─ associados (fórmulas) ─┤
+                          planilha Obras Lineares  ─ digitado × recálculo do MOS, mesmos trechos ─┤
                           IA (com citação literal) ─ conferir_citacao ─┤
                           decisão do engenheiro    ─ decisao ──────────┘
         ▼
@@ -22,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 
@@ -196,6 +198,69 @@ def de_quantificacao(quant: pd.DataFrame) -> list[dict]:
             for r in quant.itertuples(index=False) if r.n_elementos > r.sem_valor]
 
 
+# Planilha Obras Lineares: o que o trecho traz digitado × o que o MOS recalcula para o mesmo trecho ------------------------
+GRANDEZAS_LINEARES = (
+    # (campo, item EAP, serviço, unidade): 'escoramento_m2' só existe no recálculo (a planilha traz sim/não)
+    ("comp_m", "HID.TUB.RED", "assentamento", "m"),
+    ("escavacao_m3", "GEO.MOV.VAL", "escavacao", "m³"),
+    ("reaterro_m3", "GEO.MOV.VAL", "reaterro", "m³"),
+    ("bota_fora_m3", "GEO.MOV.VAL", "bota_fora", "m³"),
+    ("escoramento_m2", "GEO.MOV.VAL", "escoramento", "m²"),
+    ("supressao_m2", "GEO.MOV.SUP", "", "m²"),
+)
+DOCUMENTO_MOS = {"id": "metodo:mos_sanepar:obras_lineares", "tipo": "associado",   # distinto do das valas dos elementos
+                 "nome": "MOS Sanepar (lineares.dimensionar_vala) recalculando os trechos da planilha Obras Lineares"}
+
+
+def _de_trechos_lineares(trechos: list[dict], valores_do_trecho, documento: dict, metodo: str, regra: str,
+                         base: str) -> list[dict]:
+    """Uma evidência `parcela` por trecho e grandeza com valor numérico não nulo. `valores_do_trecho(trecho)` devolve
+    {campo: valor} (e, opcional, 'memoria': texto que acompanha o trecho literal)."""
+    saida = []
+    for t in trechos:
+        valores = valores_do_trecho(t)
+        local = f"{t.get('local', '')}" + (f", linha {t['linha']}" if t.get("linha") else "")
+        for campo, item, servico, unidade in GRANDEZAS_LINEARES:
+            valor = valores.get(campo)
+            if not isinstance(valor, (int, float)) or isinstance(valor, bool) or not math.isfinite(valor) \
+                    or abs(valor) <= 1e-9:
+                continue
+            texto = f"{t.get('local', '')}: {servico or 'supressão vegetal'} {valor:.6g} {unidade}"
+            saida.append(evidencia(codigo=f"{base}.{item}", servico=servico, unidade=unidade, valor=round(float(valor), 6),
+                                   parcela=True, documento=documento, localizador=local,
+                                   trecho=texto + (f" ({valores['memoria']})" if valores.get("memoria") else ""),
+                                   metodo=metodo, regra=regra))
+    return saida
+
+
+def de_obras_lineares(trechos: list[dict], documento: dict, base: str = "U1.LINEARES") -> list[dict]:
+    """Evidências da planilha Obras Lineares (`obras_lineares.ler_obras_lineares`): o comprimento digitado
+    (`comp_m`) e os valores do campo `planilha` (escavação, reaterro, bota-fora, supressão). O escoramento da
+    planilha é sim/não, sem área: não gera evidência. Valor em branco ou zero não entra."""
+    return _de_trechos_lineares(trechos, lambda t: {"comp_m": t.get("comp_m"), **(t.get("planilha") or {})},
+                                documento, "planilha", "obras_lineares.planilha", base)
+
+
+def de_obras_lineares_mos(trechos: list[dict], furos: list[dict] | None = None, base: str = "U1.LINEARES") -> list[dict]:
+    """Recálculo dos mesmos trechos pelo MOS (`lineares.dimensionar_vala`): escavação, reaterro e bota-fora da planilha,
+    mais o escoramento em m² (serviço `escoramento`, o total). O comprimento não entra: o MOS só o copia da entrada,
+    e repeti-lo daria uma confirmação falsa (o assentamento fica só com a planilha). Trecho em VCA sem profundidade ou
+    com material fora da Tabela I do MOS (sem largura) não tem recálculo; em MND a largura não existe, e vale o método."""
+    from . import lineares, obras_lineares
+    campos = [k for k, *_ in GRANDEZAS_LINEARES if k not in ("comp_m", "supressao_m2")]
+
+    def recalcular(trecho: dict) -> dict:
+        r = lineares.dimensionar_vala(trecho, furos or [])
+        mnd = obras_lineares.norm(trecho.get("metodo") or "VCA") == "MND"
+        if not mnd and not r.get("largura_m"):
+            return {}
+        partes = [f"L = {r['largura_m']:g} m"] if r.get("largura_m") else ["MND: só os caximbos escavam"]
+        partes += [f"h = {r['profundidade_m']:g} m"] if r.get("profundidade_m") else []
+        partes.append(r.get("tipo_escoramento") or "sem escoramento")
+        return {**{k: r.get(k) for k in campos}, "memoria": "MOS: " + ", ".join(partes)}
+    return _de_trechos_lineares(trechos, recalcular, DOCUMENTO_MOS, "associado", "obras_lineares.mos_sanepar", base)
+
+
 def conferir_citacao(ev: dict, paginas: list[str]) -> dict:
     """Evidência de IA conferida: o trecho tem de estar no documento e o valor tem de estar no trecho."""
     texto, trecho = normalizar(" ".join(map(str, paginas))), normalizar(ev.get("trecho", ""))
@@ -366,15 +431,18 @@ def paginas_pdf(caminho: str | Path) -> list[str]:
 
 def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: dict | None = None,
          epsg: int | None = None, ia: list[dict] | None = None, decisoes: list[dict] | None = None,
-         sondagens: list | None = None, declarados: list[dict] | None = None) -> list[dict]:
+         sondagens: list | None = None, declarados: list[dict] | None = None,
+         extras: list[dict] | None = None) -> list[dict]:
     """Passa por todos os documentos e junta as evidências, na ordem: texto (`documentos`: [{id, tipo, nome,
     paginas, unidade?, sistema?, obra?, escopo?}]), planilha ((DataFrame, documento, catálogo)), pranchas medidas
     (`construtivos`), serviços associados aos elementos construtivos e aos `declarados` (a vala usa as `sondagens`),
-    IA (citação conferida no documento citado), decisões; por fim os serviços associados aos fatos consolidados."""
+    `extras` (evidências já prontas, como as da planilha Obras Lineares), IA (citação conferida no documento citado),
+    decisões; por fim os serviços associados aos fatos consolidados."""
     evs = [e for d in documentos for e in buscar_texto(d, d["paginas"])]
     evs += de_planilha(*planilha) if planilha else []
     evs += de_quantificacao(eap.quantificar(construtivos, epsg)) if construtivos else []
     evs += associados.de_elementos(construtivos, epsg, sondagens, declarados)[0]
+    evs += list(extras or [])
     paginas = {d["id"]: d["paginas"] for d in documentos}
     evs += [conferir_citacao(e, paginas.get(e["documento"]["id"], [])) for e in ia or []]
     evs += list(decisoes or [])
@@ -392,8 +460,24 @@ def _documentos(cfg: dict, log=print) -> list[dict]:
     return saida
 
 
+def _obras_lineares_da_obra(cfg: dict, furos: list | None, log=print) -> list[dict]:
+    """Evidências da planilha Obras Lineares do obra.json (`obras_lineares`: planilha, aba?, eap?, metodo?): digitado e
+    recálculo do MOS dos mesmos trechos, com o método escolhido para cada um. Sem planilha no disco, nada."""
+    from . import obras_lineares
+    c = cfg.get("obras_lineares") or {}
+    if not c.get("planilha") or not Path(c["planilha"]).exists():
+        return []
+    aba, escolha = c.get("aba", "Obras Lineares"), {obras_lineares.norm(k): v for k, v in (c.get("metodo") or {}).items()}
+    trechos = [{**t, "metodo": escolha.get(obras_lineares.norm(t["local"]), t["metodo"])}
+               for t in obras_lineares.ler_obras_lineares(c["planilha"], aba)]
+    base, documento = c.get("eap", "U1.LINEARES"), {"id": Path(c["planilha"]).name, "tipo": "planilha", "nome": f"aba {aba}"}
+    evs = de_obras_lineares(trechos, documento, base) + de_obras_lineares_mos(trechos, furos, base)
+    log(f"  evidências: planilha {aba}: {len(trechos)} trechos, {len(evs)} evidências (digitado × MOS)")
+    return evs
+
+
 def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
-    """Loop de evidências da obra: documentos, planilha do contrato, pranchas medidas, IA e decisões do obra.json.
+    """Loop de evidências da obra: documentos, planilha do contrato, planilha Obras Lineares, pranchas medidas, IA e decisões do obra.json.
     Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv e dimensoes.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
     from .orcamento_sanepar import catalogo
     conf, esc = cfg.get("evidencias") or {}, cfg.get("escopo") or {}
@@ -404,7 +488,8 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
         planilha = (df, {"id": Path(esc["itens_csv"]).name, "tipo": "planilha", "nome": esc.get("fonte", "")}, cat)
     extras = {k: ler(conf[k]) if conf.get(k) and Path(conf[k]).exists() else [] for k in ("ia", "decisoes")}
     evs = loop(_documentos(cfg, log), planilha, dados.get("construtivos"), dados["crs"]["epsg"],
-               extras["ia"], extras["decisoes"], dados.get("sondagens"), cfg.get("elementos_declarados"))
+               extras["ia"], extras["decisoes"], dados.get("sondagens"), cfg.get("elementos_declarados"),
+               _obras_lineares_da_obra(cfg, dados.get("sondagens"), log))
     if not evs:
         return None
     gravar(evs, out / "evidencias.jsonl")
@@ -431,7 +516,7 @@ def metadados() -> dict:
         "modulo": "evidencias",
         "descricao": "loop de evidências da EAP: texto, planilha + cadastro de materiais, pranchas medidas, IA com "
                      "citação conferida e decisões; fatos com convergência e conflito, cobertura projeto × edital",
-        "funcoes": ["buscar_texto", "de_planilha", "de_quantificacao", "conferir_citacao", "decisao", "consolidar",
+        "funcoes": ["buscar_texto", "de_planilha", "de_quantificacao", "de_obras_lineares", "de_obras_lineares_mos", "conferir_citacao", "decisao", "consolidar",
                     "cobertura", "associados_x_edital", "catalogo_por_item", "loop", "etapa", "metadados"],
         "bibliografia": [],
         "premissas": [{"aplicacao": {"classificar": ["eap_geral.jsonl", "servicos.jsonl", "sinonimos.json"],

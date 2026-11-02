@@ -241,3 +241,16 @@ def test_metodo_mos_usa_o_dimensionador_unico_da_main():
     assert q[("demolicao", "m²")] == pytest.approx(sum(r["pavimento_m2"].values()))
     assert q[("berco", "m³")] == pytest.approx(r["largura_m"] * 0.1 * 120.0)    # regra genérica, largura do MOS
     assert els[0]["dims"]["b"] == r["largura_m"]
+
+
+def test_escoramento_total_compara_metodos_que_escolhem_tipos_diferentes():
+    from camadas import evidencias
+    furo = _furo(N=75.0, camadas=[{"de": 0.0, "ate": 4.0, "descricao": "areia fina fofa"}])   # 75 m: fora do raio do MOS
+    _, evs, _, _ = _vala({"pista": 120.0}, de_mm=630, material="TUBO PE DE 630",
+                         metodos=("nbr12266", "mos_sanepar"), sondagens=[furo])
+    por_tipo = {e["documento"]["id"]: e["servico"] for e in evs if e["servico"].startswith("escoramento_")}
+    assert por_tipo["metodo:nbr12266"] != por_tipo["metodo:mos_sanepar"]            # por tipo, não se comparam
+    fatos = evidencias.consolidar(evs).set_index(["codigo", "servico", "unidade"])
+    total = fatos.loc[("U2.AAT06.GEO.MOV.VAL", "escoramento", "m²")]
+    assert total["n_documentos"] == 2
+    assert {a["documento"] for a in total["afirmacoes"]} == {"metodo:nbr12266", "metodo:mos_sanepar"}
