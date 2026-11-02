@@ -87,3 +87,55 @@ def test_servico_com_fato_fora_da_base_nao_vai_para_o_html():
     servicos[0] = {**servicos[0], "fatos": servicos[0]["fatos"] + ["T01.inexistente"]}
     with pytest.raises(ValueError, match="T01.inexistente"):
         eh.montar(base, servicos, pend)
+
+
+def _com_setores():
+    from test_gavetas import _base_com_setores, _servicos_por_setor
+    base, servicos = _base_com_setores(), _servicos_por_setor()
+    base["fatos"].append({"fato_id": "SET-A.nome.decidido", "objeto_id": "SET-A", "propriedade": "nome", "valor": "Decantação",
+                          "natureza": "decidido", "evidencia_id": "E1"})
+    base["evidencias"].append({"evidencia_id": "E1", "classe": "decisao", "documento": "obra.json", "localizador": {},
+                               "metodo": "decisão", "executor": "você"})
+    return base, servicos, gavetas.setor_de(base)[0]
+
+
+def test_montar_com_setores_formata_e_confere_a_soma():
+    base, servicos, mapa = _com_setores()
+    eap = eh.montar(base, servicos, [], None, mapa)
+    assert [s["setor_id"] for s in eap["setores"]] == ["SET-A", "SET-B", None]
+    assert eap["setores"][0]["nome"] == "Decantação" and eap["setores"][2]["nome"] == "Fora dos setores"
+    escavacao = {s["setor_id"]: next(n for n in s["nos"] if n["unidade"] == "m³") for s in eap["setores"]}
+    assert escavacao[None]["valor_txt"] == "5,25" and escavacao["SET-B"]["valor_txt"] == "20,50"
+    assert "setores" not in eh.montar(base, servicos, [], None)
+    json.dumps(eap)
+
+
+def test_soma_dos_setores_diferente_do_total_e_erro(monkeypatch):
+    base, servicos, mapa = _com_setores()
+    original = gavetas.para_eap_por_setor
+
+    def torta(*args, **kwargs):
+        grupos = original(*args, **kwargs)
+        grupos[0]["nos"][0]["valor"] += 1.0
+        return grupos
+    monkeypatch.setattr(gavetas, "para_eap_por_setor", torta)
+    with pytest.raises(ValueError, match="soma dos setores"):
+        eh.montar(base, servicos, [], None, mapa)
+
+
+def test_servico_contado_em_dobro_num_no_grande_e_erro(monkeypatch):
+    """2º aceite da rodada 5: num nó com milhares de serviços a tolerância da soma é larga; a contagem exata pega a dobra."""
+    base, servicos, mapa = _com_setores()
+    servicos = servicos + [{**servicos[0], "servico_id": f"{servicos[0]['servico_id']}:{i}", "valor": 0.001}
+                           for i in range(40000)]
+    original = gavetas.para_eap_por_setor
+
+    def dobrada(*args, **kwargs):
+        grupos = original(*args, **kwargs)
+        no = grupos[0]["nos"][0]
+        no["n_servicos"] += 1                      # um serviço a mais num setor
+        no["valor"] = round(no["valor"] + 5.0, 3)  # 5 m³: abaixo do limite de 0,0005 × 2 × 40 001 = 40
+        return grupos
+    monkeypatch.setattr(gavetas, "para_eap_por_setor", dobrada)
+    with pytest.raises(ValueError, match="serviços"):
+        eh.montar(base, servicos, [], None, mapa)

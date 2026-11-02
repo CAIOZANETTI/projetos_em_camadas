@@ -253,7 +253,7 @@ def test_serializavel_em_json():
 
 
 def test_aba_projeto_mantem_eap_das_gavetas_e_gera_o_painel(monkeypatch, tmp_path):
-    """Comportamento do build: `dados["eap"]` (gavetas) sobrevive, o painel é montado e a codificada sai do HTML."""
+    """Comportamento do build: gavetas em `dados["eap_gavetas"]`, codificada em `dados["eap"]` e o painel montado dela."""
     from camadas import (
         escopo_obra,
         extrair_gavetas,
@@ -273,10 +273,10 @@ def test_aba_projeto_mantem_eap_das_gavetas_e_gera_o_painel(monkeypatch, tmp_pat
     monkeypatch.setattr(evidencias, "etapa", lambda *a, **k: evid)
     dados = {"sondagens": []}
     obra._aba_projeto(dados, {}, tmp_path, None, None, {})
-    assert dados["eap"] is gavetas  # não foi sobrescrita pela codificada
+    assert dados["eap_gavetas"] is gavetas  # não foi sobrescrita pela codificada
     assert set(dados["eap_painel"]) == {"arvore", "fatos", "associados", "resumo"}
     assert dados["eap_painel"] == eap_painel.montar(codificada, evid)
-    assert "eap_codificada" not in dados  # o template não a lê: fora do dados.json
+    assert dados["eap"] is codificada and "eap_codificada" not in dados
 
 
 def test_decisao_vira_texto_pronto():

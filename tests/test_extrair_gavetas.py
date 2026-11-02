@@ -381,3 +381,45 @@ def test_retorno_de_ia_com_objeto_fora_da_planilha_nao_gera_escavacao_na_etapa(t
     assert any(p["objeto_id"] == "OL-999" and p["motivo"].startswith("depende de fato de IA não conferido")
                for p in pendencias)
     assert resumo["fatos_ia"] == 4 and resumo["fatos_por_natureza"]["inferido"] >= 4
+
+
+# --- setores da obra localizada (rodada 5) --------------------------------------------------------------------------
+
+QUADRADO = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]
+
+
+def test_de_setores_objeto_poligono_nome_decidido_e_evidencia():
+    base = eg.de_setores([{"id": "A", "nome": "Decantação", "coords": QUADRADO}], "obra.json")
+    assert base["objetos"] == [{"objeto_id": "SET-A", "classe": "setor"}]
+    assert base["geometria"][0]["tipo"] == "poligono" and base["geometria"][0]["coords"] == QUADRADO
+    fato = base["fatos"][0]
+    assert (fato["propriedade"], fato["valor"], fato["natureza"]) == ("nome", "Decantação", "decidido")
+    ev = base["evidencias"][0]
+    assert (ev["classe"], ev["executor"]) == ("decisao", "você")
+    assert ev["localizador"] == {"arquivo": "obra.json", "chave": "gavetas.setores"}
+    assert gavetas.conferir_base(base) == []
+
+
+def test_de_setores_poligono_invalido_vira_pendencia():
+    gravata = [[0, 0], [10, 10], [10, 0], [0, 10], [0, 0]]                 # autointerseção
+    base = eg.de_setores([{"id": "X", "nome": "Dois pontos", "coords": [[0, 0], [1, 1]]},
+                          {"id": "Y", "nome": "Gravata", "coords": gravata}], "obra.json")
+    assert base["objetos"] == [] and base["fatos"] == [] and base["geometria"] == []
+    assert [p["objeto_id"] for p in base["pendencias"]] == ["SET-X", "SET-Y"]
+
+
+def test_etapa_com_setores_no_cfg(tmp_path):
+    setores = [{"id": "A", "nome": "Setor A", "coords": [[-10, -10], [100, -10], [100, 100], [-10, 100], [-10, -10]]},
+               {"id": "B", "nome": "Setor B", "coords": [[50, -10], [200, -10], [200, 100], [50, 100], [50, -10]]}]
+    camadas = [{"de": 0, "ate": 8, "descricao": "Argila"}]
+    furos = [{"id": "SP-02", "E": 0.0, "N": 0.0, "na_m": 9.0, "camadas": camadas},
+             {"id": "SP-03", "E": 70.0, "N": 0.0, "na_m": 9.0, "camadas": camadas},
+             {"id": "SP-04", "E": 900.0, "N": 0.0, "na_m": 9.0, "camadas": camadas}]
+    out = tmp_path / "saida"
+    out.mkdir()
+    resumo = eg.etapa(_cfg(tmp_path, gavetas={"setores": setores}), furos, out, log=lambda *_: None)
+    assert resumo["objetos_por_setor"] == {"SET-A": 1, "fora": 2}          # SP-03 está em A e B (sobreposição): None
+    assert resumo["objetos_por_classe"]["setor"] == 2
+    assert [s["setor_id"] for s in resumo["eap_html"]["setores"]] == ["SET-A", "SET-B", None]
+    base = gavetas.ler(out / "base")
+    assert any(p["motivo"] == "setores sobrepostos: SET-A, SET-B" and p["objeto_id"] == "SP-03" for p in base["pendencias"])

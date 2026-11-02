@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from . import gavetas
+
 SUBDIVISOES = 4                      # vértices por trecho (a polilinha tem um vértice a cada passo_m / 4)
 DNS = [300, 400, 500]
 MATERIAIS = ["FD", "PEAD"]
@@ -132,7 +134,8 @@ def base_linear(km: float, passo_m: float = 20.0, furo_a_cada_m: float = 200.0, 
     trechos = _trechos(rng, s, xy, crs_h)
     furos = _furos(rng, s, xy, furo_a_cada_m, crs_h)
     base = {g: trechos[g] + furos[g] for g in trechos}
-    return {**base, "pendencias": [], "servicos": []}
+    vazias = {g: [] for g in gavetas.GAVETAS if g not in base}     # todas as gavetas do contrato, mesmo vazias
+    return {**base, **vazias}
 
 
 def metadados() -> dict:

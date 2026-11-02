@@ -112,6 +112,33 @@
    "leitor": "camadas.valas.rede",
    "estado": "ligado (rodada 24)",
    "classe_fontes_json": "Projeto (prancha)"
+  },
+  {
+   "classe_fonte": "projeto",
+   "vista": "plantas de escavação",
+   "objeto": "conjunto_cavas",
+   "geometria": null,
+   "propriedades": [
+    "marcas_cota",
+    "bases",
+    "cristas",
+    "superficie_id"
+   ],
+   "leitor": "camadas.escavacao (marcas, bases, linhas_utm)",
+   "estado": "a ligar (rodada 5 da memória espacial)",
+   "classe_fontes_json": "Projeto (prancha)"
+  },
+  {
+   "classe_fonte": "decisao",
+   "vista": "setores da obra",
+   "objeto": "setor",
+   "geometria": "poligono",
+   "propriedades": [
+    "nome"
+   ],
+   "leitor": "obra.json gavetas.setores",
+   "estado": "a ligar (rodada 5 da memória espacial)",
+   "classe_fontes_json": null
   }
  ]
 }

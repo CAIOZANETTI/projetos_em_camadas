@@ -2303,12 +2303,12 @@ function v3DesenharMedida() {
 
 
 /* ====================================================================
-   EAP — árvore nó → serviços → fatos → evidência (D.eap, opcional)
+   EAP das gavetas — árvore nó → serviços → fatos → evidência (D.eap_gavetas, opcional; D.eap é a EAP codificada)
    Tudo vem pronto do Python (camadas/eap_html.py); aqui só se lê e se exibe, sem conta.
    ==================================================================== */
-/* aba EAP das gavetas (D.eap): resumo, árvore nó → serviço → fato → evidência e pendências */
+/* aba EAP das gavetas (D.eap_gavetas): resumo, árvore nó → serviço → fato → evidência e pendências */
 function htmlEapGavetas() {
-  const E = D.eap, R = E.resumo || {};
+  const E = D.eap_gavetas, R = E.resumo || {};
   const ROT = [["Serviços", "servicos"], ["Nós", "nos"], ["Pendências", "pendencias"], ["Diferenças de paridade", "diferencas_paridade"], ["Recalculados", "recalculados"], ["Reaproveitados", "reaproveitados"]];
   const resumo = `<div class="eap-res">${ROT.map(([r, k]) => `<span>${r}</span><b data-k="${k}">${esc(R[k])}</b>`).join("")}</div>`;
   const evid = ev => !ev ? "" : `<div class="eap-ev"><span class="badge">${esc(ev.classe)}</span> ${esc(ev.documento)}<br>${esc(ev.onde)}<br>“${esc(ev.trecho)}”<br>executor: ${esc(ev.executor)}</div>`;
@@ -2316,7 +2316,9 @@ function htmlEapGavetas() {
   const serv = s => `<details class="eap-s"><summary><span>${esc(s.local || s.objeto_id)} <span class="cod">${esc(s.regra)} v${esc(s.versao_regra)}</span></span><span class="eap-v">${esc(s.valor_txt)}</span></summary>${(s.fatos || []).map(fato).join("")}</details>`;
   const no = n => `<details class="eap-n"><summary><span class="cod">${esc(n.eap)}</span><span>${esc(n.descricao)}</span><span class="eap-v">${esc(n.valor_txt)} ${esc(n.unidade)}</span></summary>${(n.servicos || []).map(serv).join("")}</details>`;
   const pend = (E.pendencias || []).map(p => `<div class="eap-pend"><b>${esc(p.local || p.objeto_id)}</b> — ${esc(p.motivo)}</div>`).join("");
-  return `<h2>Resumo</h2>${resumo}<h2>Árvore da EAP</h2>${(E.nos || []).map(no).join("")}<h2>Pendências</h2>${pend || '<p class="aviso" style="margin-left:0">Nenhuma pendência.</p>'}`;
+  const setor = st => `<h3>${esc(st.nome)}</h3><table class="eap-setor"><tbody>${(st.nos || []).map(n => `<tr><td class="cod">${esc(n.eap)}</td><td>${esc(n.descricao)}</td><td class="eap-v">${esc(n.valor_txt)} ${esc(n.unidade)}</td></tr>`).join("")}</tbody></table>`;
+  const porSetor = E.setores ? `<h2>EAP por setor</h2>${E.setores.map(setor).join("")}` : "";
+  return `<h2>Resumo</h2>${resumo}<h2>Árvore da EAP</h2>${(E.nos || []).map(no).join("")}${porSetor}<h2>Pendências</h2>${pend || '<p class="aviso" style="margin-left:0">Nenhuma pendência.</p>'}`;
 }
 
 /* EAP codificada, fatos e associados (D.eap_painel, opcional): tudo já somado, ordenado e formatado pelo Python (camadas/eap_painel.py).
@@ -2369,7 +2371,7 @@ function filtrarFatosEap(status) {
 }
 function montarEap() {
   const P = D.eap_painel, aba = $("#aba-eap");
-  aba.innerHTML = (D.eap ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "");
+  aba.innerHTML = (D.eap_gavetas ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "");
   if (!P) return;
   aba.addEventListener("click", e => {
     const ver = e.target.closest("[data-eap-ids]"), fl = e.target.closest("[data-eap-status]");
@@ -2383,7 +2385,7 @@ function montarEap() {
    ==================================================================== */
 window.__viz = {PR, D, FV, ESTACAS, INTERV, map, camadasMapa, marcaSnd, get anot() { return anot; }, get ARV() { return ARV; }, indexar, consultaPrancha, abrirFolha, ligarPranchaMapa, definirEtapa, abrir3D, abrirFoto, htmlSondagem, pt2ll, snapMapa, identificarPranchas};   // ganchos para scripts/testar_visualizador.py
 function iniciarV2() {
-  if (D.eap || D.eap_painel) { $("#t-eap").hidden = false; montarEap(); }
+  if (D.eap_gavetas || D.eap_painel) { $("#t-eap").hidden = false; montarEap(); }
   if (PR.length) { $("#t-pranchas").hidden = false; montarSelecaoPranchas(); }
   if (PR.length || ESC.length || ETAPAS.length) { $("#t-escopo").hidden = !(ESC.length || ETAPAS.length); montarEscopo(); }
   new ResizeObserver(() => { map.invalidateSize(); document.documentElement.style.setProperty("--mapa-h", map.getSize().y + "px"); }).observe($("#mapa"));   // a aba Escopo alarga o painel

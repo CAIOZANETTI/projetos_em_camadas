@@ -1,7 +1,7 @@
 """Painel da aba EAP: árvore codificada com quantidades, fatos e serviços associados, tudo em texto pt-BR.
 
 O Python soma, ordena, conta e formata (`1.234,56`); o template só lê `dados["eap_painel"]`.
-Entradas: `dados["eap_codificada"]` (`camadas.eap.montar`) e `dados["evidencias"]` (`camadas.evidencias.etapa`).
+Entradas: `dados["eap"]` (EAP codificada, `camadas.eap.montar`) e `dados["evidencias"]` (`camadas.evidencias.etapa`).
 """
 
 from __future__ import annotations
