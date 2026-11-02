@@ -20,10 +20,16 @@
   "1.250", "5 m³" de "12,5 m³"); item inexistente na EAP geral, serviço não admitido pelo item ou unidade fora das do
   serviço; `escopo` fora do enum; página do localizador que não contém o trecho. Aceitos: unidade antes do número
   ("Escavação m³ 1.250,50"), número com parênteses por extenso, vários pares na mesma linha. Toneladas viram kg.
-  Dedupe por `id` e parcelas iguais da IA no mesmo documento contam uma vez; linha malformada no JSONL vira recusa
-  com motivo, sem derrubar `etapa` nem `conferir`.
-- Limites declarados: parágrafo com número e item em linhas diferentes é recusado; ponto decimal ("1250.50") é
-  recusado; "250 blocos sobre estacas" pode virar 250 estacas; o serviço não precisa aparecer no trecho.
+  Linha malformada no JSONL (inclusive valor fora de ±1e12) vira recusa com motivo, sem derrubar `etapa` nem `conferir`.
+- **4ª rodada**: parcelas da IA no mesmo documento só colapsam com o mesmo trecho normalizado (B1 e B2 com 12 estacas
+  cada somam 24; a mesma frase em outra página conta uma vez); dedupe por `id` só para `ia` (as outras fontes somam
+  como antes); "3.000 metros de estacas" não vira unidade; o número pertence ao termo de item mais próximo na linha
+  (senão "número pertence a outro item"); número colado a letra ("DN150", "CA-50") não é quantidade para a IA;
+  milhar com espaço ("1 250") barrado; páginas normalizadas uma vez por documento (500 páginas × 200 evidências em
+  0,6 s, antes ~100 s).
+- Limites declarados: descrição de planilha em várias linhas e "Quantidade: 250 un" em linha própria são recusados;
+  ponto decimal ("1250.50") é recusado; "Escavação manual para blocos de estacas m³ 45" ainda pode virar estaca; o
+  serviço não precisa aparecer no trecho.
 - Lição L035.
 
 ## 0.38.0 — 2026-11-02 · Aba EAP: só pranchas desta disciplina

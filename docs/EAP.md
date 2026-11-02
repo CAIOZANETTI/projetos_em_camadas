@@ -163,8 +163,12 @@ unidade) tem de ser um dos que o trecho afirma ("250 estacas" → 250 un; "20 m�
 e vir da **mesma linha** em que o termo do item do código aparece, a no máximo 8 palavras do número; o item e o serviço
 do código têm de existir na EAP geral (`*` só em unidade e sistema) e a unidade tem de ser a do serviço ou do item. O
 localizador "p. N", se houver, tem de ser a página do trecho; aspas curvas, travessões e hífen de fim de linha são
-unificados; toneladas viram kg, como no regex. Duas parcelas da IA com o mesmo valor no mesmo documento contam uma vez
-(a IA não distingue parcela de total repetido: some parcelas iguais num único total). O build não confia no
+unificados; toneladas viram kg, como no regex. O item citado tem de ser o termo de item mais próximo do número na linha
+("Bloco de coroamento para 2 estacas un 12" é do bloco, não das estacas; empate = recusa "número pertence a outro item");
+"12 m de estaca" e "3.000 metros de estacas" não são contagem de estacas; valor acima de 1e12 é recusado. Propostas da IA
+no mesmo documento só colapsam se o trecho normalizado for o mesmo (a mesma frase em outra página é total repetido);
+parcelas reais de valor igual ("Bloco B1 com 12 estacas", "Bloco B2 com 12 estacas") somam, e a mesma proposta (mesmo `id`,
+que inclui `parcela`) conta uma vez. Só a IA é deduplicada por `id`: as demais fontes mantêm a soma de parcelas iguais. O build não confia no
 selo `citacao` do arquivo: reconfere as evidências `ia` contra os documentos do `obra.json`. A leitura da IA vale como
 afirmação própria (`documento.id` = `ia:<arquivo>`), para nunca somar com o regex do mesmo documento; mas conta como a
 mesma fonte (L025/L029: fonte independente = documento diferente), então não aumenta a `forca`.
@@ -472,6 +476,10 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
 - [x] **Skill de leitura por IA** (`.claude/skills/eap-evidencias`, `evidencias.roteiro`, `evidencias.conferir_arquivo`):
   a IA lê edital, TR, memorial e laudo seguindo o roteiro e só entra com citação conferida pelo código (§5).
 - [x] Conferir também o localizador (a página citada contém o trecho).
-- [ ] Aceitar planilha como documento de leitura e trechos de tabela quebrados em várias linhas (hoje o número e o termo
-  do item têm de estar na mesma linha).
+- [ ] Aceitar planilha como documento de leitura.
+- [ ] **Conferência por bloco de linha de tabela** (pendência da IA): descrição de planilha em várias linhas com a
+  quantidade na última, ou "Quantidade: 250 un" em linha própria, hoje são recusadas, porque o número, a unidade e o
+  termo do item têm de estar na mesma linha.
+- [ ] **Número colado a letra ou hífen em outro campo da linha** ("DN150 m 320", "C30 m³ 45", "CA-50 kg 1.200"): o
+  número com letra colada não é lido como quantidade, e o regex que não é IA lê igual. Pendência comum aos dois métodos.
 - [x] Selo de status por nó da árvore, filtro por prefixo e só pranchas desta disciplina (§9).
