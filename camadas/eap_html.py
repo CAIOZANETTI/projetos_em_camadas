@@ -19,7 +19,8 @@ def br(valor, casas: int = 2) -> str:
 
 
 SEM_CODIGO = "—"
-SITUACOES_CONCILIACAO = ("confere", "difere", "só nas gavetas", "só na EAP codificada", "fora das gavetas")
+SITUACOES_CONCILIACAO = ("confere", "difere", "só nas gavetas", "só na EAP codificada", "não conciliado (sem medida declarada)",
+                         "fora das gavetas")
 
 
 def _unidade(propriedade: str) -> str | None:

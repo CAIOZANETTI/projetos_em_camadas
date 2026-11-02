@@ -56,3 +56,15 @@ conferidas uma contra a outra.
   - Notas do executor, registradas e não mudadas:
     - a planilha troca "calçada" por "concreto" (`obras_lineares.py:290`), então `CIV.PAV.CAL` só aparece nas redes;
     - um `local` ambíguo ("Drenagem" casa DREN_DN400 e DN300) é pendência de propósito.
+- 02/11, **1º aceite do Fable: REVISAR, por um ponto só.** O código podia sair para um item que não existe na
+  unidade: cava é obra localizada, e numa unidade linear (`U2.AAT01.GEO.MOV.ESC`) o código não existe em
+  `eap.estrutura`. Isso alcançava 8 códigos possíveis e não gerava pendência.
+
+  Correção do gerente:
+  - `anotar_codigo_eap` confere o código completo contra os itens de `eap.estrutura()`; fora dela, o código não é
+    gravado e vira a pendência "item não pertence à unidade". Teste:
+    `test_codigo_fora_da_estrutura_vira_pendencia_e_nao_e_gravado`.
+  - Risco apontado e já tratado: um item que as gavetas têm mas não medem (ex.: `GEO.MOV.VAL`), se a codificada
+    passar a medi-lo, vira "não conciliado (sem medida declarada)", e não "fora das gavetas".
+  - Riscos registrados, sem mudança: unidade escrita de dois jeitos (`m3` × `m³`) e a tolerância absoluta da
+    conciliação.

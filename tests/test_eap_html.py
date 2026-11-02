@@ -177,7 +177,8 @@ def test_conciliacao_formatada_em_python():
               {"codigo": "U1.A.GEO.FUN.EST", "unidade": "un", "gavetas": None, "codificada": 12.0, "diferenca": None,
                "situacao": "fora das gavetas"}]
     c = eh.conciliacao(linhas)
-    assert c["resumo"] == {"confere": 0, "difere": 1, "só nas gavetas": 1, "só na EAP codificada": 1, "fora das gavetas": 1}
+    assert c["resumo"] == {"confere": 0, "difere": 1, "só nas gavetas": 1, "só na EAP codificada": 1,
+                           "não conciliado (sem medida declarada)": 0, "fora das gavetas": 1}
     assert len(c["linhas"]) == 3                                   # o que as gavetas não medem fica só na contagem
     assert c["linhas"][0] == {"codigo": "U1.A.GEO.MOV.ESC", "unidade": "m³", "gavetas_txt": "1.234,50 m³",
                               "codificada_txt": "1.230,00 m³", "diferenca_txt": "4,50 m³", "situacao": "difere"}

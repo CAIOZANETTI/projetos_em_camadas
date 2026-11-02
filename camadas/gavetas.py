@@ -998,19 +998,27 @@ def unidade_sistema(base: dict, ind: dict | None, cfg: dict, setor_por_servico: 
 def anotar_codigo_eap(servicos: list[dict], mapa: dict, pendencias: list[dict]) -> tuple[dict, list[dict]]:
     """Grava `codigo_eap` (completo ou None) e `servicos_eap` (os serviços da EAP codificada) em cada serviço; é anotação,
     não entra na chave do incremental. Devolve ({saída: n} dos serviços sem item na EAP codificada, pendências de
-    quem tem item mas não tem unidade e sistema: as de `pendencias` cujo objeto ou serviço está nesse caso)."""
+    quem tem item mas não tem unidade e sistema, e de quem teria um código fora de `eap.estrutura`: o item não vale
+    para o tipo de obra ou o escopo da unidade, e o código não é gravado)."""
+    from . import eap  # a estrutura instanciada: só os itens do tipo de obra da unidade
+    validos = {n["codigo"] for n in eap.estrutura() if n["nivel"] == "item"}
     sem_codigo: dict[str, int] = {}
     sem_par: set[str] = set()
+    fora: dict[str, dict] = {}
     for s in servicos:
         no = _no_eap(s)
         par = mapa.get(s["servico_id"]) or mapa.get(s["objeto_id"])
         s["servicos_eap"] = list(no["servicos"]) if no else []
         s["codigo_eap"] = codigo_eap(s, *par) if par else None
+        if s["codigo_eap"] and s["codigo_eap"] not in validos:   # ex.: cava (obra localizada) numa unidade linear
+            fora.setdefault(s["objeto_id"], {"objeto_id": s["objeto_id"], "motivo": (
+                f"item não pertence à unidade: {s['codigo_eap']} não existe na EAP codificada (tipo de obra ou escopo)")})
+            s["codigo_eap"] = None
         if no is None:
             sem_codigo[s["saida"]] = sem_codigo.get(s["saida"], 0) + 1
         elif par is None:
             sem_par |= {s["servico_id"], s["objeto_id"]}
-    return sem_codigo, [p for p in pendencias if p["objeto_id"] in sem_par]
+    return sem_codigo, [p for p in pendencias if p["objeto_id"] in sem_par] + list(fora.values())
 
 
 def conciliar_eap(servicos: list[dict], quantidades_codificada: list[dict], tol: float = 0.01) -> list[dict]:
@@ -1021,6 +1029,7 @@ def conciliar_eap(servicos: list[dict], quantidades_codificada: list[dict], tol:
     diferentes do mesmo código. Unidades diferentes nunca se misturam. Ordem: código, unidade."""
     medida = {saida for saida, n in EAP["saidas"].items() if (n.get("codigo_eap") or {}).get("mede")}
     itens = {(n["codigo_eap"]["item"]) for n in EAP["saidas"].values() if (n.get("codigo_eap") or {}).get("mede")}
+    tocados = {s["codigo_eap"].split(".", 2)[-1] for s in servicos if s.get("codigo_eap")}
     gavetas_: dict[tuple, float] = {}
     for s in servicos:
         if s.get("codigo_eap") and s["saida"] in medida:          # só a medida do item (`mede`), nada somado de fora
@@ -1034,8 +1043,11 @@ def conciliar_eap(servicos: list[dict], quantidades_codificada: list[dict], tol:
     for chave in sorted(gavetas_.keys() | codificada.keys()):
         g, c = gavetas_.get(chave), codificada.get(chave)
         dif = None if g is None or c is None else g - c
-        coberto = chave[0].split(".", 2)[-1] in itens              # o item é medido pelas gavetas?
-        situacao = ("fora das gavetas" if g is None and not coberto else "só na EAP codificada" if g is None
+        item = chave[0].split(".", 2)[-1]
+        coberto = item in itens                                     # o item é medido pelas gavetas (`mede`)?
+        sem_medida = item in tocados and not coberto                # as gavetas têm o item, mas sem medida declarada
+        situacao = ("não conciliado (sem medida declarada)" if g is None and sem_medida
+                    else "fora das gavetas" if g is None and not coberto else "só na EAP codificada" if g is None
                     else "só nas gavetas" if c is None else "confere" if abs(dif) <= tol else "difere")
         linhas.append({"codigo": chave[0], "unidade": chave[1], "gavetas": g, "codificada": c, "diferenca": dif,
                        "situacao": situacao})

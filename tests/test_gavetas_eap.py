@@ -165,3 +165,20 @@ def test_conciliar_eap_nao_mistura_unidades():
     codificada = [{"codigo": "U1.ETA.GEO.MOV.ESC", "grandeza": "area", "unidade": "m²", "quantidade": 10.0}]
     linhas = gv.conciliar_eap(servicos, codificada)
     assert [(l["unidade"], l["situacao"]) for l in linhas] == [("m²", "só na EAP codificada"), ("m³", "só nas gavetas")]
+
+
+def test_codigo_fora_da_estrutura_vira_pendencia_e_nao_e_gravado():
+    """Aceite da rodada 6: cava é obra localizada; numa unidade linear (U2.AAT01) o código não existe na estrutura."""
+    servicos = [dict(_serv("escavacao_cava_m3", 10.0), servico_id="CAVAS:cavas:escavacao_cava_m3:C01", objeto_id="CAVAS")]
+    sem_codigo, pend = gv.anotar_codigo_eap(servicos, {"CAVAS": ("u2", "AAT01")}, [])
+    assert servicos[0]["codigo_eap"] is None and sem_codigo == {}
+    assert len(pend) == 1 and "U2.AAT01.GEO.MOV.ESC" in pend[0]["motivo"] and pend[0]["objeto_id"] == "CAVAS"
+    ok = [dict(_serv("escavacao_cava_m3", 10.0), servico_id="s", objeto_id="CAVAS")]
+    gv.anotar_codigo_eap(ok, {"CAVAS": ("u1", "FILTROS")}, [])
+    assert ok[0]["codigo_eap"] == "U1.FILTROS.GEO.MOV.ESC"
+
+
+def test_item_das_gavetas_sem_medida_declarada_nao_e_fora_das_gavetas():
+    servicos = [dict(_serv("escavacao_m3", 7.0), codigo_eap="U1.FILTROS.GEO.MOV.VAL")]
+    codificada = [{"codigo": "U1.FILTROS.GEO.MOV.VAL", "grandeza": "volume", "unidade": "m³", "quantidade": 7.0}]
+    assert gv.conciliar_eap(servicos, codificada)[0]["situacao"] == "não conciliado (sem medida declarada)"
