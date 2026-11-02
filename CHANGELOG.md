@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.37.0 — 2026-11-02 · Aba EAP: selo por nó, filtro por prefixo e vista particular
+- **Selo de status por nó** (`eap_painel.status_do_no`, `arvore`): `status_no`, `n_fatos` e `n_conflitos` calculados em
+  Python a partir dos fatos sob o nó. Fato com `*` no código vale para todo nó que casa segmento a segmento; fato de
+  item vale para o item e os ancestrais. Conflito > fonte única (inclui só menção) > convergente (inclui decidido);
+  sem fato, "sem evidência". `montar(eap_codificada, evidencias)` segue como interface pública.
+- **Filtro por prefixo no mapa**: "ver no mapa" esmaece os demais elementos construtivos (sem removê-los) até
+  "limpar filtro EAP". O esmaecimento está em `estiloObra`, então sobrevive a `aplicarEscopoMapa` e à troca de escopo.
+- **Vista particular**: o item abre a ficha do primeiro elemento (e enquadra todos, se forem vários); linha
+  "Vista: código · nome (n elementos)" no topo da aba EAP, com o botão de limpar.
+- Revisão: o `*` só cobre sistemas que têm o item (quantidade sob o nó); `selo_title` e `rotulo_vista` vêm do Python;
+  aviso "Filtro EAP: código" com botão de limpar também na aba Obra; limpar o filtro preserva a seleção feita depois;
+  item com vários elementos não abre popup com autoPan (o enquadramento manda); nó não-item com um elemento volta a
+  selecionar e abrir popup sem trocar de aba (como antes); fatos e quantidades divididos uma vez, indexados por unidade.
+- Pendente: esmaecer layers CAD de outras disciplinas (ver `docs/EAP.md` §9).
 ## 0.36.0 — 2026-11-02 · Memória espacial, rodada 6: as gavetas falam a EAP codificada
 - **De-para 3 com o código real** (`conceitos/de_para_eap.json`, `codigo_eap`): cada saída das gavetas aponta o
   item (`eap_geral.jsonl`) e os serviços (`servicos.jsonl`) da EAP codificada. Vala vai para `GEO.MOV.VAL`,
