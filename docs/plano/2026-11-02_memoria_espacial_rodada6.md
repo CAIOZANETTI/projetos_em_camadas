@@ -39,10 +39,10 @@ conferidas uma contra a outra.
 
 | # | Etapa | Quem | Estado |
 |---|---|---|---|
-| 1 | Tabela de-para (`codigo_eap`), conferida contra os catálogos | Opus | feito |
-| 2 | Unidade e sistema do objeto, código completo em cada serviço, pendência sem código | Sonnet | feito — `codigo_eap`, `unidade_sistema`, `anotar_codigo_eap`; formato conferido contra `eap.estrutura` |
-| 3 | Conciliação das duas EAP e código real na aba EAP | Sonnet (mesmo executor, logo depois) | feito — `conciliar_eap`, `obra._conciliar_eaps`, tabela na aba; ajuste do gerente: só a medida do item (`mede`) e itens fora das gavetas só na contagem |
-| 4 | Fechamento: testes, `vcm balanco`, aceite do Fable, PR | Opus; Fable | em andamento — 0.36.0, L032 |
+| 1 | Tabela de-para (`codigo_eap`), conferida contra os catálogos | Opus | verificado |
+| 2 | Unidade e sistema do objeto, código completo em cada serviço, pendência sem código | Sonnet | verificado — `codigo_eap`, `unidade_sistema`, `anotar_codigo_eap`; formato conferido contra `eap.estrutura` |
+| 3 | Conciliação das duas EAP e código real na aba EAP | Sonnet (mesmo executor, logo depois) | verificado — `conciliar_eap`, `obra._conciliar_eaps`, tabela na aba; ajuste do gerente: só a medida do item (`mede`) e itens fora das gavetas só na contagem |
+| 4 | Fechamento: testes, `vcm balanco`, aceite do Fable, PR | Opus; Fable | verificado — 0.36.0, L032, MANTER, 2º aceite do Fable |
 
 ## Emendas
 - 02/11, **integração (gerente).**
@@ -68,3 +68,4 @@ conferidas uma contra a outra.
     passar a medi-lo, vira "não conciliado (sem medida declarada)", e não "fora das gavetas".
   - Riscos registrados, sem mudança: unidade escrita de dois jeitos (`m3` × `m³`) e a tolerância absoluta da
     conciliação.
+- 02/11, **2º aceite do Fable: ACEITA.** O caso `{u2, AAT01}` com cavas vira pendência, sem código. Nenhum código válido foi recusado (cavas de U1, valas de U1 e U2). Riscos registrados: a pendência cita só o 1º código recusado do objeto; `tocados` compara só o item, sem unidade e sistema.

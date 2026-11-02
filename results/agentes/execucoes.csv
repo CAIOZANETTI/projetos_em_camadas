@@ -56,3 +56,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-02,EAP 0.35.0,correção dos achados da revisão,executor,claude-sonnet-5-5,184885,18,198,True,ajuste do gerente,451 testes; no merge com a main (0.34.0) o gerente alinhou ao contrato eap_gavetas/eap
 2026-11-02,memória espacial rodada 6,etapas 2 e 3 (código EAP e conciliação),implementador,claude-sonnet-5-5,180142,48,480,True,ajuste do gerente,aceita pelo Opus com ajuste (só a medida do item na conciliação; fora das gavetas só na contagem)
 2026-11-02,memória espacial rodada 6,aceite da rodada 6,gerente (aceite),claude-fable-5-1,33722,9,95,True,nenhum,REVISAR só pelo código fora da eap.estrutura (cava em unidade linear)
+2026-11-02,memória espacial rodada 6,2º aceite da rodada 6,gerente (aceite),claude-fable-5-1,,,,True,nenhum,ACEITA
