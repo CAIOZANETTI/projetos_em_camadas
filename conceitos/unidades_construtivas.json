@@ -1,13 +1,13 @@
 {
  "metadata": {
-  "fonte": "unidades do contrato (Unidade 1 = ETA Vila C, obra localizada; Unidade 2 = adutoras, obra linear), códigos de estrutura das estacas (dados/foz/geotec/estacas.csv), redes de exemplos/foz/obra.json (valas.redes) e manchas de etapa da folha 04",
+  "fonte": "unidades do contrato (Unidade 1 = ETA Vila C, obra localizada; Unidade 2 = adutoras, obra linear), códigos de estrutura das estacas (dados/foz/geotec/estacas.csv), redes de exemplos/foz/obra.json (valas.redes) e manchas de etapa da folha 04; escopo água pelo código SAA dos desenhos (SAA-0017)",
   "estado": "premissa",
   "data_referencia": "2026-10",
   "observacoes": "Elemento construtivo = o que o usuário procura pelo nome (P5, PC12, ACT600-031, AAT06 · folha 09). Cada elemento pertence a um sistema (módulo da ETA ou rede) e cada sistema a uma unidade. Estaca: sistema pela `estrutura` do CSV. Bloco e pilar: sistema da ficha (forma) de onde foram lidos; as estacas dentro do bloco vão como atributo, sem reclassificar. Cava: sistema da estrutura que tem mais que `cava_maioria` das estacas dentro; sem estacas, ou sem maioria, fica no sistema geral. Mancha de etapa (folha 04): sistema geral. A Unidade 1 também tem obra linear: os tubos enterrados dentro da ETA (água bruta, interligações com os Actiflo, lodo) são sistemas da u1 com tipologia rede_eta, não AAT; a geometria e os serviços de vala vêm da aba Obras Lineares (camadas/obras_lineares.py). Trecho de rede: uma folha (prancha) da rede; a extensão por folha reparte a extensão da rede pela posição do tubo dentro da janela da planta (estimada). O nome do sistema só é expandido quando o projeto o expande: sigla sem expansão fica com o código como nome e estado premissa. `tipologia` aponta a decomposição em conceitos/construcao_civil.json; `chaves` são regex (texto sem acento, maiúsculas, '_' como espaço) que identificam o sistema em títulos, nomes de arquivo e frases dos documentos; o prefixo '~' marca chave ambígua, anulada quando uma regex de `exclui` também casa (filtros × EEE_FILTROS_NOVOS, drenagem DN300 × DN400). `desenhos` = regra código do desenho (regex inteira) [+ unidade, regex na coluna unidade da Relação] -> sistema; o sistema com `desenhos` aparece na árvore mesmo sem elemento de geometria (classes vazias) quando o inventário traz a Relação de Desenhos. `tabelas` = tabelas do contrato (regex no nome) que são da unidade. `pasta_drive` = regex na pasta do Drive que desempata arquivo de mesmo nome citado por duas unidades. As chaves de 360 e 600 L/s incluem o título conjunto '360 e 600' (uma seção que cita os dois módulos vale para ambos)."
  },
  "unidades": {
-  "u1": {"nome": "Unidade 1 — ETA Vila C", "obra": "localizada"},
-  "u2": {"nome": "Unidade 2 — Adutoras", "obra": "linear"}
+  "u1": {"nome": "Unidade 1 — ETA Vila C", "obra": "localizada", "escopo": "agua"},
+  "u2": {"nome": "Unidade 2 — Adutoras", "obra": "linear", "escopo": "agua"}
  },
  "sistemas": {
   "FILTROS": {"unidade": "u1", "nome": "Módulo de filtros", "estado": "confirmado", "fonte": "pasta MOD_TRATAM_FILTROS_NOVOS; desenho 001-SAA-0017-8820-PBES-DE-0000MOD01FORMA-R1", "desenhos": [{"codigo": "MOD01"}], "tipologia": "estrutura_concreto", "chaves": ["TRATAM FILTRO", "MOD ?01(?!\\d)", "~\\bFILTROS?\\b"], "exclui": ["EEE ?FILTROS ?NOVOS"]},
@@ -56,6 +56,10 @@
   "pilar": {"nome": "Pilar", "cor": "#1c1917", "geometria": "poligono"},
   "cava": {"nome": "Cava de escavação", "cor": "#92400e", "geometria": "poligono"},
   "estrutura": {"nome": "Estrutura (mancha de etapa)", "cor": "#0b6fde", "geometria": "poligono"},
-  "trecho": {"nome": "Trecho de rede", "cor": "#dc2626", "geometria": "linha"}
+  "trecho": {"nome": "Trecho de rede", "cor": "#dc2626", "geometria": "linha"},
+  "laje": {"nome": "Laje / piso", "cor": "#0ea5e9", "geometria": "poligono"},
+  "viga": {"nome": "Viga", "cor": "#334155", "geometria": "linha"},
+  "baldrame": {"nome": "Viga baldrame", "cor": "#78716c", "geometria": "linha"},
+  "parede": {"nome": "Parede de concreto", "cor": "#475569", "geometria": "linha"}
  }
 }

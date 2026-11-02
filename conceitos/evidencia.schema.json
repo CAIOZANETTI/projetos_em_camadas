@@ -1,0 +1,32 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "conceitos/evidencia.schema.json",
+ "title": "Evidência de um fato da EAP",
+ "description": "Uma linha do registro de evidências (saida/<obra>/evidencias.jsonl, só se acrescenta). Um fato é (codigo, servico, unidade). O mesmo fato pode ter várias evidências de documentos diferentes: elas se reforçam quando concordam e o conflito é mostrado quando divergem; o código nunca escolhe um valor sozinho (a escolha é uma evidência `decisao`, com autor).",
+ "type": "object",
+ "required": ["id", "codigo", "servico", "unidade", "valor", "parcela", "documento", "localizador", "trecho", "metodo", "regra"],
+ "properties": {
+  "id": {"type": "string", "description": "hash de documento + localizador + método + código + serviço + trecho: rodar o loop de novo não duplica"},
+  "codigo": {"type": "string", "pattern": "^(U\\d+|\\*)\\.[A-Z0-9_*]+\\.[A-Z*]{3,}(\\.[A-Z*]{3,}){0,2}$", "description": "código EAP; '*' no segmento que o documento não diz (ex.: U1.*.GEO.FUN.EST = estacas da U1, sistema não dito)"},
+  "servico": {"type": "string", "description": "id de conceitos/servicos.jsonl (forma, concreto, armadura…) ou '' para o próprio item"},
+  "unidade": {"type": ["string", "null"], "description": "unidade de medida normalizada (un, m, m², m³, kg, t, vb, cj); null quando é só menção"},
+  "valor": {"type": ["number", "null"], "description": "quantidade afirmada; null = só menção (o documento cita o item, sem número)"},
+  "parcela": {"type": "boolean", "description": "true = parte que se soma dentro do documento (linha de planilha, elemento); false = afirmação do total"},
+  "documento": {
+   "type": "object", "required": ["id", "tipo"],
+   "properties": {
+    "id": {"type": "string"},
+    "tipo": {"enum": ["edital", "memorial", "planilha", "projeto", "geometria", "associado", "ia", "decisao"]},
+    "nome": {"type": "string"}
+   }
+  },
+  "localizador": {"type": "string", "description": "onde está: 'p. 12, linha 3', 'CUSTO CIVIL linha 214', ids dos elementos"},
+  "trecho": {"type": "string", "description": "texto literal de onde o valor saiu (a IA precisa citar; o código confere)"},
+  "metodo": {"enum": ["regex", "planilha", "catalogo", "geometria", "associado", "ia", "decisao"]},
+  "regra": {"type": "string", "description": "qual regra casou: item e serviço da EAP geral, código do cadastro, função do código"},
+  "escopo": {"enum": ["agua", "esgoto", null]},
+  "autor": {"type": "string", "description": "obrigatório em `decisao`"},
+  "justificativa": {"type": "string", "description": "obrigatório em `decisao`"},
+  "citacao": {"enum": ["conferida", "trecho não encontrado no documento", "valor não está no trecho"], "description": "só em `ia`: resultado da conferência da citação"}
+ }
+}
