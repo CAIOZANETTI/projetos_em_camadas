@@ -94,10 +94,16 @@ def _fato(f: dict, evidencias: dict) -> dict:
 def _por_setor(base: dict, servicos: list[dict], nos: list[dict], setor_por_objeto: dict, ind: dict) -> list[dict]:
     """`dados["eap_gavetas"]["setores"]`: os nós de cada setor formatados. A soma dos setores mais o "fora dos setores" tem de
     ser o total do nó. Tolerância: a maior entre `TOLERANCIA_SOMA_SETORES` e o erro máximo do arredondamento a 3 casas
-    feito serviço a serviço nas duas somas (0,0005 × 2 × n de serviços do nó); acima disso é erro de cálculo, `ValueError`."""
+    feito serviço a serviço nas duas somas (0,0005 × 2 × n de serviços do nó). Antes da soma, a contagem de serviços
+    por nó é conferida exatamente: um serviço contado em dobro ou perdido é `ValueError`, de qualquer valor. Um
+    serviço trocado de setor não muda nem a soma nem a contagem: quem o garante são os testes de `setor_de` e
+    `setor_dos_servicos`."""
     ordem = [o["objeto_id"] for o in base.get("objetos", []) if o["classe"] == "setor"]
     grupos = gavetas.para_eap_por_setor(servicos, setor_por_objeto, ordem)
     for no in nos:
+        contagem = sum(n["n_servicos"] for g in grupos for n in g["nos"] if n["eap"] == no["eap"])
+        if contagem != len(no["servicos"]):                     # exata: pega serviço contado em dobro ou perdido
+            raise ValueError(f"nó {no['eap']}: os setores somam {contagem} serviços e o nó tem {len(no['servicos'])}")
         soma = sum(n["valor"] for g in grupos for n in g["nos"] if n["eap"] == no["eap"])
         limite = max(gavetas.TOLERANCIA_SOMA_SETORES, 0.0005 * len(no["servicos"]) * 2)   # 2 somas arredondadas a 3 casas
         if abs(soma - no["valor"]) > limite:

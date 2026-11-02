@@ -103,3 +103,9 @@ Contrato já escrito em `conceitos/` pelo gerente:
     pendência;
   - a tolerância da soma acompanha o erro máximo do arredondamento (0,0005 × 2 × n de serviços);
   - o critério entra no localizador das cavas.
+- 02/11, **2º aceite do Fable: REVISAR, por um ponto só.** A tolerância nova da soma (0,0005 × 2 × n) chega a 35
+  unidades num nó com 35 mil serviços, e com isso um serviço contado em dobro de até ~30 m³ passava. Correção do
+  gerente: `_por_setor` confere, antes da soma, a **contagem** de serviços por nó, exata. Qualquer dobra ou perda é
+  `ValueError`, de qualquer valor. Teste: `test_servico_contado_em_dobro_num_no_grande_e_erro`, com 40 001 serviços e
+  uma dobra de 5 m³ (abaixo do limite da soma). O docstring registra que a troca de setor não aparece na soma e é
+  garantida pelos testes de `setor_de` e `setor_dos_servicos`.

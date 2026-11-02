@@ -46,3 +46,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-02,memória espacial rodada 5,E2 (setores da ETA),implementador,claude-sonnet-5-5,127283,27,297,True,nenhum,aceita pelo Opus
 2026-11-02,memória espacial rodada 5,E1 (cavas nas gavetas),implementador,claude-sonnet-5-5,182959,37,497,True,ajuste do gerente,aceita pelo Opus; gerente acrescentou o setor de cada cava pelo ponto do serviço
 2026-11-02,memória espacial rodada 5,aceite da rodada 5,gerente (aceite),claude-fable-5-1,71554,14,160,True,nenhum,REVISAR: as duas EAP colidiam em dados['eap'] (PR #18); bandit B324 de evidencias.py; E1 e ajuste aceitos
+2026-11-02,memória espacial rodada 5,2º aceite da rodada 5,gerente (aceite),claude-fable-5-1,14437,7,62,True,nenhum,REVISAR só pela tolerância que escondia dobra em nó grande

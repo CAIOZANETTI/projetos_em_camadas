@@ -121,3 +121,21 @@ def test_soma_dos_setores_diferente_do_total_e_erro(monkeypatch):
     monkeypatch.setattr(gavetas, "para_eap_por_setor", torta)
     with pytest.raises(ValueError, match="soma dos setores"):
         eh.montar(base, servicos, [], None, mapa)
+
+
+def test_servico_contado_em_dobro_num_no_grande_e_erro(monkeypatch):
+    """2º aceite da rodada 5: num nó com milhares de serviços a tolerância da soma é larga; a contagem exata pega a dobra."""
+    base, servicos, mapa = _com_setores()
+    servicos = servicos + [{**servicos[0], "servico_id": f"{servicos[0]['servico_id']}:{i}", "valor": 0.001}
+                           for i in range(40000)]
+    original = gavetas.para_eap_por_setor
+
+    def dobrada(*args, **kwargs):
+        grupos = original(*args, **kwargs)
+        no = grupos[0]["nos"][0]
+        no["n_servicos"] += 1                      # um serviço a mais num setor
+        no["valor"] = round(no["valor"] + 5.0, 3)  # 5 m³: abaixo do limite de 0,0005 × 2 × 40 001 = 40
+        return grupos
+    monkeypatch.setattr(gavetas, "para_eap_por_setor", dobrada)
+    with pytest.raises(ValueError, match="serviços"):
+        eh.montar(base, servicos, [], None, mapa)
