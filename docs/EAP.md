@@ -150,6 +150,13 @@ A IA lendo o mesmo documento não é fonte independente. Ela reforça a leitura,
 trecho. Senão, a evidência fica registrada com `citacao: "trecho não encontrado no documento"` ou `"valor não está
 no trecho"` e não entra na consolidação.
 
+**Caminho seguro para a IA** (`roteiro` e `conferir`): `python -m camadas.evidencias roteiro [--escopo] [--obra]` gera o
+que procurar por item (termos e sinônimos, serviços e unidades aceitas); a IA escreve uma linha JSON por afirmação com
+o trecho copiado literalmente; `python -m camadas.evidencias conferir IA.jsonl --pdf DOC.pdf [--texto DOC.txt]
+--saida aceitas.jsonl` valida o schema, localiza o documento por `documento.id` e aplica `conferir_citacao`. O relatório
+diz quantas foram aceitas e o motivo de cada recusa (schema, documento não fornecido, trecho não encontrado, valor
+fora do trecho); só as aceitas são gravadas. A skill `eap-evidencias` descreve o passo a passo.
+
 **Cobertura**: para cada unidade e item, mostra se há evidência no projeto (pranchas, geometria) e no edital
 (edital, memorial, planilha):
 - `só projeto: verificar se o edital considera`;
@@ -415,3 +422,10 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
 
 Fica para depois: selo de status por nó da árvore, clique no nó como filtro por prefixo que esmaece as outras
 disciplinas e a vista particular já enquadrada para o item.
+
+## 10. Próximos passos
+
+- [x] **Skill de leitura por IA** (`.claude/skills/eap-evidencias`, `evidencias.roteiro`, `evidencias.conferir_arquivo`):
+  a IA lê edital, TR, memorial e laudo seguindo o roteiro e só entra com citação conferida pelo código (§5).
+- [ ] Conferir também o localizador (a página citada contém o trecho) e aceitar planilha como documento de leitura.
+- [ ] Selo de status por nó da árvore e filtro por prefixo (§9).

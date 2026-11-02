@@ -21,6 +21,7 @@ Escolher um valor é uma evidência `decisao`, com autor e justificativa, que n�
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import math
@@ -74,11 +75,16 @@ def validar_evidencia(ev: dict) -> list[str]:
     return problemas
 
 
-def evidencia(**campos) -> dict:
-    """Evidência com id estável (hash) e conferida contra o schema; levanta ValueError se não passa."""
+def _id_da_evidencia(campos: dict) -> str:
+    """Id estável (hash) de documento, localizador, método, código, serviço, trecho, unidade, valor e autor."""
     chave = json.dumps([campos.get(k) for k in ("documento", "localizador", "metodo", "codigo", "servico", "trecho",
                                                  "unidade", "valor", "autor")], ensure_ascii=False, sort_keys=True)
-    ev = {"id": hashlib.sha1(chave.encode(), usedforsecurity=False).hexdigest()[:16], **campos}   # id, não segurança
+    return hashlib.sha1(chave.encode(), usedforsecurity=False).hexdigest()[:16]   # id, não segurança
+
+
+def evidencia(**campos) -> dict:
+    """Evidência com id estável (hash) e conferida contra o schema; levanta ValueError se não passa."""
+    ev = {"id": _id_da_evidencia(campos), **campos}
     problemas = validar_evidencia(ev)
     if problemas:
         raise ValueError(f"evidência inválida: {problemas} — {ev}")
@@ -510,13 +516,183 @@ def _registros(df: pd.DataFrame) -> list[dict]:
     return df.astype(object).where(pd.notna(df), None).to_dict("records")
 
 
+# Leitura por IA: o roteiro diz o que procurar, a IA propõe, o código confere ------------------------------------------------
+def _termos_legiveis(regex: str) -> list[str]:
+    """Alternativas de uma regex de termos da EAP escritas como a gente procura no texto (sem lookahead, `\\b` nem `?`)."""
+    sem_olhar = re.sub(r"\(\?[!=<][^()]*\)", "", regex)
+    sem_opcionais = re.sub(r"\([^()]*\)\?|\\b|\\", "", sem_olhar)
+    alternativas = re.sub(r"\.\?|\.\{[^}]*\}|\.\*", " ", sem_opcionais).replace("?", "")
+    saida = []
+    for alt in alternativas.split("|"):
+        alt = re.sub(r"\(([^()|]*)[^()]*\)", r"\1", alt).strip().lower()
+        if len(alt) > 2 and not re.search(r"[\[\]*+{}^$()]", alt) and alt not in saida:
+            saida.append(alt)
+    return saida
+
+
+def _sinonimos_do_item(termos: str) -> list[str]:
+    """Termo canônico (e variantes) de sinonimos.json que o item reconhece: o que o documento pode usar no lugar dele."""
+    saida = []
+    for canonico, variantes in vocabulario.REGRAS["sinonimos"].items():
+        if re.search(termos, canonico):
+            saida += [t.lower() for t in [canonico, *(v.replace("?", "") for v in variantes)] if t.lower() not in saida]
+    return saida
+
+
+def roteiro(escopo: str | None = None, obra: str | None = None) -> list[dict]:
+    """O que a IA procura em cada documento: por item da EAP geral (filtrado por escopo 'agua'|'esgoto' e tipo de
+    obra 'localizada'|'linear'), código, nome, termos de busca (os do item e os sinônimos), serviços admitidos com
+    suas unidades e as unidades aceitas (as dos serviços e das medições; sem nenhuma, todas as do vocabulário)."""
+    por_id = {s["id"]: s for s in SERVICOS}
+    itens = []
+    for it in eap.itens().values():
+        if (escopo and escopo not in it["escopo"]) or (obra and obra not in it["obra"]):
+            continue
+        servicos = [{"id": s, "nome": por_id[s]["nome"], "unidades": por_id[s]["unidades"]} for s in it["servicos"] if s in por_id]
+        unidades = list(dict.fromkeys([u for s in servicos for u in s["unidades"]] + [m["unidade"] for m in it["medicoes"]]))
+        termos = list(dict.fromkeys(_termos_legiveis(it["termos"]) + _sinonimos_do_item(it["termos"])))
+        itens.append({"codigo": it["codigo"], "nome": it["nome"], "escopo": it["escopo"], "obra": it["obra"],
+                      "termos": termos, "servicos": servicos, "unidades": unidades or list(vocabulario.REGRAS["unidades"])})
+    return itens
+
+
+def roteiro_md(itens: list[dict], escopo: str | None = None, obra: str | None = None) -> str:
+    """Roteiro de leitura em Markdown, a partir de `roteiro()`: uma seção por item da EAP."""
+    filtro = ", ".join(f"{k} = {v}" for k, v in (("escopo", escopo), ("obra", obra)) if v) or "sem filtro"
+    linhas = ["# Roteiro de leitura para a EAP", "",
+              (f"Filtro: {filtro}. Itens: {len(itens)}. Para cada item abaixo, procure o termo, os sinônimos e os serviços "
+               "no documento e escreva uma evidência com o trecho copiado literalmente (skill `eap-evidencias`)."), "",
+              "Unidades aceitas: " + ", ".join(f"`{u}`" for u in vocabulario.REGRAS["unidades"]) + ".", ""]
+    for it in itens:
+        linhas += [f"## {it['codigo']} · {it['nome']}", "",
+                   f"- Termos de busca: {', '.join(it['termos']) or '—'}",
+                   f"- Unidades do item: {', '.join(f'`{u}`' for u in it['unidades'])}"]
+        linhas += [f"- Serviço `{s['id']}` ({s['nome']}): {', '.join(f'`{u}`' for u in s['unidades'])}" for s in it["servicos"]]
+        linhas.append("")
+    return "\n".join(linhas)
+
+
+def _problemas_ia(ev: dict) -> list[str]:
+    """Além do schema: uma proposta de IA tem método e tipo de documento `ia`, valor numérico com unidade e `parcela`."""
+    if not isinstance(ev.get("documento"), dict) or not ev["documento"].get("id"):
+        return ["documento tem de ser um objeto com id (nome do arquivo) e tipo"]
+    problemas = validar_evidencia(ev)
+    if ev.get("metodo") != "ia" or ev["documento"].get("tipo") != "ia":
+        problemas.append("método e documento.tipo têm de ser 'ia'")
+    valor = ev.get("valor")
+    if valor is not None and (isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor)):
+        problemas.append(f"valor '{valor}' não é número")
+    elif valor is not None and not ev.get("unidade"):
+        problemas.append("valor sem unidade")
+    if not isinstance(ev.get("parcela"), bool):
+        problemas.append("'parcela' tem de ser true ou false")
+    if not str(ev.get("trecho") or "").strip():
+        problemas.append("trecho vazio")
+    return problemas
+
+
+def conferir_arquivo(linhas: list, documentos: dict[str, list[str]]) -> tuple[list[dict], list[dict]]:
+    """Confere as evidências propostas pela IA (linhas JSON ou dicts) contra o texto dos documentos (nome do arquivo →
+    páginas). Devolve (aceitas, recusadas): as aceitas levam `citacao: "conferida"`; cada recusada é
+    {linha, motivo, evidencia}. Motivos: JSON ou schema inválido, documento não fornecido, trecho não encontrado,
+    valor fora do trecho. `id` e `regra` ausentes são completados (a IA não calcula hash)."""
+    aceitas, recusadas = [], []
+    for n, bruta in enumerate((l for l in linhas if isinstance(l, dict) or str(l).strip()), 1):
+        try:
+            ev = bruta if isinstance(bruta, dict) else json.loads(bruta)
+            if not isinstance(ev, dict):
+                raise TypeError("a linha não é um objeto JSON")
+        except (ValueError, TypeError) as erro:
+            recusadas.append({"linha": n, "motivo": f"JSON inválido: {erro}", "evidencia": str(bruta)[:200]})
+            continue
+        ev = {**ev, "regra": ev.get("regra") or "leitura por IA"}
+        ev = {"id": _id_da_evidencia(ev), **ev} if not ev.get("id") else ev
+        problemas = _problemas_ia(ev)
+        nome = str((ev.get("documento") or {}).get("id")) if isinstance(ev.get("documento"), dict) else ""
+        paginas = documentos.get(nome, documentos.get(Path(nome).name))
+        if problemas:
+            motivo = "schema inválido: " + "; ".join(problemas)
+        elif paginas is None:
+            motivo = f"documento não fornecido: {nome}"
+        else:
+            conferida = conferir_citacao(ev, paginas)
+            motivo = None if conferida["citacao"] == "conferida" else conferida["citacao"]
+            ev = conferida
+        (recusadas.append({"linha": n, "motivo": motivo, "evidencia": ev}) if motivo else aceitas.append(ev))
+    return aceitas, recusadas
+
+
+def _documentos_da_linha_de_comando(pdfs: list[str], textos: list[str], log=print) -> dict[str, list[str]]:
+    """Nome do arquivo → páginas: PDF por página; texto puro por página separada por quebra de página (\\f)."""
+    documentos = {}
+    for caminho in pdfs + textos:
+        arquivo = Path(caminho)
+        if not arquivo.exists():
+            log(f"  aviso: {caminho} não existe e será ignorado")
+        elif caminho in pdfs:
+            documentos[arquivo.name] = paginas_pdf(arquivo)
+        else:
+            documentos[arquivo.name] = arquivo.read_text(encoding="utf-8").split("\f")
+    return documentos
+
+
+def _comando_conferir(args, log=print) -> int:
+    """`conferir`: relatório de aceitas e recusadas; grava só as aceitas em `--saida`. Saída 2 sem o arquivo de entrada."""
+    entrada = Path(args.ia)
+    if not entrada.exists():
+        log(f"erro: o arquivo {entrada} não existe")
+        return 2
+    documentos = _documentos_da_linha_de_comando(args.pdf, args.texto, log)
+    aceitas, recusadas = conferir_arquivo(entrada.read_text(encoding="utf-8").splitlines(), documentos)
+    log(f"Conferência de {entrada.name}: {len(aceitas)} aceitas, {len(recusadas)} recusadas "
+        f"({len(documentos)} documentos fornecidos)")
+    for r in recusadas:
+        log(f"  recusada (linha {r['linha']}): {r['motivo']}")
+    if args.saida:
+        gravar(aceitas, args.saida)
+        log(f"  {len(aceitas)} aceitas gravadas em {args.saida}")
+    return 0
+
+
+def _comando_roteiro(args, log=print) -> int:
+    """`roteiro`: imprime o Markdown ou grava em `--saida`."""
+    texto = roteiro_md(roteiro(args.escopo, args.obra), args.escopo, args.obra)
+    if args.saida:
+        Path(args.saida).write_text(texto + "\n", encoding="utf-8")
+        log(f"roteiro gravado em {args.saida}")
+    else:
+        log(texto)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """`python -m camadas.evidencias roteiro|conferir …` (ver --help de cada comando)."""
+    ap = argparse.ArgumentParser(prog="python -m camadas.evidencias",
+                                 description="Leitura de documentos por IA com citação conferida pelo código")
+    sub = ap.add_subparsers(dest="comando", required=True)
+    r = sub.add_parser("roteiro", help="o que procurar em cada documento, por item da EAP")
+    r.add_argument("--escopo", choices=["agua", "esgoto"])
+    r.add_argument("--obra", choices=["localizada", "linear"])
+    r.add_argument("--saida", help="grava o Markdown neste arquivo em vez de imprimir")
+    r.set_defaults(funcao=_comando_roteiro)
+    c = sub.add_parser("conferir", help="confere as evidências propostas pela IA contra os documentos")
+    c.add_argument("ia", help="JSONL com as evidências propostas (uma por linha)")
+    c.add_argument("--pdf", action="append", default=[], help="PDF do documento (repetível)")
+    c.add_argument("--texto", action="append", default=[], help="texto puro do documento (repetível)")
+    c.add_argument("--saida", help="grava só as aceitas neste JSONL")
+    c.set_defaults(funcao=_comando_conferir)
+    args = ap.parse_args(argv)
+    return args.funcao(args)
+
+
+
 def metadados() -> dict:
     """Rastreabilidade do método e das regras declaradas (regra 9 do estilo)."""
     return {
         "modulo": "evidencias",
         "descricao": "loop de evidências da EAP: texto, planilha + cadastro de materiais, pranchas medidas, IA com "
                      "citação conferida e decisões; fatos com convergência e conflito, cobertura projeto × edital",
-        "funcoes": ["buscar_texto", "de_planilha", "de_quantificacao", "de_obras_lineares", "de_obras_lineares_mos", "conferir_citacao", "decisao", "consolidar",
+        "funcoes": ["roteiro", "roteiro_md", "conferir_arquivo", "buscar_texto", "de_planilha", "de_quantificacao", "de_obras_lineares", "de_obras_lineares_mos", "conferir_citacao", "decisao", "consolidar",
                     "cobertura", "associados_x_edital", "catalogo_por_item", "loop", "etapa", "metadados"],
         "bibliografia": [],
         "premissas": [{"aplicacao": {"classificar": ["eap_geral.jsonl", "servicos.jsonl", "sinonimos.json"],
@@ -524,3 +700,7 @@ def metadados() -> dict:
                        "fonte": eap.REGRAS["metadata"]["fonte"], "estado": "premissa"}],
         "ultima_revisao": eap.REGRAS["metadata"]["data_referencia"],
     }
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

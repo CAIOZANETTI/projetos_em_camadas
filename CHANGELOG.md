@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.37.0 — 2026-11-02 · Leitura por IA com citação conferida
+- **Roteiro de leitura** (`evidencias.roteiro`, `roteiro_md`): por item da EAP geral (filtrado por escopo e tipo de obra),
+  código, nome, termos de busca legíveis (termos do item e sinônimos de `sinonimos.json`), serviços admitidos com
+  unidades e unidades aceitas.
+- **CLI** `python -m camadas.evidencias`: `roteiro [--escopo] [--obra] [--saida]` e `conferir IA.jsonl --pdf … --texto …
+  [--saida]`. `conferir_arquivo` valida o schema, localiza o documento por `documento.id`, aplica `conferir_citacao` e
+  recusa com motivo (JSON ou schema inválido, documento não fornecido, trecho não encontrado, valor fora do trecho). Só
+  as aceitas são gravadas; saída 0 mesmo com recusas, 2 sem o arquivo de entrada. `id` e `regra` ausentes são completados.
+- **Skill `eap-evidencias`**: o passo a passo "a IA propõe, o código confere".
+- Lição L032.
+
 ## 0.35.0 — 2026-11-02 · Aba EAP: árvore codificada, fatos e evidências
 - **Fim da colisão em `dados["eap"]`** (`camadas/obra.py`): a árvore das gavetas fica em `dados["eap_gavetas"]`
   e a EAP codificada em `dados["eap"]` (convenção da 0.34.0); o painel é montado a partir da codificada.
