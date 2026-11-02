@@ -127,6 +127,20 @@
     "fatos"
    ],
    "descricao": "quantidade calculada, com os fatos e a versão da regra de que depende (memória de cálculo)"
+  },
+  "superficies": {
+   "chave": "superficie_id",
+   "obrigatorios": [
+    "superficie_id",
+    "tipo",
+    "arquivo",
+    "sha256",
+    "crs_h",
+    "datum_v",
+    "res_m",
+    "evidencia_id"
+   ],
+   "descricao": "superfície raster (MDS do drone) guardada como arquivo .npz ao lado da base, com o sha256: entra na chave do cálculo; não cabe em fato"
   }
  },
  "tipos_geometria": [
@@ -228,6 +242,38 @@
    "unidade": null,
    "tipo": "lista",
    "obs": "superfície final de cada amostra pela urbanização, ou null"
+  },
+  "marcas_cota": {
+   "unidade": "m",
+   "tipo": "lista",
+   "obs": "[{E, N, cota_m, texto, prancha}] cotas de fundo lidas por OCR nas plantas de escavação"
+  },
+  "bases": {
+   "unidade": "m",
+   "tipo": "lista",
+   "obs": "[{coords, etapa}] polígonos da base das cavas, em UTM"
+  },
+  "cristas": {
+   "unidade": "m",
+   "tipo": "lista",
+   "obs": "[coords] linhas de crista desenhadas, em UTM"
+  },
+  "superficie_id": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "a superfície (gaveta superficies) do terreno usada pela regra"
+  },
+  "setor": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "setor da obra localizada (ETA/ETE) a que o objeto pertence, pela geometria"
+  },
+  "nome": {
+   "unidade": null,
+   "tipo": "texto"
   }
- }
+ },
+ "tipos_superficie": [
+  "mds"
+ ]
 }

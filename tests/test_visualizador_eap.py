@@ -1,4 +1,4 @@
-"""Aba EAP do visualizador: só apresenta o que vem em `dados["eap"]` (sem conta em JS)."""
+"""Aba EAP do visualizador: só apresenta o que vem em `dados["eap_gavetas"]` (sem conta em JS); `dados["eap"]` é a EAP codificada."""
 import json
 from pathlib import Path
 
@@ -59,7 +59,7 @@ def _abrir(navegador, tmp_path, dados):
 
 def test_aba_eap_apresenta_arvore(navegador, tmp_path):
     eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))
-    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap": eap})
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
     assert pagina.locator("#t-eap").is_visible()
     pagina.click("#t-eap")
     aba = pagina.locator("#aba-eap")
@@ -90,8 +90,41 @@ def test_aba_eap_apresenta_arvore(navegador, tmp_path):
     pagina.close()
 
 
+def test_aba_eap_mostra_uma_tabela_por_setor(navegador, tmp_path):
+    eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
+    pagina.click("#t-eap")
+    tabelas = pagina.locator("#aba-eap table.eap-setor")
+    assert tabelas.count() == len(eap["setores"])
+    texto = pagina.locator("#aba-eap").inner_text()
+    for setor in eap["setores"]:
+        assert setor["nome"] in texto
+        for no in setor["nos"]:
+            assert f"{no['valor_txt']} {no['unidade']}" in texto
+    assert erros == []
+    pagina.close()
+
+
+def test_sem_setores_nao_ha_tabela_por_setor(navegador, tmp_path):
+    eap = {k: v for k, v in json.loads(EXEMPLO.read_text(encoding="utf-8")).items() if k != "setores"}
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
+    pagina.click("#t-eap")
+    assert pagina.locator("#aba-eap table.eap-setor").count() == 0
+    assert erros == []
+    pagina.close()
+
+
 def test_sem_eap_a_aba_fica_escondida(navegador, tmp_path):
     pagina, erros = _abrir(navegador, tmp_path, dados_minimos())
     assert pagina.locator("#t-eap").is_hidden()
     assert erros == []
     pagina.close()
+
+
+def test_eap_codificada_em_dados_eap_nao_some_com_a_aba_das_gavetas(navegador, tmp_path):
+    """Aceite da rodada 5: as duas EAP convivem; a aba das gavetas lê `eap_gavetas`, não a EAP codificada."""
+    eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))
+    codificada = {"fonte": "camadas.eap", "nos": [{"codigo": "X"}], "quantidades": []}
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap": codificada, "eap_gavetas": eap})
+    pagina.click("#t-eap")
+    assert eap["nos"][0]["valor_txt"] in pagina.locator("#aba-eap").inner_text() and not erros

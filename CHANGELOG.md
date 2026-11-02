@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.34.0 — 2026-11-02 · Memória espacial, rodada 5: cavas e setores da ETA
+- **Gaveta `superficies`**: o terreno (MDS do drone) vai para `base/superficies/<id>.npz`, gravado byte a byte
+  determinístico, e a gaveta guarda o sha256, o CRS, o datum e a evidência. `ler_superficie` confere o sha256: um
+  arquivo adulterado ou ausente vira pendência, sem cálculo.
+- **Cavas nas gavetas**: um objeto `conjunto_cavas` com as marcas de cota, as bases, as cristas e a superfície. A regra
+  `cavas` (`escavacao.quantificar_gavetas`) chama o `escavacao.calcular` atual, com paridade 0. A EAP ganha CV.01 a
+  CV.03 por cava, e trocar o MDS muda a chave e recalcula.
+- **Setores da ETA**: setores declarados no `obra.json` (`gavetas.setores`, natureza `decidido`). Cada objeto cai no
+  setor que contém o seu ponto representativo, e cada cava cai no seu pelo ponto do serviço. Sobreposição vira
+  pendência. A EAP mostra também a soma por setor, conferida contra o total de cada nó.
+- O gerador sintético monta todas as gavetas do contrato.
+- Lição L030.
 ## 0.33.0 — 2026-11-02 · Escoramento total e planilha Obras Lineares como evidência
 - **Escoramento total da vala** (`conceitos/servicos_associados.jsonl`, regra `escoramento_vala_total`): além do serviço
   por tipo (`escoramento_continuo`…), toda vala escorada gera o fato (GEO.MOV.VAL, `escoramento`, m²). Métodos que

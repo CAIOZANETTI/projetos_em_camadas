@@ -17,5 +17,11 @@
      "fatos": [
       {"propriedade": "solo", "valor_txt": "argila mole", "natureza": "medido",
        "evidencia": {"classe": "sondagem", "documento": "SP-03.pdf", "onde": "arquivo SP-03.pdf, furo SP-03", "trecho": "argila siltosa mole", "executor": "Haiku"}}]}]}],
+ "setores": [
+  {"setor_id": "SET-ETA", "nome": "ETA", "nos": [
+   {"eap": "OL.01", "descricao": "Escavação de vala", "unidade": "m³", "valor_txt": "1.000,00", "n_servicos": 1},
+   {"eap": "OL.02", "descricao": "Escoramento de vala", "unidade": "m²", "valor_txt": "310,00", "n_servicos": 1}]},
+  {"setor_id": null, "nome": "Fora dos setores", "nos": [
+   {"eap": "OL.01", "descricao": "Escavação de vala", "unidade": "m³", "valor_txt": "234,56", "n_servicos": 1}]}],
  "pendencias": [{"objeto_id": "OL-009", "local": "Travessia do rio", "motivo": "faltam fatos obrigatórios: prof_m"}],
  "resumo": {"servicos": 3, "nos": 2, "pendencias": 1, "diferencas_paridade": 0, "recalculados": 3, "reaproveitados": 0}}
