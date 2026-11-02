@@ -431,7 +431,14 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
    filtro ativo, a aba Obra mostra "Filtro EAP: código" com o mesmo botão de limpar. Item: abre a ficha do primeiro elemento (aba Obra) e, com vários, enquadra e
    destaca todos.
 
-Fica para depois: esmaecer as camadas de prancha (layers CAD) de outras disciplinas. O template já recebe `grupo` e
-`subgrupo` por camada, mas o liga/desliga das pranchas passa pelo desenho em canvas por índice de layer
-(`P.vis`), e o nó teria de trazer `disciplinas_mapa` (GEO, CIV, HID, ELE → grupos de
-`conceitos/disciplinas.json`, definido em Python). Não é uma mudança pequena e segura, por isso não foi feita.
+7. **Só pranchas desta disciplina** (`eap_painel.subgrupos_do_codigo`): cada nó da árvore traz `subgrupos_mapa`
+   (subgrupos de `conceitos/disciplinas.json`, em ordem alfabética) e `pranchas_txt` ("Pranchas: Adutoras, Geotecnia e
+   fundação, Terraplenagem"; vazio sem subgrupos), tirados da chave `pranchas` de `conceitos/eap.json` (subgrupo → pacotes
+   `DISC.PAC`). A disciplina e o pacote são os segmentos `disciplina` e `pacote` de `eap.NIVEIS` (em `U1.A.GEO.FUN.EST`,
+   `GEO` e `FUN`). Nó de disciplina (`U1.A.GEO`): subgrupos com algum pacote `GEO.*`; nó de pacote ou item
+   (`U1.A.GEO.FUN`, `U1.A.GEO.FUN.EST`): subgrupos que contêm `GEO.FUN`; unidade e sistema: lista vazia, sem recorte. Com
+   "ver no mapa" ativo, o nó com `subgrupos_mapa` e ao menos uma prancha georreferenciada mostra, na linha "Vista", o
+   checkbox "só pranchas desta disciplina" (desmarcado). Ao marcar, o JS guarda `P.vis` e `P.mapa.on` de cada prancha
+   georreferenciada e deixa ligados só os layers cujo subgrupo (`layer.subgrupo` ou o da prancha) pertence à lista
+   (pertencer ou não, sem conta); a prancha sem nenhum layer da lista é desligada. Desmarcar, "limpar filtro EAP" ou
+   "ver no mapa" de outro nó restauram o instantâneo exato, e trocar de nó desmarca o checkbox.

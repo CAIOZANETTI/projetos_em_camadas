@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.38.0 — 2026-11-02 · Aba EAP: só pranchas desta disciplina
+- **Recorte dos layers CAD pelo nó da EAP** (`eap_painel.subgrupos_do_codigo`): cada nó da árvore codificada traz
+  `subgrupos_mapa` e `pranchas_txt`, calculados em Python pelo mapa subgrupo → pacote de `conceitos/eap.json`
+  (`pranchas`). Nó de disciplina: subgrupos com algum pacote da disciplina; pacote ou item: subgrupos com o pacote
+  exato; unidade e sistema: sem recorte.
+- **Checkbox "só pranchas desta disciplina"** na linha "Vista" da aba EAP (só com pranchas georreferenciadas): guarda
+  um instantâneo de `P.vis` e `P.mapa.on` de cada prancha, deixa ligados só os layers dos subgrupos do nó e restaura
+  o instantâneo ao desmarcar, ao limpar o filtro EAP ou ao trocar de nó. O JS só testa pertencer à lista.
+- Fecha o pendente da 0.37.0 (`docs/EAP.md` §9, item 7).
+- Lição L034.
+
 ## 0.37.0 — 2026-11-02 · Aba EAP: selo por nó, filtro por prefixo e vista particular
 - **Selo de status por nó** (`eap_painel.status_do_no`, `arvore`): `status_no`, `n_fatos` e `n_conflitos` calculados em
   Python a partir dos fatos sob o nó. Fato com `*` no código vale para todo nó que casa segmento a segmento; fato de
