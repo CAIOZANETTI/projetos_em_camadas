@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import associados, dimensoes, eap, vocabulario
+from . import associados, calibracao, dimensoes, eap, vocabulario
 from .construtivos import REGRAS as UNIDADES
 from .pdf_cad import CONCEITOS
 from .vocabulario import (
@@ -827,7 +827,7 @@ def _planilha_do_contrato(esc: dict) -> tuple | None:
 
 def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     """Loop de evidências da obra: documentos, planilha do contrato, planilha Obras Lineares, pranchas medidas, IA e decisões do obra.json.
-    Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv e dimensoes.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
+    Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv, dimensoes.csv e calibracao.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
     conf = cfg.get("evidencias") or {}
     planilha = _planilha_do_contrato(cfg.get("escopo") or {})
     extras = {k: (ler if k == "decisoes" else _ler_ia)(conf[k]) if conf.get(k) and Path(conf[k]).exists() else []
@@ -845,6 +845,7 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
                  if dados.get("construtivos") else []) + dimensoes.de_declarados(cfg.get("elementos_declarados"))
     tabelas = {"fatos": consolidar(evs), "cobertura": cobertura(evs), "associados": associados_x_edital(evs),
                "dimensoes": dimensoes.tabela(elementos)}
+    tabelas["calibracao"] = calibracao.tabela(evs, consolidar([e for e in evs if e["metodo"] != "associado"]), elementos)
     for nome, df in tabelas.items():
         df.drop(columns=[c for c in ("afirmacoes",) if c in df]).to_csv(out / f"{nome}.csv", sep=";", decimal=",",
                                                                        encoding="utf-8-sig", index=False)

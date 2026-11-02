@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.42.0 — 2026-11-02 · Calibração de premissas pela evidência (premissa × observado)
+- **`camadas/calibracao.py`**: para cada serviço associado com fato observado fora do próprio cálculo (edital,
+  planilha, IA conferida ou decisão), calcula a **premissa implícita** `p × observado / calculado` quando a fórmula é
+  linear numa única premissa (testado avaliando em 0, p/2, p e 2p, tolerância 1e-9): taxa de armadura, espessura de
+  lastro e afins. Situação `confere` (até 5 %), `diverge` ou `não calibrável` com motivo (fórmula com patamar, `max`
+  ou `if`; várias premissas proporcionais; fato em conflito; regra fora de `servicos_associados.jsonl`).
+- **Nunca altera premissa**: só informa; trocar o valor é decisão humana. O observado exclui o próprio documento
+  "associado" (senão o fato seria circular e tudo conferiria).
+- `evidencias.etapa` grava `calibracao.csv` e `dados["evidencias"]["calibracao"]`; `docs/EAP.md` §7.4.
+- Revisão: elementos casados por id e pela base do código (V1 em U1 e V1 em U2 não somam); o recálculo inclui os
+  elementos vindos de fatos (`dimensoes.de_fatos`) e tem de bater com a soma das evidências do grupo, senão "não
+  calibrável" com motivo; fato com `*` soma os associados de todos os códigos que cobre; t → kg antes de casar; a
+  fórmula é reavaliada com a premissa implícita e tem de reproduzir o observado (pega `min`/limiar fora de
+  [p/2, 2p]); condição que usa a premissa, divisão por zero e observado ≤ 0 → não calibrável; coluna
+  `unidade_premissa` (`unidade` acrescentada às premissas de `servicos_associados.jsonl`, sem mudar valores); linhas
+  não calibráveis mostram o calculado real.
+- Sem dados reais no repositório (as planilhas estão no Drive), nenhum valor de premissa foi mudado.
+- Lição L038.
+
 ## 0.41.0 — 2026-11-02 · Conferência de citação simplificada (sem mudança de comportamento)
 - **`camadas/evidencias.py` refatorado** (apontado pelo `vcm balanco`): `_problemas_ia` 43 → 14, `conferir_citacao`
   37 → 7, `_situacao_do_item` 22 → 7, `_afirmacoes` 22 → 11, `consolidar` 21 → 12 (complexidade ciclomática, radon);
