@@ -486,3 +486,47 @@ def test_montar_passa_os_fatos_a_arvore():
     assert nos["U1"]["selo_title"] == "17 fatos · 1 em conflito"
     sem_fatos = eap_painel.montar(codificada, None)
     assert {n["status_no"] for n in sem_fatos["arvore"]} == {"sem evidência"}
+
+
+def test_subgrupos_do_codigo_por_disciplina_pacote_e_item():
+    # disciplina: todo subgrupo com algum pacote GEO.*, em ordem alfabética
+    geo = ["Adutoras", "Geotecnia e fundação", "Terraplenagem"]
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO") == geo
+    # pacote e item: só quem contém o pacote exato
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO.FUN") == ["Geotecnia e fundação"]
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO.FUN.EST") == [
+        "Geotecnia e fundação"
+    ]
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO.MOV") == geo
+    assert eap_painel.subgrupos_do_codigo("U1.A.HID.TUB") == [
+        "Adutoras",
+        "Drenagem",
+        "Processo",
+        "Tubulações e conexões",
+    ]
+
+
+def test_subgrupos_do_codigo_acima_da_disciplina_e_vazio():
+    assert eap_painel.subgrupos_do_codigo("U1") == []
+    assert eap_painel.subgrupos_do_codigo("U1.A") == []
+
+
+def test_subgrupos_do_codigo_pacote_sem_prancha(monkeypatch):
+    sem_geo_mov = {
+        k: [p for p in v if p != "GEO.MOV"] for k, v in eap.REGRAS["pranchas"].items()
+    }
+    monkeypatch.setitem(eap.REGRAS, "pranchas", sem_geo_mov)
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO.MOV.REA") == []
+
+
+def test_montar_traz_subgrupos_mapa_e_texto_das_pranchas():
+    codificada, evid = sinteticos()
+    nos = {n["codigo"]: n for n in eap_painel.montar(codificada, evid)["arvore"]}
+    assert nos["U1"]["subgrupos_mapa"] == [] and nos["U1"]["pranchas_txt"] == ""
+    fun = nos["U1.FILTROS.GEO.FUN.BLO"]
+    assert fun["subgrupos_mapa"] == ["Geotecnia e fundação"]
+    assert fun["pranchas_txt"] == "Pranchas: Geotecnia e fundação"
+    assert (
+        nos["U1.ACT600.GEO.MOV"]["pranchas_txt"]
+        == "Pranchas: Adutoras, Geotecnia e fundação, Terraplenagem"
+    )
