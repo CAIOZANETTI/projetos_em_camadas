@@ -74,10 +74,50 @@ def _texto_quantidade(grupo: dict, nivel: str) -> str:
     return texto if nivel == "item" else f"{texto} · {grupo['item']}"
 
 
-def arvore(eap_codificada: dict | None) -> list[dict]:
-    """Um nó por item de `eap_codificada["nos"]`, com as quantidades somadas e os elementos do nó e dos descendentes."""
+SEM_EVIDENCIA = "sem evidência"
+STATUS_POUCA_EVIDENCIA = {"só menção", "fonte única"}
+STATUS_CONFIRMADOS = {"convergente", "decidido"}
+
+
+def _fato_cobre_no(codigo_fato: str, codigo_no: str) -> bool:
+    """O fato vale para o nó quando casa segmento a segmento com o código do nó: `*` casa qualquer segmento e o fato
+    precisa ser do nível do nó ou mais profundo (fato de item vale para o item e para os ancestrais, não para os filhos)."""
+    fato, no = codigo_fato.split("."), codigo_no.split(".")
+    return len(fato) >= len(no) and all(f in ("*", n) for f, n in zip(fato, no))
+
+
+def status_do_no(codigo_no: str, lista_fatos: list[dict]) -> dict:
+    """Status agregado dos fatos sob o nó: conflito > fonte única (inclui só menção) > convergente (inclui decidido);
+    sem fato, "sem evidência". Devolve também `n_fatos` e `n_conflitos`."""
+    status = [
+        f["status"] for f in lista_fatos if _fato_cobre_no(f["codigo"], codigo_no)
+    ]
+    n_conflitos = status.count("conflito")
+    if not status:
+        agregado = SEM_EVIDENCIA
+    elif n_conflitos:
+        agregado = "conflito"
+    elif any(
+        s not in STATUS_CONFIRMADOS for s in status
+    ):  # só menção, fonte única ou status desconhecido: pouca evidência
+        agregado = "fonte única"
+    else:
+        agregado = "convergente"
+    return {
+        "status_no": agregado,
+        "n_fatos": len(status),
+        "n_conflitos": n_conflitos,
+    }
+
+
+def arvore(
+    eap_codificada: dict | None, lista_fatos: list[dict] | None = None
+) -> list[dict]:
+    """Um nó por item de `eap_codificada["nos"]`: quantidades somadas, elementos do nó e dos descendentes e o status
+    agregado dos `lista_fatos` brutos (`evidencias["fatos"]`) que cobrem o nó."""
     if not eap_codificada:
         return []
+    lista_fatos = lista_fatos or []
     quantidades = eap_codificada.get("quantidades") or []
     grupos, elementos = _grupos_do_no(quantidades), _elementos_do_no(quantidades)
     saida = []
@@ -96,6 +136,7 @@ def arvore(eap_codificada: dict | None) -> list[dict]:
                 ],
                 "elementos": ids,
                 "n_elementos": len(ids),
+                **status_do_no(no["codigo"], lista_fatos),
             }
         )
     return saida
@@ -183,10 +224,11 @@ def montar(eap_codificada: dict | None, evidencias_obra: dict | None) -> dict | 
     """`dados["eap_painel"]`: {arvore, fatos, associados, resumo}; None quando não há EAP nem evidências."""
     if eap_codificada is None and evidencias_obra is None:
         return None
-    lista_fatos = fatos((evidencias_obra or {}).get("fatos"))
+    fatos_brutos = (evidencias_obra or {}).get("fatos")
+    lista_fatos = fatos(fatos_brutos)
     lista_associados = associados((evidencias_obra or {}).get("associados"))
     return {
-        "arvore": arvore(eap_codificada),
+        "arvore": arvore(eap_codificada, fatos_brutos),
         "fatos": lista_fatos,
         "associados": lista_associados,
         "resumo": resumo(lista_fatos, lista_associados),
@@ -199,7 +241,15 @@ def metadados() -> dict:
         "modulo": "eap_painel",
         "descricao": "painel da aba EAP: árvore codificada com quantidades somadas por nó, fatos com afirmações e serviços "
         "associados × edital, formatados em português do Brasil",
-        "funcoes": ["arvore", "fatos", "associados", "resumo", "montar", "metadados"],
+        "funcoes": [
+            "status_do_no",
+            "arvore",
+            "fatos",
+            "associados",
+            "resumo",
+            "montar",
+            "metadados",
+        ],
         "formato_numero": "vírgula decimal e ponto de milhar",
         "ordem_status": ORDEM_STATUS,
         "contrato": "dados['eap_painel'] = {arvore, fatos, associados, resumo}; dados['eap'] (gavetas) é outra chave",

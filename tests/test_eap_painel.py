@@ -307,3 +307,82 @@ def test_decisao_vira_texto_pronto():
 def test_metadados():
     meta = eap_painel.metadados()
     assert meta["modulo"] == "eap_painel" and "montar" in meta["funcoes"]
+
+
+def _fato_bruto(codigo: str, status: str) -> dict:
+    return {"codigo": codigo, "status": status}
+
+
+def _status(fatos: list[dict]) -> dict:
+    """`status_no` por código, na `_eap` de três nós (U1, U1.A, U1.B)."""
+    return {n["codigo"]: n for n in eap_painel.arvore(_eap([]), fatos)}
+
+
+def test_status_do_no_conflito_sobe_para_os_ancestrais():
+    nos = _status(
+        [
+            _fato_bruto("U1.A.GEO.FUN.EST", "conflito"),
+            _fato_bruto("U1.B.GEO.FUN.EST", "convergente"),
+        ]
+    )
+    assert nos["U1"]["status_no"] == "conflito"  # ancestral herda o conflito
+    assert nos["U1.A"]["status_no"] == "conflito"
+    assert nos["U1.B"]["status_no"] == "convergente"
+    assert (nos["U1"]["n_fatos"], nos["U1"]["n_conflitos"]) == (2, 1)
+    assert (nos["U1.A"]["n_fatos"], nos["U1.A"]["n_conflitos"]) == (1, 1)
+    assert (nos["U1.B"]["n_fatos"], nos["U1.B"]["n_conflitos"]) == (1, 0)
+
+
+def test_fato_com_asterisco_no_sistema_vale_para_todo_sistema():
+    nos = _status([_fato_bruto("U1.*.GEO.FUN.EST", "fonte única")])
+    assert {nos[c]["status_no"] for c in ("U1", "U1.A", "U1.B")} == {"fonte única"}
+    assert all(nos[c]["n_fatos"] == 1 for c in ("U1", "U1.A", "U1.B"))
+    assert eap_painel._fato_cobre_no("U1.*.GEO.FUN.EST", "U1.A.GEO.FUN")
+    assert not eap_painel._fato_cobre_no(
+        "U1.*.GEO.FUN.EST", "U1.A.CIV"
+    )  # segmento fixo difere
+    assert not eap_painel._fato_cobre_no("U1.*.GEO.FUN.EST", "U2.A")  # unidade difere
+    assert not eap_painel._fato_cobre_no(
+        "U1.A", "U1.A.GEO"
+    )  # fato mais raso não cobre o filho
+
+
+def test_no_sem_fato_e_sem_evidencia_e_so_convergentes_e_convergente():
+    nos = _status(
+        [
+            _fato_bruto("U1.A.GEO.FUN.EST", "convergente"),
+            _fato_bruto("U1.A.CIV.EST.PIL", "decidido"),
+        ]
+    )
+    assert nos["U1.B"]["status_no"] == "sem evidência"
+    assert (nos["U1.B"]["n_fatos"], nos["U1.B"]["n_conflitos"]) == (0, 0)
+    assert nos["U1.A"]["status_no"] == "convergente" and nos["U1.A"]["n_fatos"] == 2
+    assert nos["U1"]["status_no"] == "convergente"
+    assert _status([])["U1"]["status_no"] == "sem evidência"
+
+
+def test_so_mencao_ou_fonte_unica_rebaixa_convergente_e_conflito_vence():
+    nos = _status(
+        [
+            _fato_bruto("U1.A.GEO.FUN.EST", "convergente"),
+            _fato_bruto("U1.A.GEO.FUN.BLO", "só menção"),
+        ]
+    )
+    assert nos["U1.A"]["status_no"] == "fonte única"
+    nos = _status(
+        [_fato_bruto("U1.A.X.Y.Z", "só menção"), _fato_bruto("U1.A.X.Y.W", "conflito")]
+    )
+    assert nos["U1.A"]["status_no"] == "conflito"
+
+
+def test_montar_passa_os_fatos_a_arvore():
+    codificada, evid = sinteticos(com_conflito=True)
+    painel = eap_painel.montar(codificada, evid)
+    raiz = next(n for n in painel["arvore"] if n["pai"] is None)
+    assert raiz["status_no"] == "conflito" and raiz["n_conflitos"] >= 1
+    assert all(
+        n["status_no"] in {"conflito", "fonte única", "convergente", "sem evidência"}
+        for n in painel["arvore"]
+    )
+    sem_fatos = eap_painel.montar(codificada, None)
+    assert {n["status_no"] for n in sem_fatos["arvore"]} == {"sem evidência"}

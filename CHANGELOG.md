@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.36.0 — 2026-11-02 · Aba EAP: selo por nó, filtro por prefixo e vista particular
+- **Selo de status por nó** (`eap_painel.status_do_no`, `arvore`): `status_no`, `n_fatos` e `n_conflitos` calculados em
+  Python a partir dos fatos sob o nó. Fato com `*` no código vale para todo nó que casa segmento a segmento; fato de
+  item vale para o item e os ancestrais. Conflito > fonte única (inclui só menção) > convergente (inclui decidido);
+  sem fato, "sem evidência". `montar(eap_codificada, evidencias)` segue como interface pública.
+- **Filtro por prefixo no mapa**: "ver no mapa" esmaece os demais elementos construtivos (sem removê-los) até
+  "limpar filtro EAP". O esmaecimento está em `estiloObra`, então sobrevive a `aplicarEscopoMapa` e à troca de escopo.
+- **Vista particular**: o item abre a ficha do primeiro elemento (e enquadra todos, se forem vários); linha
+  "Vista: código · nome (n elementos)" no topo da aba EAP, com o botão de limpar.
+- Pendente: esmaecer layers CAD de outras disciplinas (ver `docs/EAP.md` §9).
+
 ## 0.35.0 — 2026-11-02 · Aba EAP: árvore codificada, fatos e evidências
 - **Fim da colisão em `dados["eap"]`** (`camadas/obra.py`): a árvore das gavetas fica em `dados["eap_gavetas"]`
   e a EAP codificada em `dados["eap"]` (convenção da 0.34.0); o painel é montado a partir da codificada.
