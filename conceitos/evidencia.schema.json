@@ -27,6 +27,6 @@
   "escopo": {"enum": ["agua", "esgoto", null]},
   "autor": {"type": "string", "description": "obrigatório em `decisao`"},
   "justificativa": {"type": "string", "description": "obrigatório em `decisao`"},
-  "citacao": {"enum": ["conferida", "trecho não encontrado no documento", "valor não está no trecho"], "description": "só em `ia`: resultado da conferência da citação"}
+  "citacao": {"type": "string", "description": "só em `ia`: \"conferida\" ou o motivo da recusa (schema inválido, documento não fornecido, trecho curto demais, trecho não encontrado no documento, valor não está no trecho); o código calcula, a IA não escreve"}
  }
 }

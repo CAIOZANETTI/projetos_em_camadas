@@ -95,8 +95,10 @@ def test_ia_so_entra_com_citacao_conferida():
     assert citacoes == ["conferida", "trecho não encontrado no documento", "valor não está no trecho"]
     fato = evidencias.consolidar(evs).iloc[0]
     assert fato["status"] == "fonte única" and fato["valor"] == 250.0       # a de 280 não conta
-    assert len(fato["afirmacoes"]) == 1 and len(fato["afirmacoes"][0]["evidencias"]) == 2   # IA lendo o mesmo
-    #                                     memorial não é fonte independente: reforça a leitura, não a força do fato
+    # IA lendo o mesmo memorial é afirmação própria (`ia:<arquivo>`, nunca soma com o regex), mas não é fonte
+    # independente: reforça a leitura, não a força do fato
+    assert [a["documento"] for a in fato["afirmacoes"]] == ["memorial_fundacoes.pdf", "ia:memorial_fundacoes.pdf"]
+    assert fato["forca"] == 1 and fato["n_documentos"] == 1
 
 
 def test_planilha_parcelas_somam_e_cadastro_de_materiais_classifica():

@@ -21,6 +21,7 @@ Escolher um valor é uma evidência `decisao`, com autor e justificativa, que n�
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import math
@@ -33,7 +34,6 @@ from . import associados, dimensoes, eap, vocabulario
 from .construtivos import REGRAS as UNIDADES
 from .pdf_cad import CONCEITOS
 from .vocabulario import (
-    NUMERO,
     normalizar,
     numero_br,
     preparar,
@@ -74,11 +74,18 @@ def validar_evidencia(ev: dict) -> list[str]:
     return problemas
 
 
-def evidencia(**campos) -> dict:
-    """Evidência com id estável (hash) e conferida contra o schema; levanta ValueError se não passa."""
+def _id_da_evidencia(campos: dict) -> str:
+    """Id estável (hash) de documento, localizador, método, código, serviço, trecho, unidade, valor e autor."""
+    campos = {**campos, "valor": float(campos["valor"]) if isinstance(campos.get("valor"), (int, float))
+              and not isinstance(campos["valor"], bool) else campos.get("valor")}      # 250 e 250.0 são o mesmo id
     chave = json.dumps([campos.get(k) for k in ("documento", "localizador", "metodo", "codigo", "servico", "trecho",
                                                  "unidade", "valor", "autor")], ensure_ascii=False, sort_keys=True)
-    ev = {"id": hashlib.sha1(chave.encode(), usedforsecurity=False).hexdigest()[:16], **campos}   # id, não segurança
+    return hashlib.sha1(chave.encode(), usedforsecurity=False).hexdigest()[:16]   # id, não segurança
+
+
+def evidencia(**campos) -> dict:
+    """Evidência com id estável (hash) e conferida contra o schema; levanta ValueError se não passa."""
+    ev = {"id": _id_da_evidencia(campos), **campos}
     problemas = validar_evidencia(ev)
     if problemas:
         raise ValueError(f"evidência inválida: {problemas} — {ev}")
@@ -261,16 +268,105 @@ def de_obras_lineares_mos(trechos: list[dict], furos: list[dict] | None = None, 
     return _de_trechos_lineares(trechos, recalcular, DOCUMENTO_MOS, "associado", "obras_lineares.mos_sanepar", base)
 
 
+# Conferência da citação de IA: o trecho, o par (valor, unidade) e o item têm de estar na MESMA linha do documento -------
+PALAVRAS_ATE_O_ITEM = 8     # número e unidade valem para o item se o termo dele está a no máximo 8 palavras, na linha
+_ASPAS_E_TRACOS = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'",
+                                 "–": "-", "—": "-", "−": "-"})
+_UNIDADES_RE = "|".join(re.escape(g) for g in sorted(vocabulario.GRAFIAS, key=len, reverse=True))
+_NUMERO_INTEIRO = vocabulario.NUMERO + r"(?![\d]|[.,]\d)"
+_NUMERO_ANTES_DA_UNIDADE = re.compile(r"(?<![\d.,Ø])" + _NUMERO_INTEIRO + r"\s*(" + _UNIDADES_RE + r")(?![A-Z0-9])")
+_UNIDADE_ANTES_DO_NUMERO = re.compile(r"(?<![A-Z0-9])(" + _UNIDADES_RE + r")\s*[:|-]*\s*(?<![\d.,Ø])" + _NUMERO_INTEIRO)
+_NUMERO_ANTES_DO_TERMO = re.compile(r"(?<![\d.,Ø])" + _NUMERO_INTEIRO + r"\s*(?:\([^)]*\)\s*)?(?:[A-Z]+\s+){0,2}$")
+
+
+def _linhas_normalizadas(texto) -> list[str]:
+    """Linhas não vazias do texto, normalizadas (maiúsculas, sem acento, aspas e travessões unificados); o hífen de fim
+    de linha ('esta-' + 'cas') é desfeito antes."""
+    t = str(texto or "").translate(_ASPAS_E_TRACOS)
+    t = re.sub(r"(?<=[A-Za-zÀ-ÿ])-[ \t]*\r?\n[ \t]*(?=[a-zà-ÿ])", "", t)
+    return [n for n in (normalizar(linha) for linha in t.splitlines()) if n]
+
+
+def _item_do_codigo(codigo) -> dict | None:
+    """Item da EAP geral do código ('U1.*.GEO.FUN.EST' → GEO.FUN.EST); '*' só vale em unidade e sistema."""
+    partes = codigo.split(".") if isinstance(codigo, str) else []
+    return None if len(partes) < 3 or "*" in partes[2:] else eap.itens().get(".".join(partes[2:]))
+
+
+def _unidades_do_item(item: dict, servico: str = "") -> list[str]:
+    """Unidades aceitas: as do serviço, se houver; senão as dos serviços e das medições do item (sem nenhuma, todas)."""
+    por_id = {s["id"]: s for s in SERVICOS}
+    if servico:
+        return list(por_id[servico]["unidades"])
+    unidades = [u for s in item["servicos"] if s in por_id for u in por_id[s]["unidades"]] \
+        + [m["unidade"] for m in item["medicoes"]]
+    return list(dict.fromkeys(unidades)) or list(vocabulario.REGRAS["unidades"])
+
+
+def _pares_da_linha(linha: str) -> list[tuple[float, str, tuple[int, int], str | None]]:
+    """Todos os pares (número, unidade, posição, item) que uma linha normalizada afirma: 'número unidade' (20 m²),
+    'unidade número' (m³ 1.250,50; un - 250) e 'número termo de item' (250 estacas, 250 (duzentas) estacas → un, do item
+    do termo). Cada par também aparece convertido (12 t → 12000 kg). O número é um token inteiro: o 2 de M2, o 50 de
+    CA-50, o 5 de 12,5 e o 250 de 1.250 não contam."""
+    pares = [(numero_br(m[1]), vocabulario.GRAFIAS[m[2]], m.span(), None) for m in _NUMERO_ANTES_DA_UNIDADE.finditer(linha)]
+    pares += [(numero_br(m[2]), vocabulario.GRAFIAS[m[1]], m.span(), None) for m in _UNIDADE_ANTES_DO_NUMERO.finditer(linha)]
+    for item in eap.itens().values():
+        for termo in re.finditer(item["termos"], linha):
+            if antes := _NUMERO_ANTES_DO_TERMO.search(linha[:termo.start()]):
+                pares.append((numero_br(antes[1]), "un", (antes.start(), termo.end()), item["codigo"]))
+    return pares + [(*vocabulario.converter(n, u), pos, via) for n, u, pos, via in pares if u in vocabulario.REGRAS["conversoes"]]
+
+
+def _item_citado(linha: str, item: dict, posicao: tuple[int, int] | None = None) -> bool:
+    """O termo do item está na linha (ou um sinônimo dele) e, dado o número, a no máximo PALAVRAS_ATE_O_ITEM palavras."""
+    termos = list(re.finditer(item["termos"], linha))
+    if not termos:
+        return bool(re.search(item["termos"], preparar(linha)[1]))        # só por sinônimo: vale na linha toda
+    if posicao is None:
+        return True
+    ini, fim = posicao
+    return any(len((linha[t.end():ini] if t.end() <= ini else linha[fim:t.start()] if fim <= t.start() else "").split())
+               <= PALAVRAS_ATE_O_ITEM for t in termos)
+
+
+def _confere_fragmento(fragmento: str, valor, unidade: str | None, item: dict) -> tuple[bool, bool]:
+    """(o par existe na linha, o par vale para o item). Sem valor (menção), só se pergunta se o item é citado."""
+    linha = preparar(fragmento)[0]
+    if valor is None:
+        citado = _item_citado(linha, item)
+        return citado, citado
+    achados = [(pos, via) for n, u, pos, via in _pares_da_linha(linha) if abs(n - valor) < 1e-9 and u == unidade]
+    return bool(achados), any(via == item["codigo"] if via else _item_citado(linha, item, pos) for pos, via in achados)
+
+
 def conferir_citacao(ev: dict, paginas: list[str]) -> dict:
-    """Evidência de IA conferida: o trecho tem de estar no documento e o valor tem de estar no trecho."""
-    texto, trecho = normalizar(" ".join(map(str, paginas))), normalizar(ev.get("trecho", ""))
-    numeros = [numero_br(n) for n in re.findall(NUMERO, trecho)]
-    if not trecho or trecho not in texto:
+    """Evidência de IA conferida contra as páginas do documento. O trecho (3 palavras ou 15 caracteres e uma letra) tem
+    de estar numa página, com fronteira de palavra e de número ('250 estacas' não está em '1250' nem em '1.250 estacas');
+    pode atravessar linhas, mas nunca páginas. Com valor, o par (valor, unidade) e o termo do item do código têm de vir da
+    MESMA linha do trecho (`_confere_fragmento`); sem valor (menção), o item tem de ser citado. Se o localizador diz
+    'p. N', o trecho tem de estar na página N."""
+    trecho = " ".join(_linhas_normalizadas(ev.get("trecho", "")))
+    valor, unidade, item = ev.get("valor"), ev.get("unidade"), _item_do_codigo(ev.get("codigo"))
+    padrao = (r"(?<![A-Z0-9])(?<![0-9][.,])" + r"[ \n]+".join(map(re.escape, trecho.split()))
+              + r"(?![A-Z0-9])(?![.,][0-9])")
+    achados = {n: list(re.finditer(padrao, "\n".join(_linhas_normalizadas(p)))) for n, p in enumerate(paginas, 1)}
+    achados = {n: m for n, m in achados.items() if m}
+    cita = re.search(r"\bP\.?\s*(\d+)", normalizar(ev.get("localizador", "")))
+    if not (re.search("[A-Z]", trecho) and (len(trecho.split()) >= 3 or len(trecho) >= 15)):
+        status = "trecho curto demais"
+    elif not achados:
         status = "trecho não encontrado no documento"
-    elif ev.get("valor") is not None and not any(abs(n - ev["valor"]) < 1e-9 for n in numeros):
+    elif cita and int(cita[1]) not in achados:
+        status = "página citada não contém o trecho"
+    elif item is None:
+        status = "código sem item na EAP geral"
+    elif valor is not None and not (isinstance(valor, (int, float)) and not isinstance(valor, bool)):
         status = "valor não está no trecho"
     else:
-        status = "conferida"
+        candidatos = achados[int(cita[1])] if cita else [m for ms in achados.values() for m in ms]
+        pares = [_confere_fragmento(f, valor, unidade, item) for m in candidatos for f in m.group().split("\n")]
+        status = ("valor não está no trecho" if valor is not None and not any(p for p, _ in pares)
+                  else "item não citado no trecho" if not any(ok for _, ok in pares) else "conferida")
     return {**ev, "citacao": status}
 
 
@@ -293,6 +389,9 @@ def _afirmacoes(evs: list[dict]) -> list[dict]:
     for doc in dict.fromkeys(e["documento"]["id"] for e in evs):
         do_doc = [e for e in evs if e["documento"]["id"] == doc]
         parcelas = [e for e in do_doc if e["parcela"]]
+        if doc.startswith("ia:"):         # a IA não distingue parcela de total repetido: o mesmo valor conta uma vez
+            totais = {e["valor"] for e in do_doc if not e["parcela"]}
+            parcelas = list({e["valor"]: e for e in parcelas if e["valor"] not in totais}.values())
         grupos = ([("parcelas", parcelas)] if parcelas else []) + \
                  [(f"total {e['valor']:g}", [t for t in do_doc if not t["parcela"] and t["valor"] == e["valor"]])
                   for e in {e["valor"]: e for e in do_doc if not e["parcela"]}.values()]
@@ -318,6 +417,11 @@ def _derivadas(chave: tuple, valoradas: list[dict]) -> list[dict]:
     return saida
 
 
+def _fonte(documento: str) -> str:
+    """Documento de origem de uma afirmação: a leitura da IA (`ia:<arquivo>`) é do mesmo documento que o regex leu."""
+    return documento.removeprefix("ia:")
+
+
 def _grupos(afirm: list[dict], tol: float) -> list[list[dict]]:
     """Afirmações agrupadas por valor (diferença relativa até `tol`), do maior grupo para o menor."""
     grupos = []
@@ -326,7 +430,7 @@ def _grupos(afirm: list[dict], tol: float) -> list[list[dict]]:
             grupos[-1].append(a)
         else:
             grupos.append([a])
-    return sorted(grupos, key=lambda g: -len({a["documento"] for a in g}))
+    return sorted(grupos, key=lambda g: -len({_fonte(a["documento"]) for a in g}))
 
 
 def _fato(chave: tuple, evs: list[dict], mencoes: list[dict], tol: float) -> dict:
@@ -335,7 +439,7 @@ def _fato(chave: tuple, evs: list[dict], mencoes: list[dict], tol: float) -> dic
     afirm = _afirmacoes([e for e in evs if e["metodo"] != "decisao"])
     grupos = _grupos(afirm, tol)
     valores = [a["valor"] for a in afirm]
-    docs = {a["documento"] for a in afirm}
+    docs = {_fonte(a["documento"]) for a in afirm}
     if decisoes:
         status, valor = "decidido", decisoes[-1]["valor"]
     elif not afirm:
@@ -345,7 +449,7 @@ def _fato(chave: tuple, evs: list[dict], mencoes: list[dict], tol: float) -> dic
     else:
         status, valor = ("convergente" if len(docs) > 1 else "fonte única"), grupos[0][0]["valor"]
     return {"codigo": chave[0], "servico": chave[1], "unidade": chave[2], "status": status, "valor": valor,
-            "forca": len({a["documento"] for a in grupos[0]}) if grupos else 0, "n_documentos": len(docs),
+            "forca": len({_fonte(a["documento"]) for a in grupos[0]}) if grupos else 0, "n_documentos": len(docs),
             "diferenca_pct": round(100 * (max(valores) - min(valores)) / max(abs(max(valores)), 1e-9), 1)
             if len(grupos) > 1 else 0.0,
             "afirmacoes": afirm, "mencoes": sorted({m["documento"]["id"] for m in mencoes}),
@@ -355,6 +459,7 @@ def _fato(chave: tuple, evs: list[dict], mencoes: list[dict], tol: float) -> dic
 def consolidar(evs: list[dict], tol: float = 0.005) -> pd.DataFrame:
     """Fatos (código, serviço, unidade) com o status: convergente, fonte única, conflito, só menção ou decidido.
     IA só entra com citação conferida. Menção (sem número) reforça o fato mas não dá valor."""
+    evs = list({e["id"]: e for e in evs}.values())          # a mesma evidência (mesmo id) conta uma vez
     aceitas = [e for e in evs if e["metodo"] != "ia" or e.get("citacao") == "conferida"]
     valoradas = [e for e in aceitas if e["valor"] is not None and e["unidade"]]
     mencoes = [e for e in aceitas if e["valor"] is None]
@@ -378,8 +483,8 @@ def cobertura(evs: list[dict]) -> pd.DataFrame:
             if u["obra"] not in it["obra"] or (u.get("escopo") and u["escopo"] not in it["escopo"]):
                 continue
             tipos = {e["documento"]["tipo"] for e in evs if e["metodo"] != "decisao"
-                     and e["codigo"].split(".")[0] in (uid.upper(), "*") and ".".join(e["codigo"].split(".")[2:]) == codigo
-                     and (e["metodo"] != "ia" or e.get("citacao") == "conferida")}
+                     and (e["metodo"] != "ia" or e.get("citacao") == "conferida")
+                     and e["codigo"].split(".")[0] in (uid.upper(), "*") and ".".join(e["codigo"].split(".")[2:]) == codigo}
             projeto, edital = bool(tipos & TIPOS_PROJETO), bool(tipos & TIPOS_EDITAL)
             situacao = {(True, True): "projeto e edital", (True, False): "só projeto: verificar se o edital considera",
                         (False, True): "só edital: sem evidência no projeto", (False, False): "sem evidência"}
@@ -432,7 +537,7 @@ def paginas_pdf(caminho: str | Path) -> list[str]:
 def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: dict | None = None,
          epsg: int | None = None, ia: list[dict] | None = None, decisoes: list[dict] | None = None,
          sondagens: list | None = None, declarados: list[dict] | None = None,
-         extras: list[dict] | None = None) -> list[dict]:
+         extras: list[dict] | None = None, recusadas_ia: list[dict] | None = None) -> list[dict]:
     """Passa por todos os documentos e junta as evidências, na ordem: texto (`documentos`: [{id, tipo, nome,
     paginas, unidade?, sistema?, obra?, escopo?}]), planilha ((DataFrame, documento, catálogo)), pranchas medidas
     (`construtivos`), serviços associados aos elementos construtivos e aos `declarados` (a vala usa as `sondagens`),
@@ -444,8 +549,15 @@ def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: di
     evs += associados.de_elementos(construtivos, epsg, sondagens, declarados)[0]
     evs += list(extras or [])
     paginas = {d["id"]: d["paginas"] for d in documentos}
-    evs += [conferir_citacao(e, paginas.get(e["documento"]["id"], [])) for e in ia or []]
+    for proposta in ia or []:                                  # nunca confia no selo que veio no arquivo
+        conferida = _conferir_ia(proposta, paginas) if isinstance(proposta, dict) else \
+            {"citacao": "schema inválido: a linha não é um objeto JSON", "proposta": proposta}
+        if conferida["citacao"].startswith("schema inválido"):    # sem estrutura para entrar nas tabelas: só se informa
+            (recusadas_ia if recusadas_ia is not None else []).append({"motivo": conferida["citacao"], "evidencia": conferida})
+        else:
+            evs.append(conferida)
     evs += list(decisoes or [])
+    evs = list({e["id"]: e for e in evs}.values())
     return evs + associados.de_fatos(consolidar(evs))
 
 
@@ -476,6 +588,18 @@ def _obras_lineares_da_obra(cfg: dict, furos: list | None, log=print) -> list[di
     return evs
 
 
+def _ler_ia(caminho: str | Path) -> list:
+    """Linhas do JSONL de IA como estão; a que não é JSON vira texto (o `loop` a recusa), sem derrubar a leitura."""
+    saida = []
+    for linha in Path(caminho).read_text(encoding="utf-8").splitlines():
+        if linha.strip():
+            try:
+                saida.append(json.loads(linha))
+            except ValueError:
+                saida.append(linha)
+    return saida
+
+
 def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     """Loop de evidências da obra: documentos, planilha do contrato, planilha Obras Lineares, pranchas medidas, IA e decisões do obra.json.
     Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv e dimensoes.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
@@ -486,10 +610,14 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
         df = pd.read_csv(esc["itens_csv"], sep=";", decimal=",", encoding="utf-8-sig")
         cat = catalogo(esc["catalogo"]) if esc.get("catalogo") else None
         planilha = (df, {"id": Path(esc["itens_csv"]).name, "tipo": "planilha", "nome": esc.get("fonte", "")}, cat)
-    extras = {k: ler(conf[k]) if conf.get(k) and Path(conf[k]).exists() else [] for k in ("ia", "decisoes")}
+    extras = {k: (ler if k == "decisoes" else _ler_ia)(conf[k]) if conf.get(k) and Path(conf[k]).exists() else []
+              for k in ("ia", "decisoes")}
+    recusadas_ia = []
     evs = loop(_documentos(cfg, log), planilha, dados.get("construtivos"), dados["crs"]["epsg"],
                extras["ia"], extras["decisoes"], dados.get("sondagens"), cfg.get("elementos_declarados"),
-               _obras_lineares_da_obra(cfg, dados.get("sondagens"), log))
+               _obras_lineares_da_obra(cfg, dados.get("sondagens"), log), recusadas_ia)
+    for r in recusadas_ia:
+        log(f"  evidências: linha de IA recusada ({r['motivo']})")
     if not evs:
         return None
     gravar(evs, out / "evidencias.jsonl")
@@ -501,7 +629,7 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
         df.drop(columns=[c for c in ("afirmacoes",) if c in df]).to_csv(out / f"{nome}.csv", sep=";", decimal=",",
                                                                        encoding="utf-8-sig", index=False)
     fatos = tabelas["fatos"]
-    log(f"  evidências: {len(evs)} · fatos {len(fatos)} · conflitos {int((fatos['status'] == 'conflito').sum())}")
+    log(f"  evidências: {len(evs)} · fatos {len(fatos)} · conflitos {int((fatos['status'] == 'conflito').sum()) if len(fatos) else 0}")
     return {"n_evidencias": len(evs), **{k: _registros(df) for k, df in tabelas.items()}}
 
 
@@ -510,13 +638,230 @@ def _registros(df: pd.DataFrame) -> list[dict]:
     return df.astype(object).where(pd.notna(df), None).to_dict("records")
 
 
+# Leitura por IA: o roteiro diz o que procurar, a IA propõe, o código confere ------------------------------------------------
+def _termos_legiveis(regex: str) -> list[str]:
+    """Alternativas de uma regex de termos da EAP escritas como a gente procura no texto (sem lookahead, `\\b` nem `?`)."""
+    sem_olhar = re.sub(r"\(\?[!=<][^()]*\)", "", regex)
+    sem_opcionais = re.sub(r"\([^()]*\)\?|\\b|\\", "", sem_olhar)
+    alternativas = re.sub(r"\.\?|\.\{[^}]*\}|\.\*", " ", sem_opcionais).replace("?", "")
+    saida = []
+    for alt in alternativas.split("|"):
+        alt = re.sub(r"\(([^()|]*)[^()]*\)", r"\1", alt).strip().lower()
+        if len(alt) > 2 and not re.search(r"[\[\]*+{}^$()]", alt) and alt not in saida:
+            saida.append(alt)
+    return saida
+
+
+def _sinonimos_do_item(termos: str) -> list[str]:
+    """Termo canônico (e variantes) de sinonimos.json que o item reconhece: o que o documento pode usar no lugar dele."""
+    saida = []
+    for canonico, variantes in vocabulario.REGRAS["sinonimos"].items():
+        if re.search(termos, canonico):
+            saida += [t.lower() for t in [canonico, *(v.replace("?", "") for v in variantes)] if t.lower() not in saida]
+    return saida
+
+
+def roteiro(escopo: str | None = None, obra: str | None = None) -> list[dict]:
+    """O que a IA procura em cada documento: por item da EAP geral (filtrado por escopo 'agua'|'esgoto' e tipo de
+    obra 'localizada'|'linear'), código, nome, termos de busca (os do item e os sinônimos), serviços admitidos com
+    suas unidades e as unidades aceitas (as dos serviços e das medições; sem nenhuma, todas as do vocabulário)."""
+    por_id = {s["id"]: s for s in SERVICOS}
+    itens = []
+    for it in eap.itens().values():
+        if (escopo and escopo not in it["escopo"]) or (obra and obra not in it["obra"]):
+            continue
+        servicos = [{"id": s, "nome": por_id[s]["nome"], "unidades": por_id[s]["unidades"]} for s in it["servicos"] if s in por_id]
+        termos = list(dict.fromkeys(_termos_legiveis(it["termos"]) + _sinonimos_do_item(it["termos"])))
+        itens.append({"codigo": it["codigo"], "nome": it["nome"], "escopo": it["escopo"], "obra": it["obra"],
+                      "termos": termos, "servicos": servicos, "unidades": _unidades_do_item(it)})
+    return itens
+
+
+def roteiro_md(itens: list[dict], escopo: str | None = None, obra: str | None = None) -> str:
+    """Roteiro de leitura em Markdown, a partir de `roteiro()`: uma seção por item da EAP."""
+    filtro = ", ".join(f"{k} = {v}" for k, v in (("escopo", escopo), ("obra", obra)) if v) or "sem filtro"
+    linhas = ["# Roteiro de leitura para a EAP", "",
+              (f"Filtro: {filtro}. Itens: {len(itens)}. Para cada item abaixo, procure o termo, os sinônimos e os serviços "
+               "no documento e escreva uma evidência com o trecho copiado literalmente (skill `eap-evidencias`)."), "",
+              "Unidades aceitas: " + ", ".join(f"`{u}`" for u in vocabulario.REGRAS["unidades"]) + ".", ""]
+    for it in itens:
+        linhas += [f"## {it['codigo']} · {it['nome']}", "",
+                   f"- Termos de busca: {', '.join(it['termos']) or '—'}",
+                   f"- Unidades do item: {', '.join(f'`{u}`' for u in it['unidades'])}"]
+        linhas += [f"- Serviço `{s['id']}` ({s['nome']}): {', '.join(f'`{u}`' for u in s['unidades'])}" for s in it["servicos"]]
+        linhas.append("")
+    return "\n".join(linhas)
+
+
+CAMPOS_DO_CODIGO = ("citacao", "derivada", "id", "autor", "justificativa")   # a IA não escreve: o código calcula
+
+
+def _nome_do_documento(ev: dict) -> str:
+    """Nome do arquivo citado em `documento.id` ('dados/x/memorial.pdf' e 'ia:memorial.pdf' → 'memorial.pdf')."""
+    documento = ev.get("documento")
+    return Path(str(documento.get("id") or "").removeprefix("ia:")).name if isinstance(documento, dict) else ""
+
+
+def _sanear_ia(ev: dict) -> dict:
+    """Proposta de IA sem os campos do código (selo `citacao`, `derivada`, `id`, `autor`, `justificativa`), com `regra`
+    padrão, o documento como fonte própria (`ia:<arquivo>`, não soma com a leitura do regex) e o `id` recalculado."""
+    ev = {k: v for k, v in ev.items() if k not in CAMPOS_DO_CODIGO}
+    ev["regra"] = ev.get("regra") or "leitura por IA"
+    if _nome_do_documento(ev):
+        ev["documento"] = {"id": f"ia:{_nome_do_documento(ev)}", "tipo": ev["documento"].get("tipo"),
+                           "nome": _nome_do_documento(ev)}
+    return {"id": _id_da_evidencia(ev), **ev}
+
+
+def _conferir_ia(ev: dict, documentos: dict[str, list[str]]) -> dict:
+    """Proposta de IA saneada e conferida: `citacao` é 'conferida' ou o motivo da recusa (schema inválido, documento
+    não fornecido, trecho curto demais ou não encontrado, valor fora do trecho). Serve ao `conferir` e ao build."""
+    ev = _sanear_ia(ev)
+    problemas = _problemas_ia(ev)
+    if problemas:
+        return {**ev, "citacao": "schema inválido: " + "; ".join(problemas)}
+    nome = _nome_do_documento(ev)
+    if nome not in documentos:
+        return {**ev, "citacao": f"documento não fornecido: {nome}"}
+    conferida = conferir_citacao(ev, documentos[nome])
+    if conferida["citacao"] == "conferida" and conferida.get("valor") is not None:      # a mesma unidade do regex (t → kg)
+        valor, unidade = vocabulario.converter(float(conferida["valor"]), conferida["unidade"])
+        conferida = {**conferida, "valor": valor, "unidade": unidade}
+        conferida["id"] = _id_da_evidencia(conferida)
+    return conferida
+
+
+def _problemas_ia(ev: dict) -> list[str]:
+    """Além do schema: uma proposta de IA tem método e tipo de documento `ia`; código com item da EAP geral (`*` só em
+    unidade e sistema); serviço que o item admite; escopo do enum; valor numérico não negativo com unidade do vocabulário
+    e do item (ou do serviço); `parcela` booleana. Nunca levanta exceção: linha malformada vira lista de problemas."""
+    if not isinstance(ev.get("documento"), dict) or not ev["documento"].get("id"):
+        return ["documento tem de ser um objeto com id (nome do arquivo) e tipo"]
+    tipos = [f"'{k}' tem de ser texto" for k in ("codigo", "servico", "localizador", "trecho", "regra")
+             if k in ev and not isinstance(ev[k], str)]
+    if tipos:
+        return tipos
+    problemas = validar_evidencia(ev)
+    if ev.get("metodo") != "ia" or ev["documento"].get("tipo") != "ia":
+        problemas.append("método e documento.tipo têm de ser 'ia'")
+    valor, unidade, servico = ev.get("valor"), ev.get("unidade"), ev.get("servico") or ""
+    item = _item_do_codigo(ev.get("codigo")) if "codigo" in ev else None
+    if "codigo" in ev and item is None and not problemas:
+        problemas.append(f"código '{ev['codigo']}' sem item na EAP geral ('*' só vale em unidade e sistema)")
+    if item and servico and (servico not in item["servicos"] or servico not in {x["id"] for x in SERVICOS}):
+        problemas.append(f"serviço '{servico}' não é admitido pelo item {item['codigo']}")
+    if ev.get("escopo") not in SCHEMA["properties"]["escopo"]["enum"]:
+        problemas.append(f"escopo '{ev.get('escopo')}' inválido")
+    if valor is not None and (isinstance(valor, bool) or not isinstance(valor, (int, float)) or not math.isfinite(valor)):
+        problemas.append(f"valor '{valor}' não é número")
+    elif valor is not None and (not isinstance(unidade, str) or unidade not in vocabulario.REGRAS["unidades"]):
+        problemas.append(f"unidade '{unidade}' fora do vocabulário ({', '.join(vocabulario.REGRAS['unidades'])})")
+    elif valor is not None and valor < 0:
+        problemas.append("valor negativo")
+    elif valor is not None and item and not (servico and servico not in item["servicos"]) \
+            and unidade not in _unidades_do_item(item, servico):
+        problemas.append(f"unidade '{unidade}' não é aceita por {item['codigo']}"
+                         + (f" / {servico}" if servico else "") + f" (aceitas: {', '.join(_unidades_do_item(item, servico))})")
+    if not isinstance(ev.get("parcela"), bool):
+        problemas.append("'parcela' tem de ser true ou false")
+    if not str(ev.get("trecho") or "").strip():
+        problemas.append("trecho vazio")
+    return problemas
+
+
+def conferir_arquivo(linhas: list, documentos: dict[str, list[str]]) -> tuple[list[dict], list[dict]]:
+    """Confere as evidências propostas pela IA (linhas JSON ou dicts) contra o texto dos documentos (nome do arquivo →
+    páginas). Devolve (aceitas, recusadas): as aceitas levam `citacao: "conferida"`; cada recusada é
+    {linha, motivo, evidencia}. Os campos do código (`citacao`, `derivada`, `id`, `autor`, `justificativa`) que vierem
+    na proposta são descartados e o `id` é sempre recalculado (`_sanear_ia`)."""
+    aceitas, recusadas = [], []
+    for n, bruta in enumerate((x for x in linhas if isinstance(x, dict) or str(x).strip()), 1):
+        try:
+            ev = bruta if isinstance(bruta, dict) else json.loads(bruta)
+            if not isinstance(ev, dict):
+                raise TypeError("a linha não é um objeto JSON")
+        except (ValueError, TypeError) as erro:
+            recusadas.append({"linha": n, "motivo": f"schema inválido: JSON inválido: {erro}", "evidencia": str(bruta)[:200]})
+            continue
+        conferida = _conferir_ia(ev, documentos)
+        if conferida["citacao"] == "conferida":
+            aceitas.append(conferida)
+        else:
+            recusadas.append({"linha": n, "motivo": conferida["citacao"], "evidencia": conferida})
+    return aceitas, recusadas
+
+
+def _documentos_da_linha_de_comando(pdfs: list[str], textos: list[str], log=print) -> dict[str, list[str]]:
+    """Nome do arquivo → páginas: PDF por página; texto puro por página separada por quebra de página (\\f)."""
+    documentos = {}
+    for caminho in pdfs + textos:
+        arquivo = Path(caminho)
+        if not arquivo.exists():
+            log(f"  aviso: {caminho} não existe e será ignorado")
+        elif caminho in pdfs:
+            documentos[arquivo.name] = paginas_pdf(arquivo)
+        else:
+            documentos[arquivo.name] = arquivo.read_text(encoding="utf-8").split("\f")
+    return documentos
+
+
+def _comando_conferir(args, log=print) -> int:
+    """`conferir`: relatório de aceitas e recusadas; grava só as aceitas em `--saida`. Saída 2 sem o arquivo de entrada."""
+    entrada = Path(args.ia)
+    if not entrada.exists():
+        log(f"erro: o arquivo {entrada} não existe")
+        return 2
+    documentos = _documentos_da_linha_de_comando(args.pdf, args.texto, log)
+    aceitas, recusadas = conferir_arquivo(entrada.read_text(encoding="utf-8").splitlines(), documentos)
+    log(f"Conferência de {entrada.name}: {len(aceitas)} aceitas, {len(recusadas)} recusadas "
+        f"({len(documentos)} documentos fornecidos)")
+    for r in recusadas:
+        log(f"  recusada (linha {r['linha']}): {r['motivo']}")
+    if args.saida:
+        gravar(aceitas, args.saida)
+        log(f"  {len(aceitas)} aceitas gravadas em {args.saida}")
+    return 0
+
+
+def _comando_roteiro(args, log=print) -> int:
+    """`roteiro`: imprime o Markdown ou grava em `--saida`."""
+    texto = roteiro_md(roteiro(args.escopo, args.obra), args.escopo, args.obra)
+    if args.saida:
+        Path(args.saida).write_text(texto + "\n", encoding="utf-8")
+        log(f"roteiro gravado em {args.saida}")
+    else:
+        log(texto)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """`python -m camadas.evidencias roteiro|conferir …` (ver --help de cada comando)."""
+    ap = argparse.ArgumentParser(prog="python -m camadas.evidencias",
+                                 description="Leitura de documentos por IA com citação conferida pelo código")
+    sub = ap.add_subparsers(dest="comando", required=True)
+    r = sub.add_parser("roteiro", help="o que procurar em cada documento, por item da EAP")
+    r.add_argument("--escopo", choices=["agua", "esgoto"])
+    r.add_argument("--obra", choices=["localizada", "linear"])
+    r.add_argument("--saida", help="grava o Markdown neste arquivo em vez de imprimir")
+    r.set_defaults(funcao=_comando_roteiro)
+    c = sub.add_parser("conferir", help="confere as evidências propostas pela IA contra os documentos")
+    c.add_argument("ia", help="JSONL com as evidências propostas (uma por linha)")
+    c.add_argument("--pdf", action="append", default=[], help="PDF do documento (repetível)")
+    c.add_argument("--texto", action="append", default=[], help="texto puro do documento (repetível)")
+    c.add_argument("--saida", help="grava só as aceitas neste JSONL")
+    c.set_defaults(funcao=_comando_conferir)
+    args = ap.parse_args(argv)
+    return args.funcao(args)
+
+
+
 def metadados() -> dict:
     """Rastreabilidade do método e das regras declaradas (regra 9 do estilo)."""
     return {
         "modulo": "evidencias",
         "descricao": "loop de evidências da EAP: texto, planilha + cadastro de materiais, pranchas medidas, IA com "
                      "citação conferida e decisões; fatos com convergência e conflito, cobertura projeto × edital",
-        "funcoes": ["buscar_texto", "de_planilha", "de_quantificacao", "de_obras_lineares", "de_obras_lineares_mos", "conferir_citacao", "decisao", "consolidar",
+        "funcoes": ["roteiro", "roteiro_md", "conferir_arquivo", "buscar_texto", "de_planilha", "de_quantificacao", "de_obras_lineares", "de_obras_lineares_mos", "conferir_citacao", "decisao", "consolidar",
                     "cobertura", "associados_x_edital", "catalogo_por_item", "loop", "etapa", "metadados"],
         "bibliografia": [],
         "premissas": [{"aplicacao": {"classificar": ["eap_geral.jsonl", "servicos.jsonl", "sinonimos.json"],
@@ -524,3 +869,7 @@ def metadados() -> dict:
                        "fonte": eap.REGRAS["metadata"]["fonte"], "estado": "premissa"}],
         "ultima_revisao": eap.REGRAS["metadata"]["data_referencia"],
     }
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

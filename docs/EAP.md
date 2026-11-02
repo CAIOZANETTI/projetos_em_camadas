@@ -150,6 +150,25 @@ A IA lendo o mesmo documento não é fonte independente. Ela reforça a leitura,
 trecho. Senão, a evidência fica registrada com `citacao: "trecho não encontrado no documento"` ou `"valor não está
 no trecho"` e não entra na consolidação.
 
+**Caminho seguro para a IA** (`roteiro` e `conferir`): `python -m camadas.evidencias roteiro [--escopo] [--obra]` gera o
+que procurar por item (termos e sinônimos, serviços e unidades aceitas); a IA escreve uma linha JSON por afirmação com
+o trecho copiado literalmente; `python -m camadas.evidencias conferir IA.jsonl --pdf DOC.pdf [--texto DOC.txt]
+--saida aceitas.jsonl` valida o schema, localiza o documento por `documento.id` e aplica `conferir_citacao`. O relatório
+diz quantas foram aceitas e o motivo de cada recusa (schema, documento não fornecido, trecho não encontrado, valor
+fora do trecho); só as aceitas são gravadas. A skill `eap-evidencias` descreve o passo a passo.
+
+A conferência exige trecho com 3 palavras ou 15 caracteres, achado numa página do documento (nunca atravessando páginas)
+com fronteira de palavra e de número ("250 estacas" não está em "1.250 estacas" nem "5 m³" em "12,5 m³"). O par (valor,
+unidade) tem de ser um dos que o trecho afirma ("250 estacas" → 250 un; "20 m²" → 20 m²; "m³ 1.250,50"; nunca o 2 de M2)
+e vir da **mesma linha** em que o termo do item do código aparece, a no máximo 8 palavras do número; o item e o serviço
+do código têm de existir na EAP geral (`*` só em unidade e sistema) e a unidade tem de ser a do serviço ou do item. O
+localizador "p. N", se houver, tem de ser a página do trecho; aspas curvas, travessões e hífen de fim de linha são
+unificados; toneladas viram kg, como no regex. Duas parcelas da IA com o mesmo valor no mesmo documento contam uma vez
+(a IA não distingue parcela de total repetido: some parcelas iguais num único total). O build não confia no
+selo `citacao` do arquivo: reconfere as evidências `ia` contra os documentos do `obra.json`. A leitura da IA vale como
+afirmação própria (`documento.id` = `ia:<arquivo>`), para nunca somar com o regex do mesmo documento; mas conta como a
+mesma fonte (L025/L029: fonte independente = documento diferente), então não aumenta a `forca`.
+
 **Cobertura**: para cada unidade e item, mostra se há evidência no projeto (pranchas, geometria) e no edital
 (edital, memorial, planilha):
 - `só projeto: verificar se o edital considera`;
@@ -447,3 +466,12 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
    desfeito pela restauração (o instantâneo manda); o recorte é por disciplina, não por unidade (`U2.X.GEO` também liga
    as pranchas de GEO de U1); no nó de disciplina a lista vem de todos os pacotes da disciplina em `eap.json`, não só
    dos pacotes-filho do nó; o checkbox aparece mesmo se nenhuma prancha tiver layer da lista (marcar desliga todas).
+
+## 10. Próximos passos
+
+- [x] **Skill de leitura por IA** (`.claude/skills/eap-evidencias`, `evidencias.roteiro`, `evidencias.conferir_arquivo`):
+  a IA lê edital, TR, memorial e laudo seguindo o roteiro e só entra com citação conferida pelo código (§5).
+- [x] Conferir também o localizador (a página citada contém o trecho).
+- [ ] Aceitar planilha como documento de leitura e trechos de tabela quebrados em várias linhas (hoje o número e o termo
+  do item têm de estar na mesma linha).
+- [x] Selo de status por nó da árvore, filtro por prefixo e só pranchas desta disciplina (§9).
