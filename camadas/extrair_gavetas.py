@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import eap_html, extracao, gavetas, valas
+from . import eap_html, escavacao, extracao, gavetas, valas
 from . import obras_lineares as ol
 
 OBSERVADAS_NA_PLANILHA = ("na_m", "solo")      # transcritas do laudo para a planilha
@@ -177,6 +177,81 @@ def paridade_valas(base: dict, redes: list[dict], tol: float = 0.1, servicos: li
     return difs
 
 
+SUPERFICIE_CAVAS = "SUP-MDS"        # a superfície do terreno (MDS do drone) usada pelas cavas
+
+
+def _coords_da_base(geom) -> list:
+    """Anel externo da base (ou o externo e os furos); polígono múltiplo vira uma lista de partes de uma só base."""
+    partes = list(geom.geoms) if hasattr(geom, "geoms") else [geom]
+    return [[list(map(float, xy)) for xy in p.exterior.coords] if not p.interiors else
+            [[list(map(float, xy)) for xy in anel.coords] for anel in (p.exterior, *p.interiors)] for p in partes]
+
+
+def _bases_da_gaveta(bases: list[dict]) -> list[dict]:
+    """Bases `{coords, etapa}` (ou `{geom, etapa}` do `escavacao.bases`); sem arredondar, para o cálculo repetir o direto."""
+    saida = []
+    for b in bases:
+        for coords in ([b["coords"]] if "coords" in b else _coords_da_base(b["geom"])):
+            saida.append({"coords": coords, "etapa": b.get("etapa")})
+    return saida
+
+
+def _marcas_da_planta(marcas: list[dict]) -> list[dict]:
+    """Marcas `{E, N, cota_m, texto, topo, prancha}` a partir das do `escavacao.marcas` (`utm`, `cota`, `topo`)."""
+    saida = []
+    for m in marcas:
+        e, n = (m["E"], m["N"]) if "E" in m else m["utm"]
+        cota = m.get("cota_m", m.get("cota"))
+        texto = m.get("texto") or (None if cota is None else f"{cota:.2f}".replace(".", ",") + (" TOPO" if m.get("topo") else ""))
+        saida.append({"E": e, "N": n, "cota_m": cota, "texto": texto, "topo": bool(m.get("topo")), "prancha": m.get("prancha")})
+    return saida
+
+
+def _evidencias_das_cavas(superficie: dict, pranchas: list[str], layers: list[str], crs_h: str, mds: str) -> list[dict]:
+    """A evidência das plantas (pranchas e layers) e a da superfície (MDS do drone, `metodo` geometria)."""
+    return [{"evidencia_id": "EV-CAVAS", "classe": "projeto", "documento": ", ".join(pranchas) or "plantas de escavação",
+             "localizador": {"pranchas": list(pranchas), "layers": list(layers), "crs_h": crs_h},
+             "trecho": "cavas", "metodo": "geometria", "executor": "código"},
+            {"evidencia_id": superficie["evidencia_id"], "classe": "ortofoto", "documento": mds,
+             "localizador": {"arquivo": mds, "chave": "terreno em cota (MDS), válido e edificação"},
+             "trecho": superficie["superficie_id"], "metodo": "geometria", "executor": "código"}]
+
+
+def de_cavas(marcas: list[dict], bases: list[dict], cristas: list, superficie_registro: dict, pranchas: list[str],
+             crs_h: str = "EPSG:31982", mds: str | Path | None = None, layers: list[str] | None = None) -> dict:
+    """Plantas de escavação → objeto `conjunto_cavas` `CAVAS`, os fatos `marcas_cota`, `bases`, `cristas` e `superficie_id`
+    (todos `projetado`), a evidência nas pranchas e layers e a superfície com a sua.
+
+    `marcas`, `bases` e `cristas` vêm do `escavacao.marcas`, `bases` e `linhas_utm` (ou já no formato do fato). A superfície
+    é o registro de `gavetas.gravar_superficie`; a evidência dela é classe "ortofoto", método "geometria", executor "código",
+    com o MDS do sfm (`mds`) por documento. `marcas_cota` e `bases` ficam sem arredondar: o cálculo pelas gavetas repete o direto."""
+    base = _base_vazia()
+    superficie = dict(superficie_registro)
+    documento_mds = str(mds) if mds else "sfm/ortofoto_mds.png"
+    base["objetos"].append({"objeto_id": "CAVAS", "classe": "conjunto_cavas"})
+    base["superficies"].append(superficie)
+    base["evidencias"] += _evidencias_das_cavas(superficie, pranchas, layers or [], crs_h, documento_mds)
+    valores = {"marcas_cota": _marcas_da_planta(marcas), "bases": _bases_da_gaveta(bases),
+               "cristas": [[list(map(float, xy)) for xy in (c.coords if hasattr(c, "coords") else c)] for c in cristas],
+               "superficie_id": superficie["superficie_id"]}
+    for propriedade in _propriedades("plantas de escavação"):
+        if not _vazio(valores.get(propriedade)):
+            evidencia = superficie["evidencia_id"] if propriedade == "superficie_id" else "EV-CAVAS"
+            base["fatos"].append(_fato("CAVAS", propriedade, valores[propriedade], "projetado", evidencia))
+    return base
+
+
+def paridade_cavas(base: dict, resultado_calcular: dict, servicos: list[dict] | None = None, tol: float = 0.1,
+                   pasta_base=None) -> list[dict]:
+    """Diferenças entre os serviços `cavas` das gavetas e o `escavacao.calcular` direto (`resultado_calcular["cavas"]`).
+    `servicos`: os gravados, que vão para a EAP (inclusive os reaproveitados); sem eles, calcula a base em `pasta_base`."""
+    servicos = gavetas.calcular(base, pasta_base)[0] if servicos is None else servicos
+    obtido = {(s["saida"], s.get("chave")): s["valor"] for s in servicos if s["regra"] == "cavas"}
+    esperado = {(saida, c["id"]): c[campo] for c in resultado_calcular["cavas"]
+                for saida, campo in escavacao.SAIDAS_CAVA.items()}
+    return gavetas._diferencas("CAVAS", obtido, esperado, tol)
+
+
 def juntar(*bases: dict) -> dict:
     """Une as gavetas; chave repetida idêntica entra uma vez, com conteúdo diferente é `ValueError`."""
     unida = _base_vazia()
@@ -321,32 +396,48 @@ def _resumo(base: dict, erros: list[str], difs: list[dict], servicos: list[dict]
         "eap": gavetas.para_eap(servicos)}
 
 
-def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[dict] | None = None) -> dict | None:
+def _base_das_cavas(cfg: dict, out: Path, pasta: Path, cavas: dict) -> dict:
+    """Grava a superfície em `pasta/superficies/` e devolve as gavetas das cavas (`de_cavas`)."""
+    registro = gavetas.gravar_superficie(pasta, SUPERFICIE_CAVAS, cavas["g"])
+    c = cfg.get("escavacao") or {}
+    layers = [c[k] for k in ("layer_base", "layer_marca", "layer_crista") if c.get(k)]
+    return de_cavas(cavas["marcas"], cavas["bases"], cavas["cristas"], registro, cavas.get("pranchas", []),
+                    registro["crs_h"], mds=Path(out) / "sfm" / "ortofoto_mds.png", layers=layers)
+
+
+def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[dict] | None = None,
+          cavas: dict | None = None) -> dict | None:
     """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
     compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`. Devolve o resumo
-    com `eap_html` (o `dados["eap"]` da aba EAP, montado e formatado em Python por `eap_html.montar`)."""
+    com `eap_html` (o `dados["eap"]` da aba EAP, montado e formatado em Python por `eap_html.montar`).
+    `cavas`: o `saida_gavetas` de `escavacao.etapa` (marcas, bases, cristas, grade e resultado); grava a superfície em
+    `base/superficies/`, junta `de_cavas` e soma a paridade com o `escavacao.calcular` direto."""
     c = cfg.get("obras_lineares")
-    if not c or not Path(c["planilha"]).exists():
+    tem_planilha = bool(c) and Path(c["planilha"]).exists()
+    if not tem_planilha and not cavas:
         if c:
             log(f"Gavetas: planilha {c['planilha']} não está no disco")
         return None
-    aba = c.get("aba", "Obras Lineares")
-    trechos = ol.ler_obras_lineares(c["planilha"], aba)
-    escolha = {ol.norm(k): v for k, v in (c.get("metodo") or {}).items()}
+    aba = c.get("aba", "Obras Lineares") if tem_planilha else None
+    trechos = ol.ler_obras_lineares(c["planilha"], aba) if tem_planilha else []
+    escolha = {ol.norm(k): v for k, v in ((c or {}).get("metodo") or {}).items()}
     aplicados = [{**t, "metodo": escolha.get(ol.norm(t["local"]), t["metodo"])} for t in trechos]
     doc_sond = cfg["sondagens"] if isinstance(cfg.get("sondagens"), str) else "sondagens"
     executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
-    base = juntar(de_obras_lineares(trechos, str(c["planilha"]), aba), de_sondagens(furos, doc_sond, executor),
-                  de_decisoes(c.get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))),
-                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg"))
+    pasta = Path(out) / "base"
+    base = juntar(de_obras_lineares(trechos, str(c["planilha"]) if c else "", aba or "Obras Lineares"),
+                  de_sondagens(furos, doc_sond, executor),
+                  de_decisoes((c or {}).get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))),
+                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg"),
+                  _base_das_cavas(cfg, out, pasta, cavas) if cavas else _base_vazia())
     if (Path(out) / "retornos_gavetas").is_dir():                       # fatos da IA: inferidos, com executor e trecho
         base = juntar(base, _conciliar_com_a_base(de_retornos(Path(out) / "retornos_gavetas"), base))
     erros = gavetas.conferir_base(base)
-    pasta = Path(out) / "base"
     anterior = gavetas.ler(pasta)["servicos"] if (pasta / "servicos.parquet").exists() else None
-    servicos, pend_calculo, est = gavetas.calcular_incremental(base, anterior)
+    servicos, pend_calculo, est = gavetas.calcular_incremental(base, anterior, pasta)
     difs = (gavetas.paridade(base, aplicados, furos, servicos=servicos)          # compara o que vai para a EAP
-            + paridade_valas(base, redes_vala or [], servicos=servicos))
+            + paridade_valas(base, redes_vala or [], servicos=servicos)
+            + (paridade_cavas(base, cavas["resultado"], servicos) if cavas else []))
     base["pendencias"] = base["pendencias"] + pend_calculo
     pasta.mkdir(parents=True, exist_ok=True)
     gavetas.gravar(pasta, {**base, "servicos": servicos})
@@ -364,6 +455,7 @@ def metadados() -> dict:
         "modulo": "extrair_gavetas",
         "descricao": "leitores (planilha de obras lineares, sondagens, decisões) gravam objetos, fatos e evidências "
                      "nas gavetas; valor ausente não vira fato; retornos de IA entram como inferido e a recusa vira pendência",
-        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "de_valas", "paridade_valas", "de_retornos", "juntar", "etapa"],
+        "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "de_valas", "paridade_valas", "de_cavas",
+                    "paridade_cavas", "de_retornos", "juntar", "etapa"],
         "conceitos": ["gavetas.json", "de_para_extracao.json"],
     }

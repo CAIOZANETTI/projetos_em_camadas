@@ -255,6 +255,48 @@ def calcular(bs: list[dict], ms: list[dict], cristas: list, g: dict) -> dict:
                            "edificacao_m2": round(float(g["edificacao"].sum() * res * res))}}
 
 
+SAIDAS_CAVA = {"escavacao_cava_m3": "escavacao_m3", "reaterro_cava_m3": "reaterro_m3", "area_cava_m2": "area_m2"}
+
+
+def _poligono(coords: list) -> Polygon:
+    """Polígono de uma base guardada na gaveta: um anel, ou o anel externo seguido dos furos."""
+    aneis = coords if coords and isinstance(coords[0][0], (list, tuple)) else [coords]
+    return Polygon(aneis[0], aneis[1:])
+
+
+def _marcas_da_gaveta(marcas_cota: list[dict]) -> list[dict]:
+    """Marcas do fato `marcas_cota` ({E, N, cota_m, topo, prancha}) no formato de `calcular` (utm, cota, topo)."""
+    return [{"utm": [m["E"], m["N"]], "cota": m.get("cota_m"), "topo": bool(m.get("topo")), "prancha": m.get("prancha")}
+            for m in marcas_cota]
+
+
+def _alertas_das_cavas(r: dict) -> list[str]:
+    """Avisos do `calcular`: bases sem marca, marcas fora da faixa e cavas na borda do levantamento."""
+    alertas = []
+    if r["bases_sem_marca"]:
+        alertas.append(f"{r['bases_sem_marca']} base(s) sem marca de cota de fundo a ≤ {VALOR['raio_marca_m']:g} m: "
+                       "ficam fora do cálculo")
+    if r["marcas"]["fora_da_faixa"]:
+        alertas.append(f"{r['marcas']['fora_da_faixa']} marca(s) de cota fora da faixa do terreno "
+                       "(terreno − 10 m a terreno + 0,5 m): ignoradas")
+    alertas += [f"cava {c['id']} na borda do levantamento: parte sem MDS, volume a menor"
+                for c in r["cavas"] if c["na_borda_do_levantamento"]]
+    return alertas
+
+
+def quantificar_gavetas(dados: dict, furos=None, pts=None) -> dict:
+    """Função da regra `cavas` (`conceitos/de_para_servicos.json`): escavação, reaterro e área de cada cava.
+
+    `dados`: `bases` ([{coords, etapa}]), `marcas_cota` ([{E, N, cota_m, topo, prancha}]), `cristas` ([coords], opcional) e
+    `superficie` (a grade já carregada, de `gavetas.ler_superficie`). `furos` e `pts` não são usados (a assinatura é a
+    de toda regra). Devolve {saída: {id da cava: valor}} e `alertas`."""
+    bases_da_obra = [{"geom": _poligono(b["coords"]), "etapa": b.get("etapa")} for b in dados["bases"]]
+    cristas = [LineString(c) for c in dados.get("cristas") or []]
+    r = calcular(bases_da_obra, _marcas_da_gaveta(dados["marcas_cota"]), cristas, dados["superficie"])
+    saidas = {saida: {c["id"]: c[campo] for c in r["cavas"]} for saida, campo in SAIDAS_CAVA.items()}
+    return {**saidas, "alertas": _alertas_das_cavas(r)}
+
+
 def _cava(cel, corte, terreno, F, base, usadas, g) -> dict:
     """Números de uma cava: volumes, área, profundidade na base, etapa e contorno (UTM)."""
     res = g["res"]
@@ -305,15 +347,25 @@ def linhas_utm(tracos: list, layer: str, M) -> list:
             if re.search(layer, t["layer"], re.IGNORECASE) for q in t["partes"] if len(q) >= 2]
 
 
-def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print) -> dict | None:
-    """Etapa da obra: lê as plantas de escavação (OCR com cache), calcula as cavas e devolve o pacote do HTML."""
+def _entregar_as_gavetas(saida: dict, ms: list, bs: list, cristas: list, g: dict, r: dict, lidas: list) -> None:
+    """Preenche o dict `saida_gavetas` com o que a memória espacial grava: marcas, bases, cristas, a grade e o resultado
+    direto de `calcular` (só id e volumes de cada cava), para a paridade; `pranchas` são as efetivamente lidas."""
+    campos = ("id", *SAIDAS_CAVA.values())
+    saida.update(marcas=ms, bases=bs, cristas=cristas, g=g, pranchas=lidas,
+                 resultado={"cavas": [{k: cv[k] for k in campos} for cv in r["cavas"]]})
+
+
+def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print,
+          saida_gavetas: dict | None = None) -> dict | None:
+    """Etapa da obra: lê as plantas de escavação (OCR com cache), calcula as cavas e devolve o pacote do HTML.
+    `saida_gavetas`, se passado, recebe as entradas e o resultado do cálculo para as gavetas (sem mudar o retorno)."""
     c = cfg.get("escavacao")
     if not c or not vertical:
         return None
     por_id = {p["id"]: p for p in pranchas}
     cache_arq = out / "escavacao_cache.json"
     cache = json.loads(cache_arq.read_text()) if cache_arq.exists() else {}
-    bs, ms, cristas = [], [], []
+    bs, ms, cristas, lidas = [], [], [], []
     for pid in c["pranchas"]:
         p = por_id.get(pid)
         if p is None or p.get("M") is None:
@@ -325,11 +377,14 @@ def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print
         if cache.get(pid, {}).get("assinatura") != assinatura:
             cache[pid] = {"assinatura": assinatura, "marcas": marcas(p["pdf"], tr, c["layer_marca"], p["M"])}
             cache_arq.write_text(json.dumps(cache, ensure_ascii=False))
+        lidas.append(pid)
         ms += [{**m, "prancha": pid} for m in cache[pid]["marcas"]]
         bs += bases(tr, c["layer_base"], p["M"], c["cores_etapa"])
         cristas += linhas_utm(tr, c["layer_crista"], p["M"])
     g = grade(out / "sfm" / "ortofoto.jpg", out / "sfm" / "ortofoto_mds.png", vertical)
     r = calcular(bs, ms, cristas, g)
+    if saida_gavetas is not None:
+        _entregar_as_gavetas(saida_gavetas, ms, bs, cristas, g, r, lidas)
     r["conferencia_crista"] = conferir_crista(r.pop("modelo"), cristas)
     tot = {k: round(sum(cv[k] for cv in r["cavas"]), 1) for k in ("escavacao_m3", "reaterro_m3", "area_m2")}
     log(f"Escavação: {len(r['cavas'])} cavas, {tot['escavacao_m3']:.0f} m³ escavação, {tot['reaterro_m3']:.0f} m³ "
@@ -361,7 +416,7 @@ def metadados() -> dict:
                      "talude + MDS em cota",
         "funcoes": ["ler_cota", "marcas", "bases", "chao_pmf", "grade", "plausiveis", "com_marca", "fundo_na_grade",
                     "superficie_da_cava", "regiao", "fundo_na_regiao", "linhas_na_grade", "calcular",
-                    "conferir_crista", "linhas_utm", "etapa", "para_html"],
+                    "conferir_crista", "linhas_utm", "quantificar_gavetas", "etapa", "para_html"],
         "bibliografia": [
             {"obra": "ABNT NBR 9061 — Segurança de escavação a céu aberto", "ano": 1985, "editora": "ABNT",
              "aplicacao": {"superficie_da_cava": ["talude H:V da prancha", "folga de trabalho"]}},

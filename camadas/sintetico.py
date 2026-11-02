@@ -132,7 +132,7 @@ def base_linear(km: float, passo_m: float = 20.0, furo_a_cada_m: float = 200.0, 
     trechos = _trechos(rng, s, xy, crs_h)
     furos = _furos(rng, s, xy, furo_a_cada_m, crs_h)
     base = {g: trechos[g] + furos[g] for g in trechos}
-    return {**base, "pendencias": [], "servicos": []}
+    return {**base, "pendencias": [], "servicos": [], "superficies": []}
 
 
 def metadados() -> dict:
