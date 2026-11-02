@@ -132,7 +132,10 @@ def _fato(f: dict) -> dict:
             for a in f.get("afirmacoes") or []
         ],
         "mencoes": f.get("mencoes") or [],
-        "decisoes": f.get("decisoes") or [],
+        "decisoes_txt": [
+            f"{_com_unidade(d.get('valor'), unidade)} — {d.get('autor', '')}: {d.get('justificativa', '')}"
+            for d in f.get("decisoes") or []
+        ],
     }
 
 

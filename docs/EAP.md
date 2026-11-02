@@ -394,7 +394,7 @@ Chaves de `dados` (cada etapa grava na sua; uma não pode sobrescrever a outra):
 | Chave | Quem grava | Formato | Quem lê |
 |---|---|---|---|
 | `eap` | `extrair_gavetas` → `eap_html.montar` | `{nos, pendencias, resumo}` (gavetas, serviços lastreados) | `montarEap`, parte "Árvore da EAP" |
-| `eap_codificada` | `eap.montar` | `{fonte, nos, quantidades, pranchas, lacunas, sem_item}` | `eap_painel.montar` |
+| `eap_codificada` | `eap.montar` | `{fonte, nos, quantidades, pranchas, lacunas, sem_item}`; insumo do painel, sai de `dados` depois dele | `eap_painel.montar` |
 | `evidencias` | `evidencias.etapa` | `{fatos, cobertura, associados, dimensoes, …}` | `eap_painel.montar` |
 | `eap_painel` | `eap_painel.montar` | `{arvore, fatos, associados, resumo}`, tudo em texto pt-BR | `montarEap`, três seções novas |
 

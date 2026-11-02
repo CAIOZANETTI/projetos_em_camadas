@@ -2327,18 +2327,20 @@ function htmlEapArvore(P) {
   for (const n of P.arvore || []) (filhos.get(n.pai) || filhos.set(n.pai, []).get(n.pai)).push(n);
   const no = n => {
     const sub = (filhos.get(n.codigo) || []).map(no).join(""), q = (n.quantidades_txt || []).map(esc).join(" · ");
-    const ver = OB && (n.elementos || []).length ? `<button class="btn mini" data-eap-ids="${esc(n.elementos.join("\n"))}">ver no mapa (${esc(n.n_elementos)})</button>` : "";
+    const ids = OB ? (n.elementos || []).filter(id => OBRA.camada.has(id)) : [];   // só os que existem na camada do mapa
+    const ver = ids.length ? `<button class="btn mini" data-eap-ids="${esc(ids.join("\n"))}" title="${esc(n.n_elementos)} elementos">ver no mapa</button>` : "";
     return `<details class="eap-n" data-codigo="${esc(n.codigo)}"><summary><span class="cod">${esc(n.codigo)}</span><span class="nota-l">${esc(n.numero)}</span><span>${esc(n.nome)}</span></summary>
       ${q || ver ? `<div class="eap-q">${q}${ver ? " " + ver : ""}</div>` : ""}${sub}</details>`;
   };
-  return `<h2>EAP codificada</h2><div class="eap-c" id="eapCod">${(filhos.get(null) || []).map(no).join("") || '<p class="aviso" style="margin-left:0">Sem elementos codificados.</p>'}</div>`;
+  if (!(P.arvore || []).length) return "";
+  return `<h2>EAP codificada</h2><div class="eap-c" id="eapCod">${(filhos.get(null) || []).map(no).join("")}</div>`;
 }
 function htmlEapFatos(P) {
   const R = P.resumo || {}, fatos = P.fatos || [];
   const chip = (st, rot, n) => `<button class="btn mini" data-eap-status="${esc(st)}" aria-pressed="${st === "" ? "true" : "false"}">${esc(rot)} <b data-k="${esc(st || "todos")}">${esc(n)}</b></button>`;
   const afirm = a => `<div class="eap-aff"><span class="cod">${esc(a.documento)}</span> <span class="badge">${esc(a.tipo)}</span> <b>${esc(a.valor_txt)}</b>${a.trecho ? `<span class="nota-l">“${esc(a.trecho)}”</span>` : ""}</div>`;
   const fato = f => `<details class="eap-f eap-fato" data-status="${esc(f.status)}"><summary><span class="st st-${esc(slugStatus(f.status))}">${esc(f.status)}</span><span class="cod">${esc(f.codigo)}</span><span>${esc(f.servico_txt)}</span><span class="eap-v">${esc(f.valor_txt)}${f.diferenca_txt ? " · Δ " + esc(f.diferenca_txt) : ""}</span></summary>
-    ${(f.afirmacoes || []).map(afirm).join("")}${(f.mencoes || []).length ? `<div class="eap-aff"><span class="nota-l">Menções: ${esc(f.mencoes.join("; "))}</span></div>` : ""}${(f.decisoes || []).length ? `<div class="eap-aff"><span class="nota-l">Decisões: ${esc(f.decisoes.map(d => typeof d === "string" ? d : JSON.stringify(d)).join("; "))}</span></div>` : ""}</details>`;
+    ${(f.afirmacoes || []).map(afirm).join("")}${(f.mencoes || []).length ? `<div class="eap-aff"><span class="nota-l">Menções: ${esc(f.mencoes.join("; "))}</span></div>` : ""}${(f.decisoes_txt || []).length ? `<div class="eap-aff"><span class="nota-l">Decisões: ${f.decisoes_txt.map(esc).join("; ")}</span></div>` : ""}</details>`;
   return `<h2>Fatos e evidências</h2><div class="eap-filtro" id="eapFiltro">${chip("", "todos", R.fatos)}${(R.por_status || []).map(s => chip(s.status, s.status, s.n)).join("")}</div>
     <div id="eapFatos">${fatos.map(fato).join("") || '<p class="aviso" style="margin-left:0">Nenhum fato consolidado.</p>'}</div>`;
 }
@@ -2356,7 +2358,7 @@ function verNoMapaEap(ids) {
   garantirVisivel(ids.map(id => OBRA.porId.get(id)).filter(Boolean));
   ligarObraMapa(true);
   if (vista !== "mapa") mostrarVista("mapa");
-  limparDestaqueObra();
+  limparSelecaoObra();   // fecha popup e ficha do elemento anterior e zera o destaque
   OBRA.multi = lays;
   lays.forEach(haloObra);
   map.fitBounds(L.featureGroup(lays).getBounds(), {padding: [70, 70], maxZoom: 21});
@@ -2495,6 +2497,11 @@ function aplicarEscopoMapa() {
   }
   const sel = OBRA.porId.get(OBRA.sel);
   if (sel) visivelObra(sel) ? destacarObra(OBRA.camada.get(sel.id)) : limparSelecaoObra();
+  if (OBRA.multi.length) {   // destaque de vários (aba EAP): refaz o anel só dos que continuam no mapa
+    OBRA.halo.clearLayers();
+    OBRA.multi = OBRA.multi.filter(l => visivelObra(OBRA.porId.get(String(l.feature.properties.id))));
+    OBRA.multi.forEach(haloObra);
+  }
 }
 
 function buscarObra(q, ignorarEscopo = false) {

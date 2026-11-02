@@ -177,3 +177,52 @@ def test_painel_ver_no_mapa_destaca_so_os_elementos_do_no(navegador, tmp_path):
     assert pagina.evaluate("window.__viz.obra.halo.getLayers().length") == 2 * n_ids      # anel escuro + branco por elemento
     assert erros == []
     pagina.close()
+
+
+def _dados_com_mapa(**extra) -> dict:
+    from test_construtivos import CFG, _dados
+
+    from camadas import construtivos
+
+    bruto = _dados()
+    bruto["construtivos"] = construtivos.montar(bruto, CFG)
+    return {**dados_minimos(), "construtivos": bruto["construtivos"], **extra}
+
+
+def test_aba_eap_com_gavetas_e_painel_juntos(navegador, tmp_path):
+    eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))
+    painel = _painel()
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap": eap, "eap_painel": painel})
+    pagina.click("#t-eap")
+    aba = pagina.locator("#aba-eap")
+    for chave, valor in eap["resumo"].items():                              # parte das gavetas intacta
+        assert aba.locator(f'b[data-k="{chave}"]').inner_text() == str(valor)
+    assert aba.locator("details.eap-n:not([data-codigo])").count() == len(eap["nos"])
+    for secao in ("#eapCod", "#eapFiltro", "#eapFatos", "#eapAssoc"):       # e as seções novas
+        assert aba.locator(secao).count() == 1
+    assert erros == []
+    pagina.close()
+
+
+def test_ver_no_mapa_multiplo_nao_acumula_halo_nem_deixa_popup_antigo(navegador, tmp_path):
+    dados = _dados_com_mapa(eap_painel=_painel(com_conflito=False))
+    pagina, erros = _abrir(navegador, tmp_path, dados)
+    pagina.click("#t-eap")
+    pagina.evaluate("document.querySelectorAll('#eapCod details').forEach(d => d.open = true)")
+    halo = "window.__viz.obra.halo.getLayers().length"
+    aberto = "!!window.__viz.obra.popup && window.__viz.map.hasLayer(window.__viz.obra.popup)"
+    pagina.evaluate("window.__viz.obra.selecionar('u1-FILTROS-bloco-P5', {abrir: false})")
+    assert pagina.evaluate(halo) == 2 and pagina.evaluate(aberto)
+    pagina.locator('#eapCod > details[data-codigo="U1"] > .eap-q [data-eap-ids]').click()
+    n_ids = len(_ids_do_no(dados, "U1"))
+    assert pagina.evaluate(halo) == 2 * n_ids                               # só o anel dos elementos do nó
+    pagina.evaluate("window.__viz.obra.definirSoEscopo(true)")              # refaz a camada: o anel múltiplo é refeito, não duplicado
+    assert pagina.evaluate(halo) == 2 * n_ids
+    assert pagina.evaluate("window.__viz.obra.sel") is None
+    assert not pagina.evaluate(aberto)                                      # popup do elemento anterior fechado
+    assert pagina.locator("#obFicha").inner_text().strip() == ""            # e a ficha, limpa
+    pagina.evaluate("window.__viz.obra.selecionar('u1-FILTROS-pilar-P5', {abrir: false})")
+    assert pagina.evaluate(halo) == 2                                       # o anel múltiplo não fica
+    assert pagina.evaluate("window.__viz.obra.sel") == "u1-FILTROS-pilar-P5" and pagina.evaluate(aberto)
+    assert erros == []
+    pagina.close()

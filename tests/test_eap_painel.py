@@ -1,7 +1,6 @@
 """Painel da aba EAP: soma por nó, formatação pt-BR, ordem dos fatos e contrato JSON (`camadas.eap_painel`)."""
 
 import json
-from pathlib import Path
 
 from test_construtivos import CFG, EPSG, _dados
 from test_evidencias import PROJETO
@@ -253,37 +252,58 @@ def test_serializavel_em_json():
         assert json.loads(json.dumps(painel, allow_nan=False)) == painel
 
 
-def test_chaves_eap_e_eap_codificada_convivem_em_dados():
-    """A aba EAP lê `dados["eap"]` (gavetas) e o painel nasce de `dados["eap_codificada"]`: uma não apaga a outra."""
+def test_aba_projeto_mantem_eap_das_gavetas_e_gera_o_painel(monkeypatch, tmp_path):
+    """Comportamento do build: `dados["eap"]` (gavetas) sobrevive, o painel é montado e a codificada sai do HTML."""
+    from camadas import (
+        escopo_obra,
+        extrair_gavetas,
+        obra,
+        obras_lineares,
+    )
+
     codificada, evid = sinteticos()
     gavetas = {"nos": [{"eap": "OL.01"}], "pendencias": [], "resumo": {"servicos": 1}}
-    dados = {"eap": gavetas, "eap_codificada": codificada, "evidencias": evid}
-    dados["eap_painel"] = eap_painel.montar(
-        dados.get("eap_codificada"), dados.get("evidencias")
+    monkeypatch.setattr(obras_lineares, "etapa", lambda *a, **k: None)
+    monkeypatch.setattr(extrair_gavetas, "etapa", lambda *a, **k: {"eap_html": gavetas})
+    monkeypatch.setattr(
+        construtivos, "montar", lambda *a, **k: {"geojson": {"features": []}}
     )
-    assert dados["eap"] is gavetas and set(dados["eap"]) == {
-        "nos",
-        "pendencias",
-        "resumo",
-    }
-    assert {"fonte", "nos", "quantidades", "pranchas", "lacunas", "sem_item"} <= set(
-        dados["eap_codificada"]
-    )
+    monkeypatch.setattr(escopo_obra, "montar", lambda *a, **k: None)
+    monkeypatch.setattr(eap, "montar", lambda *a, **k: codificada)
+    monkeypatch.setattr(evidencias, "etapa", lambda *a, **k: evid)
+    dados = {"sondagens": []}
+    obra._aba_projeto(dados, {}, tmp_path, None, None, {})
+    assert dados["eap"] is gavetas  # não foi sobrescrita pela codificada
     assert set(dados["eap_painel"]) == {"arvore", "fatos", "associados", "resumo"}
+    assert dados["eap_painel"] == eap_painel.montar(codificada, evid)
+    assert "eap_codificada" not in dados  # o template não a lê: fora do dados.json
+
+
+def test_decisao_vira_texto_pronto():
+    fato = {
+        "codigo": "U1.*.GEO.FUN.EST",
+        "servico": "",
+        "unidade": "un",
+        "status": "decidido",
+        "valor": 250.0,
+        "forca": 1,
+        "n_documentos": 2,
+        "diferenca_pct": 0.0,
+        "afirmacoes": [],
+        "mencoes": [],
+        "decisoes": [
+            {
+                "valor": 250.0,
+                "autor": "Caio",
+                "justificativa": "revisão R2 suprimiu 50 estacas",
+            }
+        ],
+    }
+    assert eap_painel.fatos([fato])[0]["decisoes_txt"] == [
+        "250 un — Caio: revisão R2 suprimiu 50 estacas"
+    ]
 
 
 def test_metadados():
     meta = eap_painel.metadados()
     assert meta["modulo"] == "eap_painel" and "montar" in meta["funcoes"]
-
-
-def test_build_nao_sobrescreve_a_eap_das_gavetas():
-    """Guarda da colisão de chave: a EAP codificada tem chave própria em `obra.py`."""
-    fonte = (Path(__file__).resolve().parent.parent / "camadas" / "obra.py").read_text(
-        encoding="utf-8"
-    )
-    assert (
-        'dados["eap"] = eap.montar' not in fonte
-        and 'dados["eap_codificada"] = eap.montar' in fonte
-    )
-    assert fonte.count('dados["eap"] =') == 1

@@ -806,7 +806,8 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     # `dados["eap"]` é a árvore das gavetas (eap_html); a EAP codificada tem chave própria (não sobrescrever)
     dados["eap_codificada"] = eap.montar(dados, cfg)   # elemento → item (código) → quantidade com evidência
     dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
-    dados["eap_painel"] = eap_painel.montar(dados.get("eap_codificada"), dados.get("evidencias"))   # aba EAP, em texto
+    # a codificada é só insumo do painel: sai de `dados` (o template não a lê, e os ids iriam duas vezes ao HTML)
+    dados["eap_painel"] = eap_painel.montar(dados.pop("eap_codificada", None), dados.get("evidencias"))   # aba EAP, em texto
 
 
 # 5 ---------------------------------------------------------------------------
