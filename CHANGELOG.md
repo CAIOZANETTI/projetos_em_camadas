@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.32.0 — 2026-11-01 · EAP codificada como linha mestra
+- **EAP (WBS)** (`camadas/eap.py`, `conceitos/eap.json`, `docs/EAP.md`): código `UNIDADE.SISTEMA.DISCIPLINA.PACOTE.ITEM`
+  sobre as unidades e os sistemas de `unidades_construtivas.json` (obra localizada × linear); disciplinas Geotecnia
+  (fundações: estacas, blocos, contenções; movimentação de solo), Civil (estruturas de concreto: piso, viga, pilar,
+  parede; pavimentação), Hidráulica (equipamentos; tubulações) e Elétrica. O item vale só para o tipo de obra
+  declarado.
+- **Quantificação determinística**: elemento construtivo → item pela classe → quantidade pela regra do item
+  (contagem, soma de atributo, comprimento ou área em UTM), sempre com os ids dos elementos e a fonte. Elemento sem
+  o atributo vai para `sem_valor`. A consolidação soma por tipo de item. `lacunas` lista o que falta e `sem_item` o
+  que sobra (regra dos 100 %).
+- **Prancha como evidência do pacote** (subgrupo de disciplina → pacote; `eap` opcional na prancha do obra.json).
+- **IA verificada** (`eap.verificar`): a proposta é refeita só com as evidências citadas. Sem evidência, evidência de
+  outro item, medição não prevista ou número que não sai dos elementos: recusada.
+- **EAP geral em JSONL** (`conceitos/eap_geral.jsonl`): um item por linha, com escopo água/esgoto, tipo de obra,
+  termos de busca, serviços admitidos, filtro no cadastro de materiais e medições; itens novos: viga baldrame,
+  poços de visita (esgoto) e ligações prediais. `eap.json` fica só com a hierarquia.
+- **Banco de serviços** (`conceitos/servicos.jsonl`): escavação, reaterro, escoramento, lastro, forma, concreto,
+  armadura, demolição e recomposição de pavimento, assentamento…
+- **Vocabulário** (`camadas/vocabulario.py`, `conceitos/sinonimos.json`): abreviações, sinônimos e unidades (t → kg).
+  "30 MPa" e "DN 300 mm" não viram quantidade.
+- **Loop de evidências** (`camadas/evidencias.py`, `conceitos/evidencia.schema.json`): texto (página e linha),
+  planilha do contrato (item pelo cadastro de materiais, senão pela descrição), pranchas medidas, IA com citação
+  conferida e decisões com autor. Fato = código × serviço × unidade. Status: convergente (força = nº de documentos),
+  fonte única, conflito (todas as afirmações e a diferença %), só menção ou decidido. O código `*` compara o total
+  de um documento com a soma dos sistemas de outro (300 estacas nas pranchas × 250 no memorial = conflito).
+  Também gera a cobertura item × projeto/edital e o registro `evidencias.jsonl` sem duplicar.
+- **Serviços associados** (primeira versão, substituída abaixo pelas regras genéricas): bloco → escavação,
+  reaterro, lastro, forma, concreto e armadura (taxa a calibrar); estaca → concreto e arrasamento; trecho → escavação,
+  berço e reaterro de vala, demolição e recomposição de pavimento (premissas de `valas.json`); laje → escoramento;
+  baldrame → escavação e reaterro. Fórmulas num avaliador restrito, com a memória de cálculo no trecho. Variável
+  faltando vai para `sem_valor`, nunca para zero. `associados_x_edital` aponta o serviço associado que o edital não
+  cita.
+- **Serviços associados genéricos: elemento → dimensões → serviços.**
+  - `camadas/dimensoes.py` e `conceitos/dimensoes.json`: cada tipo (estaca, bloco, pilar, laje, viga, baldrame,
+    parede, vala) gera as dimensões padronizadas V, A_forma, A_fundo, A_escoramento, A_imperm e V_esc/V_reat. A
+    origem pode ser o elemento das pranchas, o `obra.json` (`elementos_declarados`) ou um fato consolidado.
+    Derivados: bloco → cava de fundação, baldrame → vala corrida, trecho → vala por superfície.
+  - `camadas/associados.py` e `conceitos/servicos_associados.jsonl`: uma regra por serviço, valendo para todos os
+    tipos que lista (forma = A_forma para bloco, pilar, laje, viga, baldrame e parede; lastro = A_fundo × 0,05;
+    escoramento; impermeabilização; armadura por taxa do tipo; escavação/reaterro de cava). Tem condição e modelos
+    de destino (`{item}`, `{item_pavimento}`, `escoramento_{tipo_escoramento}`).
+  - `camadas/formulas.py`: avaliador restrito com comparações e condicional, e `conferir` nas validações.
+- **Vários métodos para a mesma vala, sem escolher um**: cada método de `dimensoes.json#vala.metodos` vira uma fonte
+  de evidência (`metodo:<id>`). O método `mos_sanepar` chama o dimensionador único da `main`
+  (`lineares.dimensionar_vala`, D2): a evidência MOS é o mesmo número do build. O `nbr12266` usa as regras genéricas.
+  A consolidação mostra convergência (corte, assentamento) e conflito com o porquê. Exemplo da AAT06: o raio de 60 m
+  do MOS não alcança o furo a 80 m; o bota-fora do MOS é só o volume do tubo (60,8 × 382,7 m³).
+- **A vala é só mais um tipo**. `dimensoes.dimensionar_vala` decide por segmento de superfície:
+  - profundidade (recobrimento + DE + berço, ou a do perfil);
+  - solo, rocha e NA da sondagem mais próxima (raio 300 m, NA com margem de 0,5 m);
+  - escoramento pela NR-18 (1,25 m) e pelos agravantes (areia/aterro, NSPT < 4, abaixo do NA);
+  - largura com o acréscimo do escoramento e tipo de pavimento.
+
+  Desses dados saem, pelas regras genéricas: corte, demolição e recomposição (asfalto → `CIV.PAV.REC`, calçada →
+  `CIV.PAV.CAL`, item novo), escavação em solo e em rocha, escoramento por tipo, berço, envoltória (tubo
+  flexível), assentamento, reaterro com reaproveitamento, bota-fora empolado e esgotamento ou ponteiras. Sem
+  sondagem, nada disso é suposto e o resultado leva alerta. Serviços novos: corte de pavimento, escavação em
+  rocha, escoramento por tipo, envoltória e esgotamento.
+- Dimensão que falta não vira zero: o serviço fica "sem valor" com a cadeia até a origem (`V ← h ← face`). O que
+  não depende dela sai normalmente (viga sem altura ainda dá o escoramento b × L).
+- Cadastro de materiais × EAP: 24,7 mil materiais balizam itens no escopo água e 29,6 mil no esgoto.
+- O build grava `dados.eap`, `dados.evidencias` e o código `eap` em cada elemento da aba Obra, além de
+  `evidencias.jsonl`, `fatos.csv`, `cobertura.csv` e `associados.csv`. A aba EAP no HTML fica para a próxima rodada
+  (`docs/EAP.md` §9).
 ## 0.31.0 — 2026-11-01 · Rodada 25, PR 4: dimensionador único de vala, trechos e conferências no build
 - **Dimensionador único de vala** (`lineares.dimensionar_vala`): profundidade pelo perfil longitudinal (média
   ponderada pela extensão, sem extrapolar; sem perfil, premissa com alerta), largura pelo MOS Sanepar, escoramento pela

@@ -1,0 +1,656 @@
+{
+ "metadata": {
+  "fonte": "pedido do Caio (30/10/2026): os elementos geram dimensões e as dimensões geram os serviços associados (lastro pela área do bloco, forma, escoramento, impermeabilização, escavação e reaterro, vala da rede)",
+  "estado": "premissa",
+  "data_referencia": "2026-10",
+  "observacoes": "Cada tipo de elemento declara de onde vem cada dimensão (atributo do elemento construtivo, geometria em UTM, valor dado pelo obra.json/fato/elemento pai, ou padrão) e os cálculos que levam às dimensões PADRONIZADAS que as regras de serviço usam: V (concreto), A_forma, A_fundo (apoio no solo: lastro), A_escoramento, A_imperm, V_esc/V_reat (cava). Dimensão que falta não é suposta: o cálculo que depende dela não sai e o serviço fica 'sem valor', com a dimensão que faltou. `derivados` cria elementos que a execução exige (cava do bloco, vala do baldrame) com as dimensões do pai. O tipo `vala` é dimensionado por camadas.dimensoes.dimensionar_vala (profundidade, solo e NA da sondagem, escoramento, largura, pavimento) com os parâmetros de `vala`. `de_fatos` transforma fatos consolidados em elementos (laje em m² → laje com A). Elemento declarado no obra.json (`elementos_declarados`) entra com as dimensões dadas. A vala é dimensionada por TODOS os métodos de `vala.metodos` (NBR 12266 e MOS Sanepar): cada método vira um documento de evidência próprio ('metodo:<id>'), e a consolidação mostra onde os métodos convergem e onde divergem; não se escolhe um método no código."
+ },
+ "tipos": {
+  "estaca": {
+   "nome": "Estaca",
+   "dimensoes": {
+    "d": {
+     "atributo": "Diâmetro nominal (cm)",
+     "escala": 0.01
+    },
+    "L": {
+     "atributo": "Comprimento (m)"
+    }
+   },
+   "premissas": {},
+   "calculos": {
+    "A_secao": "pi * d ** 2 / 4",
+    "V": "A_secao * L"
+   },
+   "derivados": []
+  },
+  "bloco": {
+   "nome": "Bloco de fundação",
+   "dimensoes": {
+    "A": {
+     "geometria": "area"
+    },
+    "P": {
+     "geometria": "perimetro"
+    },
+    "face": {
+     "atributo": "Face superior (cota, m)"
+    },
+    "arr": {
+     "atributo": "Arrasamento (cota, m)"
+    }
+   },
+   "premissas": {
+    "emb": {
+     "valor": 0.05,
+     "estado": "premissa",
+     "fonte": "cabeça da estaca embutida 5 cm no bloco (usual 5–10 cm)"
+    }
+   },
+   "calculos": {
+    "h": "face - arr + emb",
+    "V": "A * h",
+    "A_forma": "P * h",
+    "A_fundo": "A"
+   },
+   "derivados": [
+    "cava_fundacao"
+   ]
+  },
+  "pilar": {
+   "nome": "Pilar",
+   "dimensoes": {
+    "a": {
+     "atributo": "Lado (m)"
+    },
+    "h": {
+     "atributo": "Altura (m)"
+    }
+   },
+   "premissas": {},
+   "calculos": {
+    "A": "a * a",
+    "V": "A * h",
+    "A_forma": "4 * a * h"
+   },
+   "derivados": []
+  },
+  "laje": {
+   "nome": "Laje / piso",
+   "dimensoes": {
+    "A": {
+     "atributo": "Área (m²)"
+    },
+    "e": {
+     "atributo": "Espessura (m)"
+    },
+    "P": {
+     "atributo": "Perímetro (m)",
+     "padrao": 0.0
+    },
+    "suspensa": {
+     "atributo": "Suspensa",
+     "padrao": 1.0
+    },
+    "imperm": {
+     "atributo": "Impermeabilizar",
+     "padrao": 0.0
+    }
+   },
+   "premissas": {},
+   "calculos": {
+    "V": "A * e",
+    "A_forma": "A * suspensa + P * e",
+    "A_escoramento": "A * suspensa",
+    "A_fundo": "A * (1 - suspensa)",
+    "A_imperm": "A * imperm"
+   },
+   "derivados": [],
+   "observacao": "suspensa = 1 (padrão): forma de fundo e escoramento; laje de fundo apoiada no solo: suspensa = 0 → lastro no lugar do escoramento"
+  },
+  "viga": {
+   "nome": "Viga",
+   "dimensoes": {
+    "b": {
+     "atributo": "Largura (m)"
+    },
+    "h": {
+     "atributo": "Altura (m)"
+    },
+    "L": {
+     "atributo": "Comprimento (m)"
+    }
+   },
+   "premissas": {},
+   "calculos": {
+    "V": "b * h * L",
+    "A_forma": "(2 * h + b) * L",
+    "A_escoramento": "b * L"
+   },
+   "derivados": []
+  },
+  "baldrame": {
+   "nome": "Viga baldrame",
+   "dimensoes": {
+    "L": {
+     "atributo": "Comprimento (m)"
+    },
+    "b": {
+     "atributo": "Largura (m)",
+     "padrao": null
+    },
+    "h": {
+     "atributo": "Altura (m)",
+     "padrao": null
+    }
+   },
+   "premissas": {
+    "b": {
+     "valor": 0.2,
+     "estado": "premissa",
+     "fonte": "largura usual de baldrame (20 cm); conferir no projeto"
+    },
+    "h": {
+     "valor": 0.4,
+     "estado": "premissa",
+     "fonte": "altura usual de baldrame (40 cm); conferir no projeto"
+    }
+   },
+   "calculos": {
+    "V": "b * h * L",
+    "A_forma": "2 * h * L",
+    "A_fundo": "b * L",
+    "A_imperm": "(2 * h + b) * L"
+   },
+   "derivados": [
+    "cava_linear"
+   ]
+  },
+  "parede": {
+   "nome": "Parede de concreto",
+   "dimensoes": {
+    "L": {
+     "atributo": "Comprimento (m)"
+    },
+    "h": {
+     "atributo": "Altura (m)"
+    },
+    "e": {
+     "atributo": "Espessura (m)"
+    },
+    "faces_imperm": {
+     "atributo": "Faces impermeabilizadas",
+     "padrao": null
+    }
+   },
+   "premissas": {
+    "faces_imperm": {
+     "valor": 1.0,
+     "estado": "premissa",
+     "fonte": "parede de estrutura hidráulica (tanque, canal): face interna impermeabilizada"
+    }
+   },
+   "calculos": {
+    "V": "L * h * e",
+    "A_forma": "2 * L * h",
+    "A_imperm": "L * h * faces_imperm"
+   },
+   "derivados": []
+  },
+  "cava_fundacao": {
+   "nome": "Cava de fundação (derivada do bloco)",
+   "dimensoes": {
+    "A": {
+     "pai": "A"
+    },
+    "P": {
+     "pai": "P"
+    },
+    "h": {
+     "pai": "h"
+    }
+   },
+   "premissas": {
+    "f": {
+     "ref": "escavacao.json#folga_m.valor"
+    },
+    "e_lastro": {
+     "valor": 0.05,
+     "estado": "premissa",
+     "fonte": "lastro de 5 cm sob o bloco"
+    }
+   },
+   "calculos": {
+    "Af": "A + f * P + 4 * f ** 2",
+    "h_esc": "h + e_lastro",
+    "V_esc": "Af * h_esc",
+    "V_reat": "(Af - A) * h_esc"
+   },
+   "derivados": [],
+   "observacao": "cava retangular com folga de trabalho f em volta, do topo do elemento (premissa: no terreno) ao fundo do lastro, sem talude"
+  },
+  "cava_linear": {
+   "nome": "Vala de fundação corrida (derivada do baldrame)",
+   "dimensoes": {
+    "L": {
+     "pai": "L"
+    },
+    "b": {
+     "pai": "b"
+    },
+    "h": {
+     "pai": "h"
+    }
+   },
+   "premissas": {
+    "f": {
+     "valor": 0.3,
+     "estado": "premissa",
+     "fonte": "folga de trabalho de cada lado"
+    },
+    "e_lastro": {
+     "valor": 0.05,
+     "estado": "premissa",
+     "fonte": "lastro de 5 cm"
+    }
+   },
+   "calculos": {
+    "h_esc": "h + e_lastro",
+    "V_esc": "L * (b + 2 * f) * h_esc",
+    "V_reat": "L * 2 * f * h_esc"
+   },
+   "derivados": []
+  },
+  "vala": {
+   "nome": "Vala da rede (derivada do trecho, por superfície)",
+   "dimensionador": "vala",
+   "dimensoes": {},
+   "premissas": {},
+   "calculos": {
+    "V_solo": "b * h_solo * L",
+    "V_rocha": "b * h_rocha * L",
+    "A_demol": "L * (b + 2 * sobre)",
+    "V_pav": "A_demol * e_pav",
+    "V_berco": "b * berco * L",
+    "V_tubo": "pi * d ** 2 / 4 * L",
+    "V_env": "(b * (d + acima) * L - V_tubo) if flexivel == 1 else 0",
+    "V_reat": "max(0, V_solo + V_rocha - V_berco - V_env - V_tubo)",
+    "proprio": "min(V_reat, V_solo * reap)",
+    "V_bota": "(V_solo - proprio) * emp_solo + V_rocha * emp_rocha + V_pav * emp_pav",
+    "A_escoramento": "paredes * (h - h_rocha) * L * escorado"
+   },
+   "derivados": []
+  }
+ },
+ "construtivos": {
+  "estaca": "estaca",
+  "bloco": "bloco",
+  "pilar": "pilar",
+  "trecho": "vala"
+ },
+ "de_fatos": [
+  {
+   "item": "CIV.EST.PIS",
+   "servico": "",
+   "unidade": "m²",
+   "tipo": "laje",
+   "dimensao": "A"
+  },
+  {
+   "item": "CIV.EST.BAL",
+   "servico": "",
+   "unidade": "m",
+   "tipo": "baldrame",
+   "dimensao": "L"
+  }
+ ],
+ "vala": {
+  "fonte": "pedido do Caio (30/10/2026): cálculo dos serviços associados da rede — largura pela dimensão do tubo e profundidade, escoramento ou vala rasa, corte e demolição pelo tipo de pavimento, escavação, assentamento; solo × rocha e lençol freático pela sondagem mais próxima, com bombeamento quando a vala atinge o NA. Recobrimento, berço, folga e sobrelargura vêm de conceitos/valas.json (NBR 12266).",
+  "observacoes": "O trecho é calculado por segmento de superfície (pista, calçada, fora da via…), cada um com sua profundidade, largura, escoramento e pavimento. Profundidade h = recobrimento + DE + berço, salvo profundidade dada pelo perfil. A escavação começa abaixo do pavimento (o pavimento sai na demolição). Rocha = camada da sondagem descrita como rocha/alterada ou topo do impenetrável; sem sondagem no raio, nada de rocha nem de NA é suposto: o cálculo sai só pela profundidade, com alerta. O terreno do trecho é tomado na cota da boca do furo quando a cota do trecho não é dada (alerta). Tudo aqui é premissa de orçamento: conferir no caderno de encargos Sanepar e no perfil longitudinal.",
+  "largura": {
+   "minimo_por_profundidade": {
+    "valor": [
+     [
+      1.5,
+      0.6
+     ],
+     [
+      3.0,
+      0.8
+     ],
+     [
+      99.0,
+      1.0
+     ]
+    ],
+    "estado": "premissa",
+    "fonte": "largura mínima livre crescente com a profundidade (até 1,5 m: 0,60; até 3,0 m: 0,80; acima: 1,00 m) para trabalho e compactação; conferir no caderno de encargos"
+   },
+   "nomes_escoramento": {
+    "nenhum": "sem escoramento",
+    "pontaleteamento": "pontaleteamento",
+    "descontinuo": "descontínuo",
+    "continuo": "contínuo",
+    "especial": "especial"
+   },
+   "acrescimo_escoramento_m": {
+    "valor": {
+     "nenhum": 0.0,
+     "pontaleteamento": 0.0,
+     "descontinuo": 0.1,
+     "continuo": 0.2,
+     "especial": 0.3
+    },
+    "estado": "premissa",
+    "fonte": "espessura das pranchas/longarinas dos dois lados somada à largura livre"
+   }
+  },
+  "escoramento": {
+   "profundidade_max_m": {
+    "valor": [
+     [
+      1.25,
+      "nenhum"
+     ],
+     [
+      2.0,
+      "pontaleteamento"
+     ],
+     [
+      3.0,
+      "descontinuo"
+     ],
+     [
+      4.5,
+      "continuo"
+     ],
+     [
+      99.0,
+      "especial"
+     ]
+    ],
+    "estado": "premissa",
+    "fonte": "NR-18: escavação com mais de 1,25 m precisa de estabilidade garantida (escoramento ou talude) — limite confirmado; os tipos por faixa são prática de orçamento"
+   },
+   "agravantes": {
+    "nspt_min": 4,
+    "solos_nao_coesivos": [
+     "areia",
+     "aterro"
+    ],
+    "tipo_minimo": "continuo",
+    "estado": "premissa",
+    "fonte": "areia, aterro, solo mole (NSPT < 4) ou vala abaixo do NA pedem escoramento contínuo quando a vala passa de 1,25 m"
+   },
+   "paredes": {
+    "valor": 2,
+    "estado": "confirmado",
+    "fonte": "área escorada = 2 paredes × altura × extensão"
+   }
+  },
+  "pavimentos": {
+   "superficie_tipo": {
+    "valor": {
+     "pista": "asfalto",
+     "via_sem_meio_fio": "asfalto",
+     "pavimentado": "asfalto",
+     "calcada": "calcada",
+     "fora_da_via": "terra",
+     "vegetacao": "terra",
+     "solo": "terra",
+     "sem_ortofoto": "terra"
+    },
+    "estado": "premissa",
+    "fonte": "o tipo do pavimento não está no desenho das adutoras: pista = asfalto em área urbana (valas.json), calçada = concreto; a confirmar no cadastro viário"
+   },
+   "tipos": {
+    "asfalto": {
+     "nome": "asfalto",
+     "item": "CIV.PAV.REC",
+     "camadas": [
+      [
+       "revestimento CBUQ",
+       0.05
+      ],
+      [
+       "base de brita graduada",
+       0.15
+      ],
+      [
+       "sub-base",
+       0.15
+      ]
+     ],
+     "estado": "premissa",
+     "fonte": "estrutura usual de via urbana local; conferir com a prefeitura"
+    },
+    "paralelepipedo": {
+     "nome": "paralelepípedo",
+     "item": "CIV.PAV.REC",
+     "camadas": [
+      [
+       "paralelepípedo",
+       0.15
+      ],
+      [
+       "colchão de areia",
+       0.1
+      ]
+     ],
+     "estado": "premissa",
+     "fonte": "paralelepípedo sobre colchão de areia"
+    },
+    "calcada": {
+     "nome": "calçada",
+     "item": "CIV.PAV.CAL",
+     "camadas": [
+      [
+       "concreto do passeio",
+       0.07
+      ],
+      [
+       "lastro de brita",
+       0.05
+      ]
+     ],
+     "estado": "premissa",
+     "fonte": "passeio de concreto usual"
+    },
+    "terra": {
+     "nome": "terra",
+     "item": null,
+     "camadas": [],
+     "estado": "premissa",
+     "fonte": "sem pavimento: só regularização do terreno"
+    }
+   },
+   "cortes_por_trecho": {
+    "valor": 2,
+    "estado": "confirmado",
+    "fonte": "corte com serra nas duas bordas da faixa demolida"
+   }
+  },
+  "solo": {
+   "classes": {
+    "valor": [
+     [
+      "rocha",
+      "ROCHA|ALTERAD|IMPENETRAVEL|MATACA|BASALTO|GRANITO|ARENITO|DIABASIO"
+     ],
+     [
+      "areia",
+      "^AREIA|AREIA (FINA|MEDIA|GROSSA|ARGILOSA|SILTOSA)"
+     ],
+     [
+      "argila",
+      "ARGILA"
+     ],
+     [
+      "silte",
+      "SILTE"
+     ],
+     [
+      "aterro",
+      "ATERRO|ENTULHO"
+     ]
+    ],
+    "estado": "premissa",
+    "fonte": "palavra principal da descrição da camada (a primeira classe que casa vence); 'argila arenosa' é argila"
+   },
+   "impenetravel_e_rocha": {
+    "valor": true,
+    "estado": "premissa",
+    "fonte": "furo SPT impenetrável à percussão: topo de rocha ou matacão na profundidade final (confirmar com rotativa)"
+   }
+  },
+  "sondagem": {
+   "raio_m": {
+    "valor": 300.0,
+    "estado": "premissa",
+    "fonte": "furo mais distante que isso não representa o trecho; acima, o solo fica 'sem informação'"
+   }
+  },
+  "lencol": {
+   "margem_m": {
+    "valor": 0.5,
+    "estado": "premissa",
+    "fonte": "NA medido na sondagem varia com a estação: considerar o NA 0,5 m mais alto"
+   },
+   "metodo": {
+    "valor": [
+     [
+      0.5,
+      "esgotamento com bomba submersível"
+     ],
+     [
+      99.0,
+      "rebaixamento com ponteiras filtrantes"
+     ]
+    ],
+    "estado": "premissa",
+    "fonte": "altura de água na vala até 0,5 m em solo coesivo: bombeamento direto; acima disso ou em areia: ponteiras"
+   },
+   "produtividade_m_dia": {
+    "valor": [
+     [
+      300,
+      40.0
+     ],
+     [
+      600,
+      25.0
+     ],
+     [
+      9999,
+      15.0
+     ]
+    ],
+    "estado": "calibrar",
+    "fonte": "avanço de assentamento por DE (mm): até 300 → 40 m/dia; até 600 → 25; acima → 15; o esgotamento dura o tempo de vala aberta"
+   },
+   "horas_por_dia": {
+    "valor": 10.0,
+    "estado": "premissa",
+    "fonte": "bomba ligada na jornada de trabalho"
+   },
+   "ponteiras_lados": {
+    "valor": 1,
+    "estado": "premissa",
+    "fonte": "linha de ponteiras de um lado da vala"
+   }
+  },
+  "tubo": {
+   "flexiveis": {
+    "valor": "PEAD|\\bPE\\b|PVC|PRFV|POLIETILENO",
+    "estado": "premissa",
+    "fonte": "tubo flexível pede envoltória compactada até acima da geratriz"
+   },
+   "rigidos": {
+    "valor": "\\bFD\\b|FERRO FUNDIDO|FOFO|CONCRETO|ACO",
+    "estado": "premissa",
+    "fonte": "tubo rígido assenta sobre berço"
+   },
+   "envoltoria_acima_m": {
+    "valor": 0.3,
+    "estado": "premissa",
+    "fonte": "envoltória de material selecionado até 0,30 m acima da geratriz superior (tubo flexível)"
+   }
+  },
+  "volumes": {
+   "empolamento": {
+    "valor": {
+     "solo": 1.25,
+     "rocha": 1.5,
+     "pavimento": 1.35
+    },
+    "estado": "premissa",
+    "fonte": "fator de empolamento para o transporte"
+   },
+   "reaproveitamento": {
+    "valor": {
+     "solo": 1.0,
+     "rocha": 0.0,
+     "mole": 0.0
+    },
+    "estado": "premissa",
+    "fonte": "solo da vala volta como reaterro; rocha e argila mole (NSPT < 4) vão para bota-fora e o reaterro é importado"
+   }
+  },
+  "metodos": {
+   "nbr12266": {
+    "nome": "NBR 12266 (premissas de valas.json)",
+    "estado": "premissa",
+    "fonte": "b = max(DE + folga 0,60; mínimo da profundidade) + acréscimo do tipo de escoramento"
+   },
+   "mos_sanepar": {
+    "nome": "MOS Sanepar (dimensionador único lineares.dimensionar_vala)",
+    "estado": "confirmado",
+    "fonte": "lineares.dimensionar_vala da main (decisão D2): L = D + SL + X + Y, escoramento por faixa e agravantes, escavação, reaterro, bota-fora, escoramento e pavimento do próprio dimensionador, com o modelo geotécnico (conceitos/lineares.json, obras_lineares.json, geotecnia.json). Berço e envoltória, que ele não calcula, saem da regra genérica com a largura do MOS.",
+    "materiais": [
+     [
+      "PEAD",
+      "PEAD|\\bPE\\b|POLIETILENO"
+     ],
+     [
+      "PVC",
+      "PVC"
+     ],
+     [
+      "FD",
+      "\\bFD\\b|FERRO FUNDIDO|FOFO|FUNDIDO DUCTIL"
+     ],
+     [
+      "PRFV",
+      "PRFV"
+     ],
+     [
+      "CONCRETO",
+      "CONCRETO"
+     ],
+     [
+      "CERAMICO",
+      "CERAMIC"
+     ],
+     [
+      "ACO",
+      "\\bACO\\b"
+     ]
+    ],
+    "pavimentos": {
+     "valor": {
+      "pista": "asfalto",
+      "via_sem_meio_fio": "asfalto",
+      "pavimentado": "asfalto",
+      "calcada": "concreto",
+      "vegetacao": "grama",
+      "fora_da_via": "terra",
+      "solo": "terra",
+      "sem_ortofoto": "terra"
+     },
+     "estado": "premissa",
+     "fonte": "superfície do trecho (valas.json) → tipo de pavimento do MOS (obras_lineares.json, pavimentos.tipos)"
+    }
+   }
+  }
+ }
+}

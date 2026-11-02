@@ -1,0 +1,28 @@
+{"id": "escavacao_rocha", "nome": "Escavação em rocha / desmonte", "unidades": ["m³"], "pacote": "GEO.MOV", "termos": "ESCAVACAO (EM|DE) ROCHA|DESMONTE|ROCHA (BRANDA|SA|ALTERADA)|DERROCAMENTO"}
+{"id": "escavacao", "nome": "Escavação", "unidades": ["m³"], "pacote": "GEO.MOV", "termos": "ESCAVACAO"}
+{"id": "reaterro", "nome": "Reaterro", "unidades": ["m³"], "pacote": "GEO.MOV", "termos": "REATERRO"}
+{"id": "compactacao", "nome": "Compactação", "unidades": ["m³", "m²"], "pacote": "GEO.MOV", "termos": "COMPACTACAO"}
+{"id": "bota_fora", "nome": "Carga, transporte e bota-fora", "unidades": ["m³", "m³xkm", "t"], "pacote": "GEO.MOV", "termos": "BOTA.?FORA|TRANSPORTE DE (SOLOS?|MATERIA|ENTULHO)|CARGA E DESCARGA"}
+{"id": "escoramento_pontaleteamento", "nome": "Escoramento por pontaleteamento", "unidades": ["m²"], "pacote": "GEO.MOV", "termos": "PONTALETEAMENTO|ESCORAMENTO.{0,30}PONTALET"}
+{"id": "escoramento_descontinuo", "nome": "Escoramento descontínuo", "unidades": ["m²"], "pacote": "GEO.MOV", "termos": "ESCORAMENTO.{0,30}DESCONTINUO"}
+{"id": "escoramento_continuo", "nome": "Escoramento contínuo", "unidades": ["m²"], "pacote": "GEO.MOV", "termos": "ESCORAMENTO.{0,30}(?<!DES)CONTINUO"}
+{"id": "escoramento_especial", "nome": "Escoramento especial (estaca-prancha, blindagem)", "unidades": ["m²"], "pacote": "GEO.MOV", "termos": "ESTACA.?PRANCHA|BLINDAGEM|ESCORAMENTO.{0,30}(ESPECIAL|METALICO)"}
+{"id": "escoramento", "nome": "Escoramento", "unidades": ["m²"], "pacote": "GEO.MOV", "termos": "ESCORAMENTO"}
+{"id": "esgotamento", "nome": "Esgotamento / bombeamento de vala", "unidades": ["h", "dia", "vb"], "pacote": "GEO.MOV", "termos": "ESGOTAMENTO|BOMBEAMENTO|BOMBA SUBMERSIVEL.{0,30}VALA"}
+{"id": "rebaixamento", "nome": "Rebaixamento de lençol", "unidades": ["m", "h", "dia", "un"], "pacote": "GEO.MOV", "termos": "REBAIXAMENTO|PONTEIRAS? FILTRANTES?|WELL.?POINT"}
+{"id": "berco", "nome": "Berço do tubo", "unidades": ["m³"], "pacote": "GEO.MOV", "termos": "\\bBERCO\\b|LEITO DE AREIA"}
+{"id": "envoltoria", "nome": "Envoltória do tubo", "unidades": ["m³"], "pacote": "GEO.MOV", "termos": "ENVOLTORIA|ENVELOPAMENTO|MATERIAL SELECIONADO.{0,30}TUBO"}
+{"id": "lastro", "nome": "Lastro / concreto magro", "unidades": ["m³", "m²"], "pacote": "CIV.EST", "termos": "LASTRO|CONCRETO MAGRO|REGULARIZACAO DE FUNDO"}
+{"id": "forma", "nome": "Forma", "unidades": ["m²"], "pacote": "CIV.EST", "termos": "\\bFORMAS? (DE|PARA|EM) (MADEIRA|CHAPA|COMPENSAD|ESTRUTURA|CONCRETO|FUNDAC|BLOCO|PILAR|VIGA|LAJE|PAREDE)|\\bFORMAS? (PLANAS?|CURVAS?|METALICAS?|PERDIDAS?)|FORMA E DESFORMA|\\bFORMAS?\\b.{0,60}\\bM2\\b"}
+{"id": "concreto", "nome": "Concreto estrutural", "unidades": ["m³"], "pacote": "CIV.EST", "termos": "CONCRETO.{0,40}(FCK|MPA|ESTRUTURAL|USINADO|BOMBEADO|ARMADO)|\\bFCK\\b|LANCAMENTO.{0,20}CONCRETO"}
+{"id": "armadura", "nome": "Armadura (aço CA-50/CA-60)", "unidades": ["kg", "t"], "pacote": "CIV.EST", "termos": "ARMACAO|ARMADURA|\\bACO CA.?(25|50|60)\\b|\\bCA.?(50|60)\\b|VERGALH|TELA SOLDADA"}
+{"id": "arrasamento", "nome": "Arrasamento de estaca", "unidades": ["un", "m"], "pacote": "GEO.FUN", "termos": "ARRASAMENTO"}
+{"id": "impermeabilizacao", "nome": "Impermeabilização", "unidades": ["m²"], "pacote": "CIV.EST", "termos": "IMPERMEABILIZ"}
+{"id": "alvenaria", "nome": "Alvenaria", "unidades": ["m²"], "pacote": "CIV.EST", "termos": "ALVENARIA"}
+{"id": "corte_pavimento", "nome": "Corte de pavimento com serra", "unidades": ["m"], "pacote": "CIV.PAV", "termos": "CORTE (DE |DO )?PAVIMENTO|CORTE (COM |A )?SERRA|SERRA CLIPPER"}
+{"id": "demolicao", "nome": "Demolição / remoção", "unidades": ["m²", "m³", "m"], "pacote": "CIV.PAV", "termos": "DEMOLICAO|REMOCAO|FRESAGEM|QUEBRA"}
+{"id": "recomposicao", "nome": "Recomposição / execução", "unidades": ["m²", "m³", "m"], "pacote": "CIV.PAV", "termos": "RECOMPOSICAO|REPOSICAO|EXECUCAO DE (PAVIMENTO|CALCADA|PASSEIO)|IMPRIMACAO|PINTURA DE LIGACAO|\\bCBUQ\\b"}
+{"id": "assentamento", "nome": "Assentamento de tubo", "unidades": ["m"], "pacote": "HID.TUB", "termos": "ASSENTAMENTO"}
+{"id": "teste_estanqueidade", "nome": "Teste hidrostático / estanqueidade", "unidades": ["m", "un", "vb"], "pacote": "HID.TUB", "termos": "TESTE (HIDROSTATICO|DE ESTANQUEIDADE|DE PRESSAO)|ESTANQUEIDADE"}
+{"id": "fornecimento", "nome": "Fornecimento", "unidades": ["un", "m", "cj", "kg", "vb"], "pacote": null, "termos": "FORNECIMENTO|AQUISICAO"}
+{"id": "montagem", "nome": "Montagem / instalação", "unidades": ["un", "m", "cj", "vb"], "pacote": null, "termos": "MONTAGEM|INSTALACAO"}
