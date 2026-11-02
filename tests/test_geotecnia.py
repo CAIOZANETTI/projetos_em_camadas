@@ -102,6 +102,27 @@ def test_laudo_na_impenetravel_camadas_e_nspt(laudo):
     assert f["SP-01"]["profundidade_m"] == pytest.approx(4.0, abs=TOLERANCIA_M)
 
 
+def test_coordenada_rotulada_no_texto_n_antes_de_e(tmp_path):
+    rotuladas = [
+        "Coordenadas em SIRGAS 2000 (WGS 84)",
+        "Sonda SP01:  N = 7182953.79m; E = 745814.5615m",
+        "Sonda SP02:  N =  7182933.475m; E = 745809.9354m",
+        "Sonda SP03:  E = 745792.0436m; N = 7182961.963m",
+    ]
+    pdf = _gerar_pdf(
+        tmp_path / "l.pdf",
+        [rotuladas, PERFIS["SP-01"], PERFIS["SP-02"], PERFIS["SP-03"]],
+    )
+    r = geo.ler_laudo(pdf)
+    f = {x["id"]: x for x in r["furos"]}
+    assert sorted(f) == ["SP01", "SP02", "SP03"]
+    assert f["SP01"]["E"] == pytest.approx(745814.5615, abs=1e-4)
+    assert f["SP01"]["N"] == pytest.approx(7182953.79, abs=1e-4)
+    assert f["SP03"]["E"] == pytest.approx(745792.0436, abs=1e-4)
+    assert f["SP03"]["N"] == pytest.approx(7182961.963, abs=1e-4)
+    assert r["nao_lidos"] == []
+
+
 def test_furo_citado_sem_coordenada_vai_para_nao_lidos(tmp_path):
     perfil_extra = [
         "PERFIL INDIVIDUAL DE SONDAGEM - SP-09",
@@ -579,3 +600,78 @@ def test_conferir_estaca_sem_coordenada_vira_ocorrencia():
     ]
     assert r[0]["furo"] is None and "sem coordenada" in r[0]["mensagem"]
     json.dumps(r)
+
+
+def _folha_em_bloco(furo, e, n, na_frase):
+    """Folha de perfil no layout em bloco (Geoazimute, Foz): NA no alto, id depois, camadas de baixo para cima."""
+    return [
+        "N.A. LEITURAS:",
+        "1) N.A.: seco em 22/02/2022",
+        na_frase,
+        "PERFIL GEOLÓGICO",
+        "COTA:",
+        "239,68",
+        "COORD. N:",
+        e,
+        n,
+        "SONDAGEM À PERCUSSÃO:",
+        furo,
+        "TÉRMINO:",
+        "22/02/2022",
+        "13,50",
+        "ROCHA",
+        "6,00",
+        "SILTE-ARGILOSO, VARIEGADA,",
+        "MÉDIO A RIJO",
+        "0,45",
+        "ATERRO",
+        "CA",
+        "TH",
+        "9,00",
+        "ATERRO - AT • SOLO ALUVIONAR - SA",
+        "1,00",
+        "2,00",
+    ]
+
+
+def test_perfil_em_bloco_com_coordenada_na_folha(tmp_path):
+    pdf = _gerar_pdf(
+        tmp_path / "l.pdf",
+        [
+            _folha_em_bloco(
+                "SP 01",
+                "745814.5615",
+                "7182953.79",
+                "Foi encontrado N.A.na profundidade de 9,00 m.",
+            ),
+            _folha_em_bloco(
+                "SP 01A", "745814.5615", "7182954,00", "Não foi encontrado N.A."
+            ),
+        ],
+    )
+    r = geo.ler_laudo(pdf)
+    f = {x["id"]: x for x in r["furos"]}
+    assert sorted(f) == ["SP01", "SP01A"]
+    assert r["nao_lidos"] == []
+    sp = f["SP01"]
+    assert [(c["de"], c["ate"]) for c in sp["camadas"]] == [
+        (0.0, 0.45),
+        (0.45, 6.0),
+        (6.0, 13.5),
+    ]
+    assert [c["descricao"] for c in sp["camadas"]] == [
+        "ATERRO",
+        "SILTE-ARGILOSO, VARIEGADA, MÉDIO A RIJO",
+        "ROCHA",
+    ]
+    assert sp["na_m"] == pytest.approx(9.0, abs=TOLERANCIA_M)
+    assert sp["cota_boca"] == pytest.approx(239.68, abs=TOLERANCIA_M)
+    assert "nspt" not in sp  # profundidades soltas não viram golpes
+    assert f["SP01A"]["N"] == pytest.approx(7182954.0, abs=1e-4)
+    assert f["SP01A"]["na_m"] is None
+
+
+def test_bloco_fora_de_ordem_nao_vira_camada():
+    linhas = ["TÉRMINO:", "22/02/2022", "1,00", "ATERRO", "6,00", "ROCHA", "•"]
+    assert geo._camadas_em_bloco(linhas) == []
+    assert geo._camadas_em_bloco(["13,50", "ROCHA"]) == []  # sem 'TÉRMINO' não há bloco

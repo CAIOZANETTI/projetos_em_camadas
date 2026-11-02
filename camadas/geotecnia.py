@@ -8,7 +8,8 @@ O furo canônico (dict puro, nomes já em uso no projeto) está em `conceitos/ge
 Heurística do leitor de laudo (`ler_laudo`), só pelo texto do PDF (pymupdf), sem OCR e sem inventar:
 
     (a) tabela de coordenadas: id de furo (`SP-?\\d+`, `SPT-?\\d+`, `F-?\\d+`) seguido de dois números, o de 6 dígitos
-        inteiros (E) e o de 7 (N), e, se houver, a cota da boca; aceita ponto de milhar e vírgula decimal;
+        inteiros (E) e o de 7 (N), e, se houver, a cota da boca; aceita ponto de milhar e vírgula decimal; ou coordenada
+        rotulada no texto ("Sonda SP01: N = 7182953.79m; E = 745814.5615m", N e E em qualquer ordem);
     (b) perfil por furo: o trecho começa numa linha que cita o id (com FURO/SONDAGEM/PERFIL, ou só o id) e vai até o
         próximo furo citado. Nele: NA por "N.A." / "NÍVEL D'ÁGUA" + número em m, ou "NÃO ATINGIDO"/"SECO" (= None);
         impenetrável por "IMPENETRÁVEL"; camadas por "de X a Y m descrição" ou "X,XX – Y,YY descrição"; NSPT por
@@ -33,6 +34,7 @@ import json
 import math
 import re
 import unicodedata
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -53,17 +55,30 @@ CATEGORIA_INDEFINIDA = "a definir"
 TOLERANCIA_PROFUNDIDADE_M = 0.01
 
 _NUM = r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?"
-_ID = r"(?:SPT|SP|F)-?\s?\d+"
+_ID = (
+    r"(?:SPT|SP|F)-?\s?\d+(?-i:[A-Z])?"  # sufixo maiúsculo: furo complementar (SP 02A)
+)
 _RE_ID = re.compile(rf"\b({_ID})\b", re.IGNORECASE)
 _RE_NUM = re.compile(_NUM)
 _RE_COORD = re.compile(
     rf"\b(?P<id>{_ID})\b(?P<resto>(?:\s+(?:{_NUM}))+)", re.IGNORECASE
+)
+# coordenadas rotuladas no texto do laudo ("Sonda SP01: N = 7182953.79m; E = 745814.5615m"), N e E em qualquer ordem
+_RE_COORD_ROTULADA = re.compile(
+    rf"\b(?P<id>{_ID})\b\s*:?\s*(?P<eixo1>[NE])\s*=\s*(?P<v1>{_NUM})\s*m?\s*[;,]?\s*"
+    rf"(?P<eixo2>[NE])\s*=\s*(?P<v2>{_NUM})",
+    re.IGNORECASE,
 )
 # "N.A." com ponto, "NA" seguido de ':', '=' ou '(', ou a expressão por extenso; "NA" solto é a preposição "na" em
 # maiúsculas ("ARGILA MOLE NA COTA 3,00") e não pode virar nível d'água (revisão do Fable, rodada 25)
 _RE_NA = re.compile(
     r"\bN\.\s?A\.?|\bNA\b(?=\s*[:=(])|NIVEL\s+D['’`]?\s?AGUA|LENCOL\s+FREATICO"
 )
+# conclusão do laudo, que vale sobre as leituras ("Foi encontrado N.A. na profundidade de 9,00 m.")
+_RE_NA_CONCLUSAO = re.compile(
+    rf"(NAO\s+)?FOI\s+ENCONTRADO\s+N\.?\s?A\.?(?:\s*NA\s+PROFUNDIDADE\s+DE\s+({_NUM}))?"
+)
+_RE_DEPTH_BLOCO = re.compile(r"\d{1,2},\d{2}")
 _RE_SEM_NA = re.compile(r"NAO\s+ATINGID|\bSECO\b|NAO\s+ENCONTRAD|AUSENTE")
 _RE_NUM_M = re.compile(rf"(?<![\d.,])({_NUM})(?:\s*m\b)?", re.IGNORECASE)
 _RE_CAMADA = re.compile(
@@ -71,13 +86,13 @@ _RE_CAMADA = re.compile(
     re.IGNORECASE,
 )
 _RE_NSPT = re.compile(
-    rf"^\s*({_NUM})\s*(?:m\s+)?(\d{{1,3}})\s*(?:golpes)?\s*$", re.IGNORECASE
+    rf"^\s*({_NUM})(?:\s*m)?\s+(\d{{1,3}})\s*(?:golpes)?\s*$", re.IGNORECASE
 )
 _RE_PROF = re.compile(
     rf"PROFUNDIDADE\s+(?:FINAL|TOTAL|ATINGIDA)[^\d\n]{{0,20}}({_NUM})"
 )
 _RE_COTA = re.compile(
-    rf"COTA(?:\s+DA\s+BOCA|\s+DO\s+TERRENO|\s+DE\s+BOCA)?[^\d\n]{{0,20}}({_NUM})"
+    rf"COTA(?:\s+DA\s+BOCA|\s+DO\s+TERRENO|\s+DE\s+BOCA)?[^\d\n]{{0,20}}(?:\n\s*)?({_NUM})"
 )
 
 
@@ -663,33 +678,112 @@ def _coordenadas(texto: str) -> dict[str, dict]:
         if este + 2 < len(valores) and 0 <= valores[este + 2] < 1e4:
             item["cota_boca"] = valores[este + 2]
         achados.setdefault(_chave(m.group("id")), item)
+    for m in _RE_COORD_ROTULADA.finditer(plano):
+        eixos = {
+            m.group("eixo1").upper(): _para_float(m.group("v1")),
+            m.group("eixo2").upper(): _para_float(m.group("v2")),
+        }
+        if set(eixos) != {"E", "N"} or not (
+            1e5 <= eixos["E"] < 1e6 and 1e6 <= eixos["N"] < 1e7
+        ):
+            continue
+        achados.setdefault(
+            _chave(m.group("id")),
+            {"id": _id_limpo(m.group("id")), "E": eixos["E"], "N": eixos["N"]},
+        )
     return achados
 
 
+def _cabecalho(linha: str):
+    """Id do furo se a linha abre o perfil (cita FURO/SONDAGEM/PERFIL com o id, ou é só o id); senão None."""
+    m = _RE_ID.search(linha)
+    if not m or re.search(r"\d{6,}", linha.replace(".", "").replace(",", "")):
+        return None
+    if re.search(r"FURO|SONDAGEM|PERFIL", _sem_acento(linha).upper()):
+        return m.group(1)
+    return m.group(1) if linha.strip() == m.group(1) else None
+
+
 def _trechos_por_furo(texto: str) -> dict[str, dict]:
-    """Divide o texto em trechos por furo citado: {chave: {id, linhas}}. Cada trecho vai até o próximo furo."""
+    """Divide o texto em trechos por furo citado: {chave: {id, linhas}}. Cada trecho vai até o próximo furo.
+
+    Páginas separadas por '\\f': página que abre um furo só é toda dele, inclusive as linhas antes do id (o NA
+    e a legenda vêm no alto da folha de perfil); página com mais de um furo é dividida linha a linha.
+    """
     trechos, atual = {}, None
-    for linha in texto.splitlines():
-        m = _RE_ID.search(linha)
-        cabecalho = (
-            m
-            and not re.search(r"\d{6,}", linha.replace(".", "").replace(",", ""))
-            and (
-                re.search(r"FURO|SONDAGEM|PERFIL", _sem_acento(linha).upper())
-                or linha.strip() == m.group(1)
-            )
-        )
-        if cabecalho:
+    for pagina in texto.split("\f"):
+        linhas = pagina.splitlines()
+        ids = [i for i in map(_cabecalho, linhas) if i]
+        if len({_chave(i) for i in ids}) == 1:
             atual = trechos.setdefault(
-                _chave(m.group(1)), {"id": _id_limpo(m.group(1)), "linhas": []}
+                _chave(ids[0]), {"id": _id_limpo(ids[0]), "linhas": []}
             )
-        elif atual is not None:
-            atual["linhas"].append(linha)
+            atual["linhas"] += linhas
+            continue
+        for linha in linhas:
+            identificador = _cabecalho(linha)
+            if identificador:
+                atual = trechos.setdefault(
+                    _chave(identificador),
+                    {"id": _id_limpo(identificador), "linhas": []},
+                )
+            elif atual is not None:
+                atual["linhas"].append(linha)
     return trechos
+
+
+def _coordenadas_do_perfil(linhas: list[str]) -> dict | None:
+    """E e N impressos na folha do perfil ("COORD. N:" seguido dos dois números), pela grandeza; senão None."""
+    for i, linha in enumerate(linhas):
+        if not linha.strip().upper().startswith("COORD"):
+            continue
+        valores = [_para_float(t) for t in _RE_NUM.findall(" ".join(linhas[i : i + 4]))]
+        este = [v for v in valores if 1e5 <= v < 1e6]
+        norte = [v for v in valores if 1e6 <= v < 1e7]
+        if este and norte:
+            return {"E": este[0], "N": norte[0]}
+    return None
+
+
+def _camadas_em_bloco(linhas: list[str]) -> list[dict]:
+    """Camadas no layout em bloco (entre 'TÉRMINO' e a legenda '•'): profundidade da base seguida da descrição em
+    maiúsculas, de baixo para cima. Profundidades fora de ordem estrita devolvem [] (nada é inventado)."""
+    norm = [_sem_acento(x).upper().strip() for x in linhas]
+    inicio = next((i for i, x in enumerate(norm) if x.startswith("TERMINO")), None)
+    if inicio is None:
+        return []
+    fim = next(
+        (i for i in range(inicio, len(norm)) if "•" in norm[i] or "·" in norm[i]),
+        len(norm),
+    )
+    pares, atual = [], None
+    for bruta, x in zip(linhas[inicio + 1 : fim], norm[inicio + 1 : fim]):
+        if _RE_DEPTH_BLOCO.fullmatch(x):
+            atual = [_para_float(x), []]
+            pares.append(atual)
+        elif (
+            atual is not None
+            and len(re.sub(r"[^A-Z]", "", x)) >= 3
+            and bruta.strip() == bruta.strip().upper()
+        ):
+            atual[1].append(bruta.strip())
+        else:
+            atual = None
+    pares = [(p, " ".join(d)) for p, d in pares if d][::-1]
+    bases = [p for p, _ in pares]
+    if not pares or any(b <= a for a, b in pairwise(bases)):
+        return []
+    return [
+        {"de": de, "ate": ate, "descricao": desc}
+        for de, (ate, desc) in zip([0.0] + bases[:-1], pares)
+    ]
 
 
 def _nivel_dagua(linhas: list[str]):
     """(achou, na_m): NA em m, ou None se 'não atingido'/'seco'. achou=False se o laudo não cita o NA."""
+    conclusao = _RE_NA_CONCLUSAO.search(_sem_acento(" ".join(linhas)).upper())
+    if conclusao and (conclusao.group(1) or conclusao.group(2)):
+        return True, None if conclusao.group(1) else _para_float(conclusao.group(2))
     for i, linha in enumerate(linhas):
         norm = _sem_acento(linha).upper()
         m = _RE_NA.search(norm)
@@ -721,6 +815,8 @@ def _perfil(linhas: list[str]) -> dict:
             )
         elif n and _para_float(n.group(1)) <= 60:
             nspt.append([_para_float(n.group(1)), int(n.group(2))])
+    if not camadas:
+        camadas = _camadas_em_bloco(linhas)
     texto = _sem_acento("\n".join(linhas)).upper()
     prof, cota = _RE_PROF.search(texto), _RE_COTA.search(texto)
     return {
@@ -749,6 +845,12 @@ def _montar_furo(coord: dict | None, trecho: dict | None, fonte: str) -> dict:
     return furo
 
 
+def _coord_do_trecho(trecho: dict | None) -> dict | None:
+    """Coordenada impressa no próprio perfil, quando o furo não está na tabela (furo complementar)."""
+    coord = _coordenadas_do_perfil(trecho["linhas"]) if trecho else None
+    return {"id": trecho["id"], **coord} if coord else None
+
+
 def ler_laudo(caminho_pdf) -> dict:
     """Lê um laudo de sondagem em PDF pelo texto.
 
@@ -759,12 +861,13 @@ def ler_laudo(caminho_pdf) -> dict:
 
     caminho = Path(caminho_pdf)
     with pymupdf.open(caminho) as doc:
-        texto = "\n".join(pagina.get_text() for pagina in doc)
+        texto = "\f".join(pagina.get_text() for pagina in doc)
         paginas = len(doc)
     coordenadas, trechos = _coordenadas(texto), _trechos_por_furo(texto)
     candidatos, nao_lidos = [], []
     for chave in sorted(set(coordenadas) | set(trechos)):
-        coord, trecho = coordenadas.get(chave), trechos.get(chave)
+        trecho = trechos.get(chave)
+        coord = coordenadas.get(chave) or _coord_do_trecho(trecho)
         rotulo = (coord or trecho)["id"]
         if coord is None:
             nao_lidos.append(
