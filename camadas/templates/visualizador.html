@@ -1121,7 +1121,7 @@ function limitesMapa(P) {
   return L.latLngBounds([[c[0], c[1]], [c[2], c[1]], [c[2], c[3]], [c[0], c[3]]].map(([x, y]) => pt2ll(P, x, y)));
 }
 /* liga/desliga a prancha no mapa (carrega o vetor na primeira vez) */
-async function ligarPranchaMapa(P, on) {
+async function ligarPranchaMapa(P, on, semVoo = false) {   // semVoo: o recorte da EAP liga sem tirar o mapa do nó
   P.mapa.on = on; sincDisc();
   const nota = porId("pn-" + P.id);
   if (!on) { if (P.mapa.lay) map.removeLayer(P.mapa.lay); if (nota) nota.textContent = ""; v3Sujo(); return; }
@@ -1132,7 +1132,7 @@ async function ligarPranchaMapa(P, on) {
   P.mapa.lay ||= new PranchaMapa(P);
   P.mapa.lay.addTo(map);
   const lb = limitesMapa(P);
-  if (!map.getBounds().intersects(lb)) map.flyToBounds(lb, {padding: [30, 30], duration: .6});
+  if (!semVoo && !map.getBounds().intersects(lb)) map.flyToBounds(lb, {padding: [30, 30], duration: .6});
   v3Sujo();
 }
 function redesenharMapa(P) { if (P.mapa.on && P.mapa.lay) P.mapa.lay.pedir(); }
@@ -2362,6 +2362,7 @@ function htmlEapAssociados(P) {
 function verNoMapaEap(ids, no) {
   const lays = ids.map(id => OBRA.camada.get(id)).filter(Boolean);
   if (!lays.length) return;
+  restaurarRecortePranchas();   // o recorte do nó anterior não vale para este
   OBRA.filtroEap = new Set(ids);
   garantirVisivel(ids.map(id => OBRA.porId.get(id)).filter(Boolean));
   ligarObraMapa(true);
@@ -2383,15 +2384,45 @@ function verNoMapaEap(ids, no) {
    (`rotulo_vista` usa o `n_elementos` do nó, que pode incluir ids sem geometria na camada) */
 function mostrarVistaEap(no) {
   const botao = `<button class="btn mini" data-eap-limpar>limpar filtro EAP</button>`;
+  const recorte = (no.subgrupos_mapa || []).length && PR.some(P => P.M)   // lista e texto prontos do Python
+    ? `<label class="eap-recorte"><input type="checkbox" data-eap-recorte> só pranchas desta disciplina <span class="nota-l">${esc(no.pranchas_txt)}</span></label>` : "";
   for (const [el, txt] of [[$("#eapVista"), no.rotulo_vista], [$("#obFiltroEap"), "Filtro EAP: " + no.codigo]]) {
     if (!el) continue;
-    el.innerHTML = `<span>${esc(txt)}</span>${botao}`; el.hidden = false;
+    el.innerHTML = `<span>${esc(txt)}</span>${el.id === "eapVista" ? recorte : ""}${botao}`; el.hidden = false;
   }
+  RECORTE_PR.no = no;
+}
+/* "só pranchas desta disciplina": só pertencer ou não a `subgrupos_mapa` (lista do Python). Guarda P.vis e P.mapa.on de cada prancha
+   georreferenciada antes de mexer e restaura exatamente ao desmarcar, limpar o filtro ou trocar de nó. */
+const RECORTE_PR = {snap: null, no: null};
+function aplicarRecortePranchas(subgrupos) {
+  restaurarRecortePranchas();
+  const lista = new Set(subgrupos);
+  RECORTE_PR.snap = new Map();
+  for (const P of PR) {
+    if (!P.M) continue;
+    RECORTE_PR.snap.set(P, {vis: P.vis.slice(), on: P.mapa.on});
+    let algum = false;
+    P.d.layers.forEach((l, i) => { const dentro = lista.has(l.subgrupo || P.d.subgrupo); P.vis[i] = dentro ? 1 : 0; algum ||= dentro; });
+    prMudou(P);
+    if (P.mapa.on !== algum) ligarPranchaMapa(P, algum, true);
+  }
+  sincDisc();
+}
+function restaurarRecortePranchas() {
+  const snap = RECORTE_PR.snap; RECORTE_PR.snap = null;
+  if (!snap) return;
+  for (const [P, antes] of snap) {
+    P.vis.set(antes.vis); prMudou(P);
+    if (P.mapa.on !== antes.on) ligarPranchaMapa(P, antes.on, true);
+  }
+  sincDisc();
 }
 /* desfaz o filtro; a seleção que o usuário fez depois dele fica (só o anel e o destaque do próprio filtro saem) */
 function limparFiltroEap() {
   if (!OBRA.sel || OBRA.sel === OBRA.selEap) limparSelecaoObra(); else OBRA.multi = [];
   OBRA.filtroEap = null; OBRA.selEap = null;
+  restaurarRecortePranchas();
   aplicarEscopoMapa();   // volta aos estilos do escopo (e refaz o anel da seleção que ficou)
   for (const el of [$("#eapVista"), $("#obFiltroEap")]) if (el) { el.hidden = true; el.innerHTML = ""; }
 }
@@ -2404,6 +2435,10 @@ function montarEap() {
   aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "");
   if (!P) return;
   document.addEventListener("click", e => { if (e.target.closest("[data-eap-limpar]")) limparFiltroEap(); });   // botões da aba EAP e da aba Obra
+  aba.addEventListener("change", e => {
+    if (!e.target.matches("[data-eap-recorte]")) return;
+    if (e.target.checked) aplicarRecortePranchas(RECORTE_PR.no.subgrupos_mapa); else restaurarRecortePranchas();
+  });
   aba.addEventListener("click", e => {
     const ver = e.target.closest("[data-eap-ids]"), fl = e.target.closest("[data-eap-status]");
     if (ver) verNoMapaEap(ver.dataset.eapIds.split("\n"), P.arvore.find(n => n.codigo === ver.closest("details").dataset.codigo));

@@ -35,6 +35,35 @@ def _com_unidade(valor, unidade: str | None) -> str:
     return f"{_numero(valor, unidade)} {unidade}".rstrip()
 
 
+POS_DISCIPLINA = eap.NIVEIS.index(
+    "disciplina"
+)  # segmento da disciplina no código (U1.A.GEO.FUN.EST → 2)
+POS_PACOTE = eap.NIVEIS.index("pacote")
+
+
+def subgrupos_do_codigo(codigo: str) -> list[str]:
+    """Subgrupos de prancha (`conceitos/disciplinas.json`) que são evidência do nó, em ordem alfabética, pela chave
+    `pranchas` de `eap.json` (subgrupo → pacotes 'DISC.PAC'). Nó de disciplina: subgrupos com algum pacote da
+    disciplina; nó de pacote ou item: subgrupos que contêm o pacote. Acima da disciplina (unidade, sistema): vazio."""
+    partes = codigo.split(".")
+    if len(partes) <= POS_DISCIPLINA:
+        return []
+    disciplina = partes[POS_DISCIPLINA]
+    if len(partes) == POS_DISCIPLINA + 1:
+        casa = lambda pacote: pacote.startswith(disciplina + ".")
+    else:
+        alvo = f"{disciplina}.{partes[POS_PACOTE]}"
+        casa = lambda pacote: pacote == alvo
+    return sorted(
+        (
+            sub
+            for sub, pacotes in eap.REGRAS["pranchas"].items()
+            if any(map(casa, pacotes))
+        ),
+        key=str.casefold,
+    )
+
+
 def _prefixos(codigo: str) -> list[str]:
     """Códigos dos nós que contêm o item: 'U1.A.GEO.FUN.EST' → 'U1', 'U1.A', 'U1.A.GEO', 'U1.A.GEO.FUN', e ele mesmo."""
     partes = codigo.split(".")
@@ -161,6 +190,7 @@ def arvore(
     grupos, elementos = _grupos_do_no(quantidades), _elementos_do_no(quantidades)
     saida = []
     for no in eap_codificada.get("nos") or []:
+        subgrupos = subgrupos_do_codigo(no["codigo"])
         ids = elementos.get(no["codigo"], [])
         saida.append(
             {
@@ -175,6 +205,10 @@ def arvore(
                 ],
                 "elementos": ids,
                 "n_elementos": len(ids),
+                "subgrupos_mapa": subgrupos,
+                "pranchas_txt": f"Pranchas: {', '.join(subgrupos)}"
+                if subgrupos
+                else "",
                 **status_do_no(
                     no["codigo"], indice_fatos, sob_no.get(no["codigo"], [])
                 ),
@@ -284,6 +318,7 @@ def metadados() -> dict:
         "descricao": "painel da aba EAP: árvore codificada com quantidades somadas por nó, fatos com afirmações e serviços "
         "associados × edital, formatados em português do Brasil",
         "funcoes": [
+            "subgrupos_do_codigo",
             "status_do_no",
             "arvore",
             "fatos",

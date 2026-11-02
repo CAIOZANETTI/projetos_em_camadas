@@ -289,6 +289,7 @@ def test_selo_de_status_aparece_em_cada_no_com_o_valor_do_python(navegador, tmp_
     raiz = next(n for n in painel["arvore"] if n["pai"] is None)
     assert raiz["status_no"] == "conflito"
     assert pagina.locator("#eapCod .st-conflito").count() >= 1
+    assert erros == []
 
 
 def test_aba_eap_mostra_o_codigo_real_ao_lado_do_provisorio_e_a_conciliacao(navegador, tmp_path):
@@ -449,4 +450,161 @@ def test_sem_conciliacao_nao_ha_tabela(navegador, tmp_path):
     pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
     pagina.click("#t-eap")
     assert pagina.locator("#aba-eap table.eap-conc").count() == 0 and erros == []
+    pagina.close()
+
+
+def _prancha_minima(
+    identificador: str, subgrupos: list[str], *, georreferenciada: bool = True
+) -> dict:
+    """Prancha com um traço por layer (um layer por subgrupo), no formato que o template decodifica."""
+    import base64
+    import gzip
+
+    import numpy as np
+
+    n = len(subgrupos)
+    # deltas (x10) por coluna: todos os dx, depois todos os dy; cada traço tem 2 pontos
+    pontos = np.array(
+        [[10 * (20 * i), 10 * (20 * i + 10)] for i in range(n)], dtype=np.int32
+    ).reshape(-1)
+    dx = np.diff(np.concatenate([[0], pontos])).astype(np.int32)
+    dy = np.full_like(dx, 100)
+    coords = np.concatenate([dx, dy]).astype("<i4")
+    partes = np.concatenate(
+        [np.full(n, 2), np.arange(n), np.zeros(n), np.zeros(n)]
+    ).astype("<u4")
+    pacote = lambda b: base64.b64encode(gzip.compress(b.tobytes())).decode()
+    return {
+        "id": identificador,
+        "nome": f"Prancha {identificador}",
+        "disciplina": "Civil",
+        "pdf": f"{identificador}.pdf",
+        "largura": 100,
+        "altura": 100,
+        "n_partes": n,
+        "n_pontos": 2 * n,
+        "textos": [],
+        "layers": [
+            {
+                "nome": f"L{i}",
+                "n": 1,
+                "classe": "",
+                "cor": "#000000",
+                "grupo": "Civil",
+                "subgrupo": s,
+            }
+            for i, s in enumerate(subgrupos)
+        ],
+        "estilos": [{"s": "#000000", "f": None, "w": 1}],
+        "coords": pacote(coords),
+        "partes": pacote(partes),
+        "M": IDENTIDADE if georreferenciada else None,
+        "escala_m_pt": 1.0,
+        "clip_mapa": None,
+        "grupo": "Civil",
+        "subgrupo": "",
+    }
+
+
+def _estado_pranchas(pagina) -> list:
+    return pagina.evaluate(
+        "window.__viz.PR.map(P => ({id: P.id, vis: [...P.vis], on: P.mapa.on}))"
+    )
+
+
+def test_recorte_so_pranchas_da_disciplina_marca_e_restaura(navegador, tmp_path):
+    painel = _painel(com_conflito=False)
+    no = next(n for n in painel["arvore"] if n["codigo"] == "U1.ACT600.GEO")
+    assert no["subgrupos_mapa"] == ["Adutoras", "Geotecnia e fundação", "Terraplenagem"]
+    dados = _dados_com_mapa(
+        eap_painel=painel,
+        pranchas=[_prancha_minima("p1", ["Terraplenagem", "Estrutura", "Adutoras"])],
+    )
+    pagina, erros = _abrir(navegador, tmp_path, dados)
+    pagina.click("#t-eap")
+    pagina.evaluate(
+        "document.querySelectorAll('#eapCod details').forEach(d => d.open = true)"
+    )
+    antes = _estado_pranchas(pagina)
+    assert antes == [{"id": "p1", "vis": [1, 1, 1], "on": False}]
+    pagina.locator(
+        '#eapCod details[data-codigo="U1.ACT600.GEO"] > .eap-q [data-eap-ids]'
+    ).click()
+    recorte = pagina.locator("#eapVista [data-eap-recorte]")
+    assert recorte.is_visible() and not recorte.is_checked()  # desmarcado por padrão
+    assert no["pranchas_txt"] in pagina.locator("#eapVista").inner_text()
+    assert (
+        _estado_pranchas(pagina) == antes
+    )  # só mostrar o checkbox não mexe nas pranchas
+    pagina.wait_for_timeout(1000)  # termina o enquadramento do nó
+    centro = pagina.evaluate("[map.getCenter().lat, map.getCenter().lng, map.getZoom()]")
+    recorte.check()
+    pagina.wait_for_timeout(1000)
+    assert _estado_pranchas(pagina) == [{"id": "p1", "vis": [1, 0, 1], "on": True}]
+    # a prancha fica longe da obra: ligar pelo recorte não tira o mapa do enquadramento do nó
+    assert pagina.evaluate("[map.getCenter().lat, map.getCenter().lng, map.getZoom()]") == centro
+    recorte.uncheck()
+    pagina.wait_for_timeout(300)
+    assert _estado_pranchas(pagina) == antes
+    recorte.check()  # de novo, agora limpando o filtro
+    pagina.wait_for_timeout(300)
+    assert _estado_pranchas(pagina)[0]["vis"] == [1, 0, 1]
+    pagina.click("#eapVista [data-eap-limpar]")
+    pagina.wait_for_timeout(300)
+    assert _estado_pranchas(pagina) == antes
+    assert erros == []
+    pagina.close()
+
+
+def test_recorte_restaura_ao_trocar_de_no_e_nao_aparece_sem_subgrupos(
+    navegador, tmp_path
+):
+    painel = _painel(com_conflito=False)
+    dados = _dados_com_mapa(
+        eap_painel=painel,
+        pranchas=[_prancha_minima("p1", ["Terraplenagem", "Estrutura"])],
+    )
+    pagina, erros = _abrir(navegador, tmp_path, dados)
+    pagina.click("#t-eap")
+    pagina.evaluate(
+        "document.querySelectorAll('#eapCod details').forEach(d => d.open = true)"
+    )
+    antes = _estado_pranchas(pagina)
+    pagina.locator(
+        '#eapCod details[data-codigo="U1.ACT600.GEO"] > .eap-q [data-eap-ids]'
+    ).click()
+    pagina.locator("#eapVista [data-eap-recorte]").check()
+    pagina.wait_for_timeout(300)
+    assert _estado_pranchas(pagina)[0]["vis"] == [1, 0]
+    pagina.locator(
+        '#eapCod > details[data-codigo="U1"] > .eap-q [data-eap-ids]'
+    ).click()  # nó sem recorte (unidade)
+    pagina.wait_for_timeout(300)
+    assert _estado_pranchas(pagina) == antes  # restaurou antes de aplicar o outro nó
+    assert pagina.locator("#eapVista [data-eap-recorte]").count() == 0
+    assert erros == []
+    pagina.close()
+
+
+def test_recorte_ignora_prancha_sem_georreferencia(navegador, tmp_path):
+    dados = _dados_com_mapa(
+        eap_painel=_painel(com_conflito=False),
+        pranchas=[
+            _prancha_minima(
+                "p2", ["Estrutura", "Terraplenagem"], georreferenciada=False
+            )
+        ],
+    )
+    pagina, erros = _abrir(navegador, tmp_path, dados)
+    pagina.click("#t-eap")
+    pagina.evaluate(
+        "document.querySelectorAll('#eapCod details').forEach(d => d.open = true)"
+    )
+    pagina.locator(
+        '#eapCod details[data-codigo="U1.ACT600.GEO"] > .eap-q [data-eap-ids]'
+    ).click()
+    assert (
+        pagina.locator("#eapVista [data-eap-recorte]").count() == 0
+    )  # nenhuma prancha georreferenciada: sem checkbox
+    assert erros == []
     pagina.close()
