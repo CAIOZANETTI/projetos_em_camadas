@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.41.0 — 2026-11-02 · Conferência de citação simplificada (sem mudança de comportamento)
+- **`camadas/evidencias.py` refatorado** (apontado pelo `vcm balanco`): `_problemas_ia` 43 → 14, `conferir_citacao`
+  37 → 7, `_situacao_do_item` 22 → 7, `_afirmacoes` 22 → 11, `consolidar` 21 → 12 (complexidade ciclomática, radon);
+  nenhuma função do arquivo acima de 15. Funções novas por responsabilidade: validação de forma, de código/serviço e
+  de valor/unidade; localização do trecho; conferência de linha × bloco; situação do item pelo número; consolidação
+  por documento e por chave.
+- **Comportamento idêntico, provado**: 10.532 casos gerados (trecho × valor × unidade × código × serviço ×
+  localizador, mais linhas malformadas) e os 7 roteiros de ataque das revisões dão saída byte a byte igual antes e
+  depois; nenhum teste alterado; hash de referência igual; desempenho igual (500 páginas × 200 evidências ≈ 0,5 s).
+- Lição L037.
+
 ## 0.40.0 — 2026-11-02 · Leitura por IA: conferência por bloco de linha de tabela
 - **Bloco de 2–3 linhas** (`evidencias.conferir_citacao`): descrição de planilha quebrada em várias linhas com a
   quantidade na última ("Estaca hélice contínua, diâmetro 40 cm, inclusive⏎mobilização e desmobilização un 250") e
