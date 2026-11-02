@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Retrospectiva e1c2215 → 7ea1674</title>
+<title>Retrospectiva e1c2215 → caa78ae</title>
 <!-- Gerado por `uv run vcm balanco`. Valores calculados e formatados em Python. -->
 <style>
 :root {
@@ -84,8 +84,8 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 <body>
 <main>
 <article>
-  <h1>Retrospectiva da iteração <code>e1c2215</code> → <code>7ea1674</code></h1>
-  <p><em>Memória espacial, rodada 5: 0.33.0, lição L029, tese, plano e estado</em></p>
+  <h1>Retrospectiva da iteração <code>e1c2215</code> → <code>caa78ae</code></h1>
+  <p><em>Memória espacial, rodada 5 (1º aceite): as duas EAP em chaves próprias, B324, divisa de setores e tolerância da soma</em></p>
   <div class="decisao MANTER">Decisão proposta: MANTER</div>
   <p>Houve melhora e nenhuma métrica piorou além do ruído.</p>
   
@@ -93,14 +93,14 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
   <h2>Radar da iteração</h2>
   <p><small>Índice por dimensão: antes = 1,0 (tracejado); acima de 1,0 é melhor. O rótulo traz a cor do semáforo de estado.</small></p>
   <div style="height:380px; width:100%;">                        <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
-        <script charset="utf-8" src="https://cdn.plot.ly/plotly-4.1.1.min.js" integrity="sha256-O24V1F27f8pb0glCkelh3cVHLNiHAJ5gCaVtq2aNch8=" crossorigin="anonymous"></script>                <div id="aaa1dc75-e2e1-41f4-80b1-464ed3e16937" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("aaa1dc75-e2e1-41f4-80b1-464ed3e16937")) {                    Plotly.newPlot(                        "aaa1dc75-e2e1-41f4-80b1-464ed3e16937",                        [{"line":{"color":"#8a94a0","dash":"dash"},"mode":"lines","name":"antes (1,0)","r":[1.0,1.0,1.0,1.0,1.0],"theta":["eficiente \u26aa","deterministico \ud83d\udfe2","enxuto \ud83d\udfe1","robusto \ud83d\udd34","eficiente \u26aa"],"type":"scatterpolar"},{"fill":"toself","hovertemplate":"%{theta}: \u00edndice %{text}\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#1f6feb"},"mode":"lines+markers","name":"depois","r":[1.0002482016337684,1.0,0.9991282095822341,1.0024400585178654,1.0002482016337684],"text":["1,00","1,00","1,00","1,00","1,00"],"theta":["eficiente \u26aa","deterministico \ud83d\udfe2","enxuto \ud83d\udfe1","robusto \ud83d\udd34","eficiente \u26aa"],"type":"scatterpolar"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05}}},"polar":{"radialaxis":{"range":[0,1.5],"tickvals":[0.5,1.0,1.5]}},"margin":{"l":60,"r":60,"t":30,"b":30},"showlegend":true,"height":380},                        {"responsive": true}                    )                };            </script>        </div>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-4.1.1.min.js" integrity="sha256-O24V1F27f8pb0glCkelh3cVHLNiHAJ5gCaVtq2aNch8=" crossorigin="anonymous"></script>                <div id="2ba5a610-423c-4aac-b251-e8bffebcf929" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("2ba5a610-423c-4aac-b251-e8bffebcf929")) {                    Plotly.newPlot(                        "2ba5a610-423c-4aac-b251-e8bffebcf929",                        [{"line":{"color":"#8a94a0","dash":"dash"},"mode":"lines","name":"antes (1,0)","r":[1.0,1.0,1.0,1.0,1.0],"theta":["eficiente \u26aa","deterministico \ud83d\udfe2","enxuto \ud83d\udfe1","robusto \ud83d\udfe1","eficiente \u26aa"],"type":"scatterpolar"},{"fill":"toself","hovertemplate":"%{theta}: \u00edndice %{text}\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#1f6feb"},"mode":"lines+markers","name":"depois","r":[0.9939123241336243,1.0,0.999702826510156,1.0041029909085786,0.9939123241336243],"text":["0,99","1,00","1,00","1,00","0,99"],"theta":["eficiente \u26aa","deterministico \ud83d\udfe2","enxuto \ud83d\udfe1","robusto \ud83d\udfe1","eficiente \u26aa"],"type":"scatterpolar"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05}}},"polar":{"radialaxis":{"range":[0,1.5],"tickvals":[0.5,1.0,1.5]}},"margin":{"l":60,"r":60,"t":30,"b":30},"showlegend":true,"height":380},                        {"responsive": true}                    )                };            </script>        </div>
 
   <h2>Semáforo por dimensão</h2>
   <div class="dimensoes">
-    <div class="dimensao"><span class="bolinha cinza"></span><strong>eficiente</strong> (cinza)<br><small>índice 1,00</small></div>
+    <div class="dimensao"><span class="bolinha cinza"></span><strong>eficiente</strong> (cinza)<br><small>índice 0,99</small></div>
     <div class="dimensao"><span class="bolinha verde"></span><strong>deterministico</strong> (verde)<br><small>índice 1,00</small></div>
     <div class="dimensao"><span class="bolinha amarelo"></span><strong>enxuto</strong> (amarelo)<br><small>índice 1,00</small></div>
-    <div class="dimensao"><span class="bolinha vermelho"></span><strong>robusto</strong> (vermelho)<br><small>índice 1,00</small></div>
+    <div class="dimensao"><span class="bolinha amarelo"></span><strong>robusto</strong> (amarelo)<br><small>índice 1,00</small></div>
     
   </div>
 
@@ -119,9 +119,9 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
   <h2>Gasto dos agentes nesta iteração</h2>
   <table>
     <tr><th>Modelo</th><th>Chamadas</th><th>Tokens</th><th>Custo (US$)</th></tr>
-    <tr><td><code>claude-opus-5-5</code></td><td class="num">24</td><td class="num">16.142.776</td><td class="num">3,81</td></tr>
+    <tr><td><code>claude-opus-5-5</code></td><td class="num">49</td><td class="num">29.152.508</td><td class="num">8,75</td></tr>
     <tr><td><code>claude-sonnet-5-5</code></td><td class="num">24</td><td class="num">3.834.237</td><td class="num">0,75</td></tr>
-    <tr><th>Total</th><th></th><th class="num">19.977.013</th><th class="num">4,57</th></tr>
+    <tr><th>Total</th><th></th><th class="num">32.986.745</th><th class="num">9,50</th></tr>
   </table>
   <p><small>Custo equivalente de API (preços de repertorio/modelos.yaml); em plano de assinatura não é o gasto real. Entram as chamadas entre os dois commits, feitas no repositório ou nas worktrees dos agentes.</small></p>
   
@@ -131,12 +131,12 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
     <tr><th>Métrica</th><th>Pergunta</th><th>Eliminatória</th><th>Antes</th><th>Depois</th><th>Variação</th><th>Veredito</th></tr>
     <tr>
       <td><code>tempo_referencia_ms</code></td><td>eficiente</td><td></td>
-      <td class="num">48,312</td><td class="num">48,320</td><td class="num">+0,0%</td>
+      <td class="num">48,312</td><td class="num">48,903</td><td class="num">+1,2%</td>
       <td class="igual">= igual</td>
     </tr>
     <tr>
       <td><code>pico_ram_mb</code></td><td>eficiente</td><td></td>
-      <td class="num">141,672</td><td class="num">141,578</td><td class="num">-0,1%</td>
+      <td class="num">141,672</td><td class="num">141,680</td><td class="num">+0,0%</td>
       <td class="igual">= igual</td>
     </tr>
     <tr>
@@ -146,22 +146,22 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
     </tr>
     <tr>
       <td><code>sloc</code></td><td>enxuto</td><td></td>
-      <td class="num">10.163</td><td class="num">10.451</td><td class="num">+2,8%</td>
+      <td class="num">10.163</td><td class="num">10.460</td><td class="num">+2,9%</td>
       <td class="info">· informativa</td>
     </tr>
     <tr>
       <td><code>n_funcoes</code></td><td>enxuto</td><td></td>
-      <td class="num">750</td><td class="num">773</td><td class="num">+3,1%</td>
+      <td class="num">750</td><td class="num">774</td><td class="num">+3,2%</td>
       <td class="info">· informativa</td>
     </tr>
     <tr>
       <td><code>sloc_por_funcao</code></td><td>enxuto</td><td></td>
-      <td class="num">13,551</td><td class="num">13,520</td><td class="num">-0,2%</td>
+      <td class="num">13,551</td><td class="num">13,514</td><td class="num">-0,3%</td>
       <td class="igual">= igual</td>
     </tr>
     <tr>
       <td><code>complexidade_media</code></td><td>enxuto</td><td></td>
-      <td class="num">6,460</td><td class="num">6,492</td><td class="num">+0,5%</td>
+      <td class="num">6,460</td><td class="num">6,483</td><td class="num">+0,4%</td>
       <td class="igual">= igual</td>
     </tr>
     <tr>
@@ -171,12 +171,12 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
     </tr>
     <tr>
       <td><code>testes_total</code></td><td>robusto</td><td></td>
-      <td class="num">487</td><td class="num">510</td><td class="num">+4,7%</td>
+      <td class="num">487</td><td class="num">512</td><td class="num">+5,1%</td>
       <td class="info">· informativa</td>
     </tr>
     <tr>
       <td><code>tempo_testes_s</code></td><td>eficiente</td><td></td>
-      <td class="num">22,970</td><td class="num">23,311</td><td class="num">+1,5%</td>
+      <td class="num">22,970</td><td class="num">23,821</td><td class="num">+3,7%</td>
       <td class="info">· informativa</td>
     </tr>
     <tr>
@@ -191,13 +191,13 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
     </tr>
     <tr>
       <td><code>cobertura_testes</code></td><td>robusto</td><td></td>
-      <td class="num">0,706</td><td class="num">0,713</td><td class="num">+1,0%</td>
+      <td class="num">0,706</td><td class="num">0,715</td><td class="num">+1,2%</td>
       <td class="melhorou">▲ melhorou</td>
     </tr>
     <tr>
       <td><code>alertas_seguranca</code></td><td>robusto</td><td>sim</td>
-      <td class="num">1</td><td class="num">1</td><td class="num">0,0%</td>
-      <td class="igual">= igual</td>
+      <td class="num">1</td><td class="num">0</td><td class="num">-100,0%</td>
+      <td class="melhorou">▲ melhorou</td>
     </tr>
     
   </table>
@@ -205,11 +205,11 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
   <table>
     <tr><th>Métrica</th><th>Dimensão</th><th>Valor</th><th>Cor</th><th>Regra</th></tr>
     <tr>
-      <td><code>tempo_referencia_ms</code></td><td>eficiente</td><td class="num">48,320</td>
+      <td><code>tempo_referencia_ms</code></td><td>eficiente</td><td class="num">48,903</td>
       <td class="cinza"><span class="bolinha cinza"></span>cinza</td><td>sem limite definido</td>
     </tr>
     <tr>
-      <td><code>pico_ram_mb</code></td><td>eficiente</td><td class="num">141,578</td>
+      <td><code>pico_ram_mb</code></td><td>eficiente</td><td class="num">141,680</td>
       <td class="cinza"><span class="bolinha cinza"></span>cinza</td><td>sem limite definido</td>
     </tr>
     <tr>
@@ -217,19 +217,19 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
       <td class="verde"><span class="bolinha verde"></span>verde</td><td>verde ≥ 1,00; amarelo ≥ 0,80; senão vermelho</td>
     </tr>
     <tr>
-      <td><code>sloc</code></td><td>enxuto</td><td class="num">10.451</td>
+      <td><code>sloc</code></td><td>enxuto</td><td class="num">10.460</td>
       <td class="cinza"><span class="bolinha cinza"></span>cinza</td><td>sem limite definido</td>
     </tr>
     <tr>
-      <td><code>n_funcoes</code></td><td>enxuto</td><td class="num">773</td>
+      <td><code>n_funcoes</code></td><td>enxuto</td><td class="num">774</td>
       <td class="cinza"><span class="bolinha cinza"></span>cinza</td><td>sem limite definido</td>
     </tr>
     <tr>
-      <td><code>sloc_por_funcao</code></td><td>enxuto</td><td class="num">13,520</td>
+      <td><code>sloc_por_funcao</code></td><td>enxuto</td><td class="num">13,514</td>
       <td class="verde"><span class="bolinha verde"></span>verde</td><td>verde ≤ 25,00; amarelo ≤ 50,00; senão vermelho</td>
     </tr>
     <tr>
-      <td><code>complexidade_media</code></td><td>enxuto</td><td class="num">6,492</td>
+      <td><code>complexidade_media</code></td><td>enxuto</td><td class="num">6,483</td>
       <td class="amarelo"><span class="bolinha amarelo"></span>amarelo</td><td>verde ≤ 5,00; amarelo ≤ 10,00; senão vermelho</td>
     </tr>
     <tr>
@@ -237,11 +237,11 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
       <td class="verde"><span class="bolinha verde"></span>verde</td><td>verde ≤ 15,00; amarelo ≤ 30,00; senão vermelho</td>
     </tr>
     <tr>
-      <td><code>testes_total</code></td><td>robusto</td><td class="num">510</td>
+      <td><code>testes_total</code></td><td>robusto</td><td class="num">512</td>
       <td class="cinza"><span class="bolinha cinza"></span>cinza</td><td>sem limite definido</td>
     </tr>
     <tr>
-      <td><code>tempo_testes_s</code></td><td>eficiente</td><td class="num">23,311</td>
+      <td><code>tempo_testes_s</code></td><td>eficiente</td><td class="num">23,821</td>
       <td class="cinza"><span class="bolinha cinza"></span>cinza</td><td>sem limite definido</td>
     </tr>
     <tr>
@@ -253,12 +253,12 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
       <td class="verde"><span class="bolinha verde"></span>verde</td><td>verde ≤ 0,00; senão vermelho</td>
     </tr>
     <tr>
-      <td><code>cobertura_testes</code></td><td>robusto</td><td class="num">0,713</td>
+      <td><code>cobertura_testes</code></td><td>robusto</td><td class="num">0,715</td>
       <td class="amarelo"><span class="bolinha amarelo"></span>amarelo</td><td>verde ≥ 0,80; amarelo ≥ 0,55; senão vermelho</td>
     </tr>
     <tr>
-      <td><code>alertas_seguranca</code></td><td>robusto</td><td class="num">1</td>
-      <td class="vermelho"><span class="bolinha vermelho"></span>vermelho</td><td>verde ≤ 0,00; senão vermelho</td>
+      <td><code>alertas_seguranca</code></td><td>robusto</td><td class="num">0</td>
+      <td class="verde"><span class="bolinha verde"></span>verde</td><td>verde ≤ 0,00; senão vermelho</td>
     </tr>
     
   </table>
