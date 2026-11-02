@@ -9,6 +9,11 @@
   item/serviço/unidade da EAP geral, página e dedupe.
 - Continuam recusados: duas linhas de tabela de itens diferentes, bloco de 4+ linhas, com linha em branco ou
   atravessando página, e "Bloco de coroamento⏎un 30" proposto como estaca.
+- Revisão: o bloco é conferido sobre as linhas inteiras do documento (o recorte do trecho não esconde quantidade nem
+  item rival); cada linha depois da primeira tem de continuar a anterior (só o par e rótulo de quantidade, ou a
+  anterior sem "."/":" e esta em minúscula ou com conectivo), então título de seção e cabeçalho não viram item;
+  "Total" não é rótulo; Ø/DN/diâmetro não engolem a unidade do par seguinte ("DN 150 m 350"); `\f` dentro de uma
+  página vira linha em branco.
 - Fecha a pendência "conferência por bloco de linha de tabela" de `docs/EAP.md` §10.
 - Balanço vcm das iterações 0.38.0 e 0.39.0 em `results/iteracoes/8eb6034_a3dc7a8.*` (decisão humana: complexidade
   média +1,1%; RAM −8,6% e cobertura +0,9%).

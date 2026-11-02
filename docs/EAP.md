@@ -166,15 +166,20 @@ localizador "p. N", se houver, tem de ser a página do trecho; aspas curvas, tra
 unificados; toneladas viram kg, como no regex. O item citado tem de ser o termo de item mais próximo do número na linha
 ("Bloco de coroamento para 2 estacas un 12" é do bloco, não das estacas; empate = recusa "número pertence a outro item");
 "12 m de estaca" e "3.000 metros de estacas" não são contagem de estacas; valor acima de 1e12 é recusado.
-**Bloco de linha de tabela:** descrição de planilha em várias linhas, com a quantidade na última, também vale. Um bloco
-são 2 ou 3 linhas seguidas do trecho (o trecho citado é o próprio bloco), da mesma página e sem linha em branco entre
-elas; o par (valor, unidade) tem de começar na **última** linha e as anteriores não podem afirmar nenhuma quantidade
-(número com unidade de quantidade, "un 12", "12 estacas"). Dimensão de especificação (precedida de Ø, DN, "diâmetro" ou
-"diam.") e medida em unidade fora do vocabulário de quantidade ("40 cm") não contam e não encerram o bloco. O termo do
-item pode estar em qualquer linha do bloco, sem o limite de 8 palavras para as linhas anteriores; valem todas as outras
-regras (item mais próximo do número, item e serviço da EAP, unidade, página, dedupe). Duas linhas de tabela de itens
-diferentes, 4 ou mais linhas, linha em branco ou quebra de página no meio continuam recusadas. Exemplos aceitos:
-"Estaca hélice contínua, diâmetro 40 cm, inclusive⏎mobilização e desmobilização un 250" e
+**Bloco de linha de tabela:** descrição de planilha em várias linhas, com a quantidade na última, também vale. O
+trecho é expandido até as **linhas inteiras** da página (o recorte não esconde o que a linha tem antes ou depois); um
+bloco são 2 ou 3 dessas linhas seguidas, da mesma página, sem linha em branco (nem quebra de página `\f`). O par (valor,
+unidade) tem de começar na **última** linha, e as anteriores não podem afirmar nenhuma quantidade (número com unidade de
+quantidade, "un 12", "12 estacas"). Dimensão de especificação (Ø, DN, "diâmetro" ou "diam." seguido de número e, se
+houver, unidade de comprimento mm/cm/m/pol sem outro número depois) e medida em unidade fora do vocabulário ("40 cm") não
+contam. **Continuação:** toda linha depois da primeira tem de continuar a descrição da anterior: ou só traz o par, rótulo
+de quantidade (Quantidade, Quant., Qtde, Qtd, Qt; "Total" não é rótulo) e separadores, ou a linha de cima não termina em
+"." nem ":" e ela começa em minúscula ou com conectivo (e, ou, com, sem, para, de, do, da, em, inclusive, incluso,
+incluindo, conforme). Título, cabeçalho de seção ou de tabela e linha de outro item (maiúscula sem conectivo) não formam
+bloco com a linha de baixo. Cumprido isso, o termo do item pode estar em qualquer linha, sem o limite de 8 palavras
+para as anteriores; valem todas as outras regras (item mais próximo do número, item e serviço da EAP, unidade, página,
+dedupe). Recusados: duas linhas de tabela de itens diferentes, 4 ou mais linhas, linha em branco, quebra de página.
+Exemplos aceitos: "Estaca hélice contínua, diâmetro 40 cm, inclusive⏎mobilização e desmobilização un 250" e
 "Estacas hélice contínua Ø40 cm⏎Quantidade: 250 un" (250 un de GEO.FUN.EST). Propostas da IA
 no mesmo documento só colapsam se o trecho normalizado for o mesmo (a mesma frase em outra página é total repetido);
 parcelas reais de valor igual ("Bloco B1 com 12 estacas", "Bloco B2 com 12 estacas") somam, e a mesma proposta (mesmo `id`,

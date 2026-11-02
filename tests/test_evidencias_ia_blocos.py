@@ -75,9 +75,12 @@ def test_bloco_com_duas_linhas_de_tabela_de_itens_diferentes_continua_recusado()
     documento3 = "Estaca hélice contínua\nBloco de coroamento\nun 30"
     assert (
         _resultado([documento3], valor=30.0, unidade="un")
-        == "número pertence a outro item"
+        == "item não citado no trecho"
     )
-    assert _resultado([documento3], valor=30.0, unidade="un", codigo=BLOCO) == "aceita"
+    assert (
+        _resultado([documento3], valor=30.0, unidade="un", codigo=BLOCO)
+        == "item não citado no trecho"
+    )
 
 
 def test_numero_com_unidade_de_quantidade_na_linha_anterior_encerra_o_bloco():
@@ -178,3 +181,127 @@ def test_marca_de_linha_em_branco_so_existe_na_pagina_normalizada():
         "A",
         "B",
     ]
+
+
+def _com_trecho(pagina, trecho, **campos) -> str:
+    return _resultado([pagina], trecho=trecho, **campos)
+
+
+def test_bloco_se_expande_ate_as_linhas_inteiras_da_pagina():
+    # trecho recortado não esconde a quantidade que a linha inteira tem antes do recorte
+    pagina = "250 un Estaca hélice contínua\n30 un Arrasamento de cabeça"
+    trecho = "Estaca hélice contínua\n30 un Arrasamento de cabeça"
+    assert (
+        _com_trecho(pagina, trecho, valor=30.0, unidade="un")
+        == "item não citado no trecho"
+    )
+    pagina = "Tubo PVC m 300 Estaca hélice contínua\nun 250"
+    assert _com_trecho(
+        pagina, "Estaca hélice contínua\nun 250", valor=250.0, unidade="un"
+    ) == ("item não citado no trecho")
+    # o que sobra depois do recorte entra no item mais próximo: o 30 é do bloco, não da estaca
+    pagina = "Estaca hélice contínua\nun 30 Bloco de coroamento un 250"
+    assert _com_trecho(
+        pagina, "Estaca hélice contínua\nun 30", valor=30.0, unidade="un"
+    ) == ("número pertence a outro item")
+    # trecho que cobre só o meio da linha, com as linhas inteiras limpas, continua valendo
+    pagina = "Estacas hélice contínua Ø40 cm\nQuantidade: 250 un"
+    assert (
+        _com_trecho(
+            pagina, "hélice contínua Ø40 cm\nQuantidade: 250", valor=250.0, unidade="un"
+        )
+        == "aceita"
+    )
+
+
+@pytest.mark.parametrize(
+    ("pagina", "valor", "unidade"),
+    [
+        ("FUNDAÇÕES – ESTACAS\nConcreto fck 30 MPa para blocos m³ 45", 45.0, "m³"),
+        ("3. FUNDAÇÕES – ESTACAS\nBloco B1 - concreto m³ 12", 12.0, "m³"),
+        ("Estacas hélice contínua\nTotal geral do orçamento un 999", 999.0, "un"),
+        ("Estacas – Item Descrição Un Qtd\n3.2 Arrasamento un 30", 30.0, "un"),
+        ("Estacas hélice contínua\nTotal m³ 999", 999.0, "m³"),
+        ("FUNDAÇÕES – ESTACAS\nArrasamento de cabeça\nun 30", 30.0, "un"),
+    ],
+)
+def test_titulo_ou_cabecalho_nao_vale_para_qualquer_quantidade_da_linha_de_baixo(
+    pagina, valor, unidade
+):
+    assert (
+        _resultado([pagina], valor=valor, unidade=unidade)
+        == "item não citado no trecho"
+    )
+
+
+def test_continuacao_de_descricao_tem_dois_lados():
+    # minúscula ou conectivo, com a linha de cima aberta: continua
+    assert (
+        _resultado(
+            ["Estaca hélice contínua, inclusive\nmobilização un 250"],
+            valor=250.0,
+            unidade="un",
+        )
+        == "aceita"
+    )
+    assert (
+        _resultado(
+            ["Estaca hélice contínua\nCOM MOBILIZAÇÃO un 250"],
+            valor=250.0,
+            unidade="un",
+        )
+        == "aceita"
+    )
+    # a linha de cima fechada (ponto) encerra a descrição
+    assert _resultado(
+        ["Estaca hélice contínua.\nmobilização un 250"], valor=250.0, unidade="un"
+    ) == ("item não citado no trecho")
+    # maiúscula sem conectivo é outra descrição; 'Total' não é rótulo de quantidade
+    assert _resultado(
+        ["Estaca hélice contínua\nMobilização un 250"], valor=250.0, unidade="un"
+    ) == ("item não citado no trecho")
+    assert (
+        _resultado(["Estaca hélice contínua\nTotal: 250 un"], valor=250.0, unidade="un")
+        == "item não citado no trecho"
+    )
+    # rótulos de quantidade valem
+    for rotulo in ("Qtd", "Qtde.", "Quant.", "QUANTIDADE:"):
+        assert (
+            _resultado(
+                [f"Estaca hélice contínua\n{rotulo} 250 un"], valor=250.0, unidade="un"
+            )
+            == "aceita"
+        )
+
+
+@pytest.mark.parametrize(
+    ("pagina", "valor", "unidade", "codigo"),
+    [
+        ("Tubo PVC DN 150 m 350\nun 4", 4.0, "un", "U1.*.HID.TUB.RED"),
+        ("Estacas diâmetro 0,40 m 250\nun 30", 30.0, "un", ESTACA),
+        ("Diâmetro 250 estacas\nun 30", 30.0, "un", ESTACA),
+        ("Estacas Ø 250 un\nun 30", 30.0, "un", ESTACA),
+    ],
+)
+def test_dimensao_so_some_com_unidade_de_comprimento_e_sem_numero_depois(
+    pagina, valor, unidade, codigo
+):
+    assert (
+        _resultado([pagina], valor=valor, unidade=unidade, codigo=codigo)
+        == "item não citado no trecho"
+    )
+
+
+def test_dimensao_precisa_de_fronteira_de_palavra_a_esquerda():
+    assert evidencias._tem_quantidade("TUBO CODN 150 M") is True
+    assert evidencias._tem_quantidade("TUBO DN 150 MM") is False
+    assert evidencias._tem_quantidade("ESTACAS Ø 0,40 M") is False
+
+
+def test_quebra_de_pagina_dentro_do_texto_de_entrada_nao_junta_blocos():
+    pagina = "Estaca hélice contínua\fQuantidade: 250 un"
+    trecho = "Estaca hélice contínua\nQuantidade: 250 un"
+    assert (
+        _com_trecho(pagina, trecho, valor=250.0, unidade="un", localizador="p. 1")
+        == "item não citado no trecho"
+    )

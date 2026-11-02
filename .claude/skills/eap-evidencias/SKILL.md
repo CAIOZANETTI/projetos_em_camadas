@@ -57,8 +57,10 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
   ("Estaca hélice contínua Ø40 un 250"), não o número de uma linha com o nome de outra.
 - **Bloco de linha de tabela.** Descrição quebrada em até 3 linhas seguidas ("Estaca hélice contínua, diâmetro 40 cm,
   inclusive⏎mobilização e desmobilização un 250" ou "Estacas hélice contínua Ø40 cm⏎Quantidade: 250 un") vale se o
-  `trecho` copiar as linhas do bloco inteiro, sem linha em branco nem quebra de página, com número e unidade na
-  **última** linha e nenhuma quantidade nas anteriores (Ø, DN e "diâmetro" não contam). Duas linhas de itens
+  `trecho` cobrir o bloco (o código expande até as linhas inteiras), sem linha em branco nem quebra de página, com número e unidade na
+  **última** linha e nenhuma quantidade nas anteriores (Ø, DN e "diâmetro" não contam). Cada linha seguinte tem de
+  continuar a anterior: só o par ou rótulo ("Quantidade:", "Qtd"; "Total" não é rótulo), ou começar em minúscula/conectivo
+  com a linha de cima aberta; título, cabeçalho e outra linha de tabela em maiúscula não formam bloco. Duas linhas de itens
   diferentes, 4 linhas ou mais, linha em branco ou outra página: recusado.
 - **Item e serviço existem.** `codigo` com o item da EAP geral (`*` só em unidade e sistema), `servico` admitido pelo
   item (ou `""`) e `unidade` aceita por eles; o roteiro lista tudo. `localizador` "p. N" (ou "pág. N") é o **índice da página no PDF** (1 = primeira folha), não o número impresso, e tem de
