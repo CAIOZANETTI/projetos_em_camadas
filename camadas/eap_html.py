@@ -89,14 +89,36 @@ def _fato(f: dict, evidencias: dict) -> dict:
             "natureza": f["natureza"], "evidencia": _evidencia(evidencias.get(f["evidencia_id"]))}
 
 
-def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dict | None = None) -> dict:
-    """`dados["eap"]`: nós, pendências e resumo, tudo em texto pronto para o HTML."""
+def _por_setor(base: dict, servicos: list[dict], nos: list[dict], setor_por_objeto: dict, ind: dict) -> list[dict]:
+    """`dados["eap"]["setores"]`: os nós de cada setor formatados. A soma dos setores mais o "fora dos setores" tem de
+    ser o total do nó (`TOLERANCIA_SOMA_SETORES`); se não for, `ValueError`."""
+    ordem = [o["objeto_id"] for o in base.get("objetos", []) if o["classe"] == "setor"]
+    grupos = gavetas.para_eap_por_setor(servicos, setor_por_objeto, ordem)
+    for no in nos:
+        soma = sum(n["valor"] for g in grupos for n in g["nos"] if n["eap"] == no["eap"])
+        if abs(soma - no["valor"]) > gavetas.TOLERANCIA_SOMA_SETORES:
+            raise ValueError(f"nó {no['eap']}: a soma dos setores ({soma}) difere do total ({no['valor']})")
+    saida = []
+    for g in grupos:
+        nome = "Fora dos setores" if g["setor_id"] is None else str(
+            gavetas.fatos_do_objeto(base, g["setor_id"], ind).get("nome", {}).get("valor", g["setor_id"]))
+        saida.append({"setor_id": g["setor_id"], "nome": nome,
+                      "nos": [{"eap": n["eap"], "descricao": n["descricao"], "unidade": n["unidade"],
+                               "valor_txt": br(n["valor"], 0 if n["unidade"] == "un" else 2), "n_servicos": n["n_servicos"]}
+                              for n in g["nos"]]})
+    return saida
+
+
+def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dict | None = None,
+           setores: dict | None = None) -> dict:
+    """`dados["eap"]`: nós, pendências e resumo, tudo em texto pronto para o HTML. Com `setores` (o mapa de
+    `gavetas.setor_de`), acrescenta a chave `setores`: a EAP de cada setor."""
     ind = gavetas.indice(base)
     fatos = {f["fato_id"]: f for f in base.get("fatos", [])}
     evidencias = {e["evidencia_id"]: e for e in base.get("evidencias", [])}
     por_id = {s["servico_id"]: s for s in servicos}
-    nos = []
-    for no in gavetas.para_eap(servicos):
+    nos, totais = [], gavetas.para_eap(servicos)
+    for no in totais:
         itens = []
         for sid in no["servicos"]:
             s = por_id[sid]
@@ -110,7 +132,10 @@ def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dic
     contagem = {"servicos": len(servicos), "nos": len(nos), "pendencias": len(lista), "diferencas_paridade": 0,
                 "recalculados": 0, "reaproveitados": 0}
     dado = resumo or {}                                   # só as chaves do contrato; o resto do resumo fica fora do HTML
-    return {"nos": nos, "pendencias": lista, "resumo": {k: dado.get(k, v) for k, v in contagem.items()}}
+    eap = {"nos": nos, "pendencias": lista, "resumo": {k: dado.get(k, v) for k, v in contagem.items()}}
+    if setores is not None:
+        eap["setores"] = _por_setor(base, servicos, totais, setores, ind)
+    return eap
 
 
 def metadados() -> dict:

@@ -709,13 +709,86 @@ def para_eap(servicos: list[dict]) -> list[dict]:
     return [nos[k] for k in sorted(nos)]
 
 
+# --------------------------------------------------------------------------------------------------------------------
+# Setores da obra localizada (rodada 5): organiza a consulta e a EAP; não muda nenhuma quantidade
+# --------------------------------------------------------------------------------------------------------------------
+
+TOLERANCIA_SOMA_SETORES = 0.005         # unidade do nó: os totais são arredondados a 3 casas passo a passo
+
+
+def _ponto_representativo(forma):
+    """Ponto: ele mesmo; linha: o meio do comprimento; polígono: `representative_point`."""
+    if forma.geom_type == "Point":
+        return forma
+    if forma.geom_type == "LineString":
+        return forma.interpolate(0.5, normalized=True)
+    return forma.representative_point()
+
+
+def _formas_dos_setores(base: dict, geometrias: dict) -> dict:
+    """{setor_id: polígono shapely} dos objetos de classe `setor` com geometria válida, na ordem da base."""
+    formas = {}
+    for o in base.get("objetos", []):
+        g = geometrias.get(o["objeto_id"])
+        forma = _forma(g) if o["classe"] == "setor" and g else None
+        if forma is not None and forma.geom_type == "Polygon" and forma.is_valid and not forma.is_empty:
+            formas[o["objeto_id"]] = forma
+    return formas
+
+
+def setor_de(base: dict, ind: dict | None = None) -> tuple[dict[str, str | None], list[dict]]:
+    """Setor de cada objeto com geometria que não é `setor`, pelo ponto representativo (ponto, meio da linha,
+    `representative_point`). Fora de todos os setores: None. Em dois ou mais: None e pendência "setores sobrepostos".
+    Objeto sem geometria não aparece. Determinístico, na ordem dos objetos."""
+    from shapely import geometry as sg
+    if ind is not None:
+        geometrias = ind["geometria"]
+    else:
+        geometrias = {}
+        for g in base.get("geometria", []):
+            geometrias.setdefault(g["objeto_id"], g)
+    setores = _formas_dos_setores(base, geometrias)
+    mapa: dict[str, str | None] = {}
+    pendencias: list[dict] = []
+    for o in base.get("objetos", []):
+        g = geometrias.get(o["objeto_id"])
+        forma = _forma(g) if g and o["classe"] != "setor" else None
+        if forma is None or forma.is_empty:
+            continue
+        ponto = sg.Point(_ponto_representativo(forma).coords[0])
+        dentro = [sid for sid, poligono in setores.items() if poligono.covers(ponto)]
+        mapa[o["objeto_id"]] = dentro[0] if len(dentro) == 1 else None
+        if len(dentro) > 1:
+            pendencias.append({"objeto_id": o["objeto_id"], "motivo": f"setores sobrepostos: {', '.join(dentro)}"})
+    return mapa, pendencias
+
+
+def para_eap_por_setor(servicos: list[dict], setor_por_objeto: dict[str, str | None],
+                       ordem_setores: list[str] | None = None) -> list[dict]:
+    """EAP somada por setor: [{setor_id, nos: [{eap, descricao, unidade, valor, n_servicos}]}], na ordem dos
+    setores (`ordem_setores`; sem ela, a da 1ª aparição no mapa) e por fim o "fora dos setores" (setor_id None, que
+    também recebe o objeto sem geometria). Todo serviço cai em exatamente um grupo."""
+    ordem = list(ordem_setores) if ordem_setores is not None else []
+    for sid in setor_por_objeto.values():
+        if sid is not None and sid not in ordem:
+            ordem.append(sid)
+    grupos: dict[str | None, list[dict]] = {sid: [] for sid in ordem} | {None: []}
+    for s in servicos:
+        sid = setor_por_objeto.get(s["objeto_id"])
+        grupos[sid if sid in grupos else None].append(s)
+    return [{"setor_id": sid, "nos": [{"eap": n["eap"], "descricao": n["descricao"], "unidade": n["unidade"],
+                                       "valor": n["valor"], "n_servicos": len(n["servicos"])} for n in para_eap(lista)]}
+            for sid, lista in grupos.items()]
+
+
 def metadados() -> dict:
     """Rastreabilidade do método e das constantes (regra 9 do estilo)."""
     return {
         "modulo": "gavetas",
         "descricao": "memória espacial: gavetas com evidência, serviços calculados só a partir delas e EAP lastreada",
         "funcoes": ["validar", "conferir_base", "conferir_de_para", "gravar", "ler", "fatos_do_objeto", "furos",
-                    "eixo", "regra_de", "entrada", "chave_servico", "calcular", "calcular_incremental", "paridade", "para_eap"],
+                    "eixo", "regra_de", "entrada", "chave_servico", "calcular", "calcular_incremental", "paridade", "para_eap",
+                    "setor_de", "para_eap_por_setor"],
         "conceitos": ["gavetas.json", "de_para_extracao.json", "de_para_servicos.json", "de_para_eap.json"],
         "formato": REGRAS["formato"]["atual"],
         "estado": REGRAS["metadata"]["estado"],
