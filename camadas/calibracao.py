@@ -8,30 +8,39 @@ Só informa: **nunca sobrescreve** a premissa (`conceitos/servicos_associados.js
 tocados). A proporção só vale quando a fórmula é **linear numa única premissa** (armadura = taxa × V; lastro =
 A_fundo × e). A linearidade é testada de forma determinística, avaliando a fórmula de cada elemento com a premissa em
 0, p/2, p e 2p (tolerância relativa `TOLERANCIA_LINEAR`); fórmula com `max`, `if` ou patamar não passa e fica
-"não calibrável por proporção", sem número. O observado vem só de documentos que não são os próprios serviços
-associados (senão a conferência seria circular): convergente ou fonte única, ou decisão; conflito não calibra.
+"não calibrável por proporção", sem número. Depois, a fórmula com a premissa implícita tem de reproduzir o observado.
+
+Casamento: a tabela parte dos fatos. Um fato (código com ou sem `*`, serviço, unidade) casa com os associados de todos
+os códigos que o padrão cobre (mesma regra de `evidencias._casa`), na mesma unidade depois de `vocabulario.converter`
+(t → kg). O **calculado** é a soma das evidências associadas do grupo (o que a EAP mostra); o recálculo por elemento
+serve para achar a premissa e a linearidade e tem de bater com essa soma. Os elementos vêm dos construtivos e
+declarados (pelo par id + base, nunca só pelo id) e dos fatos (`dimensoes.de_fatos`); se ainda assim a soma não bate,
+a linha fica `não calibrável`. O observado vem só de documentos que não são os próprios serviços associados (senão a
+conferência seria circular): convergente ou fonte única, ou decisão; conflito não calibra.
 """
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
-from . import associados
+from . import associados, dimensoes, vocabulario
 from .formulas import avaliar, premissa
 
 TOLERANCIA_LINEAR = 1e-9  # relativa: f(2p) = 2 f(p), f(p/2) = f(p)/2 e f(0) = 0
-TOLERANCIA_CONFERE = (
-    0.05  # relativa: observado dentro de 5 % do calculado → a premissa confere
-)
+TOLERANCIA_CONFERE = 0.05  # relativa: observado dentro de 5 % do calculado → confere
 TOLERANCIA_FATO = (
     0.005  # agrupamento de afirmações do mesmo valor (igual à consolidação)
 )
+TOLERANCIA_SOMA = 1e-6  # relativa (mais o arredondamento de 6 casas das evidências): recálculo × evidências
 COLUNAS = [
     "codigo",
     "servico",
     "unidade",
     "regra",
     "premissa",
+    "unidade_premissa",
     "valor_premissa",
     "calculado",
     "observado",
@@ -43,6 +52,7 @@ COLUNAS = [
     "documentos",
 ]
 NAO_CALIBRAVEL = "não calibrável"
+ERROS_DE_CALCULO = (ZeroDivisionError, ValueError, OverflowError, TypeError)
 
 
 def _premissas_do_elemento(regra: dict, el: dict) -> dict:
@@ -52,19 +62,20 @@ def _premissas_do_elemento(regra: dict, el: dict) -> dict:
 def _valor_do_elemento(
     regra: dict, el: dict, nome: str | None = None, fator: float = 1.0
 ) -> float:
-    """Valor da fórmula num elemento, com a premissa `nome` multiplicada por `fator`; 0 se a condição é falsa ou falta
-    dimensão (o serviço não sai)."""
+    """Valor da fórmula num elemento, com a premissa `nome` multiplicada por `fator` (na condição também). 0 se a
+    condição é falsa ou falta dimensão (o serviço não sai); NaN se a avaliação falha (divisão por zero, domínio)."""
     premissas = _premissas_do_elemento(regra, el)
+    if nome is not None:
+        premissas[nome] = premissas[nome] * fator
+    contexto = {**premissas, **el["dims"]}
     try:
-        if regra.get("condicao") and not avaliar(
-            regra["condicao"], {**premissas, **el["dims"]}
-        ):
+        if regra.get("condicao") and not avaliar(regra["condicao"], contexto):
             return 0.0
-        if nome is not None:
-            premissas[nome] = premissas[nome] * fator
-        return float(avaliar(regra["formula"], {**premissas, **el["dims"]}))
+        return float(avaliar(regra["formula"], contexto))
     except KeyError:
         return 0.0
+    except ERROS_DE_CALCULO:
+        return math.nan
 
 
 def _proporcional(regra: dict, el: dict, nome: str) -> bool:
@@ -72,12 +83,10 @@ def _proporcional(regra: dict, el: dict, nome: str) -> bool:
     v1 = _valor_do_elemento(regra, el, nome, 1.0)
     escala = max(abs(v1), 1e-12)
     for fator, esperado in ((2.0, 2 * v1), (0.5, v1 / 2), (0.0, 0.0)):
-        if (
-            abs(_valor_do_elemento(regra, el, nome, fator) - esperado)
-            > TOLERANCIA_LINEAR * escala
-        ):
+        v = _valor_do_elemento(regra, el, nome, fator)
+        if not math.isfinite(v) or abs(v - esperado) > TOLERANCIA_LINEAR * escala:
             return False
-    return True
+    return math.isfinite(v1)
 
 
 def _numerica(regra: dict, elementos: list[dict], nome: str) -> bool:
@@ -126,6 +135,16 @@ def _escolher_premissa(
     return lineares[0], None
 
 
+def _reproduz(
+    regra: dict, elementos: list[dict], nome: str, razao: float, valor_observado: float
+) -> bool:
+    """A fórmula com a premissa multiplicada por `razao` dá o observado (pega teto como min(taxa × V, 300))."""
+    total = sum(_valor_do_elemento(regra, el, nome, razao) for el in elementos)
+    return math.isfinite(total) and abs(
+        total - valor_observado
+    ) <= TOLERANCIA_SOMA * max(abs(valor_observado), 1.0)
+
+
 def premissa_implicita(
     regra: dict, elementos: list[dict], valor_observado: float
 ) -> dict:
@@ -133,15 +152,23 @@ def premissa_implicita(
 
     Devolve {premissa, valor_premissa, calculado, premissa_implicita, motivo}. `valor_premissa` é a premissa em uso
     (média ponderada pelo calculado quando varia por tipo de elemento); `premissa_implicita = valor × observado /
-    calculado`. Sem número (None) e com `motivo` quando a fórmula não é proporcional à premissa ou não há calculado."""
+    calculado`, conferida reavaliando a fórmula. Sem número (None) e com `motivo` quando a fórmula não é proporcional
+    à premissa, falha na avaliação, não reproduz o observado, não há calculado ou o observado não é positivo."""
     elementos = [el for el in elementos if el["tipo"] in regra["tipos"]]
     calculos = [_valor_do_elemento(regra, el) for el in elementos]
     calculado = sum(calculos)
+    if not math.isfinite(calculado):
+        return _sem_numero("erro na avaliação da fórmula", 0.0)
     nome, motivo = _escolher_premissa(regra, elementos)
     if nome is None:
         return _sem_numero(motivo, calculado)
     if calculado <= 0:
         return _sem_numero("sem valor calculado", calculado, nome)
+    if valor_observado <= 0:
+        return _sem_numero("observado não positivo", calculado, nome)
+    razao = valor_observado / calculado
+    if not _reproduz(regra, elementos, nome, razao, valor_observado):
+        return _sem_numero("fórmula não reproduz o observado", calculado, nome)
     valor = (
         sum(
             _premissas_do_elemento(regra, el)[nome] * c
@@ -153,7 +180,7 @@ def premissa_implicita(
         "premissa": nome,
         "valor_premissa": valor,
         "calculado": calculado,
-        "premissa_implicita": valor * valor_observado / calculado,
+        "premissa_implicita": valor * razao,
         "motivo": None,
     }
 
@@ -193,82 +220,138 @@ def _motivo_do_grupo(ids: list[str], regras: dict) -> str | None:
     return None
 
 
-def _linha(
-    chave: tuple, ids: list[str], regras: dict, elementos: list[dict], observado: tuple
+def _elementos_do_grupo(grupo: list[dict], por_id: dict) -> list[dict]:
+    """Elementos que geraram as evidências do grupo: mesmo id e a base do código da evidência (id sozinho repete entre
+    unidades e sistemas)."""
+    achados = {}
+    for e in grupo:
+        for el in por_id.get(e["localizador"], []):
+            if e["codigo"].startswith(el["base"] + "."):
+                achados[id(el)] = el
+    return list(achados.values())
+
+
+def _soma_confere(recalculado: float, soma_nativa: float, n: int) -> bool:
+    """Recálculo por elemento = soma das evidências (que carregam arredondamento de 6 casas cada uma)."""
+    return (
+        abs(recalculado - soma_nativa)
+        <= TOLERANCIA_SOMA * max(abs(soma_nativa), 1.0) + 5e-7 * n
+    )
+
+
+def _calibrar(
+    ids: list[str],
+    grupo: list[dict],
+    observado_nativo: float,
+    por_id: dict,
+    regras: dict,
 ) -> dict:
-    """Linha da tabela: uma regra calibra; mais de uma no mesmo serviço não se separa; observado nulo é conflito."""
-    valor_observado, motivo_fato, documentos = observado
-    linha = {
-        "codigo": chave[0],
-        "servico": chave[1],
-        "unidade": chave[2],
-        "regra": "; ".join(ids),
-        "observado": valor_observado,
-        "documentos": "; ".join(documentos),
-        "razao": None,
-        "diferenca_pct": None,
-    }
-    if valor_observado is None:
-        return {**linha, **_sem_numero(motivo_fato), "situacao": NAO_CALIBRAVEL}
-    r = _sem_numero(_motivo_do_grupo(ids, regras))
-    if r["motivo"] is None:
-        r = premissa_implicita(regras[ids[0]], elementos, valor_observado)
-    calculado = r["calculado"]
-    if calculado > 0:
-        linha.update(
-            razao=valor_observado / calculado,
-            diferenca_pct=100 * (valor_observado - calculado) / calculado,
+    """Resultado de `premissa_implicita` para o grupo, ou o motivo de não calibrar antes dela."""
+    motivo = _motivo_do_grupo(ids, regras)
+    if motivo:
+        return _sem_numero(motivo)
+    r = premissa_implicita(
+        regras[ids[0]], _elementos_do_grupo(grupo, por_id), observado_nativo
+    )
+    soma_nativa = sum(e["valor"] for e in grupo)
+    if not _soma_confere(r["calculado"], soma_nativa, len(grupo)):
+        return _sem_numero(
+            "parte do calculado vem de elemento sem premissa recalculável (de fatos/método)",
+            0.0,
         )
-    return {**linha, **r, "situacao": _situacao(r, linha["razao"])}
+    return r
 
 
-def _grupos_associados(evs_associados: list[dict]) -> dict[tuple, list[dict]]:
-    grupos: dict[tuple, list[dict]] = {}
-    for e in evs_associados:
-        if e["metodo"] == "associado":
-            grupos.setdefault((e["codigo"], e["servico"], e["unidade"]), []).append(e)
-    return grupos
+def _linha(
+    fato: dict, grupo: list[dict], observado: tuple, por_id: dict, regras: dict
+) -> dict:
+    """Linha da tabela de um fato e dos associados que ele cobre. O calculado é a soma das evidências do grupo."""
+    valor, motivo_fato, documentos = observado
+    ids = sorted({e["regra"] for e in grupo})
+    convertidos = [vocabulario.converter(e["valor"], e["unidade"]) for e in grupo]
+    calculado, unidade = sum(v for v, _ in convertidos), convertidos[0][1]
+    observado_conv = (
+        vocabulario.converter(valor, fato["unidade"])[0] if valor is not None else None
+    )
+    if observado_conv is None:
+        r = _sem_numero(motivo_fato)
+    else:
+        soma_nativa = sum(e["valor"] for e in grupo)
+        r = _calibrar(
+            ids,
+            grupo,
+            observado_conv * soma_nativa / calculado
+            if calculado > 0
+            else observado_conv,
+            por_id,
+            regras,
+        )
+    ok = observado_conv is not None and calculado > 0
+    razao = observado_conv / calculado if ok else None
+    return {
+        "codigo": fato["codigo"],
+        "servico": fato["servico"],
+        "unidade": unidade,
+        "regra": "; ".join(ids),
+        "unidade_premissa": regras[ids[0]]["premissas"][r["premissa"]].get(
+            "unidade", ""
+        )
+        if r["premissa"]
+        else "",
+        "observado": observado_conv,
+        "documentos": "; ".join(documentos),
+        "razao": razao,
+        "diferenca_pct": 100 * (observado_conv - calculado) / calculado if ok else None,
+        **r,
+        "calculado": calculado,
+        "situacao": _situacao(r, razao),
+    }
 
 
-def _linha_do_grupo(
-    chave: tuple, evs: list[dict], fato: dict, por_id: dict, regras: dict
+def _linha_do_fato(
+    fato: dict, evs: list[dict], por_id: dict, regras: dict
 ) -> dict | None:
+    from .evidencias import _casa
+
     observado = _observado(fato)
     if observado is None:
         return None
-    ids = sorted({e["regra"] for e in evs})
-    elementos = [
-        el
-        for i in dict.fromkeys(e["localizador"] for e in evs)
-        for el in por_id.get(i, [])
+    unidade = vocabulario.converter(1.0, fato["unidade"])[1]
+    grupo = [
+        e
+        for e in evs
+        if e["servico"] == fato["servico"]
+        and _casa(fato["codigo"], e["codigo"])
+        and vocabulario.converter(1.0, e["unidade"])[1] == unidade
     ]
-    return _linha(chave, ids, regras, elementos, observado)
+    return _linha(fato, grupo, observado, por_id, regras) if grupo else None
+
+
+def _por_id(elementos: list[dict], fatos: pd.DataFrame) -> dict[str, list[dict]]:
+    """Elementos por id: os dados e os que a consolidação dos fatos gera (`dimensoes.de_fatos`), sem repetir."""
+    todos = {}
+    for el in [*elementos, *(dimensoes.de_fatos(fatos) if len(fatos) else [])]:
+        todos.setdefault((el["id"], el["base"], el.get("metodo")), el)
+    por_id: dict[str, list[dict]] = {}
+    for el in todos.values():
+        por_id.setdefault(el["id"], []).append(el)
+    return por_id
 
 
 def tabela(
     evs_associados: list[dict], fatos: pd.DataFrame, elementos: list[dict]
 ) -> pd.DataFrame:
-    """Premissa × observado por (código, serviço, unidade) de serviço associado que tem fato de fora com valor.
+    """Premissa × observado por fato de fora com valor que cobre serviços associados (código, serviço, unidade).
 
     Colunas em COLUNAS. Situação: `confere` (observado/calculado dentro de 5 %), `diverge` ou `não calibrável` (com
     `motivo`). Associado sem fato correspondente não entra. Nunca altera a premissa: só informa."""
     regras = {r["id"]: r for r in associados.REGRAS}
-    por_id: dict[str, list[dict]] = {}
-    for el in elementos:
-        por_id.setdefault(el["id"], []).append(el)
-    fatos_por_chave = (
-        {(f["codigo"], f["servico"], f["unidade"]): f for f in fatos.to_dict("records")}
-        if len(fatos)
-        else {}
-    )
+    evs = [e for e in evs_associados if e["metodo"] == "associado"]
+    por_id = _por_id(elementos, fatos)
     linhas = [
         linha
-        for chave, evs in _grupos_associados(evs_associados).items()
-        if chave in fatos_por_chave
-        and (
-            linha := _linha_do_grupo(chave, evs, fatos_por_chave[chave], por_id, regras)
-        )
-        is not None
+        for f in (fatos.to_dict("records") if len(fatos) else [])
+        if (linha := _linha_do_fato(f, evs, por_id, regras)) is not None
     ]
     df = pd.DataFrame(linhas, columns=COLUNAS)
     return df.sort_values(["codigo", "servico", "unidade"], kind="stable").reset_index(

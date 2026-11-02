@@ -423,12 +423,20 @@ sobrescreve** a premissa, que continua em `servicos_associados.jsonl` com `estad
   sem premissa, mais de uma premissa proporcional ou mais de uma regra no mesmo serviço: `não calibrável`, com o
   motivo e sem número. Premissa por tipo de elemento (taxa de armadura): `valor_premissa` é a média ponderada pelo
   calculado.
-- **Observado**: o fato do mesmo (código, serviço, unidade), **sem contar os próprios serviços associados** (seria
-  circular). Convergente ou fonte única vale; decisão vale; conflito não calibra (`fato em conflito`). Associado sem
-  fato com valor não entra na tabela.
+- **Observado**: o fato de fora (sem contar os próprios serviços associados, que seria circular). Convergente ou
+  fonte única vale; decisão vale; conflito não calibra (`fato em conflito`); observado ≤ 0 não calibra.
+- **Casamento**: a tabela parte dos fatos. Fato com `*` (`U1.*.CIV.EST.VIG`) soma os associados de todos os códigos
+  que ele cobre; as unidades são levadas à de comparação (`vocabulario.converter`: t → kg). Associado sem fato com
+  valor não entra.
+- **Calculado**: soma das evidências associadas do grupo (o que a EAP mostra), também nas linhas não calibráveis. O
+  recálculo por elemento (elementos casados por id **e** base, mais os de `dimensoes.de_fatos`) só serve para achar a
+  premissa e a linearidade e tem de bater com essa soma; se não bate, `não calibrável`. Depois, a fórmula com a
+  premissa implícita tem de reproduzir o observado (pega teto como `min(taxa × V, 300)`); falha de avaliação,
+  condição que depende da premissa e fórmula não proporcional também não calibram. `unidade_premissa` vem do campo
+  `unidade` da premissa (vazio se não declarado).
 - **Tolerância**: `confere` se observado/calculado difere de 1 em até 5 % (`TOLERANCIA_CONFERE`); acima, `diverge`.
 - **Saída**: `calibracao.csv` em `saida/<obra>/` e `dados["evidencias"]["calibracao"]`. Colunas: código, serviço,
-  unidade, regra, premissa, valor_premissa, calculado, observado, razao, premissa_implicita, diferenca_pct, situacao,
+  unidade, regra, premissa, unidade_premissa, valor_premissa, calculado, observado, razao, premissa_implicita, diferenca_pct, situacao,
   motivo, documentos.
 
 ## 8. Quantificação das pranchas e verificação de proposta (`camadas/eap.py`)
