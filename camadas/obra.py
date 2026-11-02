@@ -27,6 +27,7 @@ import numpy as np
 from . import (
     construtivos,
     eap,
+    eap_painel,
     escavacao,
     escopo_obra,
     evidencias,
@@ -802,8 +803,10 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     dados["construtivos"] = construtivos.montar(dados, cfg)        # aba Obra: unidade > sistema > elemento
     if dados["construtivos"]:                                       # escopo por unidade, decomposição e evidências
         dados["construtivos"]["escopo"] = escopo_obra.montar(dados, cfg)
-    dados["eap"] = eap.montar(dados, cfg)          # EAP: elemento → item (código) → quantidade com evidência
+    # `dados["eap"]` é a árvore das gavetas (eap_html); a EAP codificada tem chave própria (não sobrescrever)
+    dados["eap_codificada"] = eap.montar(dados, cfg)   # elemento → item (código) → quantidade com evidência
     dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
+    dados["eap_painel"] = eap_painel.montar(dados.get("eap_codificada"), dados.get("evidencias"))   # aba EAP, em texto
 
 
 # 5 ---------------------------------------------------------------------------

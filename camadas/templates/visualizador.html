@@ -197,6 +197,19 @@ aside.larga{width:min(560px,46vw)}
 .eap-ev{margin:0 0 6px 28px;padding:6px 8px;border-left:2px solid var(--linha);color:var(--mut);font-size:12px;overflow-wrap:anywhere}
 .eap-ev q{color:var(--tinta)}
 .eap-pend{padding:5px 0;border-top:1px solid var(--linha);font-size:12px;overflow-wrap:anywhere}
+.eap-c .eap-n{margin-left:14px}.eap-c>.eap-n{margin-left:0}
+.eap-q{color:var(--mut);font:11px var(--f-dado);overflow-wrap:anywhere}
+.eap-filtro{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 8px}
+.eap-filtro .btn{font:500 11px/1 var(--f-dado);padding:5px 7px}
+.eap-fato[hidden]{display:none}
+.st{display:inline-block;padding:1px 6px;border-radius:9px;border:1px solid currentColor;font:500 10.5px/16px var(--f-dado);white-space:nowrap}
+.st-conflito{color:#b91c1c}.st-so-mencao{color:var(--aberta)}.st-fonte-unica{color:var(--mut)}.st-convergente,.st-decidido{color:var(--ok)}
+.eap-aff{margin:0 0 6px 28px;padding:4px 8px;border-left:2px solid var(--linha);font-size:12px;overflow-wrap:anywhere}
+.eap-aff .nota-l{display:block}
+table.eap-assoc{width:100%;border-collapse:collapse;font-size:12px}
+table.eap-assoc th,table.eap-assoc td{padding:5px 6px 5px 0;border-bottom:1px solid var(--linha);text-align:left;vertical-align:top}
+table.eap-assoc td.num{text-align:right;font-family:var(--f-dado);white-space:nowrap}
+table.eap-assoc tr.nao-citado td{color:var(--aberta);font-weight:500}
 .esc-g{border-top:1px solid var(--linha)}
 .esc-g>summary{display:flex;gap:8px;align-items:baseline;padding:8px 0 6px;cursor:pointer;list-style:none}
 .esc-g>summary::-webkit-details-marker{display:none}
@@ -2293,7 +2306,8 @@ function v3DesenharMedida() {
    EAP — árvore nó → serviços → fatos → evidência (D.eap, opcional)
    Tudo vem pronto do Python (camadas/eap_html.py); aqui só se lê e se exibe, sem conta.
    ==================================================================== */
-function montarEap() {
+/* aba EAP das gavetas (D.eap): resumo, árvore nó → serviço → fato → evidência e pendências */
+function htmlEapGavetas() {
   const E = D.eap, R = E.resumo || {};
   const ROT = [["Serviços", "servicos"], ["Nós", "nos"], ["Pendências", "pendencias"], ["Diferenças de paridade", "diferencas_paridade"], ["Recalculados", "recalculados"], ["Reaproveitados", "reaproveitados"]];
   const resumo = `<div class="eap-res">${ROT.map(([r, k]) => `<span>${r}</span><b data-k="${k}">${esc(R[k])}</b>`).join("")}</div>`;
@@ -2302,7 +2316,64 @@ function montarEap() {
   const serv = s => `<details class="eap-s"><summary><span>${esc(s.local || s.objeto_id)} <span class="cod">${esc(s.regra)} v${esc(s.versao_regra)}</span></span><span class="eap-v">${esc(s.valor_txt)}</span></summary>${(s.fatos || []).map(fato).join("")}</details>`;
   const no = n => `<details class="eap-n"><summary><span class="cod">${esc(n.eap)}</span><span>${esc(n.descricao)}</span><span class="eap-v">${esc(n.valor_txt)} ${esc(n.unidade)}</span></summary>${(n.servicos || []).map(serv).join("")}</details>`;
   const pend = (E.pendencias || []).map(p => `<div class="eap-pend"><b>${esc(p.local || p.objeto_id)}</b> — ${esc(p.motivo)}</div>`).join("");
-  $("#aba-eap").innerHTML = `<h2>Resumo</h2>${resumo}<h2>Árvore da EAP</h2>${(E.nos || []).map(no).join("")}<h2>Pendências</h2>${pend || '<p class="aviso" style="margin-left:0">Nenhuma pendência.</p>'}`;
+  return `<h2>Resumo</h2>${resumo}<h2>Árvore da EAP</h2>${(E.nos || []).map(no).join("")}<h2>Pendências</h2>${pend || '<p class="aviso" style="margin-left:0">Nenhuma pendência.</p>'}`;
+}
+
+/* EAP codificada, fatos e associados (D.eap_painel, opcional): tudo já somado, ordenado e formatado pelo Python (camadas/eap_painel.py).
+   Aqui só se desenha, se abre/fecha e se filtra por status (mostrar/esconder linhas). */
+const slugStatus = s => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-");
+function htmlEapArvore(P) {
+  const filhos = new Map();
+  for (const n of P.arvore || []) (filhos.get(n.pai) || filhos.set(n.pai, []).get(n.pai)).push(n);
+  const no = n => {
+    const sub = (filhos.get(n.codigo) || []).map(no).join(""), q = (n.quantidades_txt || []).map(esc).join(" · ");
+    const ver = OB && (n.elementos || []).length ? `<button class="btn mini" data-eap-ids="${esc(n.elementos.join("\n"))}">ver no mapa (${esc(n.n_elementos)})</button>` : "";
+    return `<details class="eap-n" data-codigo="${esc(n.codigo)}"><summary><span class="cod">${esc(n.codigo)}</span><span class="nota-l">${esc(n.numero)}</span><span>${esc(n.nome)}</span></summary>
+      ${q || ver ? `<div class="eap-q">${q}${ver ? " " + ver : ""}</div>` : ""}${sub}</details>`;
+  };
+  return `<h2>EAP codificada</h2><div class="eap-c" id="eapCod">${(filhos.get(null) || []).map(no).join("") || '<p class="aviso" style="margin-left:0">Sem elementos codificados.</p>'}</div>`;
+}
+function htmlEapFatos(P) {
+  const R = P.resumo || {}, fatos = P.fatos || [];
+  const chip = (st, rot, n) => `<button class="btn mini" data-eap-status="${esc(st)}" aria-pressed="${st === "" ? "true" : "false"}">${esc(rot)} <b data-k="${esc(st || "todos")}">${esc(n)}</b></button>`;
+  const afirm = a => `<div class="eap-aff"><span class="cod">${esc(a.documento)}</span> <span class="badge">${esc(a.tipo)}</span> <b>${esc(a.valor_txt)}</b>${a.trecho ? `<span class="nota-l">“${esc(a.trecho)}”</span>` : ""}</div>`;
+  const fato = f => `<details class="eap-f eap-fato" data-status="${esc(f.status)}"><summary><span class="st st-${esc(slugStatus(f.status))}">${esc(f.status)}</span><span class="cod">${esc(f.codigo)}</span><span>${esc(f.servico_txt)}</span><span class="eap-v">${esc(f.valor_txt)}${f.diferenca_txt ? " · Δ " + esc(f.diferenca_txt) : ""}</span></summary>
+    ${(f.afirmacoes || []).map(afirm).join("")}${(f.mencoes || []).length ? `<div class="eap-aff"><span class="nota-l">Menções: ${esc(f.mencoes.join("; "))}</span></div>` : ""}${(f.decisoes || []).length ? `<div class="eap-aff"><span class="nota-l">Decisões: ${esc(f.decisoes.map(d => typeof d === "string" ? d : JSON.stringify(d)).join("; "))}</span></div>` : ""}</details>`;
+  return `<h2>Fatos e evidências</h2><div class="eap-filtro" id="eapFiltro">${chip("", "todos", R.fatos)}${(R.por_status || []).map(s => chip(s.status, s.status, s.n)).join("")}</div>
+    <div id="eapFatos">${fatos.map(fato).join("") || '<p class="aviso" style="margin-left:0">Nenhum fato consolidado.</p>'}</div>`;
+}
+function htmlEapAssociados(P) {
+  const A = P.associados || [], R = P.resumo || {};
+  const linha = a => `<tr${a.destaque ? ' class="nao-citado"' : ""}><td class="cod">${esc(a.unidade)} · ${esc(a.item)}</td><td>${esc(a.servico)}</td><td class="num">${esc(a.quantidade_txt)} ${esc(a.unidade_medida)}</td><td>${esc(a.situacao)}</td></tr>`;
+  return `<h2>Serviços associados × edital</h2><p class="nota-l" style="margin-left:0">Não citados no edital: <b data-k="nao_citados">${esc(R.nao_citados)}</b> de <b data-k="associados">${esc(R.associados)}</b></p>
+    ${A.length ? `<table class="eap-assoc" id="eapAssoc"><thead><tr><th>Item</th><th>Serviço</th><th>Quantidade</th><th>Situação</th></tr></thead><tbody>${A.map(linha).join("")}</tbody></table>` : '<p class="aviso" style="margin-left:0">Nenhum serviço associado.</p>'}`;
+}
+/* "ver no mapa" de um nó: liga a camada dos elementos construtivos (aba Obra) e enquadra/destaca só a lista pronta de ids */
+function verNoMapaEap(ids) {
+  const lays = ids.map(id => OBRA.camada.get(id)).filter(Boolean);
+  if (!lays.length) return;
+  if (lays.length === 1) { selecionarObra(ids.find(id => OBRA.camada.has(id)), {abrir: false}); return; }
+  garantirVisivel(ids.map(id => OBRA.porId.get(id)).filter(Boolean));
+  ligarObraMapa(true);
+  if (vista !== "mapa") mostrarVista("mapa");
+  limparDestaqueObra();
+  OBRA.multi = lays;
+  lays.forEach(haloObra);
+  map.fitBounds(L.featureGroup(lays).getBounds(), {padding: [70, 70], maxZoom: 21});
+}
+function filtrarFatosEap(status) {
+  document.querySelectorAll("#eapFatos .eap-fato").forEach(d => { d.hidden = status !== "" && d.dataset.status !== status; });
+  document.querySelectorAll("#eapFiltro [data-eap-status]").forEach(b => b.setAttribute("aria-pressed", b.dataset.eapStatus === status));
+}
+function montarEap() {
+  const P = D.eap_painel, aba = $("#aba-eap");
+  aba.innerHTML = (D.eap ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "");
+  if (!P) return;
+  aba.addEventListener("click", e => {
+    const ver = e.target.closest("[data-eap-ids]"), fl = e.target.closest("[data-eap-status]");
+    if (ver) verNoMapaEap(ver.dataset.eapIds.split("\n"));
+    else if (fl) filtrarFatosEap(fl.dataset.eapStatus);
+  });
 }
 
 /* ====================================================================
@@ -2310,7 +2381,7 @@ function montarEap() {
    ==================================================================== */
 window.__viz = {PR, D, FV, ESTACAS, INTERV, map, camadasMapa, marcaSnd, get anot() { return anot; }, get ARV() { return ARV; }, indexar, consultaPrancha, abrirFolha, ligarPranchaMapa, definirEtapa, abrir3D, abrirFoto, htmlSondagem, pt2ll, snapMapa, identificarPranchas};   // ganchos para scripts/testar_visualizador.py
 function iniciarV2() {
-  if (D.eap) { $("#t-eap").hidden = false; montarEap(); }
+  if (D.eap || D.eap_painel) { $("#t-eap").hidden = false; montarEap(); }
   if (PR.length) { $("#t-pranchas").hidden = false; montarSelecaoPranchas(); }
   if (PR.length || ESC.length || ETAPAS.length) { $("#t-escopo").hidden = !(ESC.length || ETAPAS.length); montarEscopo(); }
   new ResizeObserver(() => { map.invalidateSize(); document.documentElement.style.setProperty("--mapa-h", map.getSize().y + "px"); }).observe($("#mapa"));   // a aba Escopo alarga o painel
@@ -2323,7 +2394,7 @@ function iniciarV2() {
 const OB = D.construtivos && D.construtivos.geojson ? D.construtivos : null;
 const ES = OB && OB.escopo && OB.escopo.sistemas ? OB.escopo : null;   // escopo por sistema (opcional): sem ele a aba funciona como antes, sem os controles
 const OBRA = {sel: null, itens: [], porId: new Map(), camada: new Map(), un: new Map(), sis: new Map(), geo: null, halo: L.layerGroup(), popup: null,
-  manual: {}, soEscopo: true, ordem: [], aviso: ""};
+  manual: {}, soEscopo: true, ordem: [], aviso: "", multi: []};
 const OB_MAX = 50, OB_MAX_CLASSE = 300, OB_COR_PADRAO = "#64748b";
 const ESTADOS_ESC = ["dentro", "fora", "a definir"];
 const CHAVE_OBRA = "camadas:obra-escopo:" + D.id;
@@ -2637,11 +2708,15 @@ function limparDestaqueObra() {
   OBRA.halo.clearLayers();
   const ant = OBRA.camada.get(OBRA.sel);
   if (ant) OBRA.geo.resetStyle(ant);
-  OBRA.sel = null;
+  for (const l of OBRA.multi) OBRA.geo.resetStyle(l);   // destaque de vários elementos (aba EAP)
+  OBRA.multi = []; OBRA.sel = null;
 }
 /* só um elemento em destaque: anel escuro + branco por baixo, traço mais grosso por cima */
 function destacarObra(lay) {
   OBRA.halo.clearLayers();
+  haloObra(lay);
+}
+function haloObra(lay) {
   for (const [cor, extra, op] of [["#111111", 7, .6], ["#ffffff", 3.5, .95]]) {
     const o = {color: cor, opacity: op, interactive: false, lineCap: "round", lineJoin: "round", fill: false};
     (ehPonto(lay) ? L.circleMarker(lay.getLatLng(), {...o, radius: 7 + extra, weight: 3})
@@ -2700,7 +2775,7 @@ function sincObraCheck() {
   if (!OB) return;
   const c = camadasMapa.construtivos, on = map.hasLayer(c.layer);
   $("#obMapa").checked = on; const cb = porId("v-construtivos"); if (cb) cb.checked = on;
-  if (OBRA.sel) on ? (map.hasLayer(OBRA.halo) || OBRA.halo.addTo(map)) : map.removeLayer(OBRA.halo);
+  if (OBRA.sel || OBRA.multi.length) on ? (map.hasLayer(OBRA.halo) || OBRA.halo.addTo(map)) : map.removeLayer(OBRA.halo);
 }
 function acaoObra(ac) {
   const a = ac.dataset.obAcao;

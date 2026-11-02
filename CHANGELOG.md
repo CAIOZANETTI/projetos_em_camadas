@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.34.0 — 2026-11-02 · Aba EAP: árvore codificada, fatos e evidências
+- **Correção da colisão de `dados["eap"]`** (`camadas/obra.py`): a EAP codificada (`eap.montar`) sobrescrevia a árvore das
+  gavetas que a aba EAP exibe. Agora ela fica em `dados["eap_codificada"]`; `dados["eap"]` continua sendo o das gavetas.
+- **`camadas/eap_painel.py`** (`dados["eap_painel"]`): árvore codificada com quantidades somadas por nó (nunca entre
+  unidades ou tipos de item diferentes) e os ids dos elementos; fatos com conflito primeiro e afirmações; serviços
+  associados × edital; resumo por status. Tudo em texto pt-BR, calculado em Python.
+- **Aba EAP do visualizador**: aparece também só com `eap_painel` e ganha três seções (EAP codificada com "ver no mapa",
+  Fatos e evidências com filtro por status, Serviços associados × edital). O destaque no mapa reutiliza o halo da aba Obra.
+
 ## 0.33.0 — 2026-11-02 · Escoramento total e planilha Obras Lineares como evidência
 - **Escoramento total da vala** (`conceitos/servicos_associados.jsonl`, regra `escoramento_vala_total`): além do serviço
   por tipo (`escoramento_continuo`…), toda vala escorada gera o fato (GEO.MOV.VAL, `escoramento`, m²). Métodos que

@@ -93,7 +93,7 @@ Fato = **(código, serviço, unidade)**. Exemplos:
 4  Consolidar ........... fatos: convergente | fonte única | conflito | só menção | decidido
    + associados aos fatos (laje convergente → escoramento) e nova consolidação
 5  Cobertura ............ item × (projeto, edital); serviço associado × edital ("não citado: incluir ou confirmar")
-6  HTML ................. árvore da EAP com fatos, conflitos e evidências clicáveis (próxima rodada)
+6  HTML ................. aba EAP: árvore codificada, fatos com conflitos e evidências, associados × edital (§9)
 ```
 
 No build (`python -m camadas.obra obra.json`), o passo 3–5 é `evidencias.etapa`. Ele roda depois dos elementos
@@ -387,38 +387,31 @@ obra.json; `evidencias.etapa` soma as duas fontes quando `obras_lineares.planilh
   - `medição não prevista`;
   - `código inexistente`.
 
-## 9. Camadas no HTML: geral × particular (próxima rodada)
+## 9. Camadas no HTML: aba EAP (`camadas/eap_painel.py`)
 
-O build já grava `dados.eap` (nós, quantidades, pranchas por pacote, lacunas). Também grava `dados.evidencias` (fatos
-com as afirmações, cobertura e associados × edital) e o código `eap` em cada elemento. Falta a interface:
+Chaves de `dados` (cada etapa grava na sua; uma não pode sobrescrever a outra):
 
-1. **Árvore EAP** na aba Obra. Cada nó mostra o código, as quantidades e um selo de status: verde = convergente,
-   cinza = fonte única, vermelho = conflito, amarelo = associado não citado no edital.
-2. **Clique num nó = filtro por prefixo**:
-   - liga os elementos do código, as pranchas do pacote e os layers do item;
-   - esmaece as outras disciplinas, para ver a sobreposição civil × hidráulica × elétrica.
-3. **Nó alto** (U1, U1.ACT600) dá a vista geral. **Item** dá a vista particular, já enquadrada no mapa.
-4. **Ficha do fato**: cada afirmação com documento, página e trecho, a diferença em % e o botão "adotar valor", que
-   exporta uma linha `decisao` para `decisoes_eap.jsonl`.
+| Chave | Quem grava | Formato | Quem lê |
+|---|---|---|---|
+| `eap` | `extrair_gavetas` → `eap_html.montar` | `{nos, pendencias, resumo}` (gavetas, serviços lastreados) | `montarEap`, parte "Árvore da EAP" |
+| `eap_codificada` | `eap.montar` | `{fonte, nos, quantidades, pranchas, lacunas, sem_item}` | `eap_painel.montar` |
+| `evidencias` | `evidencias.etapa` | `{fatos, cobertura, associados, dimensoes, …}` | `eap_painel.montar` |
+| `eap_painel` | `eap_painel.montar` | `{arvore, fatos, associados, resumo}`, tudo em texto pt-BR | `montarEap`, três seções novas |
 
-## 10. Próximos passos
+O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade. A aba EAP aparece com `eap`, com
+`eap_painel` ou com os dois, e o conteúdo de `eap` não muda.
 
-| # | Passo | Peças |
-|---|---|---|
-| a | Aba EAP no HTML (§9) e teste de interface | `templates/visualizador.html`, `scripts/testar_visualizador.py` |
-| b | Rodar Foz com o TR, os memoriais e a planilha: primeiros conflitos reais | `exemplos/foz/obra.json` (`evidencias`) |
-| c | Skill de leitura por IA: lê os documentos e escreve `evidencias_ia.jsonl` com trecho literal | `.claude/skills/eap-evidencias` |
-| d | Medir vigas, paredes e lajes nas formas (comprimento/área por layer já calculados em `pdf_cad.quantitativos`) | `pdf_cad`, `prancha.ficha_estrutura` |
-| e | Calibrar premissas (taxa de armadura, embutimento, seção de baldrame) com projetos de armação | `servicos_associados.jsonl` |
-| f | Vala pelo perfil longitudinal: profundidade e cota do terreno por estaca do perfil, trecho dividido entre sondagens | `dimensoes.dimensionar_vala`, leitura do perfil nas pranchas AAT |
-| h | Planilha Obras Lineares (valores já calculados pela Sanepar) como mais uma fonte de evidência dos trechos da ETA, casando trecho da planilha × trecho do desenho | `obras_lineares.etapa` → `evidencias` |
-| g | Tipo de pavimento real (cadastro viário da prefeitura ou ortofoto) no lugar de "pista = asfalto" | `dimensoes.json` (`vala.pavimentos.superficie_tipo`) |
+1. **EAP codificada**: `<details>` aninhados pelo `pai`. Cada nó mostra código, número, nome e `quantidades_txt`,
+   somadas por nó e descendentes, por grandeza e unidade, sempre por tipo de item (`eap.consolidar`): acima do item, o
+   texto leva o código do item ("12 un · GEO.FUN.BLO"). `elementos` são os ids dos elementos construtivos cujo código
+   EAP está sob o nó.
+2. **"Ver no mapa"** (só com a camada de elementos construtivos da aba Obra): liga a camada, enquadra e destaca só os
+   ids do nó. Um elemento usa `selecionarObra`; vários usam o mesmo anel da aba Obra (`haloObra`), sem conta em JS.
+3. **Fatos e evidências**: resumo por status, filtro visual por status e uma linha por fato (selo, código, serviço,
+   valor, diferença). Ordem: conflito, só menção, fonte única, convergente, decidido. Ao abrir, as afirmações
+   (documento, tipo, valor, trecho de até 200 caracteres).
+4. **Serviços associados × edital**: tabela com a quantidade formatada; "não citado no edital" fica em destaque
+   (`destaque` vem calculado do Python).
 
-## 11. Decisões em aberto (Caio)
-
-1. **Mecânica dentro de Hidráulica?** Os equipamentos estão em `HID.EQP`, como no pedido. A Sanepar separa PBME/PMEC.
-2. **Ordem dos níveis**: unidade → sistema → disciplina (como está) ou unidade → disciplina → sistema?
-3. **Código oficial**: as UCs do TR e as fases de medição devem entrar como `codigo_contrato` em cada nó?
-4. **Destino da escavação do bloco**: hoje ela vai para `GEO.MOV.ESC`, junto da cava calculada pelo MDS. São dois
-   métodos para o mesmo fato e aparecem lado a lado. Ou deve ficar em `GEO.FUN.BLO / escavacao`?
-5. **Tolerância de convergência**: 0,5 % para tudo, ou por serviço (concreto 2 %, contagem exata)?
+Fica para depois: selo de status por nó da árvore, clique no nó como filtro por prefixo que esmaece as outras
+disciplinas e a vista particular já enquadrada para o item.
