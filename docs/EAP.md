@@ -442,3 +442,8 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
    georreferenciada e deixa ligados só os layers cujo subgrupo (`layer.subgrupo` ou o da prancha) pertence à lista
    (pertencer ou não, sem conta); a prancha sem nenhum layer da lista é desligada. Desmarcar, "limpar filtro EAP" ou
    "ver no mapa" de outro nó restauram o instantâneo exato, e trocar de nó desmarca o checkbox.
+   Ligar ou desligar uma prancha pelo recorte não move o mapa (`ligarPranchaMapa(P, on, semVoo)`): o enquadramento
+   continua o do nó. Limites conhecidos (revisão da 0.38.0): o que o usuário mudar nas pranchas com o recorte ativo é
+   desfeito pela restauração (o instantâneo manda); o recorte é por disciplina, não por unidade (`U2.X.GEO` também liga
+   as pranchas de GEO de U1); no nó de disciplina a lista vem de todos os pacotes da disciplina em `eap.json`, não só
+   dos pacotes-filho do nó; o checkbox aparece mesmo se nenhuma prancha tiver layer da lista (marcar desliga todas).

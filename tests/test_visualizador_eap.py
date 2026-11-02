@@ -536,9 +536,13 @@ def test_recorte_so_pranchas_da_disciplina_marca_e_restaura(navegador, tmp_path)
     assert (
         _estado_pranchas(pagina) == antes
     )  # só mostrar o checkbox não mexe nas pranchas
+    pagina.wait_for_timeout(1000)  # termina o enquadramento do nó
+    centro = pagina.evaluate("[map.getCenter().lat, map.getCenter().lng, map.getZoom()]")
     recorte.check()
-    pagina.wait_for_timeout(300)
+    pagina.wait_for_timeout(1000)
     assert _estado_pranchas(pagina) == [{"id": "p1", "vis": [1, 0, 1], "on": True}]
+    # a prancha fica longe da obra: ligar pelo recorte não tira o mapa do enquadramento do nó
+    assert pagina.evaluate("[map.getCenter().lat, map.getCenter().lng, map.getZoom()]") == centro
     recorte.uncheck()
     pagina.wait_for_timeout(300)
     assert _estado_pranchas(pagina) == antes

@@ -9,6 +9,8 @@
   um instantâneo de `P.vis` e `P.mapa.on` de cada prancha, deixa ligados só os layers dos subgrupos do nó e restaura
   o instantâneo ao desmarcar, ao limpar o filtro EAP ou ao trocar de nó. O JS só testa pertencer à lista.
 - Fecha o pendente da 0.37.0 (`docs/EAP.md` §9, item 7).
+- Revisão: ligar pelo recorte não tira o mapa do enquadramento do nó (`ligarPranchaMapa` com `semVoo`); limites
+  conhecidos registrados em `docs/EAP.md` §9.
 - Lição L034.
 
 ## 0.37.0 — 2026-11-02 · Aba EAP: selo por nó, filtro por prefixo e vista particular

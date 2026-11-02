@@ -1121,7 +1121,7 @@ function limitesMapa(P) {
   return L.latLngBounds([[c[0], c[1]], [c[2], c[1]], [c[2], c[3]], [c[0], c[3]]].map(([x, y]) => pt2ll(P, x, y)));
 }
 /* liga/desliga a prancha no mapa (carrega o vetor na primeira vez) */
-async function ligarPranchaMapa(P, on) {
+async function ligarPranchaMapa(P, on, semVoo = false) {   // semVoo: o recorte da EAP liga sem tirar o mapa do nó
   P.mapa.on = on; sincDisc();
   const nota = porId("pn-" + P.id);
   if (!on) { if (P.mapa.lay) map.removeLayer(P.mapa.lay); if (nota) nota.textContent = ""; v3Sujo(); return; }
@@ -1132,7 +1132,7 @@ async function ligarPranchaMapa(P, on) {
   P.mapa.lay ||= new PranchaMapa(P);
   P.mapa.lay.addTo(map);
   const lb = limitesMapa(P);
-  if (!map.getBounds().intersects(lb)) map.flyToBounds(lb, {padding: [30, 30], duration: .6});
+  if (!semVoo && !map.getBounds().intersects(lb)) map.flyToBounds(lb, {padding: [30, 30], duration: .6});
   v3Sujo();
 }
 function redesenharMapa(P) { if (P.mapa.on && P.mapa.lay) P.mapa.lay.pedir(); }
@@ -2405,7 +2405,7 @@ function aplicarRecortePranchas(subgrupos) {
     let algum = false;
     P.d.layers.forEach((l, i) => { const dentro = lista.has(l.subgrupo || P.d.subgrupo); P.vis[i] = dentro ? 1 : 0; algum ||= dentro; });
     prMudou(P);
-    if (P.mapa.on !== algum) ligarPranchaMapa(P, algum);
+    if (P.mapa.on !== algum) ligarPranchaMapa(P, algum, true);
   }
   sincDisc();
 }
@@ -2414,7 +2414,7 @@ function restaurarRecortePranchas() {
   if (!snap) return;
   for (const [P, antes] of snap) {
     P.vis.set(antes.vis); prMudou(P);
-    if (P.mapa.on !== antes.on) ligarPranchaMapa(P, antes.on);
+    if (P.mapa.on !== antes.on) ligarPranchaMapa(P, antes.on, true);
   }
   sincDisc();
 }

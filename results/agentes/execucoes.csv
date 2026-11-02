@@ -117,3 +117,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-02,EAP 0.36.0,revisão independente do commit af31105,revisor,claude-sonnet-5-5,100072,8,121,True,nenhum,sem bloqueantes; 3 importantes (* contaminando sistemas sem o item; filtro sem aviso na aba Obra; laço nós × fatos)
 2026-11-02,EAP 0.36.0,correção dos achados da revisão,executor,claude-sonnet-5-5,168684,19,316,True,nenhum,484 testes; hash de referência inalterado
 2026-11-02,EAP 0.38.0,aba EAP: só pranchas desta disciplina (commit 743eed3),executor,claude-sonnet-5-5,131567,47,502,True,nenhum,557 testes; hash de referência inalterado; 7 testes novos
+2026-11-02,EAP 0.38.0,revisão independente do commit 743eed3,revisor,claude-sonnet-5-5,103003,20,217,True,nenhum,"sem bloqueantes; 2 importantes (recorte fazia o mapa voar até a prancha, corrigido pelo gerente; edições do usuário durante o recorte são desfeitas, documentado) e 3 menores documentados"
