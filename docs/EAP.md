@@ -332,25 +332,28 @@ trechos. Cada método gera os seus elementos `vala` e entra na consolidação co
 em conflito, com os valores de cada método e a diferença em %. A escolha é uma `decisao` do engenheiro, que não
 apaga as afirmações.
 
-| Método | Largura | Fonte |
+| Método | O que calcula | Fonte |
 |---|---|---|
-| `nbr12266` | max(DE + 0,60; mínimo da profundidade) + acréscimo do tipo de escoramento | `valas.json`, `dimensoes.json#vala` |
-| `mos_sanepar` | D + SL (Tabela I, por material, DN e junta) + X (0,10 se escorada) + Y (0,10 por metro acima de 2 m) | `camadas.obras_lineares.largura`, `conceitos/obras_lineares.json` |
+| `nbr12266` | largura max(DE + 0,60; mínimo da profundidade) + acréscimo do escoramento; serviços pelas regras genéricas (escavação abaixo do pavimento, solo × rocha, bota-fora com empolamento e entulho) | `valas.json`, `dimensoes.json#vala` |
+| `mos_sanepar` | **o dimensionador único da `main`** (`lineares.dimensionar_vala`, D2): L = D + SL + X + Y, escoramento por faixa e agravantes, escavação, reaterro, bota-fora, escoramento e pavimento dele, com o modelo geotécnico (raio de 60 m). Berço e envoltória, que ele não calcula, saem da regra genérica com a largura do MOS | `camadas/lineares.py`, `conceitos/lineares.json`, `obras_lineares.json`, `geotecnia.json` |
 
-Exemplo AAT06 (PEAD DE 630, 120 m em pista e 30 m em calçada, SP-07):
+Exemplo AAT06 (PEAD DE 630, 120 m em pista e 30 m em calçada, furo SP-07 a 80 m):
 
-| Serviço | NBR 12266 (b = 1,43 m) | MOS (b = 1,08 m) | Status |
-|---|---:|---:|---|
-| corte de asfalto, assentamento, escoramento, rebaixamento | iguais | iguais | convergente |
-| demolição / recomposição de asfalto | 207,6 m² | 165,6 m² | conflito 20,2 % |
-| escavação de vala | 288,7 m³ | 218,1 m³ | conflito 24,5 % |
-| envoltória | 152,7 m³ | 103,9 m³ | conflito 32,0 % |
-| bota-fora | 382,7 m³ | 293,5 m³ | conflito 23,3 % |
+| Serviço | NBR 12266 | MOS (lineares) | Status | Por quê |
+|---|---:|---:|---|---|
+| corte de asfalto, assentamento | iguais | iguais | convergente | não dependem da largura |
+| demolição / recomposição de asfalto | 207,6 m² | 129,6 m² | conflito 37,6 % | NBR soma 0,15 m de corte de cada lado; MOS = comprimento × L |
+| escavação de vala | 288,7 m³ | 267,3 m³ | conflito 7,4 % | NBR b = 1,43 abaixo do pavimento; MOS L = 1,08 × h inteira |
+| escoramento | contínuo 495 m² | pontaleteamento 495 m² | um tipo em cada | o MOS não vê o furo (raio 60 m < 80 m): sem aterro, sem NA |
+| rebaixamento | 120 m, 80 h | — | fonte única | idem: para o MOS a vala não atinge o NA |
+| reaterro | 67,8 m³ | 220,5 m³ | conflito 69,3 % | NBR desconta berço e envoltória; MOS = escavação − tubo |
+| bota-fora | 382,7 m³ | 60,8 m³ | conflito 84,1 % | NBR: excedente de solo + entulho do pavimento; MOS: volume do tubo × empolamento |
 
-A diferença vem quase toda da folga e do acréscimo do escoramento contínuo (0,20 m na premissa da NBR; 0,10 m no
-MOS). Método que não se aplica ao tubo (material fora da Tabela I do MOS) fica de fora, com alerta em todos os
-elementos do trecho. Para acrescentar um método, basta uma função de largura em `dimensoes.LARGURAS` e uma entrada
-em `vala.metodos`. `validar()` reprova o método declarado sem código.
+Os conflitos mostram onde os critérios diferem: raio da sondagem, sobrelargura do corte e o que vai para o
+bota-fora. A escolha é do engenheiro, registrada como `decisao`. O build continua usando o MOS (D2) como quantidade
+de obra. Método que não se aplica ao tubo (material fora da Tabela I do MOS) fica de fora, com alerta em todos os
+elementos do trecho. Valores dados por um método (os volumes do MOS) vencem os cálculos genéricos do tipo `vala`
+(`dimensoes.dimensionar`). `validar()` reprova o método declarado sem código.
 
 ## 8. Quantificação das pranchas e verificação de proposta (`camadas/eap.py`)
 

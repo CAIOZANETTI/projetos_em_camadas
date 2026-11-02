@@ -42,10 +42,11 @@
     escoramento; impermeabilização; armadura por taxa do tipo; escavação/reaterro de cava). Tem condição e modelos
     de destino (`{item}`, `{item_pavimento}`, `escoramento_{tipo_escoramento}`).
   - `camadas/formulas.py`: avaliador restrito com comparações e condicional, e `conferir` nas validações.
-- **Vários métodos para a mesma vala, sem escolher um**: a largura sai de cada método de `dimensoes.json#vala.metodos`
-  — NBR 12266 e MOS Sanepar (`obras_lineares.largura`, L = D + SL + X + Y) — e cada método vira uma fonte de evidência
-  (`metodo:<id>`). A consolidação mostra convergência (corte, assentamento) ou conflito com a diferença (AAT06 PEAD 630:
-  escavação 288,7 × 218,1 m³, 24,5 %). Material fora da Tabela I deixa o método de fora com alerta.
+- **Vários métodos para a mesma vala, sem escolher um**: cada método de `dimensoes.json#vala.metodos` vira uma fonte
+  de evidência (`metodo:<id>`). O método `mos_sanepar` chama o dimensionador único da `main`
+  (`lineares.dimensionar_vala`, D2): a evidência MOS é o mesmo número do build. O `nbr12266` usa as regras genéricas.
+  A consolidação mostra convergência (corte, assentamento) e conflito com o porquê. Exemplo da AAT06: o raio de 60 m
+  do MOS não alcança o furo a 80 m; o bota-fora do MOS é só o volume do tubo (60,8 × 382,7 m³).
 - **A vala é só mais um tipo**. `dimensoes.dimensionar_vala` decide por segmento de superfície:
   - profundidade (recobrimento + DE + berço, ou a do perfil);
   - solo, rocha e NA da sondagem mais próxima (raio 300 m, NA com margem de 0,5 m);

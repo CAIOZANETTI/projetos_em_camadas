@@ -216,8 +216,9 @@ def test_cada_metodo_e_uma_fonte_e_a_consolidacao_compara():
     assert {e["documento"]["id"] for e in evs} == {"metodo:nbr12266", "metodo:mos_sanepar"}
     fatos = evidencias.consolidar(evs).set_index(["codigo", "servico", "unidade"])
     esc = fatos.loc[("U2.AAT06.GEO.MOV.VAL", "escavacao", "m³")]
-    assert esc["status"] == "conflito" and esc["n_documentos"] == 2                       # 1,23 m × 1,08 m de largura
-    assert sorted(a["valor"] for a in esc["afirmacoes"]) == pytest.approx([1.08 * 1.38 * 100, 1.23 * 1.38 * 100], rel=1e-3)
+    assert esc["status"] == "conflito" and esc["n_documentos"] == 2
+    # NBR: b 1,23 m, abaixo dos 0,35 m de pavimento; MOS (lineares.dimensionar_vala): L 1,08 m × h inteira 1,73 m
+    assert sorted(a["valor"] for a in esc["afirmacoes"]) == pytest.approx([1.23 * 1.38 * 100, 1.08 * 1.73 * 100], rel=1e-3)
     assert fatos.loc[("U2.AAT06.HID.TUB.RED", "assentamento", "m")]["status"] == "convergente"   # não depende de b
 
 
@@ -225,3 +226,18 @@ def test_metodo_que_nao_se_aplica_fica_de_fora_com_alerta():
     els, _, _, _ = _vala({"pista": 10.0}, material="TUBO DE MATERIAL DESCONHECIDO", metodos=("nbr12266", "mos_sanepar"))
     assert [e["metodo"] for e in els] == ["nbr12266"]
     assert any("MOS: material do tubo não reconhecido" in a for a in els[0]["alertas"])
+
+
+def test_metodo_mos_usa_o_dimensionador_unico_da_main():
+    from camadas import lineares
+    els, evs, _, _ = _vala({"pista": 120.0}, de_mm=630, material="TUBO PE DE 630", metodos=("mos_sanepar",))
+    r = lineares.dimensionar_vala({"local": "pista", "dn_mm": 630, "material": "PEAD", "prof_m": 1.73, "comp_m": 120.0,
+                                   "metodo": "VCA", "pavimentos": {"asfalto": 120.0}}, [])
+    q = {(e["servico"], e["unidade"]): e["valor"] for e in evs}
+    assert q[("escavacao", "m³")] == pytest.approx(r["escavacao_m3"])          # o mesmo número do build
+    assert q[("reaterro", "m³")] == pytest.approx(r["reaterro_m3"])
+    assert q[("bota_fora", "m³")] == pytest.approx(r["bota_fora_m3"])
+    assert q[(f"escoramento_{r['tipo_escoramento']}", "m²")] == pytest.approx(r["escoramento_m2"])
+    assert q[("demolicao", "m²")] == pytest.approx(sum(r["pavimento_m2"].values()))
+    assert q[("berco", "m³")] == pytest.approx(r["largura_m"] * 0.1 * 120.0)    # regra genérica, largura do MOS
+    assert els[0]["dims"]["b"] == r["largura_m"]

@@ -74,6 +74,8 @@ def dimensionar(tipo: str, dados: dict | None = None, atributos: dict | None = N
             memoria.append(f"{nome} = {dims[nome]} (premissa: {p.get('fonte', p.get('ref', ''))})")
     faltando = [n for n in spec["dimensoes"] if n not in dims]
     for nome, expr in spec["calculos"].items():
+        if nome in dados:                                 # valor dado (ex.: o volume do dimensionador MOS) vence a conta
+            continue
         try:
             dims[nome] = avaliar(expr, dims)
             memoria.append(f"{nome} = {expr} = {dims[nome]:.4g}")
@@ -196,19 +198,7 @@ def material_mos(texto: str) -> str | None:
     return next((m for m, rx in VP["metodos"]["mos_sanepar"]["materiais"] if re.search(rx, t)), None)
 
 
-def _largura_mos(d: float, de_mm: float, h: float, tipo: str, material_texto: str) -> tuple[float | None, str]:
-    """MOS Sanepar: L = D + SL + X + Y (camadas.obras_lineares.largura), escorada pela regra do MOS (> 1,25 m)."""
-    from . import obras_lineares
-    material = material_mos(material_texto)
-    if material is None:
-        return None, "MOS: material do tubo não reconhecido na Tabela I"
-    b = obras_lineares.largura(de_mm, material, h, obras_lineares.escorar(h))
-    if b is None:
-        return None, f"MOS: {material} DN {de_mm:g} fora da Tabela I"
-    return b, f"b (MOS) = D + SL + X + Y ({material}, h = {h:.2f} m) = {b:.2f} m"
-
-
-LARGURAS = {"nbr12266": _largura_nbr, "mos_sanepar": _largura_mos}
+LARGURAS = {"nbr12266": _largura_nbr}
 
 
 def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: str, solo_fn, profundidade,
@@ -220,7 +210,7 @@ def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: s
     h = profundidade if profundidade is not None else rec + d + c["berco"]
     solo = solo_fn(h)
     tipo, motivo = escoramento(h, solo)
-    b, texto_b = LARGURAS[metodo](d, de_mm, h, tipo, material_texto)
+    b, texto_b = _largura_nbr(d, de_mm, h, tipo, material_texto)
     if b is None:
         return None, [texto_b]
     flexivel = material_do_tubo(material_texto) == "flexivel"
@@ -246,6 +236,55 @@ def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: s
     return dims, memoria
 
 
+def _pontos(geometria, passo_m: float = 1.0):
+    """Eixo do trecho amostrado a cada metro (UTM), para a sondagem de cada metro no dimensionador MOS."""
+    if geometria is None or geometria.length == 0:
+        return None
+    return np.array([geometria.interpolate(s).coords[0] for s in np.arange(0.0, geometria.length + 1e-9, passo_m)])
+
+
+def _segmento_mos(sup: str, L: float, d: float, de_mm: float, material_texto: str, furos: list | None, pts,
+                  profundidade, furo_proximo: dict | None) -> tuple[dict | None, list]:
+    """Dimensões de um segmento pelo dimensionador único da main (`lineares.dimensionar_vala`, MOS): largura,
+    escoramento, escavação, reaterro, bota-fora, escoramento (m²), pavimento e esgotamento são os dele; as dimensões
+    dadas vencem os cálculos genéricos do tipo `vala`, e berço/envoltória saem da regra genérica com a largura do MOS."""
+    from . import lineares
+    material = material_mos(material_texto)
+    if material is None:
+        return None, ["MOS: material do tubo não reconhecido na Tabela I"]
+    c = _constantes_vala()
+    rec = VALAS["recobrimento_m"][VALAS["classes"].get(sup, {}).get("recobrimento", "outros")]
+    h = profundidade if profundidade is not None else rec + d + c["berco"]
+    pav_mos = VP["metodos"]["mos_sanepar"]["pavimentos"]["valor"].get(sup, "terra")
+    trecho = {"local": sup, "dn_mm": de_mm, "material": material, "prof_m": h, "comp_m": L, "metodo": "VCA",
+              "pavimentos": {pav_mos: L}, "sond_ini": (furo_proximo or {}).get("id")}
+    r = lineares.dimensionar_vala(trecho, furos or [], pts=pts)
+    if not r.get("largura_m"):
+        return None, [f"MOS: {material} DN {de_mm:g} fora da Tabela I"]
+    tipo = r.get("tipo_escoramento") or "nenhum"
+    pav = VP["pavimentos"]["tipos"][VP["pavimentos"]["superficie_tipo"]["valor"].get(sup, "terra")]
+    metodo_agua = r.get("tipo_esgotamento") or "nenhum"
+    horas = L / _faixa(VP["lencol"]["produtividade_m_dia"]["valor"], de_mm) * VP["lencol"]["horas_por_dia"]["valor"] \
+        if metodo_agua != "nenhum" else 0.0
+    b = float(r["largura_m"])
+    dims = {**c, "L": L, "d": d, "h": float(r["profundidade_m"]), "b": b, "e_pav": sum(e for _, e in pav["camadas"]),
+            "h_rocha": 0.0, "h_solo": float(r["profundidade_m"]), "escorado": 0.0 if tipo == "nenhum" else 1.0,
+            "tipo_escoramento": tipo, "flexivel": 1.0 if material_do_tubo(material_texto) == "flexivel" else 0.0,
+            "item_pavimento": pav["item"] or "", "pavimento": pav["nome"], "h_agua": float(r.get("altura_agua_m") or 0.0),
+            "metodo_agua": metodo_agua, "horas_agua": horas, "reap": c["reap_solo"],
+            "V_solo": float(r["escavacao_m3"]), "V_rocha": 0.0, "V_reat": float(r["reaterro_m3"]),
+            "V_bota": float(r["bota_fora_m3"]), "A_escoramento": float(r.get("escoramento_m2") or 0.0),
+            "A_demol": float(sum((r.get("pavimento_m2") or {}).values())) if pav["item"] else 0.0}
+    memoria = [(f"MOS (lineares.dimensionar_vala): h = {dims['h']:.2f} m ({r.get('fonte_profundidade')}), "
+                f"L = {b:.2f} m ({material} DN {de_mm:g})"),
+               f"escoramento {VP['largura']['nomes_escoramento'].get(tipo, tipo)}"
+               + (f" ({', '.join(r.get('agravantes_escoramento') or [])})" if r.get("agravantes_escoramento") else ""),
+               (f"escavação {r['escavacao_m3']:g} m³ · reaterro {r['reaterro_m3']:g} m³ · "
+                f"bota-fora {r['bota_fora_m3']:g} m³ · pavimento {r.get('pavimento_m2')}"),
+               f"água: {dims['h_agua']:.2f} m na vala → {metodo_agua}", *r.get("alertas", [])]
+    return dims, memoria
+
+
 def dimensionar_vala(trecho: dict, sondagens: list | None = None,
                      metodos: list[str] | None = None) -> list[tuple[str, str, tuple, list[str]]]:
     """[(segmento, método, (dimensões, faltando, memória), alertas)] de um trecho: {id, de_mm, segmentos: {superfície:
@@ -264,10 +303,16 @@ def dimensionar_vala(trecho: dict, sondagens: list | None = None,
     if material is None:
         alertas.append("material do tubo não identificado: sem envoltória (tratado como rígido)")
     saida, fora = [], []                                  # fora: método que não se aplica, avisado em todo o trecho
+    pts = _pontos(trecho.get("geometria"))
     for metodo in metodos or list(VP["metodos"]):
         for sup, L in trecho["segmentos"].items():
-            dims, memoria = _segmento_vala(sup, L, trecho["de_mm"] / 1000, trecho["de_mm"], trecho.get("material_texto"),
-                                           lambda h: solo_na_vala(furo, h, desloc), trecho.get("profundidade_m"), metodo)
+            if metodo == "mos_sanepar":
+                dims, memoria = _segmento_mos(sup, L, trecho["de_mm"] / 1000, trecho["de_mm"], trecho.get("material_texto"),
+                                              sondagens, pts, trecho.get("profundidade_m"), furo)
+            else:
+                dims, memoria = _segmento_vala(sup, L, trecho["de_mm"] / 1000, trecho["de_mm"],
+                                               trecho.get("material_texto"), lambda h: solo_na_vala(furo, h, desloc),
+                                               trecho.get("profundidade_m"), metodo)
             if dims is None:
                 fora.append(f"{sup}: {memoria[0]}")
                 continue
@@ -360,5 +405,5 @@ def validar() -> list[str]:
     problemas += [f"de_fatos: tipo '{r['tipo']}' inexistente" for r in REGRAS["de_fatos"] if r["tipo"] not in TIPOS]
     problemas += [f"{t}.{nome}: {erro}" for t, s in TIPOS.items() for nome, expr in s["calculos"].items()
                   if (erro := conferir(expr))]
-    problemas += [f"vala.metodos: '{m}' sem código em LARGURAS" for m in VP["metodos"] if m not in LARGURAS]
+    problemas += [f"vala.metodos: '{m}' sem código" for m in VP["metodos"] if m not in (*LARGURAS, "mos_sanepar")]
     return problemas
