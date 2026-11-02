@@ -11,7 +11,7 @@
 | E1 | De-para 3 com o código real (codigo_eap), conferido contra eap_geral e servicos | ✅ feito | opus | 20 | 120.000 | 6 | 0,0 | 32.429 | 0,3× |
 | E2 | Unidade e sistema do objeto, código completo em cada serviço | ✅ feito | sonnet | 45 | 150.000 | 4 | 0,0 | 36.895 | 0,2× |
 | E3 | Conciliação das duas EAP e código real na aba | ✅ feito | sonnet | 45 | 150.000 | 4 | 0,0 | 0 | 0,1× |
-| E4 | Integração (merges 0.35.0 e #37), aceite do Fable, balanço e PR | ✅ feito | opus | 30 | 200.000 | 12 | 0,2 | 465.086 | 2,3× |
+| E4 | Integração (merges 0.35.0 e #37), aceite do Fable, balanço e PR | ✅ feito | opus | 30 | 200.000 | 12 | 0,2 | 467.555 | 2,3× |
 
 **Desvios (1)**
 - estouro: E4: tokens real é 2,3× o estimado
