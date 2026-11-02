@@ -84,3 +84,22 @@ Contrato já escrito em `conceitos/` pelo gerente:
     - as marcas guardam `topo`;
     - a etapa roda também sem a planilha de obras lineares, quando há cavas, para a ETA não perder as cavas em
       silêncio.
+- 02/11, **1º aceite do Fable: REVISAR** (E1 e o ajuste do gerente foram aceitos). Achados:
+  1. **As duas EAP colidiam no build.** A das gavetas ia para `dados["eap"]`, e vinte linhas depois a EAP codificada
+     do PR #18 sobrescrevia a mesma chave. A aba das gavetas sumia ou mostrava o formato errado, e a tabela por setor
+     não chegava ao HTML real. O teste do Chromium não pegava o problema porque montava `dados` à mão.
+  2. O bandit acusava um B324 em `camadas/evidencias.py:79`, que veio do PR #18.
+
+  Riscos também apontados:
+  - um ponto na divisa de setores vizinhos virava pendência;
+  - a conferência da soma por setor derrubaria a aba numa obra grande;
+  - o `onde` da evidência das cavas aparecia em JSON cru.
+
+  Correção do gerente:
+  - a EAP das gavetas vai para a chave própria `dados["eap_gavetas"]`, e a aba lê só ela; teste de `_aba_projeto`
+    com as duas EAP convivendo, e teste no Chromium com as duas chaves;
+  - `usedforsecurity=False` em `evidencias.py`;
+  - na divisa, o setor é o 1º declarado, sem pendência; a sobreposição real (`contains` em dois setores) continua
+    pendência;
+  - a tolerância da soma acompanha o erro máximo do arredondamento (0,0005 × 2 × n de serviços);
+  - o critério entra no localizador das cavas.

@@ -688,3 +688,14 @@ def test_eap_por_setor_soma_igual_ao_total_de_cada_no():
         assert sum(n["n_servicos"] for n in nos) == len(total["servicos"])
     escavacao = [n for n in grupos[-1]["nos"] if n["unidade"] == "m³"]
     assert sum(n["valor"] for n in escavacao) == pytest.approx(5.25)       # P-FORA e o objeto sem geometria
+
+
+def test_ponto_na_divisa_de_setores_vizinhos_vai_para_o_primeiro_declarado():
+    """Aceite da rodada 5: setores vizinhos dividem a borda; o ponto exatamente na divisa não vira pendência."""
+    from shapely.geometry import Point, box
+    setores = {"SET-A": box(0, 0, 10, 10), "SET-B": box(10, 0, 20, 10)}
+    assert gv._setor_do_ponto(Point(10, 5), setores) == ("SET-A", [])
+    assert gv._setor_do_ponto(Point(15, 5), setores) == ("SET-B", [])
+    assert gv._setor_do_ponto(Point(30, 5), setores) == (None, [])
+    sobrepostos = {"SET-A": box(0, 0, 12, 10), "SET-B": box(10, 0, 20, 10)}
+    assert gv._setor_do_ponto(Point(11, 5), sobrepostos) == (None, ["SET-A", "SET-B"])

@@ -782,8 +782,8 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     try:                                                       # a base das gavetas não pode derrubar o build
         dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log, redes_vala=redes_vala,
                                                 cavas=cavas)
-        if dados["gavetas"]:                                    # aba EAP: só apresenta o que o Python montou
-            dados["eap"] = dados["gavetas"].pop("eap_html")
+        if dados["gavetas"]:                                    # aba EAP das gavetas: só apresenta o que o Python montou
+            dados["eap_gavetas"] = dados["gavetas"].pop("eap_html")   # chave própria: `dados["eap"]` é a EAP codificada
     except Exception as erro:  # noqa: BLE001 - a etapa nova nunca derruba o build
         _log(f"Gavetas: etapa não concluída ({type(erro).__name__}: {erro})")
     if fichas:

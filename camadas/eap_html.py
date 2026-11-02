@@ -1,6 +1,6 @@
 """EAP para o HTML: nós, serviços, fatos e evidências já formatados em português do Brasil.
 
-O Python calcula e formata (`1.234,56`, unidade da propriedade); o template só lê `dados["eap"]`.
+O Python calcula e formata (`1.234,56`, unidade da propriedade); o template só lê `dados["eap_gavetas"]`.
 Caminho de volta: nó da EAP → serviços → fatos usados → evidência (documento, onde, trecho, executor).
 """
 from __future__ import annotations
@@ -92,13 +92,15 @@ def _fato(f: dict, evidencias: dict) -> dict:
 
 
 def _por_setor(base: dict, servicos: list[dict], nos: list[dict], setor_por_objeto: dict, ind: dict) -> list[dict]:
-    """`dados["eap"]["setores"]`: os nós de cada setor formatados. A soma dos setores mais o "fora dos setores" tem de
-    ser o total do nó (`TOLERANCIA_SOMA_SETORES`); se não for, `ValueError`."""
+    """`dados["eap_gavetas"]["setores"]`: os nós de cada setor formatados. A soma dos setores mais o "fora dos setores" tem de
+    ser o total do nó. Tolerância: a maior entre `TOLERANCIA_SOMA_SETORES` e o erro máximo do arredondamento a 3 casas
+    feito serviço a serviço nas duas somas (0,0005 × 2 × n de serviços do nó); acima disso é erro de cálculo, `ValueError`."""
     ordem = [o["objeto_id"] for o in base.get("objetos", []) if o["classe"] == "setor"]
     grupos = gavetas.para_eap_por_setor(servicos, setor_por_objeto, ordem)
     for no in nos:
         soma = sum(n["valor"] for g in grupos for n in g["nos"] if n["eap"] == no["eap"])
-        if abs(soma - no["valor"]) > gavetas.TOLERANCIA_SOMA_SETORES:
+        limite = max(gavetas.TOLERANCIA_SOMA_SETORES, 0.0005 * len(no["servicos"]) * 2)   # 2 somas arredondadas a 3 casas
+        if abs(soma - no["valor"]) > limite:
             raise ValueError(f"nó {no['eap']}: a soma dos setores ({soma}) difere do total ({no['valor']})")
     saida = []
     for g in grupos:
@@ -113,7 +115,7 @@ def _por_setor(base: dict, servicos: list[dict], nos: list[dict], setor_por_obje
 
 def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dict | None = None,
            setores: dict | None = None) -> dict:
-    """`dados["eap"]`: nós, pendências e resumo, tudo em texto pronto para o HTML. Com `setores` (o mapa de
+    """`dados["eap_gavetas"]`: nós, pendências e resumo, tudo em texto pronto para o HTML. Com `setores` (o mapa de
     `gavetas.setor_de`), acrescenta a chave `setores`: a EAP de cada setor."""
     ind = gavetas.indice(base)
     fatos = {f["fato_id"]: f for f in base.get("fatos", [])}

@@ -76,7 +76,7 @@ def evidencia(**campos) -> dict:
     """Evidência com id estável (hash) e conferida contra o schema; levanta ValueError se não passa."""
     chave = json.dumps([campos.get(k) for k in ("documento", "localizador", "metodo", "codigo", "servico", "trecho",
                                                  "unidade", "valor", "autor")], ensure_ascii=False, sort_keys=True)
-    ev = {"id": hashlib.sha1(chave.encode()).hexdigest()[:16], **campos}
+    ev = {"id": hashlib.sha1(chave.encode(), usedforsecurity=False).hexdigest()[:16], **campos}   # id, não segurança
     problemas = validar_evidencia(ev)
     if problemas:
         raise ValueError(f"evidência inválida: {problemas} — {ev}")

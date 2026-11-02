@@ -240,7 +240,8 @@ def _marcas_da_planta(marcas: list[dict]) -> list[dict]:
 def _evidencias_das_cavas(superficie: dict, pranchas: list[str], layers: list[str], crs_h: str, mds: str) -> list[dict]:
     """A evidência das plantas (pranchas e layers) e a da superfície (MDS do drone, `metodo` geometria)."""
     return [{"evidencia_id": "EV-CAVAS", "classe": "projeto", "documento": ", ".join(pranchas) or "plantas de escavação",
-             "localizador": {"pranchas": list(pranchas), "layers": list(layers), "crs_h": crs_h},
+             "localizador": {"pranchas": list(pranchas), "layers": list(layers), "criterio": "plantas de escavação",
+                             "crs_h": crs_h},
              "trecho": "cavas", "metodo": "geometria", "executor": "código"},
             {"evidencia_id": superficie["evidencia_id"], "classe": "ortofoto", "documento": mds,
              "localizador": {"arquivo": mds, "chave": "terreno em cota (MDS), válido e edificação"},
@@ -439,7 +440,7 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
           cavas: dict | None = None) -> dict | None:
     """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
     compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`. Devolve o resumo
-    com `eap_html` (o `dados["eap"]` da aba EAP, montado e formatado em Python por `eap_html.montar`).
+    com `eap_html` (o `dados["eap_gavetas"]` da aba EAP, montado e formatado em Python por `eap_html.montar`).
     `cavas`: o `saida_gavetas` de `escavacao.etapa` (marcas, bases, cristas, grade e resultado); grava a superfície em
     `base/superficies/`, junta `de_cavas` e soma a paridade com o `escavacao.calcular` direto."""
     c = cfg.get("obras_lineares")

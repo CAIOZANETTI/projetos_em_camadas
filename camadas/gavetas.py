@@ -823,6 +823,18 @@ def _formas_dos_setores(base: dict, geometrias: dict) -> dict:
     return formas
 
 
+def _setor_do_ponto(ponto, setores: dict) -> tuple[str | None, list[str]]:
+    """(setor, sobrepostos). Dentro (`contains`) de um setor só: ele. Dentro de dois ou mais: None e a sobreposição.
+    Só na divisa (`covers` sem `contains`, comum entre setores vizinhos): o 1º declarado no obra.json, sem pendência."""
+    dentro = [sid for sid, poligono in setores.items() if poligono.contains(ponto)]
+    if len(dentro) > 1:
+        return None, dentro
+    if dentro:
+        return dentro[0], []
+    na_divisa = [sid for sid, poligono in setores.items() if poligono.covers(ponto)]
+    return (na_divisa[0] if na_divisa else None), []
+
+
 def setor_de(base: dict, ind: dict | None = None) -> tuple[dict[str, str | None], list[dict]]:
     """Setor de cada objeto com geometria que não é `setor`, pelo ponto representativo (ponto, meio da linha,
     `representative_point`). Fora de todos os setores: None. Em dois ou mais: None e pendência "setores sobrepostos".
@@ -842,11 +854,10 @@ def setor_de(base: dict, ind: dict | None = None) -> tuple[dict[str, str | None]
         forma = _forma(g) if g and o["classe"] != "setor" else None
         if forma is None or forma.is_empty:
             continue
-        ponto = sg.Point(_ponto_representativo(forma).coords[0])
-        dentro = [sid for sid, poligono in setores.items() if poligono.covers(ponto)]
-        mapa[o["objeto_id"]] = dentro[0] if len(dentro) == 1 else None
-        if len(dentro) > 1:
-            pendencias.append({"objeto_id": o["objeto_id"], "motivo": f"setores sobrepostos: {', '.join(dentro)}"})
+        sid, sobrepostos = _setor_do_ponto(sg.Point(_ponto_representativo(forma).coords[0]), setores)
+        mapa[o["objeto_id"]] = sid
+        if sobrepostos:
+            pendencias.append({"objeto_id": o["objeto_id"], "motivo": f"setores sobrepostos: {', '.join(sobrepostos)}"})
     return mapa, pendencias
 
 
@@ -863,10 +874,10 @@ def setor_dos_servicos(base: dict, servicos: list[dict]) -> tuple[dict[str, str 
     for s in servicos:
         if not s.get("ponto"):
             continue
-        dentro = [sid for sid, poligono in setores.items() if poligono.covers(sg.Point(s["ponto"]))]
-        mapa[s["servico_id"]] = dentro[0] if len(dentro) == 1 else None
-        if len(dentro) > 1 and not any(p["objeto_id"] == s["servico_id"] for p in pendencias):
-            pendencias.append({"objeto_id": s["servico_id"], "motivo": f"setores sobrepostos: {', '.join(dentro)}"})
+        sid, sobrepostos = _setor_do_ponto(sg.Point(s["ponto"]), setores)
+        mapa[s["servico_id"]] = sid
+        if sobrepostos:
+            pendencias.append({"objeto_id": s["servico_id"], "motivo": f"setores sobrepostos: {', '.join(sobrepostos)}"})
     return mapa, pendencias
 
 
