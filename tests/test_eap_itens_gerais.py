@@ -18,7 +18,7 @@ FOLHA_PARA_ITEM = {
     "OP.11.03": ["GER.CTL.COM"],
     "OP.12.01": ["GER.FIN.LIM"],
     "OP.12.02": ["GER.FIN.CAD"],
-    "OP.12.03": ["GER.FIN.DES"],
+    "OP.12.03": ["GER.FIN.DES", "GER.PRE.MOB"],
     "OL.01.01": ["GER.PRE.MOB"],
     "OL.01.02": ["GER.PRE.TOP"],
     "OL.01.03": ["GER.PRE.SIN"],
@@ -30,7 +30,7 @@ FOLHA_PARA_ITEM = {
     "OL.09.03": ["GER.CTL.CFT"],
     "OL.11.01": ["GER.FIN.CAD"],
     "OL.11.02": ["GER.FIN.FAI", "GER.FIN.LIM"],
-    "OL.11.03": ["GER.FIN.DES"],
+    "OL.11.03": ["GER.FIN.DES", "GER.PRE.MOB"],
 }
 NOVOS = {i for itens in FOLHA_PARA_ITEM.values() for i in itens}
 
@@ -62,7 +62,7 @@ def test_toda_folha_do_padrao_aponta_para_item_codificado():
     assert [i for i, f in folhas.items() if not f["aponta"]] == []
     for folha, itens in FOLHA_PARA_ITEM.items():
         assert [a["item"] for a in folhas[folha]["aponta"]] == itens
-        assert "observacao" not in folhas[folha]
+        assert ("observacao" in folhas[folha]) == (folha in ("OP.12.03", "OL.11.03"))
 
 
 def test_item_so_vale_para_o_tipo_de_obra_da_folha_que_o_cita():
@@ -514,3 +514,213 @@ def test_itens_gerais_aparecem_na_estrutura_so_no_tipo_de_obra_certo():
     assert {"GER.PRE.MOB", "GER.CTL.COM", "CIV.ACA.ACB", "CIV.PAV.URB"} <= de_u1
     assert {"GER.PRE.MOB", "GER.PRE.SIN", "HID.TUB.MND", "GER.CTL.DSF"} <= de_u2
     assert not ({"GER.CTL.COM", "CIV.ACA.ACB"} & de_u2) and "HID.TUB.MND" not in de_u1
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "ESTACA HELICE CONTINUA D=40 CM (MOBILIZACAO INCLUSA)",
+        "ESTACA HELICE CONTINUA D=40 CM + MOBILIZACAO",
+        "ESTACA HELICE CONTINUA D=40 CM CONSIDERANDO MOBILIZACAO",
+        "ESTACA HELICE CONTINUA D=40 CM INCL. MOBILIZACAO",
+        "ESTACA HELICE CONTINUA D=40 CM, MOBILIZACAO INCLUIDA",
+        "ESTACA HELICE CONTINUA DIAM 40 CM C/ MOBILIZACAO",
+        "ESTACA HELICE CONTINUA DIAM 40 CM, MOBILIZACAO E DESMOBILIZACAO",
+        "ESTACA HELICE CONTINUA CONFORME TOPOGRAFIA E LOCACAO E NIVELAMENTO",
+    ],
+)
+def test_cabeca_da_descricao_manda_sem_lista_de_marcas(texto):
+    assert _classificar(texto, "localizada")[0] == "GEO.FUN.EST"
+    assert _classificar(texto)[0] == "GEO.FUN.EST"
+    assert (
+        _classificar(texto, "linear")[0] not in NOVOS
+    )  # estaca não é item de obra linear, mas o acessório não a toma
+
+
+@pytest.mark.parametrize(
+    "texto, item",
+    [
+        ("CADASTRO TECNICO DA REDE COLETORA", "GER.FIN.CAD"),
+        ("LOCACAO E NIVELAMENTO DA REDE COLETORA", "GER.PRE.TOP"),
+        ("BLOCO DE ANCORAGEM EM CONCRETO PARA CURVA DN 300", "HID.TUB.ANC"),
+        ("PINTURA DE PAREDES INTERNAS", "CIV.ACA.ACB"),
+        ("TESTE DE FUNCIONAMENTO DE BOMBA SUBMERSIVEL", "GER.CTL.COM"),
+        ("ENSAIO DE COMPACTACAO DE REATERRO", "GER.CTL.ENS"),
+        ("MOBILIZACAO DE EQUIPAMENTO PARA ESTACA HELICE CONTINUA", "GER.PRE.MOB"),
+        ("MOBILIZACAO E DESMOBILIZACAO DE EQUIPAMENTOS", "GER.PRE.MOB"),
+        ("ASSENTAMENTO DE TUBO PEAD COM MND", "HID.TUB.MND"),
+        ("ASSENTAMENTO DE TUBO PEAD EM METODO NAO DESTRUTIVO", "HID.TUB.MND"),
+        ("LIGACAO PREDIAL DE AGUA", "HID.TUB.LIG"),
+        ("LIGACAO DOMICILIAR DE ESGOTO", "HID.TUB.LIG"),
+        ("LIMPEZA GERAL DO TERRENO", "GEO.MOV.SUP"),
+        ("REVESTIMENTO VEGETAL", "CIV.PAV.URB"),
+    ],
+)
+def test_cabeca_acessoria_ou_excecao_vai_para_o_item_certo(texto, item):
+    assert _classificar(texto)[0] == item
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "LIMPEZA DE TUBULACAO DE ESGOTO",  # I1: desinfecção é de água
+        "LIMPEZA E DESINFECCAO DA REDE COLETORA",
+        "BOMBA DOSADORA PARA DESINFECCAO",  # I2: equipamento de ETA
+        "SISTEMA DE DESINFECCAO POR CLORO",
+        "DESINFECCAO DE RESERVATORIO",
+        "LIMPEZA E DESINFECCAO DE RESERVATORIO",
+        "CAMERAS DE CFTV E CABOS",
+        "SISTEMA DE CFTV COM CAMERAS IP",
+        "LIGACAO PREDIAL COM TRAVESSIA",  # I3
+        "TRAVESSIA DE RUA",
+        "TRAVESSIA DE PEDESTRES",
+        "LIMPEZA DE FAIXA DE SERVIDAO",  # I4: abertura, não final
+        "LIMPEZA DO RESERVATORIO",
+        "LIMPEZA FINAL DO RESERVATORIO",
+        "ENSAIO NAO DESTRUTIVO DE SOLDA",  # I5
+        "ENSAIOS NAO DESTRUTIVOS LIQUIDO PENETRANTE",
+        "FITA DE SINALIZACAO PARA REDE ENTERRADA",  # I6
+        "PINTURA ANTICORROSIVA DE TUBULACAO",
+        "PINTURA DE ESTRUTURA DE ACO",
+        "JANELA DE INSPECAO",
+        "PORTA DE INSPECAO",
+        "REVESTIMENTO DE TALUDE",
+        "COMPORTA DE ACO INOX",
+        "A ESCAVACAO SEGUIRA A TOPOGRAFIA LOCAL",
+        "SONDAGEM A PERCUSSAO SPT, INCLUSIVE TOPOGRAFIA",
+    ],
+)
+def test_frase_do_revisor_que_nao_e_item_novo(texto):
+    for obra in (None, "linear", "localizada"):
+        assert _classificar(texto, obra)[0] not in NOVOS - {"CIV.PAV.URB"}
+
+
+@pytest.mark.parametrize(
+    "texto, item",
+    [
+        ("TRAVESSIA DE RODOVIA DNIT", "HID.TUB.TRV"),
+        ("TRAVESSIA SOB A BR-277", "HID.TUB.TRV"),
+        ("TRAVESSIA AEREA SOBRE CORREGO EM TUBO DE ACO", "HID.TUB.TRV"),
+        ("LIMPEZA FINAL DA FAIXA", "GER.FIN.FAI"),
+        ("RECOMPOSICAO DA FAIXA", "GER.FIN.FAI"),
+        ("DESINFECCAO DA REDE DE AGUA", "GER.CTL.DSF"),
+        ("INSPECAO POR CFTV DE TUBULACAO", "GER.CTL.CFT"),
+        ("METODO NAO DESTRUTIVO", "HID.TUB.MND"),
+    ],
+)
+def test_objeto_relevante_mantem_o_item(texto, item):
+    assert _classificar(texto, "linear")[0] == item
+
+
+def test_mes_so_vale_em_linha_de_servico_por_mes():
+    medir = lambda t: vocabulario.quantidade(vocabulario.preparar(t)[0], [])
+    assert medir("Manutenção do canteiro de obras 12 meses") == (12.0, "mês")
+    assert medir("PRAZO DE EXECUCAO DO CANTEIRO: 12 MESES") == (None, None)
+    for texto in (
+        "Prazo de 12 meses",
+        "Garantia de 60 meses",
+        "MES 1 MES 2 MES 3",
+        "Cronograma: 6 meses",
+    ):
+        assert medir(texto) == (None, None)
+
+
+def test_numero_mais_termo_funciona_nos_itens_novos():
+    termos = [it["termos"] for it in eap.itens().values()]
+    for texto, esperado in [
+        ("Execução de 6 blocos de ancoragem em concreto", 6.0),
+        ("Instalação de 2 placas de obra", 2.0),
+    ]:
+        assert vocabulario.quantidade(vocabulario.preparar(texto)[0], termos) == (
+            esperado,
+            "un",
+        )
+
+
+@pytest.mark.parametrize(
+    "pagina, codigo, valor, unidade",
+    [
+        (
+            "Execução de 6 blocos de ancoragem em concreto.",
+            "U2.AAT06.HID.TUB.ANC",
+            6,
+            "un",
+        ),
+        ("Instalação de 2 placas de obra.", "U2.AAT06.GER.PRE.MOB", 2, "un"),
+        (
+            "Escavação de 1.200 m3 de vala e desinfecção da rede.",
+            "U2.AAT06.GEO.MOV.VAL",
+            1200,
+            "m³",
+        ),
+        (
+            "Assentamento de 1.250 m de tubo PEAD DN 110, inclusive travessia sob a rodovia",
+            "U2.AAT06.HID.TUB.RED",
+            1250,
+            "m",
+        ),
+        (
+            "Fornecimento de 40 registros de gaveta e cadastro técnico da rede",
+            "U2.AAT06.HID.TUB.VAL",
+            40,
+            "un",
+        ),
+    ],
+)
+def test_citacao_de_ia_continua_conferida(pagina, codigo, valor, unidade):
+    e = {
+        "documento": {"id": "m", "tipo": "ia"},
+        "metodo": "ia",
+        "codigo": codigo,
+        "servico": "",
+        "unidade": unidade,
+        "valor": valor,
+        "parcela": False,
+        "localizador": "p. 1",
+        "trecho": pagina.rstrip("."),
+        "regra": "ia",
+        "modelo": "x",
+    }
+    assert evidencias._conferir_ia(e, {"m": [pagina]}).get("citacao") == "conferida"
+
+
+def test_continuacao_de_descricao_herda_a_cabeca_e_nao_vira_item_acessorio():
+    documento = {"id": "pl", "tipo": "memorial", "nome": "pl"}
+    pagina = (
+        "Estaca hélice contínua D=40 cm, inclusive\nmobilização e desmobilização 250 un\n"
+        "Assentamento de tubo PEAD DN 110, teste hidrostático e\ndesinfecção da rede 1.250 m"
+    )
+    achados = [
+        (e["codigo"], e["valor"], e["unidade"])
+        for e in evidencias.buscar_texto(documento, [pagina])
+    ]
+    assert ("*.*.GEO.FUN.EST", 250.0, "un") in achados
+    assert not [
+        c
+        for c, _, _ in achados
+        if c.endswith(("GER.PRE.MOB", "GER.FIN.DES", "GER.CTL.DSF"))
+    ]
+    # linha seguinte de outro assunto (maiúscula, depois de ponto) continua sendo item próprio
+    separado = evidencias.buscar_texto(
+        documento,
+        ["Estaca hélice contínua D=40 cm.\nMobilização e desmobilização, 1 vb"],
+    )
+    assert [e["codigo"] for e in separado][-1] == "*.*.GER.PRE.MOB"
+
+
+def test_marcacao_de_pista_e_sinalizacao_e_nao_acabamento():
+    texto = "SINALIZACAO HORIZONTAL COM TINTA RETRORREFLETIVA"
+    assert _classificar(texto, "linear")[0] == "GER.PRE.SIN"
+    assert _classificar(texto, "localizada")[0] != "CIV.ACA.ACB"
+
+
+def test_cronograma_e_resistencia_nao_viram_quantidade():
+    termos = [it["termos"] for it in eap.itens().values()]
+    for texto in (
+        "CANTEIRO DE OBRAS MES 1 MES 2",
+        "Concreto fck 20 MPa para bloco de ancoragem",
+    ):
+        assert vocabulario.quantidade(vocabulario.preparar(texto)[0], termos) == (
+            None,
+            None,
+        )

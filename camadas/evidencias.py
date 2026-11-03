@@ -111,11 +111,27 @@ def _itens_ordenados(obra: str | None, escopo: str | None) -> list[dict]:
                    and (escopo is None or escopo in it["escopo"])), key=lambda it: it["prioridade"])
 
 
+def _achados_da_cabeca(linha: str, itens: list[dict]) -> list[tuple[int, int, dict]]:
+    """(início, fim, item) de todo termo de `itens` na linha, com a regra da cabeça da descrição: um item `acessorio`
+    (mobilização, cadastro, ensaio, desinfecção, caixa…) é complemento do item principal. Se algum termo de item não
+    acessório começa antes do termo acessório, ele não conta ('estaca…, inclusive mobilização' é estaca; 'cadastro
+    técnico da rede' é cadastro). Exceção declarada no item (`acessorio_exceto`): quando o regex casa, a linha é do
+    acessório mesmo com item principal antes ('assentamento de tubo em MND' é MND)."""
+    achados = [(t.start(), t.end(), it) for it in itens for t in re.finditer(it["termos"], linha)]
+    principal = min((i for i, _, it in achados if not it.get("acessorio")), default=None)
+    return [(i, f, it) for i, f, it in achados
+            if principal is None or not it.get("acessorio") or i <= principal
+            or (it.get("acessorio_exceto") and re.search(it["acessorio_exceto"], linha))]
+
+
 def classificar(linha: str, obra: str | None = None, escopo: str | None = None) -> tuple[str | None, str, str]:
-    """(item EAP, serviço, regra) de uma linha normalizada. O item é o primeiro que casa por prioridade; o serviço,
-    o primeiro do banco que o item admite. Sem item, um serviço com pacote dá 'PACOTE.*' (ex.: forma → CIV.EST.*)."""
-    for it in _itens_ordenados(obra, escopo):
-        if re.search(it["termos"], linha):
+    """(item EAP, serviço, regra) de uma linha normalizada. O item é o primeiro que casa por prioridade (itens
+    acessórios só se a cabeça da descrição não for de item principal); o serviço, o primeiro do banco que o item
+    admite. Sem item, um serviço com pacote dá 'PACOTE.*' (ex.: forma → CIV.EST.*)."""
+    itens = _itens_ordenados(obra, escopo)
+    casam = {it["codigo"] for _, _, it in _achados_da_cabeca(linha, list(eap.itens().values()))}   # cabeça: de qualquer item
+    for it in itens:
+        if it["codigo"] in casam:
             servico = next((s["id"] for s in SERVICOS if s["id"] in it["servicos"] and re.search(s["termos"], linha)), "")
             return it["codigo"], servico, f"item {it['codigo']}" + (f" · serviço {servico}" if servico else "")
     for s in SERVICOS:
@@ -133,13 +149,18 @@ def buscar_texto(documento: dict, paginas: list[str]) -> list[dict]:
     nome e, se souber, unidade ('U1'), sistema, obra e escopo; o que não souber fica '*'. Em planilha, o localizador é
     {aba, linha} e a quantidade vem das colunas Un/Qtd (ou de uma célula só), nunca de células diferentes."""
     unidade, sistema = documento.get("unidade", "*"), documento.get("sistema", "*")
-    termos_dos_itens = [it["termos"] for it in eap.itens().values()]
+    todos = list(eap.itens().values())
     saida = []
     for np_, pagina in enumerate(paginas, 1):
         planilha = isinstance(pagina, PaginaPlanilha)
+        cabeca = None                                   # (linha preparada, classificação) da linha anterior, se não em branco
         for nl, bruta in enumerate(str(pagina).splitlines(), 1):
             medir, linha = preparar(bruta)
             item, servico, regra = classificar(linha, documento.get("obra"), documento.get("escopo"))
+            termos_dos_itens = list(dict.fromkeys(it["termos"] for _, _, it in _achados_da_cabeca(medir, todos)))
+            if cabeca and not planilha and _herda_da_cabeca(cabeca, medir, bruta, item):
+                item, servico, regra = (*cabeca[1][:2], cabeca[1][2] + " · continuação")
+            cabeca = (medir, (item, servico, regra)) if bruta.strip() else None
             if item is None or item.endswith(".*"):     # serviço sem item: '*' só vale em unidade e sistema
                 continue
             valor, un = (_quantidade_da_planilha(pagina, nl - 1, termos_dos_itens) if planilha
@@ -150,6 +171,17 @@ def buscar_texto(documento: dict, paginas: list[str]) -> list[dict]:
                                    trecho=bruta.strip(), metodo="regex", regra=regra,
                                    escopo=documento.get("escopo")))
     return saida
+
+
+def _herda_da_cabeca(cabeca: tuple, medir: str, bruta: str, item: str | None) -> bool:
+    """A linha continua a descrição da anterior ('…inclusive⏎mobilização 250 un') e só tem item acessório: ela é do item
+    da cabeça, não de um item próprio. A cabeça tem de ter item (não '*') e a continuação, o mesmo teste de
+    `_continua_a_descricao` da conferência da IA."""
+    principal = cabeca[1][0]
+    if principal is None or principal.endswith(".*") or item is None or item.endswith(".*"):
+        return False
+    acessorio = eap.itens().get(item, {}).get("acessorio")
+    return bool(acessorio) and _continua_a_descricao(cabeca[0], medir, bruta.lstrip()[:1].islower())
 
 
 def _quantidade_da_planilha(pagina: PaginaPlanilha, indice: int, termos: list[str]) -> tuple[float | None, str | None]:
@@ -375,7 +407,7 @@ def _paginas_normalizadas(paginas: list[str]) -> list[str]:
 
 def _termos_da_linha(linha: str) -> list[tuple[int, int, str]]:
     """(início, fim, código do item) de todo termo de item da EAP geral que aparece na linha normalizada."""
-    return [(t.start(), t.end(), it["codigo"]) for it in eap.itens().values() for t in re.finditer(it["termos"], linha)]
+    return [(i, f, it["codigo"]) for i, f, it in _achados_da_cabeca(linha, list(eap.itens().values()))]
 
 
 def _pares_da_linha(linha: str, termos: list[tuple[int, int, str]]) -> tuple[list[tuple], set]:
@@ -390,7 +422,8 @@ def _pares_da_linha(linha: str, termos: list[tuple[int, int, str]]) -> tuple[lis
     donos, depois_de_unidade = set(), {m.start(2) for m in _UNIDADE_ANTES_DO_NUMERO.finditer(linha)}
     for ini, fim, codigo in termos:
         antes = _NUMERO_ANTES_DO_TERMO.search(linha[:ini])
-        if not antes or antes.start(1) in depois_de_unidade or any(p in vocabulario.GRAFIAS for p in re.findall(r"[A-Z0-9]+", linha[antes.end(1):ini])):
+        if not antes or antes.start(1) in depois_de_unidade or any(p in vocabulario.GRAFIAS or p in vocabulario.UNIDADES_DE_ESPECIFICACAO
+                                                for p in re.findall(r"[A-Z0-9]+", linha[antes.end(1):ini])):
             continue
         if any(antes.end(1) <= i2 < ini or (i2 == ini and c2 != codigo) for i2, _, c2 in termos):
             continue

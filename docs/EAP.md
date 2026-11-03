@@ -632,7 +632,7 @@ codificado" e de preenchimento manual continua valendo para folha futura (e é c
 | OP.11.03 Comissionamento e operação assistida | `GER.CTL.COM` | localizada |
 | OP.12.01 Limpeza final · OL.11.02 Limpeza e recomposição final da faixa | `GER.FIN.LIM` (e `GER.FIN.FAI` na faixa) | ambas · linear |
 | OP.12.02 · OL.11.01 Cadastro e as built | `GER.FIN.CAD` | ambas |
-| OP.12.03 · OL.11.03 Desmobilização | `GER.FIN.DES` | ambas |
+| OP.12.03 · OL.11.03 Desmobilização | `GER.FIN.DES` e `GER.PRE.MOB` · `mobilizacao` (linha "mobilização e desmobilização") | ambas |
 | OL.04.04 Ancoragens e blocos de ancoragem | `HID.TUB.ANC` | linear |
 | OL.06.01 Travessias de rios, ferrovias e rodovias | `HID.TUB.TRV` | linear |
 | OL.06.02 Método não destrutivo (MND/HDD) | `HID.TUB.MND` | linear |
@@ -640,16 +640,47 @@ codificado" e de preenchimento manual continua valendo para folha futura (e é c
 | OL.09.02 Desinfecção e limpeza da rede | `GER.CTL.DSF` | linear · só água |
 | OL.09.03 Inspeção por CFTV | `GER.CTL.CFT` | linear · só esgoto |
 
-Como os termos não tomam a linha dos itens que já existiam: os itens de termo próprio (mobilização, desmobilização,
-cadastro/as built, MND, desinfecção, CFTV, ancoragem, caixas) têm prioridade menor que a dos itens antigos para que
-"cadastro técnico da rede coletora" ou "desinfecção da adutora" não virem tubulação; em compensação **só valem antes de
-uma marca de inclusão** (`inclusive`, `incluso`, `incluindo`, `com`, `sem`…): "estaca hélice contínua, inclusive
-mobilização e desmobilização" continua sendo estaca. Os de termo genérico (acabamentos, urbanização, sinalização) ficam
-depois (prioridade 55 e 60) ou restritos a frases específicas ("cobertura metálica", "cobertura em telha"; "cobertura
-mínima" não casa). Item de obra linear não casa em obra localizada e vice-versa. A unidade `mês` entrou no vocabulário
-(canteiro e comissionamento se medem por mês) e `vb` já existia. "Teste hidrostático" e "teste de estanqueidade"
-continuam sendo o serviço `teste_estanqueidade` de `HID.TUB.RED`, sem item novo. Ainda não há geometria de prancha para
-esses itens (`construtivos` e `layers` vazios): vêm só dos documentos.
+**Item acessório e a cabeça da descrição** (`eap_geral.jsonl`: `"acessorio": true`, `evidencias._achados_da_cabeca`).
+Mobilização, desmobilização, topografia, sinalização, ensaios, comissionamento, desinfecção, CFTV, travessia, MND,
+cadastro/as built, limpeza final, faixa, ancoragem, caixas/câmaras e acabamentos são **complementos** de um item
+principal. A regra é uma só, em código, e vale na classificação (`classificar`), na busca (`buscar_texto`), no
+"número + termo" e na conferência da IA (`_termos_da_linha`): um termo acessório só conta se **nenhum termo de item não
+acessório começa antes dele na linha** (a cabeça da descrição manda). "Estaca hélice contínua, inclusive / + / c/ /
+considerando / (mobilização inclusa) mobilização" continua sendo estaca, sem lista de marcas de inclusão;
+"cadastro técnico da rede coletora", "locação e nivelamento da rede coletora" e "pintura de paredes internas" são do
+acessório porque ele vem primeiro. Exceção declarada no item (`acessorio_exceto`): em MND, "assentamento de tubo COM/POR
+MND" ou "em método não destrutivo" vai para `HID.TUB.MND` mesmo com o tubo antes (o MND é o método da linha).
+A cabeça vale com os itens de qualquer tipo de obra: "estaca … mobilização" em documento linear não vira mobilização.
+
+**Continuação de descrição** (`buscar_texto`, mesmo teste `_continua_a_descricao` da conferência): linha que continua a
+anterior (anterior sem "." nem ":" e esta em minúscula ou com conectivo) e só tem item acessório é do item da cabeça
+("estaca …, inclusive⏎mobilização e desmobilização 250 un" = 250 estacas), nunca mobilização própria.
+
+**Termos com objeto.** Para não tomar texto de equipamento de ETA ou de segurança patrimonial: desinfecção só de
+rede, tubulação ou adutora (e não de esgoto, coletora, reservatório, cloro, bomba dosadora); CFTV só como
+inspeção ou vídeo-inspeção; travessia só com rio, córrego, rodovia, ferrovia, canal, BR-/PR-, DNIT, DER, APP ou MND
+(não "travessia de rua" nem "de pedestres"); MND "não destrutivo" só com método, perfuração, furo ou túnel (não
+"ensaio não destrutivo"); limpeza final só "da obra" (não de reservatório, rede ou faixa); faixa só com recomposição,
+restauração, recuperação ou limpeza **final** da faixa (limpeza de faixa de servidão é abertura); fita de sinalização de
+rede enterrada não é sinalização de tráfego; acabamentos não pegam pintura de tubulação ou aço, janela ou porta de
+inspeção, revestimento de talude (revestimento vegetal é urbanização). "Limpeza geral do terreno" é supressão
+(`GEO.MOV.SUP`). "Ligação predial/domiciliar" no singular passou a casar `HID.TUB.LIG`.
+
+**Mobilização e desmobilização numa linha só** (comum em planilha) é classificada como mobilização
+(`GER.PRE.MOB`, serviço `mobilizacao`); só "desmobilização" isolada, "retirada/desmontagem do canteiro" vão para
+`GER.FIN.DES`. As folhas OP.12.03 e OL.11.03 apontam para os dois (o segundo é `GER.PRE.MOB` · `mobilizacao`, com
+observação) e a mesma linha aparece também em OP.01.01 e OL.01.01; é uma premissa de leitura, não soma nova.
+
+**Unidade `mês`** (`vocabulario.meses_so_em_contexto`): `MES`/`MESES` só são unidade em linha de serviço medido por mês
+(canteiro, administração, manutenção, comissionamento, locação, fiscalização…; `contexto_mes` em `sinonimos.json`) e
+fora de prazo, garantia, vigência ou cronograma (`fora_de_contexto_mes`). Nas outras viram "PERIODO" no texto de
+busca: "prazo de 12 meses" e "MES 1 MES 2" não são quantidade. Na coluna Un de planilha, "mês" continua valendo.
+
+Os itens de termo genérico (urbanização) ficam depois dos antigos (prioridade 55); `CIV.ACA.ACB` tem prioridade 28 para
+"pintura de paredes" não virar parede de concreto, mas só vale se a cabeça não for de item principal. Item de obra linear
+não casa em obra localizada e vice-versa. "Teste hidrostático" e "teste de estanqueidade" continuam sendo o serviço
+`teste_estanqueidade` de `HID.TUB.RED`, sem item novo. Ainda não há geometria de prancha para esses itens
+(`construtivos` e `layers` vazios): vêm só dos documentos.
 
 **Relação com a EAP codificada.** A EAP por disciplina (GEO, CIV, HID, ELE → pacote → item) continua sendo a linha
 mestra técnica. O padrão é uma **vista**: `aponta` é uma lista de `{item: "DISC.PAC.ITEM", servico}` de `eap_geral.jsonl`
