@@ -849,7 +849,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     for chave, pacote in pacotes.items():
         if pacote:
             dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}
-    if cfg.get("inventario"):                         # todos os arquivos da listagem do Drive, com o carimbo
+    if cfg.get("inventario") and inventario.disponivel(cfg, log=_log):   # a listagem do Drive, com o carimbo
         inv = inventario.inventario(cfg, out / "inventario_cache.json", log=_log)
         dados["inventario"] = inventario.para_html(inv)
         dados["inventario"]["extracao"] = _reavaliar(inv, out, cfg, dados.get("geotecnia"))

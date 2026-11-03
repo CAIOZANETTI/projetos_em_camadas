@@ -363,6 +363,8 @@ def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print
     """Etapa da obra: lê as plantas de escavação (OCR com cache), calcula as cavas e devolve o pacote do HTML.
     `saida_gavetas`, se passado, recebe as entradas e o resultado do cálculo para as gavetas (sem mudar o retorno)."""
     c = cfg.get("escavacao")
+    if c and not vertical:     # sem sondagens não há controle vertical: as cavas não saem, e isso tem de aparecer
+        log("Escavação: NÃO CALCULADA — sem controle vertical, faltam as sondagens (pendência; o build segue)")
     if not c or not vertical:
         return None
     por_id = {p["id"]: p for p in pranchas}

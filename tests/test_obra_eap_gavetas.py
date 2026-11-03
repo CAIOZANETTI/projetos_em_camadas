@@ -99,3 +99,26 @@ def test_prancha_com_pdf_ausente_e_pulada_com_pendencia(tmp_path):
     assert obra.etapa_pranchas(cfg, tmp_path, refazer=False) == []
     assert any("el_im" in a and "PDF ausente" in a for a in obra.AVISOS_DO_BUILD)
     obra.AVISOS_DO_BUILD.clear()
+
+
+def test_inventario_sem_listagem_ou_com_baixados_de_outro_formato_e_pulado(tmp_path):
+    """Contêiner novo com ingestão parcial: sem _listagem_drive.csv, ou com _baixados.csv de outras colunas."""
+    from camadas import inventario
+
+    msgs = []
+    cfg = {"inventario": {"listagem": str(tmp_path / "_listagem_drive.csv"), "baixados": str(tmp_path / "_baixados.csv")}}
+    assert inventario.disponivel(cfg, log=msgs.append) is False and "listagem" in msgs[-1]
+    (tmp_path / "_listagem_drive.csv").write_text("id;name;mimeType\n")
+    (tmp_path / "_baixados.csv").write_text("caminho;fileId;bytes\n")
+    assert inventario.disponivel(cfg, log=msgs.append) is False and "colunas" in msgs[-1]
+    (tmp_path / "_baixados.csv").write_text("id;ok\n")
+    assert inventario.disponivel(cfg, log=msgs.append) is True
+
+
+def test_escavacao_sem_controle_vertical_avisa(tmp_path):
+    """As cavas sumiam do build sem aviso quando faltavam as sondagens."""
+    from camadas import escavacao
+
+    msgs = []
+    assert escavacao.etapa({"escavacao": {"pranchas": []}}, [], tmp_path, None, log=msgs.append) is None
+    assert any("NÃO CALCULADA" in m and "(pendência" in m for m in msgs)
