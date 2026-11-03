@@ -465,9 +465,15 @@ def _quantidades(t: dict, furos: list[dict], pts) -> dict:
         if prof_m
         else None
     )
+    fonte_largura = "MOS" if largura_m is not None else None
     if prof_m and largura_m is None:
+        # decisão do Caio 03/11/2026 (D7): fora da Tabela I do MOS, b = DE + folga (NBR 12266), com alerta
+        folga_m = float(VALA["largura_fora_da_tabela"]["folga_m"])
+        largura_m = round(float(t["dn_mm"]) / 1000 + folga_m, 3)
+        fonte_largura = "NBR 12266 (fallback)"
         alertas.append(
-            f"material {t['material']} DN {t['dn_mm']} fora da Tabela I do MOS"
+            f"material {t['material']} DN {t['dn_mm']} fora da Tabela I do MOS: largura pela NBR 12266, "
+            f"DE + {_virgula(folga_m)} m"
         )
     q = ol.mnd(t) if t["metodo"] == "MND" else ol.vca(t, largura_m) if largura_m else {}
     if geotec["esgotamento_frac"] > 0:
@@ -483,7 +489,13 @@ def _quantidades(t: dict, furos: list[dict], pts) -> dict:
         alertas.append(
             f"pavimentos somam {soma_pav_m:g} m e o trecho tem {t['comp_m']:g} m"
         )
-    return {**t, **q, "geotecnia": geotec, "alertas": alertas}
+    return {
+        **t,
+        **q,
+        "fonte_largura": fonte_largura,
+        "geotecnia": geotec,
+        "alertas": alertas,
+    }
 
 
 def _agravantes(
@@ -643,7 +655,9 @@ def vala_do_trecho(
         t["comp_m"] = round(float(p1_m) - float(p0_m), 3)
     base = _quantidades(t, furos or [], pts)
     cobertos = [f for f, _ in ol.furos_do_trecho(t, furos or [], pts) if f is not None]
+    fonte_largura = base.pop("fonte_largura")  # só do dimensionador: a saída de `quantificar` segue a mesma
     acrescimos = _acrescimos(t, base, cobertos, profundidade_m, fonte)
+    acrescimos["fonte_largura"] = fonte_largura
     acrescimos["alertas"] = base["alertas"] + alertas_prof + acrescimos["alertas"]
     return base, acrescimos
 
@@ -655,7 +669,7 @@ def dimensionar_vala(
     pts: np.ndarray | None = None,
 ) -> dict:
     """Vala do trecho pela regra única: todas as chaves de `obras_lineares.quantificar` (mesmos nomes e valores) mais
-    largura_m, profundidade_m, fonte_profundidade, escorado, tipo_escoramento, agravantes_escoramento, escoramento_m2,
+    largura_m, fonte_largura ("MOS" | "NBR 12266 (fallback)"), profundidade_m, fonte_profundidade, escorado, tipo_escoramento, agravantes_escoramento, escoramento_m2,
     esgotamento_frac, altura_agua_m, tipo_esgotamento e alertas (os de `quantificar`, a profundidade de premissa e o
     `geotecnia.alerta_na`).
 

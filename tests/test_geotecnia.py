@@ -726,5 +726,57 @@ def test_prosa_antes_do_perfil_nao_vira_na_do_furo(tmp_path):
 
 
 def test_bloco_com_profundidade_sem_descricao_no_meio_nao_funde_camadas():
-    linhas = ["TÉRMINO:", "13,49", "SILTE ARGILOSO", "6,00", "Argila mole", "5,00", "ARGILA", "•"]
+    linhas = [
+        "TÉRMINO:",
+        "13,49",
+        "SILTE ARGILOSO",
+        "6,00",
+        "Argila mole",
+        "5,00",
+        "ARGILA",
+        "•",
+    ]
     assert geo._camadas_em_bloco(linhas) == []
+
+
+@pytest.mark.parametrize(
+    ("descricao", "esperada"),
+    [
+        ("Areia fina argilosa", "areia"),
+        ("Argila arenosa", "argila"),
+        ("Silte argiloso", "silte"),
+        ("areia argilosa", "areia"),
+        ("Rocha alterada", "rocha_alterada"),
+        ("Basalto alterado", "rocha_alterada"),
+        ("Argila com matacões", "argila"),
+    ],
+)
+def test_classe_pelo_substantivo(descricao, esperada):
+    """Decisão do Caio 03/11/2026 (D5): a classe é a do solo principal (o que aparece primeiro)."""
+    assert geo.classe_solo(descricao)["classe"] == esperada
+
+
+def test_impenetravel_vale_como_rocha_na_faixa():
+    """Decisão do Caio 03/11/2026 (D6): impenetrável a 2,0 m, faixa 0-3 m: 1/3 rocha."""
+    furo = {
+        "id": "SP-1",
+        "impenetravel": True,
+        "profundidade_m": 2.0,
+        "camadas": [{"de": 0.0, "ate": 2.0, "descricao": "Argila"}],
+    }
+    fatias = geo.solo_na_faixa(furo, 0.0, 3.0)
+    assert fatias["rocha"] == pytest.approx(1 / 3)
+    assert fatias["argila"] == pytest.approx(2 / 3)
+    assert "indefinido" not in fatias
+
+
+def test_impenetravel_corta_no_fundo_do_furo_e_preserva_a_rocha_alterada():
+    """Ressalva do Fable (D6): o corte é na profundidade do impenetrável, não no topo da primeira rocha."""
+    furo = {"id": "SP-R", "impenetravel": True, "profundidade_m": 6.0,
+            "camadas": [{"de": 0.0, "ate": 3.0, "descricao": "Argila siltosa"},
+                        {"de": 3.0, "ate": 4.0, "descricao": "Rocha"},
+                        {"de": 4.0, "ate": 6.0, "descricao": "Rocha alterada"}]}
+    f = geo.solo_na_faixa(furo, 0.0, 7.0)
+    assert f["rocha_alterada"] == pytest.approx(2 / 7) and f["rocha"] == pytest.approx(2 / 7)
+    assert sum(f.values()) == pytest.approx(1.0)
+
