@@ -314,12 +314,11 @@ _ROTULO_DE_QUANTIDADE = re.compile(r"\b(?:QUANTIDADE|QUANT|QTDE|QTD|QT)\b")   # 
 _ASPAS_E_TRACOS = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'",
                                  "–": "-", "—": "-", "−": "-"})
 _UNIDADES_RE = "|".join(re.escape(g) for g in sorted(vocabulario.GRAFIAS, key=len, reverse=True))
-_NUMERO_INTEIRO = vocabulario.NUMERO + r"(?![\d]|[.,]\d)"
-_NAO_E_NUMERO = r"(?<![\d.,ØA-Z])(?<![A-Z]-)"      # "DN150", "C30", "CA-50" não são quantidades
+_NUMERO_INTEIRO = vocabulario.NUMERO_INTEIRO
+_NAO_E_NUMERO = vocabulario.NAO_E_NUMERO      # mesma regra do regex: "DN150", "C30", "CA-50" não são quantidades
 _NUMERO_ANTES_DA_UNIDADE = re.compile(_NAO_E_NUMERO + _NUMERO_INTEIRO + r"\s*(" + _UNIDADES_RE + r")(?![A-Z0-9])")
 _UNIDADE_ANTES_DO_NUMERO = re.compile(r"(?<![A-Z0-9])(" + _UNIDADES_RE + r")\s*[:|-]*\s*" + _NAO_E_NUMERO + _NUMERO_INTEIRO)
-_DIMENSAO = re.compile(r"(?<![A-Z0-9])(?:Ø|DN|DIAMETRO|DIAM\.?)\s*[:=]?\s*" + _NUMERO_INTEIRO
-                       + r"(?:\s*(?:MM|CM|M|POL)(?![A-Z0-9])(?!\s*[:=]?\s*\d)|(?![ ]*[A-Z]))")
+_DIMENSAO = vocabulario.DIMENSAO
 _NUMERO_ANTES_DO_TERMO = re.compile(_NAO_E_NUMERO + _NUMERO_INTEIRO + r"\s*(?:\([^)]*\)\s*)?(?:[A-Z]+\s+){0,2}$")
 
 

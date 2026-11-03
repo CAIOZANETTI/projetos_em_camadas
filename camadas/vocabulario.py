@@ -17,9 +17,13 @@ from .pdf_cad import CONCEITOS
 REGRAS = json.loads((CONCEITOS / "sinonimos.json").read_text(encoding="utf-8"))
 GRAFIAS = {g: canonica for canonica, grafias in REGRAS["unidades"].items() for g in grafias}
 NUMERO = r"(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)"
-QTD_DEPOIS = re.compile(r"(?<![\d.,])" + NUMERO + r"\s*("
+NUMERO_INTEIRO = NUMERO + r"(?![\d]|[.,]\d)"
+NAO_E_NUMERO = r"(?<![\d.,ØA-Z])(?<![A-Z]-)"      # "DN150", "C30", "CA-50", "Ø40" colados não são quantidades
+DIMENSAO = re.compile(r"(?<![A-Z0-9])(?:Ø|DN|DIAMETRO|DIAM\.?)\s*[:=]?\s*" + NUMERO_INTEIRO
+                      + r"(?:\s*(?:MM|CM|M|POL)(?![A-Z0-9])(?!\s*[:=]?\s*\d)|(?![ ]*[A-Z]))")   # "DN 150", "Ø 40 cm"
+QTD_DEPOIS = re.compile(NAO_E_NUMERO + NUMERO + r"\s*("
                         + "|".join(re.escape(g) for g in sorted(GRAFIAS, key=len, reverse=True)) + r")\b")
-QTD_ANTES = re.compile(r"(?<![\d.,])" + NUMERO + r"\s+(?:[A-Z]+\s+){0,2}$")
+QTD_ANTES = re.compile(NAO_E_NUMERO + NUMERO + r"\s+(?:[A-Z]+\s+){0,2}$")
 
 
 def normalizar(texto) -> str:
@@ -69,7 +73,10 @@ def numero_br(texto: str) -> float:
 
 def quantidade(linha: str, termos: list[str]) -> tuple[float | None, str | None]:
     """Primeiro 'número unidade' da linha (300 UN, 1.250,5 M3, 12 METROS CUBICOS); senão 'número + termo' (300
-    ESTACAS) → un, procurando o número antes do primeiro termo que casa. Unidade convertida para comparação."""
+    ESTACAS) → un, procurando o número antes do primeiro termo que casa. Unidade convertida para comparação.
+    Número colado a letra ou hífen (DN150, C30, CA-50) e dimensão de especificação (DN 150, Ø 40 cm) não são
+    quantidade. Só vale 'número unidade' (e 'número termo'): 'DN150 m 320' fica sem quantidade."""
+    linha = DIMENSAO.sub(lambda d: " " * len(d[0]), linha)
     m = QTD_DEPOIS.search(linha)
     if m:
         return converter(numero_br(m[1]), GRAFIAS[m[2]])
