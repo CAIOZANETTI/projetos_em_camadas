@@ -40,9 +40,9 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-03T19:12:00Z'
-  fim: null
+  fim: '2026-11-03T21:05:00Z'
 - id: E4
   nome: Build real, relatório, balanço, aceite do Fable e PR
   entregaveis:
@@ -56,8 +56,8 @@ etapas:
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 200000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-03T21:06:00Z'
   fim: null
 historico:
 - data: '2026-11-03'
@@ -103,3 +103,6 @@ historico:
 - data: '2026-11-03'
   mudanca: 'E1 parcial aceita: 36 de 37 PDFs do obra.json e as 13 fotos; falta 002-...PLANTIM-R2 (elétrica, sem relação com as cavas) e a listagem completa do Drive'
   motivo: o necessário para o build e para as cavas está no disco; o resto fica como pendência registrada
+- data: '2026-11-03'
+  mudanca: 'E4 começou depois de mais 3 achados do contêiner novo (prancha ausente, inventário sem listagem, escavação sem controle vertical silenciosa), corrigidos com teste'
+  motivo: o build real no contêiner novo dependia de insumos que só existiam no anterior

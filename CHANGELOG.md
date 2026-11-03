@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.52.0 — 2026-11-03 · Conferência das cavas por seções de corte e cotas da sequência executiva
+- **`camadas/secoes_corte.py`** lê as pranchas de corte (Civil 3D, vetoriais). Cada quadro é calibrado pelas marcas
+  de 1 m e pelos rótulos de 5 m lidos por OCR (resíduo de 2 mm). Por seção saem a área de corte e a cota de fundo:
+  terreno original × contorno da escavação, área por integral exata. Foz tem 18 seções.
+- **`camadas/conferencia_cavas.py`** confere o modelo contra essas seções:
+  - lê as linhas de seção da planta (tracejado do layer `CORTES` + letra por OCR);
+  - mede o perfil do modelo na grade de corte de `escavacao.calcular`, que agora devolve `corte`, sem mudar volumes;
+  - compara área, fundo e terreno por seção: confere / difere / não conferível, sempre com motivo;
+  - faz seções médias onde há par paralelo na mesma cava;
+  - liga as cotas da sequência executiva só quando a ligação é única.
+
+  É uma etapa do build: grava `conferencia_cavas.json` e uma tabela na aba EAP.
+- **Foz:** 1 confere, 5 difere, 12 não conferível. Seções médias da C01: −13 %, confere. O fundo bate em 5 seções
+  (0 a 0,06 m). A área do modelo sai de −12 a −31 % menor na maioria das seções comparáveis. Isso aponta volume
+  subestimado (talude único de 1,5:1 contra 1,0 a 5,7 no projeto, e terreno do MDS). Nenhuma premissa foi alterada.
+  Relatório em `docs/plano/2026-11-03_conferencia_cavas.md`.
+- **Build no contêiner novo:** vira pendência visível, em vez de erro ou silêncio:
+  - prancha com PDF ausente;
+  - inventário sem listagem do Drive (ou com `_baixados.csv` de outro formato);
+  - escavação sem controle vertical, que antes sumia **sem aviso**.
+- Lição L048.
+
 ## 0.51.0 — 2026-11-03 · Decisão D9: DE no fallback, MND sem vala e bota-fora com berço e envoltória
 - **DE no fallback** (`lineares._diametro_externo_m`, `conceitos/lineares.json › de_por_dn`): fora da Tabela I do MOS a
   largura usa o DE do tubo: o `de_mm` do trecho, ou DN → DE pela tabela do material (FD, FOFO e PVC DEFoFo pela
