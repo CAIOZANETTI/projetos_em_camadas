@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.44.0 — 2026-11-03 · Número colado a letra não é quantidade (regex e IA, uma regra só)
+- **`camadas/vocabulario.py`** (`NAO_E_NUMERO`, `DIMENSAO`, `UNIDADE_ANTES`): número colado a letra ou letra+hífen
+  (DN150, C30, CA-50) não é quantidade; dimensão com prefixo (DN 150, Ø 40 cm, diâmetro) é apagada antes da busca;
+  o fallback "número + termo" recusa número logo depois de unidade ("m³ 45", "un 250") ou com unidade no meio.
+  A conferência da IA passa a usar as mesmas expressões do vocabulário (saída dos roteiros de ataque inalterada).
+- Corrige o método regex: "Tubo PVC DN150 m 320" deixava 150 m, "Concreto C30 m³ 45" deixava 30 m³ e "aço CA-50
+  kg 1.200" deixava 50 kg; agora ficam sem quantidade (só menção), porque o formato "unidade antes do número" não é
+  lido pelo regex. "Tubo DN 150 320 m" dá 320 m; "fck 30 MPa 45 m³" dá 45 m³.
+- Hash de referência inalterado. Fecha a pendência "número colado a letra ou hífen" de `docs/EAP.md` §10.
+- Lição L040.
+
 ## 0.43.0 — 2026-11-03 · Leitura por IA: planilha como documento de leitura
 - **`evidencias.paginas_planilha`**: xlsx/xlsm/csv (xls com `xlrd`) viram documento de leitura da IA. Cada aba é uma
   página e cada linha não vazia é uma linha de texto, com as células unidas por " | " e os números em pt-BR sem

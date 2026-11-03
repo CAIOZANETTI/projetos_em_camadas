@@ -78,8 +78,8 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
 - O `valor` tem de ser um número escrito no trecho (`1.200,5` no texto vira `1200.5`). Não converta unidade: se o
   trecho diz "2,5 t", são `2.5` e `t`.
 - O documento citado em `documento.id` tem de ser um dos fornecidos a `conferir`.
-- Limitações conhecidas (pendências em `docs/EAP.md` §10): número colado a letra ou hífen ("DN150 m 320", "C30 m³ 45",
-  "CA-50 kg 1.200") não vale como quantidade, como no regex; bloco de mais de 3 linhas, com linha em branco ou com
+- Número colado a letra ou hífen ("DN150 m 320", "C30 m³ 45", "CA-50 kg 1.200") não vale como quantidade, como no regex.
+- Limitações conhecidas (pendências em `docs/EAP.md` §10): bloco de mais de 3 linhas, com linha em branco ou com
   quantidade em linha anterior é recusado: procure a linha de tabela que reúne os três ou devolva à escada.
 - **Planilha** (`--planilha arquivo.xlsx`, repetível; também .xls e .csv): uma página por aba. O `trecho` é a linha da
   planilha como o código a lê: as células não vazias unidas por `" | "`, na ordem das colunas, com número em pt-BR sem
