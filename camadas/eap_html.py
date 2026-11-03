@@ -19,7 +19,7 @@ def br(valor, casas: int = 2) -> str:
 
 
 SEM_CODIGO = "—"
-SITUACOES_CONCILIACAO = ("confere", "difere", "só nas gavetas", "só na EAP codificada", "não conciliado (sem medida declarada)",
+SITUACOES_CONCILIACAO = ("confere", gavetas.SITUACAO_MESMA_ORIGEM, "difere", "só nas gavetas", "só na EAP codificada", "não conciliado (sem medida declarada)",
                          "fora das gavetas")
 
 
@@ -124,15 +124,48 @@ def _por_setor(base: dict, servicos: list[dict], nos: list[dict], setor_por_obje
     return saida
 
 
+SITUACOES_DOCUMENTO = (gavetas.CONFERE_DOCUMENTO, gavetas.DIFERE_DOCUMENTO, gavetas.CONFLITO_DOCUMENTO,
+                       gavetas.SEM_DOCUMENTO)
+ORIGEM_TXT = {"mesma": "mesma origem", "independente": "origens independentes", "indeterminada": "indeterminada"}
+
+
+def _situacao_documento_txt(linha: dict, texto) -> str:
+    """Situação frente ao documento com a diferença em unidade e em % (referência − documento), pronta para exibir."""
+    situacao = linha.get("situacao_documento") or gavetas.SEM_DOCUMENTO
+    if situacao != gavetas.DIFERE_DOCUMENTO or linha.get("diferenca_documento") is None:
+        return situacao
+    pct = linha.get("diferenca_documento_pct")
+    return f"{situacao} (Δ {texto(linha['diferenca_documento'], linha['unidade'])}" + (
+        f" · {br(pct, 1)} %)" if pct is not None else ")")
+
+
+def _linha_conciliada(l: dict, texto) -> dict:
+    """Uma linha da conciliação em texto pronto: três colunas de medida, situação, origem e documento."""
+    mesma = l.get("origem") == "mesma" and l["situacao"] in (gavetas.SITUACAO_MESMA_ORIGEM, "difere")
+    insumos = set(l.get("origem_gavetas") or []) | set(l.get("origem_codificada") or [])
+    return {"codigo": l["codigo"], "unidade": l["unidade"], "gavetas_txt": texto(l["gavetas"], l["unidade"]),
+            "codificada_txt": texto(l["codificada"], l["unidade"]), "diferenca_txt": texto(l["diferenca"], l["unidade"]),
+            "situacao": l["situacao"], "mesma_origem": mesma,
+            "origem_txt": ORIGEM_TXT.get(l.get("origem") or "indeterminada", "indeterminada"),
+            "origem_insumos_txt": "; ".join(sorted(insumos)), "motivo": l.get("motivo") or "",
+            "documento_txt": texto(l.get("documento"), l["unidade"]),
+            "documentos_txt": "; ".join(l.get("documentos") or []) or "—",
+            "situacao_documento": l.get("situacao_documento") or gavetas.SEM_DOCUMENTO,
+            "situacao_documento_txt": _situacao_documento_txt(l, texto)}
+
+
 def conciliacao(linhas: list[dict]) -> dict:
     """`dados["eap_gavetas"]["conciliacao"]`: as linhas de `gavetas.conciliar_eap` já formatadas e a contagem por
-    situação. Quantidade e diferença com a unidade do código; o que uma das EAP não mede fica '—'."""
+    situação (`resumo`) e por situação frente ao documento (`resumo_documento`). Quantidade e diferença com a unidade
+    do código; o que uma das EAP não mede fica '—'. `mesma_origem` marca o que o selo da aba destaca (confere sem
+    independência e difere com a mesma origem)."""
     texto = lambda v, un: "—" if v is None else f"{br(v, 0 if un == 'un' else 2)} {un}"
+    exibidas = [l for l in linhas if l["situacao"] != "fora das gavetas"]      # fora: só a contagem no resumo
+    sem = gavetas.SEM_DOCUMENTO
     return {"resumo": {s: sum(1 for l in linhas if l["situacao"] == s) for s in SITUACOES_CONCILIACAO},
-            "linhas": [{"codigo": l["codigo"], "unidade": l["unidade"], "gavetas_txt": texto(l["gavetas"], l["unidade"]),
-                        "codificada_txt": texto(l["codificada"], l["unidade"]),
-                        "diferenca_txt": texto(l["diferenca"], l["unidade"]), "situacao": l["situacao"]}
-                       for l in linhas if l["situacao"] != "fora das gavetas"]}   # fora: só a contagem no resumo
+            "resumo_documento": {s: sum(1 for l in exibidas if (l.get("situacao_documento") or sem) == s)
+                                 for s in SITUACOES_DOCUMENTO},
+            "linhas": [_linha_conciliada(l, texto) for l in exibidas]}
 
 
 def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dict | None = None,

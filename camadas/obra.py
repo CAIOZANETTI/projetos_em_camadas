@@ -790,12 +790,15 @@ def _reavaliar(inv: dict, out: Path, cfg: dict, geotecnia_dados: dict | None = N
 
 
 def _conciliar_eaps(dados: dict, servicos: list | None, out: Path) -> None:
-    """Confronta as quantidades das gavetas com as da EAP codificada (`gavetas.conciliar_eap`), grava
+    """Confronta as quantidades das gavetas com as da EAP codificada e com os documentos independentes dos fatos
+    (`dados["evidencias"]`, por isso depois do loop de evidências) com `gavetas.conciliar_eap`, grava
     `conciliacao_eap.json` e põe o resumo formatado em `dados["eap_gavetas"]["conciliacao"]`. Nunca derruba o build."""
     if not (servicos and dados.get("eap_gavetas") and dados.get("eap")):
         return
     try:
-        linhas = gavetas.conciliar_eap(servicos, dados["eap"]["quantidades"])
+        origens = eap.origem_das_quantidades(dados["eap"]["quantidades"], dados.get("construtivos"))
+        linhas = gavetas.conciliar_eap(servicos, dados["eap"]["quantidades"], origens_codificada=origens,
+                                       fatos=(dados.get("evidencias") or {}).get("fatos"))
         (out / "conciliacao_eap.json").write_text(json.dumps(linhas, ensure_ascii=False, indent=1), encoding="utf-8")
         dados["eap_gavetas"]["conciliacao"] = eap_html.conciliacao(linhas)
     except Exception as erro:  # noqa: BLE001 - a conciliação nunca derruba o build
@@ -836,8 +839,8 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         dados["construtivos"]["escopo"] = escopo_obra.montar(dados, cfg)
     # `dados["eap_gavetas"]` = árvore das gavetas; `dados["eap"]` = EAP codificada (contrato da 0.34.0, cada um na sua chave)
     dados["eap"] = eap.montar(dados, cfg)          # elemento → item (código) → quantidade com evidência
-    _conciliar_eaps(dados, servicos_gavetas, out)  # gavetas × codificada: `conciliacao_eap.json` e o resumo da aba EAP
     dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
+    _conciliar_eaps(dados, servicos_gavetas, out)  # gavetas × codificada × documento: `conciliacao_eap.json` e o resumo
     dados["eap_painel"] = eap_painel.montar(dados.get("eap"), dados.get("evidencias"))   # aba EAP, já em texto
 
 

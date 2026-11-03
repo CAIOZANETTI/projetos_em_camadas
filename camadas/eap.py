@@ -179,6 +179,36 @@ def quantificar(construtivos: dict, epsg: int) -> pd.DataFrame:
     return q[colunas]
 
 
+ETAPA_DA_FONTE = {"escavação calculada": "escavacao"}
+"""Começo do texto `fonte` do elemento construtivo → etapa do build que o produziu. É a mesma etapa que as gavetas
+declaram em `gavetas.ETAPA_DA_EVIDENCIA`: as duas trilhas de uma escavação se reconhecem por ela."""
+
+
+def origem_do_elemento(props: dict) -> set[str] | None:
+    """Insumos de um elemento construtivo: `arquivo:<nome>` do documento (`doc`) e `etapa:<nome>` pela `fonte`
+    (`ETAPA_DA_FONTE`). None (indeterminada) se não houver nenhum dos dois."""
+    from . import gavetas
+    insumos = {f"arquivo:{gavetas.nome_de_arquivo(props['doc'])}"} if props.get("doc") else set()
+    fonte = str(props.get("fonte") or "")
+    insumos |= {f"etapa:{etapa}" for inicio, etapa in ETAPA_DA_FONTE.items() if fonte.startswith(inicio)}
+    return insumos or None
+
+
+def origem_das_quantidades(quantidades: list[dict], construtivos: dict | None) -> dict[tuple, list[str] | None]:
+    """{(código, unidade): insumos} de cada quantidade da EAP codificada, pela união dos insumos dos elementos que a
+    compõem (`evidencias` = ids dos elementos). None se faltar o elemento ou a origem de algum deles."""
+    features = {f["properties"]["id"]: f["properties"]
+                for f in ((construtivos or {}).get("geojson") or {}).get("features", [])}
+    saida: dict[tuple, list[str] | None] = {}
+    for q in quantidades:
+        chave = (q["codigo"], q["unidade"])
+        partes = [origem_do_elemento(features[i]) if i in features else None for i in q.get("evidencias") or []]
+        uniao = None if not partes or any(p is None for p in partes) else sorted(set().union(*partes))
+        anterior = saida.get(chave, uniao)          # duas grandezas do mesmo (código, unidade): união; indeterminada contamina
+        saida[chave] = None if anterior is None or uniao is None else sorted(set(anterior) | set(uniao))
+    return saida
+
+
 def consolidar(quant: pd.DataFrame, nivel: str) -> pd.DataFrame:
     """Soma no nível pedido (unidade, sistema, disciplina, pacote) sempre por tipo de item, grandeza e unidade de
     medida: 'estacas da U1' soma as estacas de todos os sistemas; un de bloco e un de pilar, ou m³ de escavação e
@@ -288,7 +318,8 @@ def metadados() -> dict:
         "modulo": "eap",
         "descricao": "EAP codificada (unidade.sistema.disciplina.pacote.item): elemento construtivo → item → quantidade "
                      "determinística; prancha → pacote; verificação de propostas pelas evidências",
-        "funcoes": ["itens", "validar", "estrutura", "anotar", "quantificar", "consolidar", "evidencias_pranchas",
+        "funcoes": ["itens", "validar", "estrutura", "anotar", "quantificar", "origem_do_elemento",
+                    "origem_das_quantidades", "consolidar", "evidencias_pranchas",
                     "lacunas", "sem_item", "verificar", "montar", "metadados"],
         "bibliografia": ["PMI — Practice Standard for Work Breakdown Structures, 3ª ed. (regra dos 100 %)"],
         "premissas": [{"aplicacao": {"montar": ["eap.json"]}, "fonte": REGRAS["metadata"]["fonte"],

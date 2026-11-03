@@ -479,6 +479,46 @@ sobrescreve** a premissa, que continua em `servicos_associados.jsonl` com `estad
   - `medição não prevista`;
   - `código inexistente`.
 
+### 8.1 Conciliação das duas EAP: origem das trilhas e documento independente (`gavetas.conciliar_eap`)
+
+As gavetas e a EAP codificada medem os mesmos códigos. Comparar os dois números só valida alguma coisa se eles não
+vieram do mesmo insumo; a escavação das cavas, por exemplo, sai de `escavacao.etapa` nas duas trilhas, e o "confere"
+com diferença 0 é circular.
+
+**Origem de cada trilha.** É o conjunto de insumos de onde o número veio, com dois tipos de item:
+`arquivo:<nome>` (documento ou arquivo, sem pasta nem extensão, em minúsculas) e `etapa:<nome>` (etapa do build que
+produziu a medida).
+- Gavetas: cada serviço guarda `origem` (`gavetas.anotar_origem`, anotação fora da chave do incremental). Ela sai da
+  cadeia serviço → `fatos` → `evidencia_id` → evidência da base: o `documento` vira `arquivo:` e o critério do
+  localizador de uma etapa conhecida (`gavetas.ETAPA_DA_EVIDENCIA`, ex.: "plantas de escavação") vira `etapa:`. A origem
+  da linha é a união dos serviços do código.
+- EAP codificada: `eap.origem_das_quantidades` une os insumos dos elementos que compõem a quantidade (`evidencias` =
+  ids dos elementos): o `doc` do elemento vira `arquivo:` e o começo da `fonte` de uma etapa (`eap.ETAPA_DA_FONTE`,
+  ex.: "escavação calculada").
+- Origem de um lado que não se determina (serviço sem fato, fato fora da base, elemento sem `doc` nem etapa
+  conhecida) torna a linha `origem` = "indeterminada" e a situação fica como estava. Nada é inventado.
+
+**Situação.** Com insumo em comum (uma origem contida na outra, ou só parte compartilhada), "confere" passa a
+**"confere (mesma origem)"**: não é conferência independente. "difere" com a mesma origem continua "difere" e o
+`motivo` o destaca (erro de cálculo, não de insumo, mais grave). Com origens disjuntas, "confere" vale. Cada linha traz
+`origem` (mesma, independente ou indeterminada), `origem_gavetas`, `origem_codificada` e `motivo`.
+
+**Terceira coluna: documento independente** (`gavetas.documento_independente`). Para cada código procura os fatos de
+`dados["evidencias"]["fatos"]` do mesmo código (o `*` casa qualquer segmento, como em `evidencias`), com serviço vazio
+(o próprio item) e a mesma unidade depois de `vocabulario.converter` (t × kg). Só contam afirmações de documento
+independente: planilha, edital, memorial, IA com citação conferida e decisão. **Nunca** `geometria`, `associado` (fórmula
+sobre outro número) nem `projeto` (as pranchas são a fonte que o construtivo mede). A decisão vale no lugar das
+afirmações do fato, como em `evidencias.consolidar`. Colunas: `documento` (valor na unidade da linha), `documentos`
+(nomes) e `situacao_documento`:
+- `confere com documento` e `difere do documento` (Δ = referência − documento, e Δ % sobre o documento), com a mesma
+  tolerância absoluta da conciliação; a referência é a medida das gavetas ou, sem ela, a da EAP codificada;
+- `documento em conflito` (documentos independentes discordam entre si, sem valor);
+- `sem documento`.
+
+`eap_html.conciliacao` formata tudo em Python; a aba EAP só exibe as colunas Origem, Documento e Situação do documento,
+e marca com selo e realce as linhas `mesma_origem` (o "confere (mesma origem)" e o "difere" de mesma origem). O build
+concilia depois do loop de evidências (`obra._conciliar_eaps`), porque a terceira coluna precisa dos fatos.
+
 ## 9. Camadas no HTML: aba EAP (`camadas/eap_painel.py`)
 
 Chaves de `dados` (cada etapa grava na sua; uma não pode sobrescrever a outra):

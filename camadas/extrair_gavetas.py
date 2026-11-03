@@ -493,6 +493,7 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
         por_setor = {**por_setor, **por_servico}
         base["pendencias"] = base["pendencias"] + pend_servicos
     sem_codigo = _anotar_codigo_eap(base, servicos, cfg, por_servico)
+    gavetas.anotar_origem(servicos, base)       # fato → evidência → documento/etapa: a origem do número na conciliação
     gavetas.gravar(pasta, {**base, "servicos": servicos})
     resumo = {**_resumo(base, erros, difs, servicos), **est, "sem_codigo_eap": sem_codigo}
     if por_setor is not None:
