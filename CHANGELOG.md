@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.43.0 — 2026-11-03 · Build real de Foz: a memória espacial com dados verdadeiros
+- **Build completo de Foz até o HTML** com os dados do Drive. Gavetas: 30 objetos, 75 serviços, 0 erros de conferência
+  e 0 diferenças de paridade. Escavação e reaterro das cavas **conferem** com a EAP codificada (8 585,6 e 5 462,7 m³,
+  diferença 0). Relatório em `docs/plano/2026-11-02_foz_build_real.md`.
+- **`geotecnia.ler_laudo` lê o layout Geoazimute**:
+  - coordenada rotulada ("Sonda SP01: N = …; E = …") e coordenada na folha do perfil;
+  - furo complementar (SP 02A);
+  - página de um furo só é toda dele, porque o NA vem antes do id;
+  - camadas em bloco, de baixo para cima;
+  - NA pela frase de conclusão;
+  - NSPT exige espaço entre profundidade e golpes.
+
+  São 23 furos, e a etapa sondagens passa de IA a código.
+- **O build não cai mais por falta de insumo**: ficha de estrutura sem `estacas.csv`, planilha sem a aba "Obras
+  Lineares" (`obras_lineares.tem_aba`, usado por obras lineares, gavetas e evidências) e serviço sem item (`PACOTE.*`),
+  que não vira evidência. O schema da evidência continua o da `main`.
+- **Rede de vala com `local`** (o seu nome): unidade e sistema pelas chaves de `unidades_construtivas.json`. Foz declara
+  `gavetas.unidade_sistema_padrao` u1/ETA (o sistema geral, para a cava sem estacas).
+- Lição L039.
+
 ## 0.42.0 — 2026-11-02 · Calibração de premissas pela evidência (premissa × observado)
 - **`camadas/calibracao.py`**: para cada serviço associado com fato observado fora do próprio cálculo (edital,
   planilha, IA conferida ou decisão), calcula a **premissa implícita** `p × observado / calculado` quando a fórmula é

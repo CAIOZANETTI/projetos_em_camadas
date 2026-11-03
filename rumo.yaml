@@ -45,9 +45,9 @@ etapas:
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 80000
-  status: fazendo
+  status: feito
   inicio: '2026-11-02T23:21:31Z'
-  fim: null
+  fim: '2026-11-03T00:46:54Z'
 - id: E4
   nome: Conferência dos resultados, relatório e PR
   entregaveis:
@@ -60,8 +60,8 @@ etapas:
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 200000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-03T00:46:54Z'
   fim: null
 historico:
 - data: '2026-11-02'
@@ -85,3 +85,7 @@ historico:
     todo serviço com o código UNIDADE.SISTEMA.ITEM real e as duas EAP conciliadas
     (memória espacial, rodada 6) (PR #39)'
   motivo: Caio pediu o build real de Foz
+- data: '2026-11-03'
+  mudanca: 'E3 levou 6 execuções do build: cada uma revelou um insumo real que derrubava o build (laudo Geoazimute,
+    estacas.csv, aba Obras Lineares em 3 leitores, serviço sem item) ou um par unidade/sistema ausente'
+  motivo: o dado real de Foz não cabia no que o sintético testava; cada achado foi corrigido com teste antes de seguir
