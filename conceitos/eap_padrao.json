@@ -70,7 +70,7 @@
    {"id": "OP.12", "nome": "Serviços finais", "folhas": [
     {"id": "OP.12.01", "nome": "Limpeza final", "aponta": [{"item": "GER.FIN.LIM"}], "obrigatoria": true},
     {"id": "OP.12.02", "nome": "Cadastro e as built", "aponta": [{"item": "GER.FIN.CAD"}], "obrigatoria": true},
-    {"id": "OP.12.03", "nome": "Desmobilização", "aponta": [{"item": "GER.FIN.DES"}], "obrigatoria": true}
+    {"id": "OP.12.03", "nome": "Desmobilização", "aponta": [{"item": "GER.FIN.DES"}, {"item": "GER.PRE.MOB", "servico": "mobilizacao"}], "obrigatoria": true, "observacao": "Planilha costuma trazer \"mobilização e desmobilização\" numa linha só: ela é classificada como mobilização (GER.PRE.MOB, serviço mobilizacao) e lida aqui também; só \"desmobilização\" isolada vai para GER.FIN.DES."}
    ]}
   ]},
   "obra_linear": {"nome": "Obra linear (adutora, rede, emissário, coletor)", "prefixo": "OL", "etapas": [
@@ -124,7 +124,7 @@
    {"id": "OL.11", "nome": "Cadastro e desmobilização", "folhas": [
     {"id": "OL.11.01", "nome": "Cadastro e as built", "aponta": [{"item": "GER.FIN.CAD"}], "obrigatoria": true},
     {"id": "OL.11.02", "nome": "Limpeza e recomposição final da faixa", "aponta": [{"item": "GER.FIN.FAI"}, {"item": "GER.FIN.LIM"}], "obrigatoria": true},
-    {"id": "OL.11.03", "nome": "Desmobilização", "aponta": [{"item": "GER.FIN.DES"}], "obrigatoria": true}
+    {"id": "OL.11.03", "nome": "Desmobilização", "aponta": [{"item": "GER.FIN.DES"}, {"item": "GER.PRE.MOB", "servico": "mobilizacao"}], "obrigatoria": true, "observacao": "Planilha costuma trazer \"mobilização e desmobilização\" numa linha só: ela é classificada como mobilização (GER.PRE.MOB, serviço mobilizacao) e lida aqui também; só \"desmobilização\" isolada vai para GER.FIN.DES."}
    ]}
   ]}
  }

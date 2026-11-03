@@ -10,6 +10,16 @@
 - Termos regex no padrão das planilhas Sanepar, com prioridade entre itens e regra de inclusão: o termo depois de
   "inclusive/incluso/com/…" não vira item próprio ("estaca …, inclusive mobilização" continua estaca). 84 testes de
   frases que devem e que não devem casar. Roteiros de ataque da IA com saída idêntica; hash de referência igual.
+- Revisão (650 frases comparadas antes × depois): a regra de inclusão saiu do regex e virou **regra da cabeça da
+  descrição** em código (`evidencias._achados_da_cabeca`): item acessório (`"acessorio": true` — mobilização,
+  topografia, desinfecção, travessia, MND, cadastro, ancoragem, caixa/câmara, acabamento…) só classifica a linha se
+  nenhum item principal aparecer antes dele; vale em `classificar`, `buscar_texto` e na conferência da IA. Linha
+  que continua a anterior herda a cabeça. Termos com objeto (desinfecção só de rede de água; CFTV só inspeção de
+  rede; travessia só de rio/rodovia/ferrovia; MND só método/perfuração; faixa só recomposição final); "COM MND" na
+  linha de assentamento vai para MND. "Mês" só vale como unidade em contexto de canteiro/manutenção/operação (não
+  prazo, garantia ou cronograma). `HID.TUB.LIG` casa "ligação predial" no singular. As frases que mudaram de um
+  item existente para outro são só as intencionais (cadastro, ancoragem, caixa/câmara, CFTV, travessia, pintura de
+  parede, ensaio de compactação, teste de funcionamento de bomba, mobilização como cabeça).
 - Limite: os itens novos ainda não vêm das pranchas (sem layer/construtivo); só dos documentos.
 - Lição L048.
 
