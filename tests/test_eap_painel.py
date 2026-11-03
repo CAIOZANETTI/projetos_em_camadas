@@ -473,7 +473,10 @@ def test_montar_passa_os_fatos_a_arvore():
         "U1.ACT600.GEO.MOV.REA": ("sem evidência", 0, 0),
         "U1.FILTROS": ("fonte única", 9, 0),  # sem estacas: o conflito do `*` não chega
         "U1.ETA": ("fonte única", 1, 0),
-        "U2": ("conflito", 12, 7),
+        # U2 (vala dos dados sintéticos): antes ("conflito", 12, 7), os 7 conflitos eram da vala dimensionada por dois
+        # métodos (NBR 12266 × MOS); agora há um método só (MOS) e nenhum conflito
+        # (decisão do Caio 03/11/2026: dimensionador único (lineares))
+        "U2": ("fonte única", 12, 0),
         "U2.AAT06.HID": ("fonte única", 2, 0),
     }
     for codigo, (status, n_fatos, n_conflitos) in esperado.items():

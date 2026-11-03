@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.48.0 — 2026-11-03 · Um dimensionador de vala só: `dimensoes.dimensionar_vala` virou adaptador do `lineares`
+- **Decisão do Caio (03/11/2026): dimensionador único (lineares)**, com o modelo geotécnico único (raio de influência de
+  60 m, margem do NA 0 m, empolamento 1,30 solo / 1,50 rocha). `dimensoes.dimensionar_vala` mantém a interface
+  (trecho, sondagens, métodos) e o formato de saída, mas largura, profundidade, escoramento (tipo e agravantes),
+  esgotamento, escavação, reaterro, bota-fora, escoramento em m² e pavimento em m² saem de `lineares.dimensionar_vala`.
+  Daqui sai só o que o lineares não calcula: berço e envoltória (regra genérica, com a largura do MOS), espessura e item
+  EAP do pavimento, horas de esgotamento e a divisão da escavação em solo e rocha pela fração de rocha do lineares.
+- **Métodos de largura**: o MOS Sanepar é o único; o NBR 12266 (regra própria) saiu. Pedir `nbr12266` não gera elemento
+  e avisa. A vala deixa de ter dois elementos e a comparação NBR × MOS (conflito sintético) some da consolidação.
+- **Tubo que o MOS não cobre** (ex.: FD DN 630 fora da Tabela I): o elemento sai com a largura em `faltando` e só o que não
+  depende dela (assentamento); antes o NBR dava um número. Nada é suposto.
+- `sondagem_proxima` e `classe_solo` delegam a `geotecnia.furo_mais_proximo` e `geotecnia.classe_solo`; `solo_na_vala`,
+  `escoramento`, `_agua` e os métodos de largura foram removidos. A cota do trecho só muda a referência das profundidades
+  do furo (profundidade + cota do trecho − cota da boca) antes de chamar o lineares.
+- `conceitos/dimensoes.json`: removidas as premissas duplicadas (sondagem a 300 m, margem do NA 0,5 m, empolamento 1,25,
+  faixas de escoramento e agravantes, largura NBR, classes de solo, método de esgotamento).
+- Testes de `dimensoes`, `evidencias` e `eap_painel` que fixavam números do dimensionador antigo mudaram, cada um com o
+  valor antigo e o novo; tabela em `results/iteracoes/2026-11-03_dimensionador_unico.md`.
+- Lição L044. (0.47.0 já estava em uso na main; esta é a próxima versão livre.)
+
 ## 0.47.0 — 2026-11-03 · "Sem preço" também no texto da planilha lida pela IA
 - **`evidencias.paginas_planilha`**: colunas de preço (rótulo PREÇO*, VALOR*, CUSTO*, R$, TOTAL, SUBTOTAL, BDI, PU,
   P. UNIT) saem do texto da linha e do mapa de células, da linha de cabeçalho até o próximo cabeçalho; célula com
