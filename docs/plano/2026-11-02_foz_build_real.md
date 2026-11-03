@@ -79,6 +79,9 @@ independente do volume é contra o item de escavação do CUSTO CIVIL da planilh
 
 - **Conferência independente do volume das cavas** contra o item de escavação do CUSTO CIVIL, e o mesmo sistema nas
   duas trilhas quando o `estacas.csv` existir.
+  O mecanismo já existe (`gavetas.conciliar_eap`, `docs/EAP.md` §8.1): o "confere" das cavas sai como "confere (mesma
+  origem)", sem valer como conferência, e a terceira coluna compara com planilha, edital ou memorial. Falta o
+  documento real: a planilha CUSTO CIVIL ainda não está entre as fontes de evidência do Drive de Foz.
 
 - **A planilha do protótipo com a aba "Obras Lineares"**, que não está no Drive. Sem ela, os trechos de tubo da ETA não
   entram nas gavetas nem na paridade OL.

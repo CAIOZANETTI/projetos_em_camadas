@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.46.0 — 2026-11-03 · Conciliação das duas EAP sem "confere" circular, com o documento independente
+- **Origem de cada trilha** (`gavetas.origem_do_servico`, `eap.origem_das_quantidades`): conjunto de insumos
+  (`arquivo:`, `etapa:`) de onde veio o número. Insumo em comum → **"confere (mesma origem)"**, com o motivo de que
+  não é conferência independente; "difere" com a mesma origem continua "difere" e é marcado como erro de cálculo;
+  origem que não se determina fica "indeterminada", sem inventar. Hoje só a etapa de escavação está mapeada nos dois
+  lados (as outras classes ficam "indeterminada" até serem mapeadas).
+- **Terceira coluna** (`gavetas.documento_independente`): fato do mesmo código vindo de documento independente
+  (planilha, edital, memorial, IA conferida, decisão; nunca geometria, associado ou projeto), com "confere com
+  documento", "difere do documento" (Δ e Δ%), "documento em conflito" ou "sem documento"; t → kg.
+- Aba EAP mostra as colunas e o selo "mesma origem" (textos prontos do Python). `_conciliar_eaps` roda depois de
+  `evidencias.etapa`. Resolve o achado do aceite do build de Foz: escavação e reaterro das cavas davam "confere" com
+  Δ = 0 vindo do mesmo levantamento; a conferência independente agora espera a planilha CUSTO CIVIL.
+- Revisão: linha concreta só compara com fato do mesmo código; fato com `*` (a planilha grava `U1.*.ITEM`) é
+  comparado com a soma das linhas que casa, num bloco de totais à parte (`gavetas.conciliar_totais`,
+  `conciliacao_eap_totais.json`, tabela própria na aba); concreto × `*` nunca vira conflito. Documentos agrupados
+  com a tolerância relativa do `evidencias.consolidar` (`TOLERANCIA_RELATIVA`, 0,005). Origem estruturada: a
+  prancha vira o stem do PDF (mapa de `cfg["pranchas"]`) e a etapa vai em campo próprio (`origem_etapa` na cava,
+  `etapa_origem` na evidência), com o texto da `fonte` só como reserva. Decisão do engenheiro não conta como
+  documento independente (aparece à parte).
+- Lição L042.
+
 ## 0.45.0 — 2026-11-03 · Build real de Foz: a memória espacial com dados verdadeiros
 - **Build completo de Foz até o HTML** com os dados do Drive. Gavetas: 30 objetos, 75 serviços, 0 erros de conferência
   e 0 diferenças de paridade. Escavação e reaterro das cavas dão "confere" com a EAP codificada (8 585,6 e

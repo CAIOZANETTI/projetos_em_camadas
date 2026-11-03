@@ -316,6 +316,42 @@ def test_aba_eap_mostra_o_codigo_real_ao_lado_do_provisorio_e_a_conciliacao(nave
     pagina.close()
 
 
+def test_aba_eap_mostra_a_coluna_do_documento_e_o_selo_de_mesma_origem(navegador, tmp_path):
+    """Conciliação sem "confere" circular: a origem, a terceira coluna (documento) e o selo vêm prontos do Python."""
+    eap = json.loads(EXEMPLO.read_text(encoding="utf-8"))
+    pagina, erros = _abrir(navegador, tmp_path, {**dados_minimos(), "eap_gavetas": eap})
+    pagina.click("#t-eap")
+    tabela = pagina.locator("#aba-eap table.eap-conc")
+    assert tabela.locator("thead th").all_inner_texts() == [
+        "Código", "Gavetas", "EAP codificada", "Diferença", "Situação", "Origem", "Documento", "Situação do documento"]
+    linhas = eap["conciliacao"]["linhas"]
+    assert tabela.locator("tbody tr").count() == len(linhas)
+    for i, l in enumerate(linhas):
+        linha = tabela.locator("tbody tr").nth(i)
+        assert linha.locator('[data-doc="valor"]').inner_text().split("\n")[0] == l["documento_txt"]
+        assert linha.locator('[data-doc="situacao"]').inner_text() == l["situacao_documento_txt"]
+        assert linha.locator("td").nth(5).inner_text() == l["origem_txt"]
+    selos = tabela.locator("tbody .conc-selo")
+    esperados = [l["situacao"] for l in linhas if l["mesma_origem"]]
+    assert esperados and selos.all_inner_texts() == esperados
+    assert "confere (mesma origem)" in esperados
+    assert selos.first.get_attribute("title") == next(l["motivo"] for l in linhas if l["mesma_origem"])
+    assert tabela.locator("tbody tr.conc-mesma-origem").count() == len(esperados)
+    assert "difere do documento (Δ 2,25 m³ · 0,6 %)" in tabela.inner_text()
+    resumo = pagina.locator("#aba-eap .eap-res").nth(-2).inner_text()
+    assert "confere (mesma origem)" in resumo
+    resumo_doc = pagina.locator("#aba-eap .eap-res-doc").inner_text()
+    assert "difere do documento" in resumo_doc and "sem documento" in resumo_doc
+    assert tabela.locator('tbody td[data-doc="origem"]').first.get_attribute("title") == (
+        "gavetas: etapa:escavacao; codificada: etapa:escavacao")
+    assert tabela.locator('[data-doc="decisao"]').all_inner_texts() == ["decisão de ana: 178,00 m³"]
+    totais = pagina.locator("#aba-eap table.eap-tot")
+    assert totais.count() == 1 and "U1.*.GEO.MOV.ESC" in totais.inner_text()
+    assert "difere do documento (Δ 2,25 m³ · 0,6 %)" in totais.inner_text()
+    assert erros == []
+    pagina.close()
+
+
 def test_ver_no_mapa_esmaece_os_outros_e_limpar_filtro_restaura(navegador, tmp_path):
     dados, pagina, erros = _abrir_painel_com_mapa(navegador, tmp_path)
     antes = _opacidades(pagina)

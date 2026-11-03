@@ -243,7 +243,7 @@ def _evidencias_das_cavas(superficie: dict, pranchas: list[str], layers: list[st
     """A evidência das plantas (pranchas e layers) e a da superfície (MDS do drone, `metodo` geometria)."""
     return [{"evidencia_id": "EV-CAVAS", "classe": "projeto", "documento": ", ".join(pranchas) or "plantas de escavação",
              "localizador": {"pranchas": list(pranchas), "layers": list(layers), "criterio": "plantas de escavação",
-                             "crs_h": crs_h},
+                             "crs_h": crs_h, "etapa_origem": "escavacao"},
              "trecho": "cavas", "metodo": "geometria", "executor": "código"},
             {"evidencia_id": superficie["evidencia_id"], "classe": "ortofoto", "documento": mds,
              "localizador": {"arquivo": mds, "chave": "terreno em cota (MDS), válido e edificação"},
@@ -493,6 +493,8 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
         por_setor = {**por_setor, **por_servico}
         base["pendencias"] = base["pendencias"] + pend_servicos
     sem_codigo = _anotar_codigo_eap(base, servicos, cfg, por_servico)
+    pdfs = {q["id"]: q["pdf"] for q in cfg.get("pranchas", []) if q.get("id") and q.get("pdf")}
+    gavetas.anotar_origem(servicos, base, pdfs)  # fato → evidência → documento/etapa: a origem do número na conciliação
     gavetas.gravar(pasta, {**base, "servicos": servicos})
     resumo = {**_resumo(base, erros, difs, servicos), **est, "sem_codigo_eap": sem_codigo}
     if por_setor is not None:
