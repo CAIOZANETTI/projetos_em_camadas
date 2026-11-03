@@ -2,8 +2,15 @@
 
 ## 0.43.0 — 2026-11-03 · Build real de Foz: a memória espacial com dados verdadeiros
 - **Build completo de Foz até o HTML** com os dados do Drive. Gavetas: 30 objetos, 75 serviços, 0 erros de conferência
-  e 0 diferenças de paridade. Escavação e reaterro das cavas **conferem** com a EAP codificada (8 585,6 e 5 462,7 m³,
-  diferença 0). Relatório em `docs/plano/2026-11-02_foz_build_real.md`.
+  e 0 diferenças de paridade. Escavação e reaterro das cavas dão "confere" com a EAP codificada (8 585,6 e
+  5 462,7 m³, diferença 0). Isso **não valida o volume**, porque as duas trilhas vêm do mesmo `escavacao`; a
+  conferência independente contra o CUSTO CIVIL fica pendente. Relatório em `docs/plano/2026-11-02_foz_build_real.md`.
+- **Revisão do Fable**:
+  - a página inteira vai a um furo só na folha em bloco, e a continuação do perfil no layout de tabela fica com o seu
+    furo;
+  - as etapas puladas vão a `dados["pendentes"]` (HTML);
+  - `unidade_sistema_padrao.classes` limita o padrão (Foz: só cavas);
+  - uma profundidade sem descrição no meio do bloco não funde camadas.
 - **`geotecnia.ler_laudo` lê o layout Geoazimute**:
   - coordenada rotulada ("Sonda SP01: N = …; E = …") e coordenada na folha do perfil;
   - furo complementar (SP 02A);

@@ -56,8 +56,21 @@ def _regras(p: dict) -> list[dict]:
     return pdf_cad.regras(REGRAS.get(p.get("regras", ""), "classes_genericas"))
 
 
+AVISOS_DO_BUILD: list[str] = []      # etapas puladas por insumo ausente: vão ao HTML, não só ao terminal
+MARCA_PENDENCIA = "(pendência"
+
+
 def _log(*a):
+    texto = " ".join(map(str, a))
+    if MARCA_PENDENCIA in texto and texto.strip() not in AVISOS_DO_BUILD:
+        AVISOS_DO_BUILD.append(texto.strip())
     print(*a, flush=True)
+
+
+def _avisos_nas_pendencias(dados: dict, avisos: list[str]) -> None:
+    """Etapas puladas com motivo entram em `dados["pendentes"]["Build (etapas puladas)"]`, que o HTML já mostra."""
+    if avisos:
+        dados.setdefault("pendentes", {}).setdefault("Build (etapas puladas)", []).extend(avisos)
 
 
 # 1 ---------------------------------------------------------------------------
@@ -839,6 +852,7 @@ def _sondagens_no_build(dados: dict, cfg: dict, furos: list, esc: dict | None, e
 
 def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     cfg = json.loads(Path(cfg_path).read_text())
+    AVISOS_DO_BUILD.clear()
     out = Path(cfg["saida"])
     out.mkdir(parents=True, exist_ok=True)
     rel = etapa_sfm(cfg, out, "sfm" in refazer)
@@ -895,6 +909,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     }
     _sondagens_no_build(dados, cfg, furos, esc, epsg, vertical)
     _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala}, redes_vala, cavas_gavetas)
+    _avisos_nas_pendencias(dados, AVISOS_DO_BUILD)
     return _gravar(cfg, out, dados, pranchas, epsg)
 
 

@@ -707,14 +707,16 @@ def _cabecalho(linha: str):
 def _trechos_por_furo(texto: str) -> dict[str, dict]:
     """Divide o texto em trechos por furo citado: {chave: {id, linhas}}. Cada trecho vai até o próximo furo.
 
-    Páginas separadas por '\\f': página que abre um furo só é toda dele, inclusive as linhas antes do id (o NA
-    e a legenda vêm no alto da folha de perfil); página com mais de um furo é dividida linha a linha.
+    Páginas separadas por '\\f': a folha do layout em bloco (com 'TÉRMINO') que abre um furo só é toda dele, inclusive
+    as linhas antes do id (o NA e a legenda vêm no alto da folha); as demais páginas são divididas linha a linha, e a
+    continuação de um perfil no alto da página seguinte fica com ele (revisão do Fable).
     """
     trechos, atual = {}, None
     for pagina in texto.split("\f"):
         linhas = pagina.splitlines()
         ids = [i for i in map(_cabecalho, linhas) if i]
-        if len({_chave(i) for i in ids}) == 1:
+        em_bloco = any(_sem_acento(x).upper().strip().startswith("TERMINO") for x in linhas)
+        if em_bloco and len({_chave(i) for i in ids}) == 1:
             atual = trechos.setdefault(
                 _chave(ids[0]), {"id": _id_limpo(ids[0]), "linhas": []}
             )
@@ -769,6 +771,9 @@ def _camadas_em_bloco(linhas: list[str]) -> list[dict]:
             atual[1].append(bruta.strip())
         else:
             atual = None
+    descritas = [bool(d) for _, d in pares]
+    if any(not a and b for a, b in pairwise(descritas)):
+        return []  # profundidade sem descrição no meio do bloco: não funde camadas (só a final, a marca do NA, sobra)
     pares = [(p, " ".join(d)) for p, d in pares if d][::-1]
     bases = [p for p, _ in pares]
     if not pares or any(b <= a for a, b in pairwise(bases)):

@@ -210,7 +210,8 @@ e rastreável, sem perder o resultado.
 
 **Build real de Foz (0.43.0, 03/11/2026).** O build rodou com os dados verdadeiros até o HTML:
 - gavetas com 30 objetos e 75 serviços, 0 erros de conferência e `paridade.json` vazio;
-- escavação e reaterro das cavas conferem com a EAP codificada, com diferença zero;
+- escavação e reaterro das cavas dão "confere" com a EAP codificada, com diferença zero. A conferência é circular,
+  porque as duas trilhas vêm do mesmo `escavacao`; falta a conferência independente contra o CUSTO CIVIL;
 - todos os serviços saem com o código completo.
 
 O dado real mostrou cinco falhas que o sintético escondia, todas corrigidas com teste: o layout do laudo, dois insumos

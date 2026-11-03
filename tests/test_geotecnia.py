@@ -675,3 +675,56 @@ def test_bloco_fora_de_ordem_nao_vira_camada():
     linhas = ["TÉRMINO:", "22/02/2022", "1,00", "ATERRO", "6,00", "ROCHA", "•"]
     assert geo._camadas_em_bloco(linhas) == []
     assert geo._camadas_em_bloco(["13,50", "ROCHA"]) == []  # sem 'TÉRMINO' não há bloco
+
+
+def test_perfil_que_continua_na_pagina_seguinte_fica_com_o_seu_furo(tmp_path):
+    """Revisão do Fable: no layout de tabela, a continuação do SP-01 no alto da página do SP-02 é do SP-01."""
+    pdf = _gerar_pdf(
+        tmp_path / "l.pdf",
+        [
+            COORDENADAS
+            + [
+                "PERFIL INDIVIDUAL DE SONDAGEM - SP-01",
+                "0,00 - 1,50 Aterro",
+                "1,50 - 4,00 Argila",
+                "N.A.: 2,30 m",
+            ],
+            [
+                "4,00 - 6,00 Silte",
+                "6,00 - 7,00 Rocha",
+                "Limite: IMPENETRÁVEL",
+                "PERFIL INDIVIDUAL DE SONDAGEM - SP-02",
+                "de 0,00 a 2,00 m Areia",
+                "de 2,00 a 5,50 m Basalto",
+                "NÍVEL D'ÁGUA: NÃO ATINGIDO",
+            ],
+        ],
+    )
+    r = geo.ler_laudo(pdf)
+    f = {x["id"]: x for x in r["furos"]}
+    assert [n["id"] for n in r["nao_lidos"]] == ["SP-03"]  # na tabela, sem perfil
+    assert len(f["SP-01"]["camadas"]) == 4 and f["SP-01"]["impenetravel"]
+    assert f["SP-01"]["profundidade_m"] == pytest.approx(7.0, abs=TOLERANCIA_M)
+    assert len(f["SP-02"]["camadas"]) == 2
+
+
+def test_prosa_antes_do_perfil_nao_vira_na_do_furo(tmp_path):
+    pdf = _gerar_pdf(
+        tmp_path / "l.pdf",
+        [
+            COORDENADAS[:4],
+            [
+                "O lençol freático foi encontrado a 1,20 m na sondagem SP-02 em outra campanha.",
+                "PERFIL INDIVIDUAL DE SONDAGEM - SP-02",
+                "0,00 - 3,00 Argila",
+                "N.A.: 2,80 m",
+            ],
+        ],
+    )
+    f = {x["id"]: x for x in geo.ler_laudo(pdf)["furos"]}
+    assert f["SP-02"]["na_m"] == pytest.approx(2.8, abs=TOLERANCIA_M)
+
+
+def test_bloco_com_profundidade_sem_descricao_no_meio_nao_funde_camadas():
+    linhas = ["TÉRMINO:", "13,49", "SILTE ARGILOSO", "6,00", "Argila mole", "5,00", "ARGILA", "•"]
+    assert geo._camadas_em_bloco(linhas) == []

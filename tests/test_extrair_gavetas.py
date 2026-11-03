@@ -483,3 +483,13 @@ def test_rede_tem_unidade_e_sistema_pelo_nome():
     mapa, pend = gavetas.unidade_sistema(base, None, {})
     assert mapa == {"RV-AAT06": ("u2", "AAT06"), "RV-ETA drenagem DN400": ("u1", "DREN_DN400")}
     assert [p["objeto_id"] for p in pend] == ["RV-R1"]   # nome sem chave: pendência, sem código inventado
+
+
+def test_padrao_de_unidade_e_sistema_vale_so_para_as_classes_declaradas():
+    """Revisão do Fable: com o padrão u1/ETA de Foz, uma adutora nova (AAT07) não pode virar U1.ETA em silêncio."""
+    base = eg.de_valas([{**_rede_vala(), "id": "AAT07"}])
+    cfg = {"gavetas": {"unidade_sistema_padrao": {"unidade": "u1", "sistema": "ETA", "classes": ["conjunto_cavas"]}}}
+    mapa, pend = gavetas.unidade_sistema(base, None, cfg)
+    assert mapa == {} and [p["objeto_id"] for p in pend] == ["RV-AAT07"]
+    sem_classes = {"gavetas": {"unidade_sistema_padrao": {"unidade": "u1", "sistema": "ETA"}}}
+    assert gavetas.unidade_sistema(base, None, sem_classes)[0] == {"RV-AAT07": ("u1", "ETA")}   # o de antes
