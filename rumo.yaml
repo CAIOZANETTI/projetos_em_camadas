@@ -15,9 +15,9 @@ etapas:
   agente: sonnet
   estimativa_min: 90
   estimativa_tokens: 300000
-  status: fazendo
+  status: feito
   inicio: '2026-11-03T21:20:00Z'
-  fim: null
+  fim: '2026-11-03T22:05:00Z'
 - id: E2
   nome: Relatório da evidência e decisão do humano
   entregaveis:
@@ -27,8 +27,8 @@ etapas:
   agente: opus
   estimativa_min: 30
   estimativa_tokens: 80000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-03T22:05:00Z'
   fim: null
 - id: E3
   nome: Aplicar a decisão ao terreno das cavas e recalcular a conferência
