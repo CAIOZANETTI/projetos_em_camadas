@@ -9,6 +9,14 @@
   aba. As regras da conferência valem iguais ("Estaca hélice | m | 12 | un | 250" proposto como 12 un é recusado).
 - CLI `conferir … --planilha arquivo.xlsx`; `etapa` reconhece planilha em `evidencias.documentos` pela extensão.
   O método determinístico `planilha` (`de_planilha`) não muda.
+- Revisão: na planilha a quantidade vem das **colunas** — cabeçalho com rótulo de unidade (UN, UND, UNID, UNIDADE) e
+  de quantidade (QTD, QTDE, QUANT, QUANTIDADE); o valor tem de ser o da coluna Qtd e a unidade a da coluna Un da
+  linha citada; preço e código do item nunca viram quantidade; sem cabeçalho só vale "250 un" numa mesma célula.
+  Fórmula sem valor guardado e número fora de 1e-6–1e15 não conferem. Separador do csv pela consistência do número
+  de campos (`;` no empate; ambíguo → documento recusado com aviso, sem derrubar o build); quebra de linha dentro de
+  aspas vira espaço. Bloco só com linhas consecutivas da planilha; com localizador aba/linha, o par tem de estar na
+  linha citada. `buscar_texto` em planilha usa aba/linha e as colunas. `.xls` sem `xlrd` é recusado com aviso.
+  `evidencia.schema.json`: `localizador` aceita texto ou `{aba, linha}`.
 - Fecha a pendência "aceitar planilha como documento de leitura" de `docs/EAP.md` §10.
 - Lição L039.
 
