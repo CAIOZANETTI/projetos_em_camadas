@@ -56,9 +56,9 @@ etapas:
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 200000
-  status: fazendo
+  status: feito
   inicio: '2026-11-03T21:06:00Z'
-  fim: null
+  fim: '2026-11-03T20:59:38Z'
 - id: E5
   nome: Talude por cava a partir das seções do projeto (decisão do Caio, 03/11)
   entregaveis:
@@ -127,3 +127,6 @@ historico:
 - data: '2026-11-03'
   mudanca: 'E5 (talude por seção) cancelada pelo Caio depois do aceite do Fable'
   motivo: 'corrigida pelo terreno, a área do modelo fica de +1 % (AA) a −20 % (OO) e +17 % (RR); a diferença vem do terreno do MDS (0,1 a 0,4 m abaixo da topografia) e das marcas de cota vizinhas, não do talude; terreno e talude vão para a próxima rodada'
+- data: '2026-11-03'
+  mudanca: 'E4 concluída depois de 3 aceites do Fable (REVISAR, REVISAR, ACEITA); placar final 1 confere, 4 difere, 13 não conferível'
+  motivo: 'os aceites acharam motivos falsos (letras deitadas, linha incompleta, edificação, segmento espúrio) e uma conclusão não sustentada (subestimado), todos corrigidos com teste'

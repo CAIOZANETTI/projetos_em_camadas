@@ -110,3 +110,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-03,conferência das cavas,correções do 1º aceite do Fable (A1-A8),executor,claude-sonnet-5-5,214958,78,1621,True,nenhum,"0 confere, 3 difere, 15 não conferível; JJ/KK/LL com linha; bug de _media_do_par corrigido"
 2026-11-03,conferência das cavas,2º aceite da conferência das cavas,gerente (aceite),claude-fable-5-1,300009,21,415,True,nenhum,REVISAR: LL perdida por segmento espúrio do 2º desenho da es3; edificação/desvio avaliados na linha inteira (OO conferível); RR confirmado irregular
 2026-11-03,conferência das cavas,correções do 2º aceite do Fable (B1-B3),executor,claude-sonnet-5-5,244812,14,230,True,nenhum,"1 confere (LL), 4 difere, 13 não conferível"
+2026-11-03,conferência das cavas,3º aceite da conferência das cavas,gerente (aceite),claude-fable-5-1,326616,8,187,True,nenhum,ACEITA: placar 1/4/13 reproduzido; testes ajustados não enfraquecidos
