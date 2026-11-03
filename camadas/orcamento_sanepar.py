@@ -50,6 +50,8 @@ from collections import defaultdict
 import openpyxl
 import pandas as pd
 
+from .eap_padrao import eh_titulo_de_etapa
+
 # --------------------------------------------------------------------------
 # Utilitários genéricos
 # --------------------------------------------------------------------------
@@ -404,29 +406,88 @@ def anexar_etapas(mats, relacao):
 # Aba 'CUSTO CIVIL'
 # --------------------------------------------------------------------------
 
+def _secao_da_linha(a, c):
+    """'unidade' (coluna A começa com UNIDADE), 'frente' (A numérica e descrição) ou '' (linha comum)."""
+    if a.upper().startswith("UNIDADE"):
+        return "unidade"
+    return "frente" if re.fullmatch(r"\d+", a) and c else ""
+
+
+def _titulos_da_linha(c, q, tit_etapa, tit_trecho, marcador):
+    """(titulo_etapa, titulo_trecho) vigentes depois de uma linha SEM composição (col. B) e com descrição.
+
+    Título de etapa = o texto casa um `titulos_sanepar` do padrão (`eap_padrao.eh_titulo_de_etapa`, fonte única):
+    vale até o próximo título (de etapa ou de trecho). Título de trecho/subfrente (sem quantidade, não etapa) troca o
+    trecho e zera a etapa. Linha de escopo sem quantidade nem etapa (marcador como MEDIDORES DE VAZÃO) abre bloco
+    próprio: encerra a etapa anterior, sem mudar o trecho."""
+    if eh_titulo_de_etapa(c):
+        return c, tit_trecho
+    if q is None and not marcador.match(c):
+        return "", c
+    return ("" if q is None or marcador.match(c) else tit_etapa), tit_trecho
+
+
+def _item_custo_civil(r, linha, hierarquia, marcador_scope, titulos):
+    """Registro de um item folha de CUSTO CIVIL. `linha` = (composição, descrição, unidade, quantidade, observação da
+    planilha); `hierarquia` = (unidade da obra, frente, subgrupo do item, desenho do projeto); `titulos` =
+    (titulo_etapa, titulo_trecho)."""
+    b, desc, d, q, obs = linha
+    unidade, grupo, sub_item, proj = hierarquia
+    cod_up = b.upper()
+    dn, dn_tipo, dn2 = extrair_dn(desc)
+    if cod_up in ("PLANILHA", "EMPREITA"):
+        obs = (obs + " | " if obs else "") + "item global detalhado em outra aba"
+    if marcador_scope:
+        obs = (obs + " | " if obs else "") + "marcador de escopo: sem código, sem quantidade"
+    return {
+        "aba": "CUSTO CIVIL", "item": "", "codigo": b, "fonte": fonte_civil(b),
+        "descricao": desc, "unidade": d, "quantidade": q,
+        "unidade_obra": ("UNIDADE 1 - ETA Vila C" if "UNIDADE 1" in unidade.upper()
+                         else "UNIDADE 2 - Adutora de água tratada (AAT06/anéis)"),
+        "grupo": grupo, "subgrupo": sub_item,
+        "disciplina": disciplina_civil(b, desc, grupo, sub_item),
+        "material": classificar_material("", desc) if re.search(r"FD|PVC|PEAD|CONCRETO|ASFALTO", desc.upper()) else "",
+        "dn_mm": dn, "etapa_indicada": "",
+        "dn_tipo": dn_tipo, "dn_mm_2": dn2, "categoria_planilha": "", "local": "", "tabela": "",
+        "projeto_desenho": proj,
+        "etapa_fonte": "", "qtd_etapa1": None, "qtd_etapa2": None, "etapa_qtd_confere": "",
+        "observacao": obs + (" | quantidade em branco na planilha" if q is None and b and cod_up not in ("DI",) else ""),
+        "linha_origem": r,
+        "titulo_etapa": titulos[0], "titulo_trecho": titulos[1],
+    }
+
+
 def extrair_custo_civil(wb):
     """Itens folha de 'CUSTO CIVIL': linhas com código de composição na col. B,
-    ou com quantidade numérica sem código (ex.: BLOCOS DE APOIO = 4 un)."""
+    ou com quantidade numérica sem código (ex.: BLOCOS DE APOIO = 4 un).
+
+    Além de `grupo` (frente numerada) e `subgrupo` (último título), cada item leva `titulo_etapa` (último título de
+    ETAPA acima, na mesma frente e no mesmo trecho) e `titulo_trecho` (último título que não é etapa). As colunas F e
+    G (preço) nunca são lidas."""
     ws = wb["CUSTO CIVIL"]
     hdr, _ = achar_cabecalho(ws)
     unidade = grupo = subgrupo = ""
     trecho = ""          # último subgrupo "de verdade" (trecho/sistema), p/ itens sem código
     proj = ""
+    tit_etapa = tit_trecho = ""
     out = []
     # cabeçalhos sem código/quantidade que são marcadores de escopo (viram linha própria)
     marcador = re.compile(r"^(RECOMPOSI[ÇC][ÃA]O DE PAVIMENTO|BLOCOS? DE (APOIO|ANCORAGEM)|MEDIDORES? DE VAZ)", re.IGNORECASE)
     for r in range(hdr + 1, ws.max_row + 1):
-        a, b, c, d, e, _, _, h, i = [ws.cell(r, k).value for k in range(1, 10)]   # F e G = preço/total: ignorados
+        a, b, c, d, e, h, i = [ws.cell(r, k).value for k in (1, 2, 3, 4, 5, 8, 9)]   # F e G (preço/total): nunca lidas
         a, b, c, d = txt(a), txt(b), txt(c), txt(d)
-        if a.upper().startswith("UNIDADE"):
-            unidade, grupo, subgrupo = a, "", ""
-            continue
-        if re.fullmatch(r"\d+", a) and c:
-            grupo, subgrupo, trecho = f"UC {a} - {c}", "", ""
+        secao = _secao_da_linha(a, c)
+        if secao:                                       # unidade ou frente nova: zera os títulos
+            tit_etapa = tit_trecho = ""
+            if secao == "unidade":
+                unidade, grupo, subgrupo = a, "", ""
+            else:
+                grupo, subgrupo, trecho = f"UC {a} - {c}", "", ""
             continue
         marcador_scope = False
         if not b and c:
             q = num(e)
+            tit_etapa, tit_trecho = _titulos_da_linha(c, q, tit_etapa, tit_trecho, marcador)
             if q is None and marcador.match(c):
                 marcador_scope = True           # marcador de escopo sem quantidade
             elif q is None:                     # cabeçalho de subgrupo
@@ -435,31 +496,9 @@ def extrair_custo_civil(wb):
                 continue
         if not (b or c):
             continue
-        q = num(e)
-        cod_up = b.upper()
-        desc = c
-        dn, dn_tipo, dn2 = extrair_dn(desc)
-        obs = txt(h)
-        if cod_up in ("PLANILHA", "EMPREITA"):
-            obs = (obs + " | " if obs else "") + "item global detalhado em outra aba"
         sub_item = trecho if (not b and c) else subgrupo     # itens sem código: usa o trecho
-        if marcador_scope:
-            obs = (obs + " | " if obs else "") + "marcador de escopo: sem código, sem quantidade"
-        out.append({
-            "aba": "CUSTO CIVIL", "item": "", "codigo": b, "fonte": fonte_civil(b),
-            "descricao": desc, "unidade": d, "quantidade": q,
-            "unidade_obra": ("UNIDADE 1 - ETA Vila C" if "UNIDADE 1" in unidade.upper()
-                             else "UNIDADE 2 - Adutora de água tratada (AAT06/anéis)"),
-            "grupo": grupo, "subgrupo": sub_item,
-            "disciplina": disciplina_civil(b, desc, grupo, sub_item),
-            "material": classificar_material("", desc) if re.search(r"FD|PVC|PEAD|CONCRETO|ASFALTO", desc.upper()) else "",
-            "dn_mm": dn, "etapa_indicada": "",
-            "dn_tipo": dn_tipo, "dn_mm_2": dn2, "categoria_planilha": "", "local": "", "tabela": "",
-            "projeto_desenho": proj,
-            "etapa_fonte": "", "qtd_etapa1": None, "qtd_etapa2": None, "etapa_qtd_confere": "",
-            "observacao": obs + (" | quantidade em branco na planilha" if q is None and b and cod_up not in ("DI",) else ""),
-            "linha_origem": r,
-        })
+        out.append(_item_custo_civil(
+            r, (b, c, d, num(e), txt(h)), (unidade, grupo, sub_item, proj), marcador_scope, (tit_etapa, tit_trecho)))
     return out
 
 
@@ -511,7 +550,9 @@ COLUNAS_ESCOPO = ["aba", "item", "codigo", "fonte", "descricao", "unidade", "qua
                   # extras
                   "dn_tipo", "dn_mm_2", "categoria_planilha", "local", "tabela",
                   "projeto_desenho", "etapa_fonte", "qtd_etapa1", "qtd_etapa2", "etapa_qtd_confere",
-                  "observacao", "linha_origem"]
+                  "observacao", "linha_origem",
+                  # título da hierarquia do CUSTO CIVIL (vazios em MATS E EQUIP)
+                  "titulo_etapa", "titulo_trecho"]
 
 
 def gravar_csv(df, caminho):

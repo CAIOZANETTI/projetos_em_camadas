@@ -118,3 +118,42 @@ def test_aba_eap_mostra_a_eap_padrao(navegador, tmp_path, monkeypatch):  # noqa:
     assert destaque.nth(1).get_attribute("data-situacao") == "a preencher"
     assert "obrigatória" in destaque.nth(1).inner_text()
     assert not erros
+
+
+def test_aba_eap_mostra_citada_no_contrato_e_aviso_de_titulo(
+    navegador,  # noqa: F811
+    tmp_path,
+):
+    linhas = [
+        {
+            "unidade": "U1",
+            "aba": "CUSTO CIVIL",
+            "linha": n,
+            "titulo_etapa": titulo,
+            "descricao": descricao,
+            "item": item,
+            "servico": "",
+        }
+        for n, titulo, descricao, item in (
+            (184, "URBANIZAÇÃO", "EXECUÇÃO DE GUIA DE CONCRETO PRÉ-MOLDADA", None),
+            (40, "SERVIÇOS FINAIS", "BOMBA CENTRÍFUGA", "HID.EQP.EQU"),
+        )
+    ]
+    padrao = eap_padrao.montar(
+        {"evidencias": {"fatos": [], "titulos_etapa": linhas}}, {}
+    )
+    pagina, erros = _abrir(
+        navegador, tmp_path, {**dados_minimos(), "eap_padrao": padrao}
+    )
+    pagina.click("#t-eap")
+    secao = pagina.locator("#eapPadrao")
+    pagina.evaluate(
+        "document.querySelectorAll('#eapPadrao details').forEach(d => d.open = true)"
+    )
+    citada = secao.locator('[data-citada="OP.10"]')
+    assert "Citada no contrato" in citada.inner_text()
+    assert "GUIA DE CONCRETO" in citada.inner_text()
+    aviso = secao.locator('[data-aviso-titulo="OP.12"]')
+    assert "Item fora da etapa do título" in aviso.inner_text()
+    assert secao.locator('[data-citada="OP.01"]').count() == 0
+    assert not erros

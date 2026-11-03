@@ -238,25 +238,61 @@ def _unidade_da_planilha(texto) -> str:
     return f"U{m[1]}" if m else "*"
 
 
+def _item_da_linha_de_planilha(r, catalogo: dict) -> tuple[str, str | None, str, str, dict | None]:
+    """(unidade, item EAP ou None, serviço, regra, ficha do cadastro) de uma linha do escopo da planilha: o item vem do
+    cadastro de materiais pelo código, senão pela descrição; serviço sem item ('*' só vale em unidade e sistema) é None."""
+    linha, espec = preparar(r.descricao)[1], catalogo.get(str(r.codigo).split(".")[0])
+    unidade = _unidade_da_planilha(r.unidade_obra)
+    obra = UNIDADES["unidades"].get(unidade.lower(), {}).get("obra")
+    item, servico, regra = classificar(linha, obra)
+    if espec and (pelo_cadastro := item_do_material(espec)):
+        item, regra = pelo_cadastro, f"cadastro Sanepar {r.codigo} ({espec.get('subcategoria')}) → {pelo_cadastro}"
+    if item is None or item.endswith(".*"):
+        item = None
+    return unidade, item, servico, regra, espec
+
+
+def _titulo_de_etapa(r) -> str:
+    """Título de etapa da linha (coluna `titulo_etapa` do escopo_itens.csv; vazio, ausente ou NaN = '')."""
+    titulo = getattr(r, "titulo_etapa", "")
+    return titulo.strip() if isinstance(titulo, str) else ""
+
+
 def de_planilha(itens: pd.DataFrame, documento: dict, catalogo: dict | None = None) -> list[dict]:
     """Evidências do contrato (escopo_itens.csv de camadas.orcamento_sanepar): uma parcela por linha. O item vem do
-    cadastro de materiais pelo código, senão pela descrição; quantidade em branco = item previsto sem número."""
+    cadastro de materiais pelo código, senão pela descrição; quantidade em branco = item previsto sem número. A linha
+    com `titulo_etapa` (CUSTO CIVIL) grava o título no localizador ({aba, linha, titulo_etapa}): rastreabilidade, não
+    muda a classificação."""
     catalogo, saida = catalogo or {}, []
     for r in itens.itertuples(index=False):
-        linha, espec = preparar(r.descricao)[1], catalogo.get(str(r.codigo).split(".")[0])
-        unidade = _unidade_da_planilha(r.unidade_obra)
-        obra = UNIDADES["unidades"].get(unidade.lower(), {}).get("obra")
-        item, servico, regra = classificar(linha, obra)
-        if espec and (pelo_cadastro := item_do_material(espec)):
-            item, regra = pelo_cadastro, f"cadastro Sanepar {r.codigo} ({espec.get('subcategoria')}) → {pelo_cadastro}"
-        if item is None or item.endswith(".*"):     # serviço sem item: '*' só vale em unidade e sistema
+        unidade, item, servico, regra, espec = _item_da_linha_de_planilha(r, catalogo)
+        if item is None:
             continue
         valor, un = (None, None) if pd.isna(r.quantidade) or not unidade_medida(r.unidade) else \
             vocabulario.converter(float(r.quantidade), unidade_medida(r.unidade))
+        titulo = _titulo_de_etapa(r)
+        local = {"aba": r.aba, "linha": int(r.linha_origem), "titulo_etapa": titulo} if titulo \
+            else f"{r.aba} linha {r.linha_origem}"
         saida.append(evidencia(codigo=_codigo(unidade, "*", item), servico=servico, unidade=un, valor=valor,
-                               parcela=True, documento=_doc(documento), localizador=f"{r.aba} linha {r.linha_origem}",
+                               parcela=True, documento=_doc(documento), localizador=local,
                                trecho=str(r.descricao), metodo="catalogo" if espec else "planilha", regra=regra,
                                escopo=escopo_do_material(espec) if espec else None))
+    return saida
+
+
+def titulos_da_planilha(itens: pd.DataFrame, catalogo: dict | None = None) -> list[dict]:
+    """Linhas do escopo da planilha que estão sob um título de etapa (`titulo_etapa`), COM ou SEM item: é o insumo de
+    `eap_padrao.preencher` para a etapa do título (a linha sem item não gera evidência, mas diz que a etapa foi citada).
+    Cada registro: {unidade, aba, linha, titulo_etapa, descricao, item (None sem item), servico}. Sem a coluna, vazio."""
+    if "titulo_etapa" not in itens:
+        return []
+    catalogo, saida = catalogo or {}, []
+    for r in itens.itertuples(index=False):
+        titulo = _titulo_de_etapa(r)
+        if titulo:
+            unidade, item, servico, _, _ = _item_da_linha_de_planilha(r, catalogo)
+            saida.append({"unidade": unidade, "aba": r.aba, "linha": int(r.linha_origem), "titulo_etapa": titulo,
+                          "descricao": str(r.descricao), "item": item, "servico": servico})
     return saida
 
 
@@ -1282,6 +1318,11 @@ def _planilha_do_contrato(esc: dict) -> tuple | None:
     return df, {"id": Path(esc["itens_csv"]).name, "tipo": "planilha", "nome": esc.get("fonte", "")}, cat
 
 
+def _titulos_do_contrato(planilha: tuple | None) -> list[dict]:
+    """`titulos_da_planilha` da planilha do contrato (itens, documento, catálogo); vazio sem planilha."""
+    return titulos_da_planilha(planilha[0], planilha[2]) if planilha else []
+
+
 def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     """Loop de evidências da obra: documentos, planilha do contrato, planilha Obras Lineares, pranchas medidas, IA e decisões do obra.json.
     Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv, dimensoes.csv e calibracao.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
@@ -1308,7 +1349,8 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
                                                                        encoding="utf-8-sig", index=False)
     fatos = tabelas["fatos"]
     log(f"  evidências: {len(evs)} · fatos {len(fatos)} · conflitos {int((fatos['status'] == 'conflito').sum()) if len(fatos) else 0}")
-    return {"n_evidencias": len(evs), **{k: _registros(df) for k, df in tabelas.items()}}
+    return {"n_evidencias": len(evs), **{k: _registros(df) for k, df in tabelas.items()},
+            "titulos_etapa": _titulos_do_contrato(planilha)}
 
 
 def _registros(df: pd.DataFrame) -> list[dict]:
@@ -1591,7 +1633,7 @@ def metadados() -> dict:
         "modulo": "evidencias",
         "descricao": "loop de evidências da EAP: texto, planilha + cadastro de materiais, pranchas medidas, IA com "
                      "citação conferida e decisões; fatos com convergência e conflito, cobertura projeto × edital",
-        "funcoes": ["roteiro", "roteiro_md", "conferir_arquivo", "buscar_texto", "de_planilha", "de_quantificacao", "de_obras_lineares", "de_obras_lineares_mos", "conferir_citacao", "decisao", "consolidar",
+        "funcoes": ["roteiro", "roteiro_md", "conferir_arquivo", "buscar_texto", "de_planilha", "titulos_da_planilha", "de_quantificacao", "de_obras_lineares", "de_obras_lineares_mos", "conferir_citacao", "decisao", "consolidar",
                     "cobertura", "associados_x_edital", "catalogo_por_item", "loop", "etapa", "metadados"],
         "bibliografia": [],
         "premissas": [{"aplicacao": {"classificar": ["eap_geral.jsonl", "servicos.jsonl", "sinonimos.json"],

@@ -69,6 +69,52 @@ continuam esquadria (teste novo).
 Mudanças de conceito: item `GER.PRE.ALO`; poço de visita em água e esgoto; `HID.TUB.LIG` restrito à ligação;
 `ELE.FOR.INS` também linear; folha `OL.07.04`; etapa 00 e `titulos_sanepar` no padrão.
 
+## Etapa pelo título da planilha
+
+Segunda passada sobre a mesma planilha: o título de etapa da aba CUSTO CIVIL ("SERVIÇOS PRELIMINARES", "URBANIZAÇÃO"…)
+agora indica a etapa do padrão (regra em `docs/EAP.md` §9.1). Sem preço: as colunas F e G não são lidas.
+`escopo_itens.csv` foi regenerado numa pasta temporária (o de `dados/` não foi tocado).
+
+| Medida | Antes | Depois |
+|---|---|---|
+| Linhas de CUSTO CIVIL (de 79) com `titulo_etapa` | sem a coluna | 36 (14 sem item, 22 com item) |
+| Evidências · fatos | 651 · 35 | 651 · 35 (a classificação não mudou) |
+| Evidências com título no localizador | 0 | 22 |
+| Obra localizada: folhas preenchidas | 14 de 43 (32,6 %) | 14 de 43 (32,6 %) |
+| Obra linear: folhas preenchidas | 6 de 32 (18,8 %) | 6 de 32 (18,8 %) |
+
+Linhas por título de etapa: SERVIÇOS PRELIMINARES 11, RECOMPOSIÇÃO DE PAVIMENTO 8, BLOCOS DE ANCORAGEM 4, BLOCOS DE APOIO 3,
+SERVIÇOS FINAIS 3, URBANIZAÇÃO 3, ADMINISTRAÇÃO LOCAL DE OBRA - ALO 2, ÁGUA POTÁVEL 1, MATERIAIS EQUIPAMENTOS 1. As outras
+43 linhas estão sob título de trecho (ENTRADA DA ADUTORA, INTERLIGAÇÃO…, SAÍDA DO LODO…) ou sem título, e o título de trecho
+encerra a etapa anterior. Os três "MEDIDORES DE VAZÃO" (linhas 37, 57 e 71) ficariam sob RECOMPOSIÇÃO DE PAVIMENTO se a
+regra fosse só "último título de etapa"; como são bloco próprio da planilha, encerram a etapa (decisão declarada).
+
+**Etapas citadas no contrato** (linhas sem item sob o título; sem quantidade). Todas na obra localizada (U1); a unidade 2
+(linear) só tem a ALO como linha de CUSTO CIVIL, então nenhuma etapa linear foi citada.
+
+| Etapa | Título | Linhas sem item | Exemplos |
+|---|---|---|---|
+| OP.01 Serviços preliminares | SERVIÇOS PRELIMINARES | 4 | sondagem para execução da rede; pesquisa e remanejamento de interferências; locação de caçamba para entulho |
+| OP.07 Instalações hidráulicas e OP.08 Equipamentos | MATERIAIS EQUIPAMENTOS (título nas duas) | 1 | fornecimento e montagem hidromecânica de materiais e equipamentos |
+| OP.10 Urbanização e pavimentação | URBANIZAÇÃO | 1 | execução de guia de concreto pré-moldada |
+| OP.12 Serviços finais | SERVIÇOS FINAIS | 1 | lavagem de rede |
+
+**Avisos "item fora da etapa do título": nenhum.** As 22 linhas com item caem todas numa folha da etapa do título (a):
+topografia e mobilização em OP.01, supressão e raspagem em OP.01.04, recomposição e pavimento em OP.10, limpeza e cadastro
+em OP.12, ALO em OP.00. Nada a corrigir na classificação por este caminho; nenhuma correção foi feita.
+
+Observações que a passada deixou, sem mudar nada (candidatos para decisão humana):
+
+- **Título sem etapa equivalente no tipo da unidade.** U1 é obra localizada, mas BLOCOS DE ANCORAGEM (4 linhas, sem item),
+  BLOCOS DE APOIO (3, sem item) e ÁGUA POTÁVEL (1, vala em PVC DN 25) só constam em `titulos_sanepar` das etapas da obra
+  linear (OL.04, OL.03 a OL.05). Nessas linhas o título não age. Se a Sanepar usa os mesmos blocos e a mesma água potável
+  dentro da ETA, falta listar o título numa etapa de `obra_localizada` (fundações ou instalações hidráulicas); fica para o
+  mantenedor, porque `conceitos/eap_padrao.json` não era escopo desta tarefa.
+- **Sem item sob título de etapa.** "SONDAGEM PARA EXECUÇÃO DA REDE", "PESQUISA E REMANEJAMENTO DE INTERFERÊNCIAS" e "LOCAÇÃO
+  DE CAÇAMBA PARA DESTINAÇÃO DE ENTULHO" (preliminares), "EXECUÇÃO DE GUIA DE CONCRETO PRÉ-MOLDADA" (urbanização) e
+  "LAVAGEM DE REDE" (serviços finais; parece desinfecção e limpeza da rede, `GER.CTL.DSF`, mas o termo exige tubulação ou
+  adutora e não cobre "lavagem de rede") não têm item na EAP. Não foi alterado: "lavagem de rede" não é erro claro.
+
 ## Verificações
 
 - Roteiros de ataque da IA (`ataques`, `r3_ataques`, `r3_b`, `rev_bloco`, `rev_bloco2`): saída idêntica antes e depois
