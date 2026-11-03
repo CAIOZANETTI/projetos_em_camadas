@@ -12,6 +12,13 @@
 - Aba EAP mostra as colunas e o selo "mesma origem" (textos prontos do Python). `_conciliar_eaps` roda depois de
   `evidencias.etapa`. Resolve o achado do aceite do build de Foz: escavação e reaterro das cavas davam "confere" com
   Δ = 0 vindo do mesmo levantamento; a conferência independente agora espera a planilha CUSTO CIVIL.
+- Revisão: linha concreta só compara com fato do mesmo código; fato com `*` (a planilha grava `U1.*.ITEM`) é
+  comparado com a soma das linhas que casa, num bloco de totais à parte (`gavetas.conciliar_totais`,
+  `conciliacao_eap_totais.json`, tabela própria na aba); concreto × `*` nunca vira conflito. Documentos agrupados
+  com a tolerância relativa do `evidencias.consolidar` (`TOLERANCIA_RELATIVA`, 0,005). Origem estruturada: a
+  prancha vira o stem do PDF (mapa de `cfg["pranchas"]`) e a etapa vai em campo próprio (`origem_etapa` na cava,
+  `etapa_origem` na evidência), com o texto da `fonte` só como reserva. Decisão do engenheiro não conta como
+  documento independente (aparece à parte).
 - Lição L042.
 
 ## 0.45.0 — 2026-11-03 · Build real de Foz: a memória espacial com dados verdadeiros

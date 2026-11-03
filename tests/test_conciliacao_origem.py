@@ -126,29 +126,44 @@ def test_origem_do_servico_pela_cadeia_fato_evidencia_documento():
     fatos = {
         "F1": {"fato_id": "F1", "evidencia_id": "EV-CAVAS"},
         "F2": {"fato_id": "F2", "evidencia_id": "EV-MDS"},
+        "F3": {"fato_id": "F3", "evidencia_id": "EV-TXT"},
     }
     evidencias = {
         "EV-CAVAS": {
-            "documento": "pbge_01, pbge_02",
-            "localizador": {"criterio": "plantas de escavação"},
+            "documento": "es1, es2",
+            "localizador": {
+                "pranchas": ["es1", "es2"],
+                "criterio": "plantas de escavação",
+            },
         },
         "EV-MDS": {
             "documento": "/saida/sfm/ortofoto_mds.PNG",
             "localizador": {"arquivo": "x"},
         },
+        "EV-TXT": {"documento": "Memorial, rev. 2.pdf", "localizador": "p. 3"},
     }
-    assert gv.origem_do_servico({"fatos": ["F1", "F2"]}, fatos, evidencias) == [
+    pdfs = {
+        "es1": "dados/PBGE/ESCAVACAO-01-R2.pdf",
+        "es2": "dados/PBGE/ESCAVACAO-02-R2.pdf",
+    }
+    assert gv.origem_do_servico({"fatos": ["F1", "F2"]}, fatos, evidencias, pdfs) == [
+        "arquivo:escavacao-01-r2",
+        "arquivo:escavacao-02-r2",
         "arquivo:ortofoto_mds",
-        "arquivo:pbge_01",
-        "arquivo:pbge_02",
         "etapa:escavacao",
     ]
-    assert (
-        gv.origem_do_servico({"fatos": ["F1", "F9"]}, fatos, evidencias) is None
-    )  # fato fora da base
-    assert (
-        gv.origem_do_servico({"fatos": []}, fatos, evidencias) is None
-    )  # sem fatos: sem origem
+    # sem o mapa, o id da prancha fica como está; o critério ainda dá a etapa
+    assert gv.origem_do_servico({"fatos": ["F1"]}, fatos, evidencias) == [
+        "arquivo:es1",
+        "arquivo:es2",
+        "etapa:escavacao",
+    ]
+    # sem lista de pranchas o documento inteiro é UM insumo (não se separa por vírgula)
+    assert gv.origem_do_servico({"fatos": ["F3"]}, fatos, evidencias) == [
+        "arquivo:memorial, rev. 2"
+    ]
+    assert gv.origem_do_servico({"fatos": ["F1", "F9"]}, fatos, evidencias) is None
+    assert gv.origem_do_servico({"fatos": []}, fatos, evidencias) is None
     base = {
         "fatos": list(fatos.values()),
         "evidencias": [{"evidencia_id": k, **v} for k, v in evidencias.items()],
@@ -194,8 +209,7 @@ def test_origem_da_eap_codificada_pelos_elementos_construtivos():
     assert eap.origem_das_quantidades(quant, None)[("U1.ETA.GEO.MOV.ESC", "m³")] is None
 
 
-def test_cadeia_completa_cava_das_gavetas_e_da_codificada_se_reconhecem():
-    """Os dois lados declaram a mesma etapa: é o caso da escavação de Foz."""
+def _gavetas_das_cavas(pranchas, mds="/x/sfm/ortofoto_mds.png"):
     from camadas import extrair_gavetas as eg
 
     marcas = [
@@ -205,34 +219,102 @@ def test_cadeia_completa_cava_das_gavetas_e_da_codificada_se_reconhecem():
             "cota_m": 10.0,
             "texto": "10,00",
             "topo": False,
-            "prancha": "pbge_esc",
+            "prancha": pranchas[0],
         }
     ]
     bases = [{"coords": [[0, 0], [10, 0], [10, 10], [0, 10]], "etapa": None}]
-    base = eg.de_cavas(
+    return eg.de_cavas(
         marcas,
         bases,
         [],
         {"superficie_id": "S", "evidencia_id": "EV-S", "crs_h": "EPSG:31982"},
-        ["pbge_esc"],
-        mds="/x/sfm/ortofoto_mds.png",
+        pranchas,
+        mds=mds,
         layers=["BASE"],
     )
+
+
+def test_cadeia_completa_com_nomes_reais_id_de_prancha_diferente_do_stem_do_pdf():
+    """Foz: as gavetas citam `es1`; o construtivo grava o stem do PDF. O mapa id → PDF faz os dois falarem o mesmo nome."""
+    base = _gavetas_das_cavas(["es1", "es2", "es3"])
     servico = {"fatos": [f["fato_id"] for f in base["fatos"]]}
-    gv.anotar_origem([servico], base)
+    stem = "006-SAA-0017-8820-PBGE-DE-0000ETA01ESCAVACAO1-R2"
+    pdfs = {
+        "es1": f"dados/foz/projeto/2. PBGE/{stem}.pdf",
+        "es2": "dados/foz/x/ESC2-R2.pdf",
+        "es3": "dados/foz/x/ESC3-R2.pdf",
+    }
+    gv.anotar_origem([servico], base, pdfs)
     assert (
-        "etapa:escavacao" in servico["origem"]
-        and "arquivo:ortofoto_mds" in servico["origem"]
+        f"arquivo:{stem.lower()}" in servico["origem"]
+        and "arquivo:es1" not in servico["origem"]
+    )
+    assert (
+        "arquivo:ortofoto_mds" in servico["origem"]
+        and "etapa:escavacao" in servico["origem"]
     )
     props = {
         "id": "c",
-        "doc": "pbge_esc",
-        "fonte": "escavação calculada (camadas.escavacao) · levantamento",
+        "doc": stem,
+        "origem_etapa": "escavacao",
+        "fonte": "qualquer texto",
     }
+    origem_codificada = sorted(eap.origem_do_elemento(props))
+    assert origem_codificada == [f"arquivo:{stem.lower()}", "etapa:escavacao"]
+    assert gv.comparar_origens(servico["origem"], origem_codificada) == "mesma"
+    # só o documento em comum (sem etapa em nenhum dos dois lados) já basta, porque o nome agora é o mesmo
+    so_arquivo = [i for i in servico["origem"] if i.startswith("arquivo:")]
+    assert gv.comparar_origens(so_arquivo, [f"arquivo:{stem.lower()}"]) == "mesma"
+
+
+def test_mudar_a_fonte_do_elemento_continua_mesma_origem_e_o_texto_so_e_reserva():
+    props = {
+        "id": "c",
+        "doc": "pbge",
+        "origem_etapa": "escavacao",
+        "fonte": "texto reescrito sem a palavra-chave",
+    }
+    assert "etapa:escavacao" in eap.origem_do_elemento(props)
+    antigo = {
+        "id": "c",
+        "doc": None,
+        "fonte": "escavação calculada (camadas.escavacao) · PBGE",
+    }  # sem o campo
+    assert eap.origem_do_elemento(antigo) == {"etapa:escavacao"}
+    sem_nada = {"id": "c", "doc": None, "fonte": "escavação (reescrita)"}
+    assert eap.origem_do_elemento(sem_nada) is None
+    base = _gavetas_das_cavas(["es1"])
+    servico = {"fatos": [f["fato_id"] for f in base["fatos"]]}
+    gv.anotar_origem([servico], base)
     assert (
         gv.comparar_origens(servico["origem"], sorted(eap.origem_do_elemento(props)))
         == "mesma"
     )
+
+
+def test_construtivos_grava_a_etapa_estruturada_da_cava():
+    from camadas import construtivos
+
+    ctx = {
+        "usados": set(),
+        "contagem": __import__("collections").Counter(),
+        "features": [],
+    }
+    construtivos._adicionar(
+        ctx,
+        "ETA",
+        "cava",
+        "c1",
+        {"type": "Point", "coordinates": [0, 0]},
+        [],
+        "f",
+        origem_etapa="escavacao",
+    )
+    construtivos._adicionar(
+        ctx, "ETA", "cava", "c2", {"type": "Point", "coordinates": [0, 0]}, [], "f"
+    )
+    assert ctx["features"][0]["properties"]["origem_etapa"] == "escavacao"
+    assert "origem_etapa" not in ctx["features"][1]["properties"]
 
 
 # --- terceira coluna: documento independente -------------------------------------------------------------------------
@@ -339,22 +421,160 @@ def test_fato_nao_independente_e_ignorado(tipo):
     )  # só a planilha conta, não conflita com a geometria
 
 
-def test_ia_e_decisao_valem_como_documento():
+def test_ia_vale_como_documento_e_decisao_fica_a_parte():
     ia = _doc([_fato(afirmacoes=[("ia:edital.pdf", "ia", 100.0)])])
     assert ia["situacao_documento"] == "confere com documento"
     decisao = _doc(
         [_fato(afirmacoes=[("a.xlsx", "planilha", 80.0)], decisoes=[(100.0, "maria")])]
     )
-    assert decisao["situacao_documento"] == "confere com documento" and decisao[
+    assert decisao["situacao_documento"] == "difere do documento" and decisao[
         "documentos"
-    ] == ["decisão de maria"]
-
-
-def test_curinga_do_codigo_casa_o_sistema():
-    r = _doc(
-        [_fato(codigo="U1.*.GEO.MOV.ESC", afirmacoes=[("a.xlsx", "planilha", 100.0)])]
+    ] == ["a.xlsx"]
+    assert decisao["decisoes"] == [{"valor": 100.0, "autor": "maria"}]
+    so_decisao = _doc([_fato(decisoes=[(100.0, "maria")])])
+    assert (
+        so_decisao["situacao_documento"] == "sem documento"
+        and so_decisao["documento"] is None
     )
-    assert r["situacao_documento"] == "confere com documento"
+    assert so_decisao["decisoes"] == [{"valor": 100.0, "autor": "maria"}]
+
+
+def test_fato_com_curinga_nao_vale_para_uma_linha_de_um_sistema():
+    fatos = [
+        _fato(codigo="U1.*.GEO.MOV.ESC", afirmacoes=[("a.xlsx", "planilha", 100.0)])
+    ]
+    assert (
+        _doc(fatos)["situacao_documento"] == "sem documento"
+    )  # o total da unidade não é o do sistema ETA
+
+
+def test_concreto_e_curinga_nunca_viram_conflito_entre_si():
+    fatos = [
+        _fato(
+            codigo="U1.*.GEO.MOV.ESC", afirmacoes=[("contrato.csv", "planilha", 1000.0)]
+        ),
+        _fato(afirmacoes=[("memorial.pdf", "memorial", 600.0)]),
+    ]
+    r = _doc(fatos, 600.0)
+    assert r["situacao_documento"] == "confere com documento" and r["documentos"] == [
+        "memorial.pdf"
+    ]
+
+
+def test_tolerancia_dos_documentos_e_a_relativa_do_consolidar():
+    from camadas import evidencias
+
+    assert evidencias.TOLERANCIA_RELATIVA == 0.005
+    perto = _doc(
+        [
+            _fato(
+                afirmacoes=[("a.csv", "planilha", 1000.0), ("b.pdf", "edital", 1004.0)]
+            )
+        ],
+        1000.0,
+    )
+    assert (
+        perto["situacao_documento"] != "documento em conflito"
+    )  # 4 de 1000 < 0,5 %, apesar de > 0,01 absoluto
+    longe = _doc(
+        [
+            _fato(
+                afirmacoes=[("a.csv", "planilha", 1000.0), ("b.pdf", "edital", 1010.0)]
+            )
+        ],
+        1000.0,
+    )
+    assert longe["situacao_documento"] == "documento em conflito"
+
+
+def _linhas_do_sistema(**g):
+    return [
+        {
+            "codigo": c,
+            "unidade": "m³",
+            "gavetas": v,
+            "codificada": v,
+            "origem_gavetas": ["etapa:a"],
+            "origem_codificada": ["etapa:a"],
+        }
+        for c, v in g.items()
+    ]
+
+
+def test_total_do_curinga_contra_a_soma_das_linhas():
+    linhas = _linhas_do_sistema(
+        **{
+            "U1.ETA.GEO.MOV.ESC": 600.0,
+            "U1.GERAL.GEO.MOV.ESC": 400.0,
+            "U2.X.GEO.MOV.ESC": 7.0,
+        }
+    )
+    fatos = [
+        _fato(
+            codigo="U1.*.GEO.MOV.ESC", afirmacoes=[("contrato.csv", "planilha", 1000.0)]
+        )
+    ]
+    (total,) = gv.conciliar_totais(linhas, fatos)
+    assert (
+        total["codigo"] == "U1.*.GEO.MOV.ESC" and total["n_linhas"] == 2
+    )  # U2 não casa
+    assert (
+        total["gavetas"] == 1000.0
+        and total["situacao_documento"] == "confere com documento"
+    )
+    assert total["origem_gavetas"] == ["etapa:a"]
+    errado = [
+        _fato(
+            codigo="U1.*.GEO.MOV.ESC", afirmacoes=[("contrato.csv", "planilha", 900.0)]
+        )
+    ]
+    assert (
+        gv.conciliar_totais(linhas, errado)[0]["situacao_documento"]
+        == "difere do documento"
+    )
+    assert (
+        gv.conciliar_totais(linhas, [_fato(codigo="U1.ETA.GEO.MOV.ESC")]) == []
+    )  # sem curinga: sem total
+    assert (
+        gv.conciliar_totais(
+            linhas,
+            [
+                _fato(
+                    codigo="U1.*.GEO.MOV.ESC",
+                    unidade="kg",
+                    afirmacoes=[("a", "planilha", 1.0)],
+                )
+            ],
+        )
+        == []
+    )
+
+
+def test_total_sem_um_dos_lados_nao_soma_parcial():
+    linhas = _linhas_do_sistema(**{"U1.ETA.GEO.MOV.ESC": 600.0})
+    linhas.append(
+        {
+            "codigo": "U1.GERAL.GEO.MOV.ESC",
+            "unidade": "m³",
+            "gavetas": None,
+            "codificada": 400.0,
+            "origem_gavetas": None,
+            "origem_codificada": ["etapa:a"],
+        }
+    )
+    fatos = [
+        _fato(
+            codigo="U1.*.GEO.MOV.ESC", afirmacoes=[("contrato.csv", "planilha", 1000.0)]
+        )
+    ]
+    (total,) = gv.conciliar_totais(linhas, fatos)
+    assert (
+        total["gavetas"] is None and total["codificada"] == 1000.0
+    )  # cai para a codificada, inteira
+    assert (
+        total["origem_gavetas"] is None
+        and total["situacao_documento"] == "confere com documento"
+    )
 
 
 def test_unidade_t_contra_kg():
@@ -433,7 +653,8 @@ def test_conciliacao_formata_origem_documento_e_resumo():
     assert l["situacao"] == "confere (mesma origem)" and l["mesma_origem"] is True
     assert (
         l["origem_txt"] == "mesma origem"
-        and l["origem_insumos_txt"] == "etapa:escavacao"
+        and l["origem_insumos_txt"]
+        == "gavetas: etapa:escavacao; codificada: etapa:escavacao"
     )
     assert (
         l["documento_txt"] == "80,00 m³" and l["documentos_txt"] == "CUSTO CIVIL.xlsx"
@@ -467,4 +688,39 @@ def test_difere_com_mesma_origem_tambem_e_destacado_no_selo():
     assert (
         independente["mesma_origem"] is False
         and independente["origem_txt"] == "indeterminada"
+    )
+
+
+def test_conciliacao_formata_origem_por_lado_decisao_e_totais():
+    fatos = [
+        _fato(decisoes=[(100.0, "ana")]),
+        _fato(codigo="U1.*.GEO.MOV.ESC", afirmacoes=[("c.csv", "planilha", 100.0)]),
+    ]
+    linhas = gv.conciliar_eap(
+        [_serv(origem=("arquivo:a",))],
+        [_quant()],
+        fatos=fatos,
+        origens_codificada={("U1.ETA.GEO.MOV.ESC", "m³"): ["arquivo:b"]},
+    )
+    c = eap_html.conciliacao(linhas, gv.conciliar_totais(linhas, fatos))
+    l = c["linhas"][0]
+    assert l["origem_insumos_txt"] == "gavetas: arquivo:a; codificada: arquivo:b"
+    assert (
+        l["decisao_txt"] == "decisão de ana: 100,00 m³"
+        and l["situacao_documento"] == "sem documento"
+    )
+    (total,) = c["totais"]
+    assert (
+        total["codigo"] == "U1.*.GEO.MOV.ESC" and total["documento_txt"] == "100,00 m³"
+    )
+    assert (
+        total["situacao_documento_txt"] == "confere com documento"
+        and total["n_linhas"] == 1
+    )
+    sem = eap_html.conciliacao(gv.conciliar_eap([_serv(origem=None)], [_quant()]))[
+        "linhas"
+    ][0]
+    assert (
+        sem["origem_insumos_txt"] == "gavetas: indeterminada; codificada: indeterminada"
+        and sem["decisao_txt"] == "—"
     )

@@ -797,10 +797,12 @@ def _conciliar_eaps(dados: dict, servicos: list | None, out: Path) -> None:
         return
     try:
         origens = eap.origem_das_quantidades(dados["eap"]["quantidades"], dados.get("construtivos"))
-        linhas = gavetas.conciliar_eap(servicos, dados["eap"]["quantidades"], origens_codificada=origens,
-                                       fatos=(dados.get("evidencias") or {}).get("fatos"))
+        fatos = (dados.get("evidencias") or {}).get("fatos")
+        linhas = gavetas.conciliar_eap(servicos, dados["eap"]["quantidades"], origens_codificada=origens, fatos=fatos)
+        totais = gavetas.conciliar_totais(linhas, fatos)       # fato `U1.*.ITEM` × soma das linhas (bloco à parte)
+        (out / "conciliacao_eap_totais.json").write_text(json.dumps(totais, ensure_ascii=False, indent=1), encoding="utf-8")
         (out / "conciliacao_eap.json").write_text(json.dumps(linhas, ensure_ascii=False, indent=1), encoding="utf-8")
-        dados["eap_gavetas"]["conciliacao"] = eap_html.conciliacao(linhas)
+        dados["eap_gavetas"]["conciliacao"] = eap_html.conciliacao(linhas, totais)
     except Exception as erro:  # noqa: BLE001 - a conciliação nunca derruba o build
         _log(f"Conciliação das EAP não concluída ({type(erro).__name__}: {erro})")
 

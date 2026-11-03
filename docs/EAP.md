@@ -503,17 +503,27 @@ produziu a medida).
 `motivo` o destaca (erro de cálculo, não de insumo, mais grave). Com origens disjuntas, "confere" vale. Cada linha traz
 `origem` (mesma, independente ou indeterminada), `origem_gavetas`, `origem_codificada` e `motivo`.
 
-**Terceira coluna: documento independente** (`gavetas.documento_independente`). Para cada código procura os fatos de
-`dados["evidencias"]["fatos"]` do mesmo código (o `*` casa qualquer segmento, como em `evidencias`), com serviço vazio
-(o próprio item) e a mesma unidade depois de `vocabulario.converter` (t × kg). Só contam afirmações de documento
-independente: planilha, edital, memorial, IA com citação conferida e decisão. **Nunca** `geometria`, `associado` (fórmula
-sobre outro número) nem `projeto` (as pranchas são a fonte que o construtivo mede). A decisão vale no lugar das
-afirmações do fato, como em `evidencias.consolidar`. Colunas: `documento` (valor na unidade da linha), `documentos`
-(nomes) e `situacao_documento`:
-- `confere com documento` e `difere do documento` (Δ = referência − documento, e Δ % sobre o documento), com a mesma
-  tolerância absoluta da conciliação; a referência é a medida das gavetas ou, sem ela, a da EAP codificada;
-- `documento em conflito` (documentos independentes discordam entre si, sem valor);
+**Terceira coluna: documento independente** (`gavetas.documento_independente`). Cada linha concreta usa só os fatos de
+`dados["evidencias"]["fatos"]` com o **mesmo código**, serviço vazio (o próprio item) e a mesma unidade depois de
+`vocabulario.converter` (t × kg). Só contam afirmações de planilha, edital, memorial e IA com citação conferida.
+**Nunca** `geometria`, `associado` (fórmula sobre outro número) nem `projeto` (as pranchas são a fonte que o construtivo
+mede). A decisão do engenheiro não é documento: aparece à parte (`decisoes`, "decisão de X: valor"). Documentos que
+discordam (tolerância relativa de `evidencias.TOLERANCIA_RELATIVA`, a do `consolidar`) dão "documento em conflito".
+Colunas: `documento` (valor na unidade da linha), `documentos` (nomes) e `situacao_documento`:
+- `confere com documento` e `difere do documento` (Δ = referência − documento, e Δ % sobre o documento), com a tolerância
+  absoluta da conciliação; a referência é a medida das gavetas ou, sem ela, a da EAP codificada;
+- `documento em conflito` (sem valor);
 - `sem documento`.
+
+**Fato com `*`** (a planilha grava `U1.*.ITEM`, o total da unidade) não se compara com um sistema só. Não vira linha:
+`gavetas.conciliar_totais` soma as linhas concretas que ele casa (se faltar um lado em alguma linha, não há soma
+parcial; cai para a outra EAP) e devolve um bloco `totais` à parte (`conciliacao_eap_totais.json` e tabela própria na
+aba), com origem em união e a mesma terceira coluna. Concreto e `*` nunca se comparam entre si.
+
+**Nome do documento nos dois lados.** A prancha que a evidência das gavetas cita (`es1`) é traduzida para o stem do PDF
+pelo `pranchas` do `obra.json`, o mesmo nome que o `construtivos` grava em `doc`. A etapa vem de campo estruturado
+(`origem_etapa` no elemento, `etapa_origem` no localizador da evidência); o texto da `fonte` só serve de reserva. Sem
+lista de pranchas, o `documento` inteiro é um insumo só.
 
 `eap_html.conciliacao` formata tudo em Python; a aba EAP só exibe as colunas Origem, Documento e Situação do documento,
 e marca com selo e realce as linhas `mesma_origem` (o "confere (mesma origem)" e o "difere" de mesma origem). O build

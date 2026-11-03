@@ -328,7 +328,7 @@ def test_aba_eap_mostra_a_coluna_do_documento_e_o_selo_de_mesma_origem(navegador
     assert tabela.locator("tbody tr").count() == len(linhas)
     for i, l in enumerate(linhas):
         linha = tabela.locator("tbody tr").nth(i)
-        assert linha.locator('[data-doc="valor"]').inner_text() == l["documento_txt"]
+        assert linha.locator('[data-doc="valor"]').inner_text().split("\n")[0] == l["documento_txt"]
         assert linha.locator('[data-doc="situacao"]').inner_text() == l["situacao_documento_txt"]
         assert linha.locator("td").nth(5).inner_text() == l["origem_txt"]
     selos = tabela.locator("tbody .conc-selo")
@@ -338,8 +338,16 @@ def test_aba_eap_mostra_a_coluna_do_documento_e_o_selo_de_mesma_origem(navegador
     assert selos.first.get_attribute("title") == next(l["motivo"] for l in linhas if l["mesma_origem"])
     assert tabela.locator("tbody tr.conc-mesma-origem").count() == len(esperados)
     assert "difere do documento (Δ 2,25 m³ · 0,6 %)" in tabela.inner_text()
-    resumo = pagina.locator("#aba-eap .eap-res").last.inner_text()
+    resumo = pagina.locator("#aba-eap .eap-res").nth(-2).inner_text()
     assert "confere (mesma origem)" in resumo
+    resumo_doc = pagina.locator("#aba-eap .eap-res-doc").inner_text()
+    assert "difere do documento" in resumo_doc and "sem documento" in resumo_doc
+    assert tabela.locator('tbody td[data-doc="origem"]').first.get_attribute("title") == (
+        "gavetas: etapa:escavacao; codificada: etapa:escavacao")
+    assert tabela.locator('[data-doc="decisao"]').all_inner_texts() == ["decisão de ana: 178,00 m³"]
+    totais = pagina.locator("#aba-eap table.eap-tot")
+    assert totais.count() == 1 and "U1.*.GEO.MOV.ESC" in totais.inner_text()
+    assert "difere do documento (Δ 2,25 m³ · 0,6 %)" in totais.inner_text()
     assert erros == []
     pagina.close()
 
