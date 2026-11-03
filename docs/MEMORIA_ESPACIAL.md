@@ -221,7 +221,7 @@ opcionais que derrubavam o build, o serviço sem item e a falta de unidade e sis
 **Conferência das cavas (0.52.0, 03/11/2026).** As seções das pranchas de corte, independentes do cálculo pelo MDS,
 mostram duas coisas:
 - o fundo do modelo bate com o projeto em 5 de 7 seções; nas outras 2, o modelo usou a marca de cota vizinha;
-- a área de corte difere principalmente pelo terreno: o MDS fica de 0,1 a 0,4 m abaixo da topografia do projeto.
+- a área de corte difere principalmente pelo terreno: o MDS fica até 0,6 m abaixo da topografia do projeto no trecho do corte; tirado o terreno, as áreas ficam de −14 % a +10 %, sem sinal único.
 
 Qual terreno está certo decide se o volume está sub ou superestimado, e é a próxima pergunta da tese. Relatório em
 `docs/plano/2026-11-03_conferencia_cavas.md`.

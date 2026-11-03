@@ -15,8 +15,9 @@
 - **Foz (depois do aceite do Fable):**
   - o fundo do modelo bate em 5 de 7 seções (0 a 0,06 m);
   - em HH e FF o fundo vem da marca de cota vizinha;
-  - a área de corte difere principalmente pelo **terreno**: o MDS fica de 0,1 a 0,4 m abaixo da topografia do projeto;
-    corrigida por isso, a área vai de +1 % (AA) a −20 % (OO), com RR em +17 %;
+  - a área de corte difere principalmente pelo **terreno**: o MDS fica até 0,6 m abaixo da topografia do projeto no
+    trecho do corte; corrigida por isso, a área vai de −14 % (OO) a +10 % (RR), com AA em +1 % e LL em +5 %;
+  - placar final, depois de dois aceites do Fable: 1 confere (LL), 4 difere, 13 não conferível;
   - não dá para dizer se o volume está sub ou superestimado.
 
   O talude por seção foi cancelado pelo Caio, e nenhuma premissa mudou. Relatório em

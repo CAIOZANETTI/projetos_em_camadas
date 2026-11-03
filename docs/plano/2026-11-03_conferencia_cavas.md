@@ -91,21 +91,23 @@ Das outras 9 combinações, nenhuma tem par paralelo com as duas seções comple
 A primeira versão deste relatório dizia que "o volume está provavelmente subestimado" e que a causa era o talude. O
 aceite independente mostrou que os próprios dados não sustentam isso. A leitura correta é esta:
 
-1. **O terreno é a primeira fonte de diferença.** O MDS do drone fica de 0,12 a 0,42 m **abaixo** do TERRENO ORIGINAL
-   do projeto nas 6 seções comparáveis, sempre no mesmo sentido. Corrigida por esse desnível (área do modelo −
-   diferença de terreno × largura), a área fica assim:
+1. **O terreno é a primeira fonte de diferença.** No trecho do corte, o MDS do drone fica **abaixo** do TERRENO ORIGINAL
+   do projeto nas seções comparáveis (AA −0,41 m, OO −0,60 m, FF −0,11 m, HH −0,09 m). RR fica em −0,04 m, mas com
+   terreno irregular, e LL fica em +0,18 m. Corrigida por esse desnível (área do modelo − diferença de terreno ×
+   largura), a área fica assim:
 
    | Seção | Área do projeto | Área do modelo | Modelo corrigido pelo terreno | Diferença |
    |---|---:|---:|---:|---:|
-   | AA | 33,5 | 23,9 | 33,9 | **+1 %** |
-   | FF | 61,1 | 44,4 | 47,8 | −22 % |
-   | HH | 89,3 | 78,5 | 82,2 | −8 % |
-   | RR | 57,9 | 63,0 | 67,6 | **+17 %** |
-   | OO | 70,1 | 48,4 | 55,9 | −20 % |
+   | AA | 33,5 | 23,9 | 33,7 | **+1 %** |
+   | LL | 102,6 | 117,1 | 108,2 | +5 % |
+   | HH | 89,3 | 78,5 | 81,1 | −9 % |
+   | OO | 70,1 | 48,4 | 60,5 | −14 % |
+   | FF | 61,1 | 44,4 | 47,1 | −23 % (com fundo +0,40 m pela marca vizinha) |
+   | RR | 57,9 | 63,0 | 63,8 | +10 % (terreno irregular; não conferível) |
 
-   Em AA, a diferença inteira era o terreno. Sobram OO (−20 %) e, **no sentido contrário**, RR (+17 %). Se o volume
-   está sub ou superestimado depende de qual terreno está certo, o MDS ou a topografia do projeto. Os dados desta
-   rodada não decidem isso.
+   Em AA, a diferença inteira era o terreno. Tirado o terreno, as áreas ficam de −14 % a +10 %, **sem sinal único**.
+   FF fica de fora dessa faixa porque o seu fundo vem da marca vizinha. Se o volume está sub ou superestimado depende
+   de qual terreno está certo, o MDS ou a topografia do projeto. Os dados desta rodada não decidem isso.
 2. **O fundo do modelo está certo em 5 de 7 seções.** AA, DD, OO, RR e NN batem com diferença de 0 a 0,06 m. Em HH e FF,
    o fundo vem da **marca de cota vizinha errada**:
    - em HH, o "235,35" da Câmara de Contato é texto de cota sem símbolo de marca, e o modelo usa o 235,05 do poço,
