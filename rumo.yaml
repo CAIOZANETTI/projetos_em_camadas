@@ -29,7 +29,7 @@ etapas:
   estimativa_tokens: 250000
   status: feito
   inicio: '2026-11-03T18:36:00Z'
-  fim: '2026-11-03T19:10:00Z'
+  fim: '2026-11-03T19:05:14Z'
 - id: E3
   nome: Seções no modelo e conferência (área, fundo, cotas da sequência executiva, seções médias)
   entregaveis:
@@ -41,8 +41,8 @@ etapas:
   estimativa_min: 60
   estimativa_tokens: 250000
   status: feito
-  inicio: '2026-11-03T19:12:00Z'
-  fim: '2026-11-03T21:05:00Z'
+  inicio: '2026-11-03T19:05:14Z'
+  fim: '2026-11-03T19:46:57Z'
 - id: E4
   nome: Build real, relatório, balanço, aceite do Fable e PR
   entregaveis:
@@ -57,7 +57,7 @@ etapas:
   estimativa_min: 60
   estimativa_tokens: 200000
   status: feito
-  inicio: '2026-11-03T21:06:00Z'
+  inicio: '2026-11-03T19:46:57Z'
   fim: '2026-11-03T20:59:38Z'
 - id: E5
   nome: Talude por cava a partir das seções do projeto (decisão do Caio, 03/11)
@@ -130,3 +130,6 @@ historico:
 - data: '2026-11-03'
   mudanca: 'E4 concluída depois de 3 aceites do Fable (REVISAR, REVISAR, ACEITA); placar final 1 confere, 4 difere, 13 não conferível'
   motivo: 'os aceites acharam motivos falsos (letras deitadas, linha incompleta, edificação, segmento espúrio) e uma conclusão não sustentada (subestimado), todos corrigidos com teste'
+- data: '2026-11-03'
+  mudanca: horários de E2, E3 e E4 corrigidos pelas horas dos commits
+  motivo: os horários escritos à mão estavam adiantados em relação ao relógio da máquina (a E4 saía com −6 min)
