@@ -15,9 +15,9 @@ etapas:
   agente: haiku
   estimativa_min: 30
   estimativa_tokens: 500000
-  status: fazendo
+  status: feito
   inicio: '2026-11-03T18:32:00Z'
-  fim: null
+  fim: '2026-11-03T18:41:00Z'
 - id: E2
   nome: Leitor das seções de corte (área de corte e cota de fundo por seção)
   entregaveis:
@@ -100,3 +100,6 @@ historico:
   mudanca: 'desvio aceito: 9 módulos de camadas/ e os testes alterados fora dos entregáveis'
   motivo: o plano previa só rodar o build; o dado real de Foz exigiu 5 correções (relatório, seção Achados) e as 5 da
     revisão do Fable, todas com teste
+- data: '2026-11-03'
+  mudanca: 'E1 parcial aceita: 36 de 37 PDFs do obra.json e as 13 fotos; falta 002-...PLANTIM-R2 (elétrica, sem relação com as cavas) e a listagem completa do Drive'
+  motivo: o necessário para o build e para as cavas está no disco; o resto fica como pendência registrada
