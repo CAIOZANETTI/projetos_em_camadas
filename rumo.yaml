@@ -59,6 +59,20 @@ etapas:
   status: fazendo
   inicio: '2026-11-03T21:06:00Z'
   fim: null
+- id: E5
+  nome: Talude por cava a partir das seções do projeto (decisão do Caio, 03/11)
+  entregaveis:
+  - camadas/escavacao.py
+  - camadas/conferencia_cavas.py
+  - tests/test_conferencia_cavas.py
+  depende_de:
+  - E3
+  agente: sonnet
+  estimativa_min: 60
+  estimativa_tokens: 250000
+  status: a_fazer
+  inicio: null
+  fim: null
 historico:
 - data: '2026-11-03'
   mudanca: 'objetivo anterior concluído: build real de Foz (PR #46, 0.45.0)'
@@ -106,3 +120,7 @@ historico:
 - data: '2026-11-03'
   mudanca: 'E4 começou depois de mais 3 achados do contêiner novo (prancha ausente, inventário sem listagem, escavação sem controle vertical silenciosa), corrigidos com teste'
   motivo: o build real no contêiner novo dependia de insumos que só existiam no anterior
+
+- data: '2026-11-03'
+  mudanca: 'decisão do Caio: usar o talude de cada seção do projeto no modelo das cavas (etapa E5)'
+  motivo: 'a conferência mostrou área de corte do modelo 12 a 31 % menor; o modelo usava talude único de 1,5:1 e o projeto tem 1,0 a 5,7:1 por seção'
