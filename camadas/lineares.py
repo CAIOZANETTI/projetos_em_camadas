@@ -448,7 +448,7 @@ def _profundidade(trecho: dict, perfil) -> tuple[float | None, str, list[str]]:
     return None, "ausente", alertas
 
 
-def _diametro_externo_m(t: dict) -> tuple[float, str]:
+def _diametro_externo_m(t: dict) -> tuple[float | None, str]:
     """(DE em m, fonte do DE) do trecho: `de_mm` quando o trecho traz o DE; senão a conversão DN -> DE por material
     (conceitos/lineares.json, vala.largura_fora_da_tabela.de_por_dn); fora da tabela, DE = DN com a fonte
     "DE estimado igual ao DN" (decisão do Caio 03/11/2026, D9)."""
@@ -456,6 +456,8 @@ def _diametro_externo_m(t: dict) -> tuple[float, str]:
 
     if t.get("de_mm"):
         return round(float(t["de_mm"]) / 1000, 4), "DE do trecho"
+    if t.get("dn_mm") is None:
+        return None, "sem DN nem DE"
     dn_mm = float(t["dn_mm"])
     material = ol.norm(t.get("material"))
     for linha in VALA["largura_fora_da_tabela"]["de_por_dn"]["tabelas"]:
@@ -492,7 +494,7 @@ def _quantidades(t: dict, furos: list[dict], pts) -> dict:
     if mnd:
         # decisão do Caio 03/11/2026 (D9): método não destrutivo não tem vala, logo não há largura nem fallback da NBR
         fonte_largura = "não se aplica (MND)"
-    elif prof_m and largura_m is None:
+    elif prof_m and largura_m is None and de_m is not None:
         # decisão do Caio 03/11/2026 (D7): fora da Tabela I do MOS, b = DE + folga (NBR 12266), com alerta
         # decisão do Caio 03/11/2026 (D9): o DE vem do trecho (`de_mm`) ou da conversão DN -> DE por material
         folga_m = float(VALA["largura_fora_da_tabela"]["folga_m"])

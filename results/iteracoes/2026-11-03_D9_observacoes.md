@@ -18,3 +18,9 @@
 | MND fora da Tabela I | `fonte_largura` "NBR 12266 (fallback)" e alerta | "não se aplica (MND)", sem alerta |
 | lineares / obras_lineares / valas (gabaritos) | | inalterados |
 | hash do conjunto de referência | 0602c637...c6de | igual |
+
+## Aceite do Fable (03/11): ACEITO COM RESSALVAS, corrigidas no merge
+- Trecho sem DN nem DE não quebra mais o fallback (`_diametro_externo_m` devolve None).
+- Vala rasa (reaterro cortado a 0): o acréscimo ao bota-fora fica limitado ao reaterro do MOS, então o bota-fora não
+  passa de escavação × empolamento.
+- Página da arquitetura com a linha da D9.

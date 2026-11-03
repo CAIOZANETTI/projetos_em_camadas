@@ -266,7 +266,8 @@ def dimensionar_vala(trecho: dict, sondagens: list | None = None,
                 if liquido_m3 < 0:
                     alertas = [*alertas, f"{sup}: berço + envoltória superam o reaterro do MOS ({liquido_m3:.4g} m³): reaterro 0"]
             if d["importado"]:                            # decisão do Caio 03/11/2026 (D9): o solo que o berço sai também
-                extra_m3 = (d["V_berco"] + d["V_env"]) * d["empolamento_bota"]
+                # o solo deslocado não passa do que havia para reaterrar (vala rasa: V_reat cortado a 0)
+                extra_m3 = min(d["V_berco"] + d["V_env"], dims["V_reat_mos"]) * d["empolamento_bota"]
                 mem.append(f"bota-fora = {dims['V_bota_mos']:.4g} (MOS: tubo × empolamento) + (berço {d['V_berco']:.4g} + "
                            f"envoltória {d['V_env']:.4g}) × empolamento {d['empolamento_bota']:.4g} "
                            f"({1 - fracao_rocha_de(dims):.0%} solo × {geotecnia.EMPOLAMENTO_SOLO:g} + "

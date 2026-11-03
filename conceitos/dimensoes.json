@@ -272,7 +272,7 @@
     "V_tubo": "pi * d ** 2 / 4 * L",
     "V_env": "(b * (d + acima) * L - V_tubo) if flexivel == 1 else 0",
     "V_reat": "max(V_reat_mos - V_berco - V_env, 0)",
-    "V_bota": "V_bota_mos + (V_berco + V_env) * empolamento_bota * importado",
+    "V_bota": "V_bota_mos + min(V_berco + V_env, V_reat_mos) * empolamento_bota * importado",
     "proprio": "min(V_reat, V_solo * reap)"
    },
    "derivados": []
