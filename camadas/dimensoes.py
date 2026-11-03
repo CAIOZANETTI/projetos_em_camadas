@@ -178,7 +178,8 @@ def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: s
                    profundidade: float | None) -> tuple[dict | None, list]:
     """Adaptador: dimensões de um segmento no formato do tipo `vala`, todas vindas de `lineares.dimensionar_vala`
     (largura, profundidade, escoramento, esgotamento, escavação, reaterro, bota-fora, escoramento em m² e pavimento em
-    m²); (None, [motivo]) quando o MOS não cobre o tubo. Daqui saem só o berço e a envoltória (regra genérica, com a
+    m²); (None, [motivo]) quando o material do tubo não é reconhecido. Fora da Tabela I do MOS a largura é o fallback
+    do `lineares` (DE + 0,60 m, NBR 12266, D7). Daqui saem só o berço e a envoltória (regra genérica, com a
     largura do MOS), as horas de esgotamento e a divisão da escavação em solo e rocha pela fração de rocha do lineares."""
     from . import lineares
     material = material_mos(material_texto)
@@ -206,14 +207,15 @@ def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: s
             "tipo_escoramento": tipo, "flexivel": 1.0 if material_do_tubo(material_texto) == "flexivel" else 0.0,
             "item_pavimento": pav["item"] or "", "pavimento": pav["nome"], "h_agua": float(r.get("altura_agua_m") or 0.0),
             "metodo_agua": metodo_agua, "horas_agua": horas, "reap": c["reap_solo"],
-            "V_solo": float(r["escavacao_m3"]) - v_rocha, "V_rocha": v_rocha, "V_reat": float(r["reaterro_m3"]),
+            "V_solo": float(r["escavacao_m3"]) - v_rocha, "V_rocha": v_rocha, "V_reat_mos": float(r["reaterro_m3"]),
             "V_bota": float(r["bota_fora_m3"]), "A_escoramento": float(r.get("escoramento_m2") or 0.0),
             "A_demol": float(sum((r.get("pavimento_m2") or {}).values())) if pav["item"] else 0.0}
     memoria = [(f"MOS (lineares.dimensionar_vala): h = {h:.2f} m ({r.get('fonte_profundidade')}), "
-                f"L = {b:.2f} m ({material} DN {de_mm:g})"),
+                f"L = {b:.2f} m ({material} DN {de_mm:g}; fonte: {r.get('fonte_largura')})"),
                f"escoramento {VP['largura']['nomes_escoramento'].get(tipo, tipo)}"
                + (f" ({', '.join(r.get('agravantes_escoramento') or [])})" if r.get("agravantes_escoramento") else ""),
-               (f"escavação {r['escavacao_m3']:g} m³ (rocha {fracao_rocha:.0%}) · reaterro {r['reaterro_m3']:g} m³ · "
+               (f"escavação {r['escavacao_m3']:g} m³ (rocha {fracao_rocha:.0%}) · reaterro do MOS (escavação − tubo) "
+                f"{r['reaterro_m3']:g} m³ · "
                 f"bota-fora {r['bota_fora_m3']:g} m³ · pavimento {r.get('pavimento_m2')}"),
                f"água: {dims['h_agua']:.2f} m na vala → {metodo_agua}", *r.get("alertas", [])]
     return dims, memoria
@@ -224,7 +226,7 @@ def dimensionar_vala(trecho: dict, sondagens: list | None = None,
     """[(segmento, método, (dimensões, faltando, memória), alertas)] de um trecho: {id, de_mm, segmentos: {superfície:
     m}, material_texto?, geometria (UTM)?, cota_terreno?, profundidade_m?}. Adaptador de `lineares.dimensionar_vala`
     (decisão do Caio 03/11/2026: dimensionador único): o único método é `mos_sanepar`; outro método pedido (ex.:
-    'nbr12266') não tem regra própria e fica de fora com alerta. Tubo que o MOS não cobre sai com a largura em `faltando`."""
+    'nbr12266') não tem regra própria e fica de fora com alerta. Material não reconhecido sai com a largura em `faltando`; tubo fora da Tabela I do MOS usa o fallback do lineares (D7)."""
     furo, dist = sondagem_proxima(trecho.get("geometria"), sondagens)
     alertas = [] if furo else [f"nenhuma sondagem a até {geotecnia.RAIO_INFLUENCIA_M:.0f} m"
                                + (f" (a mais próxima a {dist:.0f} m)" if dist else "")
@@ -249,6 +251,12 @@ def dimensionar_vala(trecho: dict, sondagens: list | None = None,
                 saida.append((sup, metodo, (d, [f"b (falta {memoria[0]})", *faltando], mem), alertas + [f"{sup}: {memoria[0]}"]))
                 continue
             d, faltando, mem = dimensionar("vala", dados=dims)
+            if "V_reat" in d:                             # decisão do Caio 03/11/2026 (D8): a conta do reaterro na memória
+                liquido_m3 = dims["V_reat_mos"] - d["V_berco"] - d["V_env"]
+                mem.append(f"reaterro = {dims['V_reat_mos']:.4g} (MOS: escavação − tubo) − berço {d['V_berco']:.4g} − "
+                           f"envoltória {d['V_env']:.4g} = {liquido_m3:.4g} m³ → {d['V_reat']:.4g} m³")
+                if liquido_m3 < 0:
+                    alertas = [*alertas, f"{sup}: berço + envoltória superam o reaterro do MOS ({liquido_m3:.4g} m³): reaterro 0"]
             alerta_agua = [f"{sup}: vala atinge o NA ({dims['h_agua']:.2f} m de água): {dims['metodo_agua']}"] \
                 if dims["metodo_agua"] != "nenhum" else []
             saida.append((sup, metodo, (d, faltando, memoria + mem), alertas + alerta_agua))
