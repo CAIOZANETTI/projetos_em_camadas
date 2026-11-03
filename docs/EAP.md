@@ -65,10 +65,15 @@ U1                         Unidade 1 — ETA Vila C (obra localizada, água)
    ├─ .GEO.FUN             Fundações ─ EST estacas · BLO blocos · CON contenções
    ├─ .GEO.MOV             Movimentação de solo ─ ESC escavação · REA reaterro · VAL vala · SUP supressão
    ├─ .CIV.EST             Estruturas de concreto ─ PIS piso/laje · BAL baldrame · VIG viga · PIL pilar · PAR parede
-   ├─ .CIV.PAV             Pavimentação ─ REC demolição e recomposição
+   ├─ .CIV.PAV             Pavimentação e urbanização ─ REC demolição e recomposição · CAL calçada · URB drenagem superficial, cercamento e paisagismo
+   ├─ .CIV.ACA             Acabamentos e arquitetura ─ ACB revestimentos, esquadrias, cobertura e pintura
    ├─ .HID.EQP             Equipamentos ─ EQU fornecimento e montagem
    ├─ .HID.TUB             Tubulações ─ RED tubo · VAL válvulas e conexões · PVS poços de visita (só esgoto) · LIG ligações
-   └─ .ELE                 FOR instalações · ATE aterramento e SPDA
+   │                         · MND método não destrutivo · TRV travessias · ANC ancoragens · CAM caixas e câmaras (obra linear)
+   ├─ .ELE                 FOR instalações · ATE aterramento e SPDA
+   └─ .GER                 Serviços gerais ─ PRE preliminares (MOB mobilização e canteiro · TOP locação e topografia · SIN sinalização)
+                           · CTL controle (ENS ensaios · COM comissionamento · DSF desinfecção · CFT inspeção por CFTV)
+                           · FIN finais (LIM limpeza final · FAI faixa · CAD cadastro e as built · DES desmobilização)
 U2                         Unidade 2 — Adutoras (obra linear, água)
 └─ U2.AAT06                vala · pavimento · tubo · ligações (sem estaca, sem estrutura de concreto)
 ```
@@ -248,7 +253,7 @@ de serviços, dos sinônimos e da planilha CUSTO CIVIL.
   - FERRAGEM, CA-50, VERGALHÃO → ARMACAO;
   - BALDRAME → VIGA BALDRAME;
   - CBUQ → RECOMPOSIÇÃO DE PAVIMENTO.
-- **Unidades**: M3, MC, METROS CÚBICOS → m³; ML, MT → m; UND, PÇ → un; TON → t; VB, GL → vb. A conversão t → kg
+- **Unidades**: M3, MC, METROS CÚBICOS → m³; ML, MT → m; UND, PÇ → un; TON → t; VB, GL → vb; MES, MESES → mês. A conversão t → kg
   permite comparar armadura em toneladas com armadura em quilos.
 - "30 MPa" e "DN 300 mm" **não** viram quantidade.
 
@@ -608,6 +613,43 @@ escopo e **precisa ser preenchido** a cada obra. Dois tipos:
 
 Cada folha tem `id` (`OL.03.02`: tipo, etapa, folha), `nome`, `aponta`, `escopo` (água, esgoto ou ambos), `obrigatoria`
 (a obra desse tipo sempre tem; mobilização sim, método não destrutivo não) e, sem item codificado, `observacao`.
+
+**Folhas sem item e itens gerais.** As 21 folhas que nasceram sem `aponta` (preliminares, acabamentos, urbanização,
+ensaios, comissionamento, serviços finais, ancoragens, travessias, MND, caixas, desinfecção, CFTV e cadastro) agora
+apontam para itens da EAP codificada: a disciplina nova `GER` (serviços gerais: `PRE`, `CTL`, `FIN`), o pacote `CIV.ACA`,
+o item `CIV.PAV.URB` e os itens `HID.TUB.MND/TRV/ANC/CAM`. Assim o loop de evidências (regex sobre edital, memorial e
+planilha; IA conferida) preenche essas folhas como as outras. Nenhuma folha ficou sem item; o mecanismo de "sem item
+codificado" e de preenchimento manual continua valendo para folha futura (e é coberto por teste com folhas esvaziadas).
+
+| Folha | Item | Obra · escopo |
+|---|---|---|
+| OP.01.01 · OL.01.01 Mobilização e canteiro | `GER.PRE.MOB` (serviços mobilização, canteiro, placa de obra) | ambas · água e esgoto |
+| OP.01.02 · OL.01.02 Locação e topografia | `GER.PRE.TOP` | ambas · água e esgoto |
+| OL.01.03 Sinalização e segurança de tráfego | `GER.PRE.SIN` | linear · água e esgoto |
+| OP.06.02 Revestimentos, esquadrias, cobertura e pintura | `CIV.ACA.ACB` | localizada |
+| OP.10.03 Drenagem superficial, cercamento e paisagismo | `CIV.PAV.URB` | localizada |
+| OP.11.02 Ensaios de materiais e controle tecnológico | `GER.CTL.ENS` | localizada |
+| OP.11.03 Comissionamento e operação assistida | `GER.CTL.COM` | localizada |
+| OP.12.01 Limpeza final · OL.11.02 Limpeza e recomposição final da faixa | `GER.FIN.LIM` (e `GER.FIN.FAI` na faixa) | ambas · linear |
+| OP.12.02 · OL.11.01 Cadastro e as built | `GER.FIN.CAD` | ambas |
+| OP.12.03 · OL.11.03 Desmobilização | `GER.FIN.DES` | ambas |
+| OL.04.04 Ancoragens e blocos de ancoragem | `HID.TUB.ANC` | linear |
+| OL.06.01 Travessias de rios, ferrovias e rodovias | `HID.TUB.TRV` | linear |
+| OL.06.02 Método não destrutivo (MND/HDD) | `HID.TUB.MND` | linear |
+| OL.07.02 Caixas e câmaras (descarga, ventosa, registro) | `HID.TUB.CAM` | linear |
+| OL.09.02 Desinfecção e limpeza da rede | `GER.CTL.DSF` | linear · só água |
+| OL.09.03 Inspeção por CFTV | `GER.CTL.CFT` | linear · só esgoto |
+
+Como os termos não tomam a linha dos itens que já existiam: os itens de termo próprio (mobilização, desmobilização,
+cadastro/as built, MND, desinfecção, CFTV, ancoragem, caixas) têm prioridade menor que a dos itens antigos para que
+"cadastro técnico da rede coletora" ou "desinfecção da adutora" não virem tubulação; em compensação **só valem antes de
+uma marca de inclusão** (`inclusive`, `incluso`, `incluindo`, `com`, `sem`…): "estaca hélice contínua, inclusive
+mobilização e desmobilização" continua sendo estaca. Os de termo genérico (acabamentos, urbanização, sinalização) ficam
+depois (prioridade 55 e 60) ou restritos a frases específicas ("cobertura metálica", "cobertura em telha"; "cobertura
+mínima" não casa). Item de obra linear não casa em obra localizada e vice-versa. A unidade `mês` entrou no vocabulário
+(canteiro e comissionamento se medem por mês) e `vb` já existia. "Teste hidrostático" e "teste de estanqueidade"
+continuam sendo o serviço `teste_estanqueidade` de `HID.TUB.RED`, sem item novo. Ainda não há geometria de prancha para
+esses itens (`construtivos` e `layers` vazios): vêm só dos documentos.
 
 **Relação com a EAP codificada.** A EAP por disciplina (GEO, CIV, HID, ELE → pacote → item) continua sendo a linha
 mestra técnica. O padrão é uma **vista**: `aponta` é uma lista de `{item: "DISC.PAC.ITEM", servico}` de `eap_geral.jsonl`

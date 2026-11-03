@@ -45,6 +45,34 @@ def _mutar(monkeypatch, funcao):
     monkeypatch.setattr(eap_padrao, "TIPOS", copia)
 
 
+ANTIGAS_SEM_ITEM = (
+    "OP.01.01",
+    "OP.01.02",
+    "OP.06.02",
+    "OP.10.03",
+    "OP.11.02",
+    "OP.11.03",
+    "OP.12.01",
+    "OP.12.02",
+    "OP.12.03",
+)
+"""Folhas da obra localizada que já não tinham item codificado antes de GER/ACA/URB: o padrão real hoje aponta todas,
+então os testes da situação "sem item codificado" voltam a deixá-las sem item por `sem_item`."""
+
+
+def sem_item(monkeypatch, *ids):
+    """Deixa as folhas `ids` sem item codificado (com observação), como eram antes dos itens gerais."""
+
+    def esvaziar(tipos):
+        for etapa in tipos["obra_localizada"]["etapas"]:
+            for folha in etapa["folhas"]:
+                if folha["id"] in ids:
+                    folha["aponta"] = []
+                    folha["observacao"] = "Sem item codificado (teste)."
+
+    _mutar(monkeypatch, esvaziar)
+
+
 def test_json_real_sem_erros_e_sem_aviso():
     erros, avisos = eap_padrao.validar()
     assert erros == [] and avisos == []
@@ -126,7 +154,8 @@ def test_servico_fora_do_padrao_nao_avisa_se_algum_folha_aponta_o_item_sem_servi
     assert not [a for a in eap_padrao.validar()[1] if "GEO.MOV.VAL · berco" in a]
 
 
-def test_situacoes_das_folhas():
+def test_situacoes_das_folhas(monkeypatch):
+    sem_item(monkeypatch, *ANTIGAS_SEM_ITEM)
     codificada = {
         "quantidades": [
             _q("U1.ACT600.CIV.EST.PIL", "quantidade", "un", 12.0, ["p1", "p2"]),
@@ -368,7 +397,8 @@ def test_etapa_toda_fora_do_denominador_nao_divide_por_zero():
     )
 
 
-def test_preenchimento_manual_de_folha_sem_item_com_documento():
+def test_preenchimento_manual_de_folha_sem_item_com_documento(monkeypatch):
+    sem_item(monkeypatch, *ANTIGAS_SEM_ITEM)
     manual = [
         {
             "id": "OP.12.02",

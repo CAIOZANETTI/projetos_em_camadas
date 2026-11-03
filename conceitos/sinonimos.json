@@ -62,7 +62,8 @@
   "cj": ["CJ", "CONJ", "CONJUNTO", "CONJUNTOS"],
   "m³xkm": ["M3XKM", "M3 X KM", "M3.KM", "M3KM"],
   "h": ["H", "HORA", "HORAS"],
-  "dia": ["DIA", "DIAS"]
+  "dia": ["DIA", "DIAS"],
+  "mês": ["MES", "MESES"]
  },
  "conversoes": {"t": ["kg", 1000.0]}
 }

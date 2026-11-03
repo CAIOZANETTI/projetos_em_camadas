@@ -2,13 +2,13 @@
  "metadata": {
   "fonte": "prática de orçamento de obras de saneamento e organização por etapas de execução do MOS Sanepar (Manual de Obras de Saneamento); o MOS não está no repositório (só referencias/sanepar/MOS_largura_de_vala_tabela_I.png), então a numeração e os nomes das etapas são premissa a conferir com o MOS",
   "estado": "premissa",
-  "observacoes": "Esqueleto de EAP por ETAPA DE EXECUÇÃO (ordem de obra), por tipo de obra, a preencher a cada obra. É uma vista: cada folha aponta para códigos da EAP codificada (conceitos/eap_geral.jsonl, DISC.PAC.ITEM) e, se couber, para um serviço de conceitos/servicos.jsonl; não cria quantificação nova. Folha sem `aponta` não tem item codificado e é preenchida à mão. `obrigatoria` = a obra desse tipo sempre tem o serviço (mobilização sim, método não destrutivo não). `escopo` opcional: agua, esgoto ou ambos (padrão). Prefixos dos ids: OP = obra pontual (localizada: ETA, reservatório, estação elevatória, unidade de tratamento); OL = obra linear (adutora, rede, emissário, coletor). Não há número de capítulo ou módulo do MOS aqui, de propósito."
+  "observacoes": "Esqueleto de EAP por ETAPA DE EXECUÇÃO (ordem de obra), por tipo de obra, a preencher a cada obra. É uma vista: cada folha aponta para códigos da EAP codificada (conceitos/eap_geral.jsonl, DISC.PAC.ITEM) e, se couber, para um serviço de conceitos/servicos.jsonl; não cria quantificação nova. Folha sem `aponta` não tem item codificado e é preenchida à mão (hoje todas apontam: GER, CIV.ACA, CIV.PAV.URB e HID.TUB.MND/TRV/ANC/CAM cobrem as que não tinham). `obrigatoria` = a obra desse tipo sempre tem o serviço (mobilização sim, método não destrutivo não). `escopo` opcional: agua, esgoto ou ambos (padrão). Prefixos dos ids: OP = obra pontual (localizada: ETA, reservatório, estação elevatória, unidade de tratamento); OL = obra linear (adutora, rede, emissário, coletor). Não há número de capítulo ou módulo do MOS aqui, de propósito."
  },
  "tipos": {
   "obra_localizada": {"nome": "Obra localizada (ETA, reservatório, estação elevatória, unidade de tratamento)", "prefixo": "OP", "etapas": [
    {"id": "OP.01", "nome": "Serviços preliminares", "folhas": [
-    {"id": "OP.01.01", "nome": "Mobilização e canteiro", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OP.01.02", "nome": "Locação e topografia", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
+    {"id": "OP.01.01", "nome": "Mobilização e canteiro", "aponta": [{"item": "GER.PRE.MOB"}], "obrigatoria": true},
+    {"id": "OP.01.02", "nome": "Locação e topografia", "aponta": [{"item": "GER.PRE.TOP"}], "obrigatoria": true},
     {"id": "OP.01.03", "nome": "Corte e demolição de pavimento existente", "aponta": [{"item": "CIV.PAV.REC", "servico": "corte_pavimento"}, {"item": "CIV.PAV.CAL", "servico": "corte_pavimento"}, {"item": "CIV.PAV.REC", "servico": "demolicao"}, {"item": "CIV.PAV.CAL", "servico": "demolicao"}], "obrigatoria": false, "observacao": "Demolição de estruturas de concreto ou alvenaria existentes não tem item codificado: preencher manualmente."},
     {"id": "OP.01.04", "nome": "Supressão vegetal e limpeza do terreno", "aponta": [{"item": "GEO.MOV.SUP"}], "obrigatoria": false}
    ]},
@@ -43,7 +43,7 @@
    ]},
    {"id": "OP.06", "nome": "Arquitetura e acabamentos", "folhas": [
     {"id": "OP.06.01", "nome": "Alvenaria e vedações", "aponta": [{"item": "CIV.EST.PAR", "servico": "alvenaria"}], "obrigatoria": false},
-    {"id": "OP.06.02", "nome": "Revestimentos, esquadrias, cobertura e pintura", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."}
+    {"id": "OP.06.02", "nome": "Revestimentos, esquadrias, cobertura e pintura", "aponta": [{"item": "CIV.ACA.ACB"}], "obrigatoria": false}
    ]},
    {"id": "OP.07", "nome": "Instalações hidráulicas", "folhas": [
     {"id": "OP.07.01", "nome": "Tubulações", "aponta": [{"item": "HID.TUB.RED"}], "obrigatoria": true},
@@ -60,24 +60,24 @@
    {"id": "OP.10", "nome": "Urbanização e pavimentação", "folhas": [
     {"id": "OP.10.01", "nome": "Recomposição de pavimento", "aponta": [{"item": "CIV.PAV.REC"}], "obrigatoria": false},
     {"id": "OP.10.02", "nome": "Calçadas e passeios", "aponta": [{"item": "CIV.PAV.CAL"}], "obrigatoria": false},
-    {"id": "OP.10.03", "nome": "Drenagem superficial, cercamento e paisagismo", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."}
+    {"id": "OP.10.03", "nome": "Drenagem superficial, cercamento e paisagismo", "aponta": [{"item": "CIV.PAV.URB"}], "obrigatoria": false}
    ]},
    {"id": "OP.11", "nome": "Ensaios, testes e comissionamento", "folhas": [
     {"id": "OP.11.01", "nome": "Testes hidrostáticos e de estanqueidade", "aponta": [{"item": "HID.TUB.RED", "servico": "teste_estanqueidade"}], "obrigatoria": true},
-    {"id": "OP.11.02", "nome": "Ensaios de materiais e controle tecnológico", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OP.11.03", "nome": "Comissionamento e operação assistida", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."}
+    {"id": "OP.11.02", "nome": "Ensaios de materiais e controle tecnológico", "aponta": [{"item": "GER.CTL.ENS"}], "obrigatoria": false},
+    {"id": "OP.11.03", "nome": "Comissionamento e operação assistida", "aponta": [{"item": "GER.CTL.COM"}], "obrigatoria": false}
    ]},
    {"id": "OP.12", "nome": "Serviços finais", "folhas": [
-    {"id": "OP.12.01", "nome": "Limpeza final", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OP.12.02", "nome": "Cadastro e as built", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OP.12.03", "nome": "Desmobilização", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."}
+    {"id": "OP.12.01", "nome": "Limpeza final", "aponta": [{"item": "GER.FIN.LIM"}], "obrigatoria": true},
+    {"id": "OP.12.02", "nome": "Cadastro e as built", "aponta": [{"item": "GER.FIN.CAD"}], "obrigatoria": true},
+    {"id": "OP.12.03", "nome": "Desmobilização", "aponta": [{"item": "GER.FIN.DES"}], "obrigatoria": true}
    ]}
   ]},
   "obra_linear": {"nome": "Obra linear (adutora, rede, emissário, coletor)", "prefixo": "OL", "etapas": [
    {"id": "OL.01", "nome": "Preliminares", "folhas": [
-    {"id": "OL.01.01", "nome": "Mobilização e canteiro", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OL.01.02", "nome": "Locação e topografia do traçado", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OL.01.03", "nome": "Sinalização e segurança de tráfego", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
+    {"id": "OL.01.01", "nome": "Mobilização e canteiro", "aponta": [{"item": "GER.PRE.MOB"}], "obrigatoria": true},
+    {"id": "OL.01.02", "nome": "Locação e topografia do traçado", "aponta": [{"item": "GER.PRE.TOP"}], "obrigatoria": true},
+    {"id": "OL.01.03", "nome": "Sinalização e segurança de tráfego", "aponta": [{"item": "GER.PRE.SIN"}], "obrigatoria": true},
     {"id": "OL.01.04", "nome": "Supressão vegetal e limpeza da faixa", "aponta": [{"item": "GEO.MOV.SUP"}], "obrigatoria": false}
    ]},
    {"id": "OL.02", "nome": "Remoção de pavimento", "folhas": [
@@ -93,7 +93,7 @@
     {"id": "OL.04.01", "nome": "Berço do tubo", "aponta": [{"item": "GEO.MOV.VAL", "servico": "berco"}], "obrigatoria": false},
     {"id": "OL.04.02", "nome": "Assentamento do tubo", "aponta": [{"item": "HID.TUB.RED"}, {"item": "HID.TUB.RED", "servico": "assentamento"}], "obrigatoria": true},
     {"id": "OL.04.03", "nome": "Envoltória do tubo", "aponta": [{"item": "GEO.MOV.VAL", "servico": "envoltoria"}], "obrigatoria": false},
-    {"id": "OL.04.04", "nome": "Ancoragens e blocos de ancoragem", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."}
+    {"id": "OL.04.04", "nome": "Ancoragens e blocos de ancoragem", "aponta": [{"item": "HID.TUB.ANC"}], "obrigatoria": false}
    ]},
    {"id": "OL.05", "nome": "Reaterro e compactação", "folhas": [
     {"id": "OL.05.01", "nome": "Reaterro de vala", "aponta": [{"item": "GEO.MOV.VAL", "servico": "reaterro"}], "obrigatoria": true},
@@ -101,12 +101,12 @@
     {"id": "OL.05.03", "nome": "Carga, transporte e bota-fora", "aponta": [{"item": "GEO.MOV.VAL", "servico": "bota_fora"}], "obrigatoria": true}
    ]},
    {"id": "OL.06", "nome": "Travessias e método não destrutivo", "folhas": [
-    {"id": "OL.06.01", "nome": "Travessias de rios, ferrovias e rodovias", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OL.06.02", "nome": "Método não destrutivo (MND/HDD)", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado: o trecho em MND vem de `obras_lineares`; preencher manualmente."}
+    {"id": "OL.06.01", "nome": "Travessias de rios, ferrovias e rodovias", "aponta": [{"item": "HID.TUB.TRV"}], "obrigatoria": false},
+    {"id": "OL.06.02", "nome": "Método não destrutivo (MND/HDD)", "aponta": [{"item": "HID.TUB.MND"}], "obrigatoria": false}
    ]},
    {"id": "OL.07", "nome": "Poços de visita, caixas e peças especiais", "folhas": [
     {"id": "OL.07.01", "nome": "Poços de visita e de inspeção", "aponta": [{"item": "HID.TUB.PVS"}], "escopo": "esgoto", "obrigatoria": false},
-    {"id": "OL.07.02", "nome": "Caixas e câmaras (descarga, ventosa, registro)", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."},
+    {"id": "OL.07.02", "nome": "Caixas e câmaras (descarga, ventosa, registro)", "aponta": [{"item": "HID.TUB.CAM"}], "obrigatoria": false},
     {"id": "OL.07.03", "nome": "Conexões, peças especiais, válvulas e registros", "aponta": [{"item": "HID.TUB.VAL"}], "obrigatoria": true, "observacao": "O item HID.TUB.VAL junta válvulas e conexões; as conexões da etapa 04 (assentamento) são lidas aqui."}
    ]},
    {"id": "OL.08", "nome": "Recomposição de pavimento", "folhas": [
@@ -115,16 +115,16 @@
    ]},
    {"id": "OL.09", "nome": "Testes", "folhas": [
     {"id": "OL.09.01", "nome": "Testes de estanqueidade e de pressão", "aponta": [{"item": "HID.TUB.RED", "servico": "teste_estanqueidade"}], "obrigatoria": true},
-    {"id": "OL.09.02", "nome": "Desinfecção e limpeza da rede", "aponta": [], "escopo": "agua", "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OL.09.03", "nome": "Inspeção por CFTV", "aponta": [], "escopo": "esgoto", "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."}
+    {"id": "OL.09.02", "nome": "Desinfecção e limpeza da rede", "aponta": [{"item": "GER.CTL.DSF"}], "escopo": "agua", "obrigatoria": false},
+    {"id": "OL.09.03", "nome": "Inspeção por CFTV", "aponta": [{"item": "GER.CTL.CFT"}], "escopo": "esgoto", "obrigatoria": false}
    ]},
    {"id": "OL.10", "nome": "Ligações", "folhas": [
     {"id": "OL.10.01", "nome": "Ligações prediais e hidrometria", "aponta": [{"item": "HID.TUB.LIG"}], "obrigatoria": false}
    ]},
    {"id": "OL.11", "nome": "Cadastro e desmobilização", "folhas": [
-    {"id": "OL.11.01", "nome": "Cadastro e as built", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OL.11.02", "nome": "Limpeza e recomposição final da faixa", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OL.11.03", "nome": "Desmobilização", "aponta": [], "obrigatoria": true, "observacao": "Sem item codificado na EAP: preencher manualmente."}
+    {"id": "OL.11.01", "nome": "Cadastro e as built", "aponta": [{"item": "GER.FIN.CAD"}], "obrigatoria": true},
+    {"id": "OL.11.02", "nome": "Limpeza e recomposição final da faixa", "aponta": [{"item": "GER.FIN.FAI"}, {"item": "GER.FIN.LIM"}], "obrigatoria": true},
+    {"id": "OL.11.03", "nome": "Desmobilização", "aponta": [{"item": "GER.FIN.DES"}], "obrigatoria": true}
    ]}
   ]}
  }

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.52.0 — 2026-11-03 · Itens codificados para as folhas vazias da EAP padrão
+- **17 itens novos na EAP codificada** (`conceitos/eap_geral.jsonl`), disciplina nova `GER` "Serviços gerais"
+  (`PRE` mobilização, topografia, sinalização; `CTL` ensaios, comissionamento, desinfecção, CFTV; `FIN` limpeza,
+  faixa, cadastro/as built, desmobilização), `CIV.ACA.ACB` acabamentos, `CIV.PAV.URB` urbanização e
+  `HID.TUB.ANC/TRV/MND/CAM` (ancoragens, travessias, MND/HDD, caixas e câmaras); 24 serviços e a unidade "mês".
+  As 21 folhas da EAP padrão que só se preenchiam à mão agora apontam para esses itens e são preenchidas pelos
+  documentos (edital, memorial, planilha, IA conferida).
+- Termos regex no padrão das planilhas Sanepar, com prioridade entre itens e regra de inclusão: o termo depois de
+  "inclusive/incluso/com/…" não vira item próprio ("estaca …, inclusive mobilização" continua estaca). 84 testes de
+  frases que devem e que não devem casar. Roteiros de ataque da IA com saída idêntica; hash de referência igual.
+- Limite: os itens novos ainda não vêm das pranchas (sem layer/construtivo); só dos documentos.
+- Lição L048.
+
 ## 0.51.0 — 2026-11-03 · Decisão D9: DE no fallback, MND sem vala e bota-fora com berço e envoltória
 - **DE no fallback** (`lineares._diametro_externo_m`, `conceitos/lineares.json › de_por_dn`): fora da Tabela I do MOS a
   largura usa o DE do tubo: o `de_mm` do trecho, ou DN → DE pela tabela do material (FD, FOFO e PVC DEFoFo pela
