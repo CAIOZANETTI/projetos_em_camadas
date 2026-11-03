@@ -596,6 +596,69 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
    as pranchas de GEO de U1); no nó de disciplina a lista vem de todos os pacotes da disciplina em `eap.json`, não só
    dos pacotes-filho do nó; o checkbox aparece mesmo se nenhuma prancha tiver layer da lista (marcar desliga todas).
 
+### 9.1 EAP padrão por tipo de obra (`conceitos/eap_padrao.json`, `camadas/eap_padrao.py`)
+
+**O que é.** Um esqueleto de EAP por **etapa de execução** (ordem de obra), por tipo de obra, que orienta a montagem do
+escopo e **precisa ser preenchido** a cada obra. Dois tipos:
+
+| Tipo | Prefixo | Etapas |
+|---|---|---|
+| `obra_localizada` (ETA, reservatório, estação elevatória, unidade de tratamento) | `OP` | 01 Serviços preliminares · 02 Movimento de terra · 03 Fundações · 04 Estrutura de concreto · 05 Impermeabilização · 06 Arquitetura e acabamentos · 07 Instalações hidráulicas · 08 Equipamentos · 09 Elétrica e automação · 10 Urbanização e pavimentação · 11 Ensaios, testes e comissionamento · 12 Serviços finais |
+| `obra_linear` (adutora, rede, emissário, coletor) | `OL` | 01 Preliminares · 02 Remoção de pavimento · 03 Vala · 04 Assentamento · 05 Reaterro e compactação · 06 Travessias e método não destrutivo · 07 Poços de visita, caixas e peças especiais · 08 Recomposição de pavimento · 09 Testes · 10 Ligações · 11 Cadastro e desmobilização |
+
+Cada folha tem `id` (`OL.03.02`: tipo, etapa, folha), `nome`, `aponta`, `escopo` (água, esgoto ou ambos), `obrigatoria`
+(a obra desse tipo sempre tem; mobilização sim, método não destrutivo não) e, sem item codificado, `observacao`.
+
+**Relação com a EAP codificada.** A EAP por disciplina (GEO, CIV, HID, ELE → pacote → item) continua sendo a linha
+mestra técnica. O padrão é uma **vista**: `aponta` é uma lista de `{item: "DISC.PAC.ITEM", servico}` de `eap_geral.jsonl`
+(o `servico` de `servicos.jsonl` é opcional e tem de ser admitido pelo item) ou fica vazia quando ainda não há item
+codificado (folha a preencher à mão). **Não cria quantificação nova**: lê `dados["eap"]["quantidades"]` e os fatos de
+`dados["evidencias"]`. A mesma pergunta vale para obra mista (os dois tipos aparecem). Item compartilhado pelos dois
+tipos (`GEO.MOV.VAL`, `HID.TUB.RED`…) é lido sem separar unidade linear de localizada.
+
+**Situações da folha** (`eap_padrao.preencher`), nesta ordem de decisão:
+
+| Situação | Quando |
+|---|---|
+| `não se aplica` | declarada no `obra.json` (abaixo), com justificativa |
+| `sem item codificado` | folha sem `aponta`; preenchida à mão |
+| `preenchida` | quantidade da EAP codificada com elemento medido, ou fato com valor, nos códigos apontados |
+| `só menção` | só fato sem valor (menção, conflito) ou quantidade sem elemento medido |
+| `a preencher` | nada nos códigos apontados; se `obrigatoria`, vem em destaque |
+
+Folha com `servico` só olha fatos daquele serviço (a EAP codificada mede o item, não o serviço); folha sem `servico`
+olha a quantidade do item e os fatos do próprio item. Fato derivado de serviço associado (fórmula) conta como fato.
+Quantidades vêm por (grandeza, unidade) e nunca se somam entre unidades diferentes; cada linha mostra os códigos
+codificados e o nº de evidências. A agregação por etapa e total é em Python: contagem por situação e
+**% preenchido = preenchidas / (folhas − não se aplica)**. Folha sem item codificado entra no denominador.
+
+**Como declarar "não se aplica"** (`obra.json`):
+
+```json
+"eap_padrao": {
+  "tipo": ["obra_localizada", "obra_linear"],
+  "nao_se_aplica": [{"id": "OP.02.03", "justificativa": "lençol abaixo do fundo da cava (SP-04)", "autor": "Caio"}]
+}
+```
+
+A justificativa é obrigatória: sem ela, ou com `id` que não existe, o build registra a etapa como pulada com a mensagem
+clara. `tipo` é opcional. Sem ele, `tipo_da_obra` deduz: `obras_lineares` ou `valas` sem sinal de unidade localizada
+(`estacas`, `elementos_declarados`, `escavacao` ou prancha de obra localizada) → linear; os dois sinais → os dois tipos;
+senão → localizada.
+
+**Validação** (`eap_padrao.validar`): erros para item inexistente ou de outro tipo de obra, serviço desconhecido ou não
+admitido, id repetido e folha sem item e sem observação. Aviso (não erro) para item de `eap_geral` do tipo de obra que
+nenhuma folha cita ("item fora do padrão").
+
+**Saídas**: `dados["eap_padrao"]` (tudo já em pt-BR; `aba EAP`, seção "EAP padrão (a preencher)": etapas em
+`<details>`, barra e percentual por etapa, selo da situação por folha, destaque da obrigatória a preencher) e
+`eap_padrao.json` em `saida/<obra>/`. O JS só apresenta.
+
+**É premissa.** O MOS Sanepar (Manual de Obras de Saneamento) **não está no repositório** (só
+`referencias/sanepar/MOS_largura_de_vala_tabela_I.png`). Por isso a numeração e os nomes das etapas são prática de
+orçamento de saneamento, em estado `premissa`, **a conferir com o MOS**; nenhum número de capítulo ou módulo do MOS é
+citado.
+
 ## 10. Próximos passos
 
 - [x] **Skill de leitura por IA** (`.claude/skills/eap-evidencias`, `evidencias.roteiro`, `evidencias.conferir_arquivo`):
@@ -615,3 +678,5 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
 - [ ] Calibrar com dados reais de obra (lista de ferros, planilhas): decidir, premissa a premissa, quais valores mudam.
 - [ ] Calibração de premissas não lineares (patamares da vala): exige método próprio, não a proporção.
 - [x] Selo de status por nó da árvore, filtro por prefixo e só pranchas desta disciplina (§9).
+- [ ] **Conferir as etapas da EAP padrão com o MOS Sanepar** (§9.1): numeração, nomes, ordem e quais folhas são
+  `obrigatoria`; só então trocar o estado de `premissa` para `confirmado`.
