@@ -98,3 +98,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-03,conferência das cavas,download da planilha de Foz (Drive),executor,claude-haiku-5-5,68238,6,49,True,nenhum,"1 447 581 bytes, 15 abas"
 2026-11-03,conferência das cavas,download das 5 pranchas de escavação e cortes (Drive),executor,claude-haiku-5-5,85903,16,41,True,nenhum,"5 de 5, tamanho e %PDF conferidos"
 2026-11-03,conferência das cavas,E1: reingestão do Drive de Foz,executor,claude-haiku-5-5,221574,57,509,True,nenhum,36 de 37 PDFs citados + 13 fotos; falta PLANTIM-R2 (só R0 no Drive); listagem completa não feita
+2026-11-03,conferência das cavas,E2: leitor das seções de corte (secoes_corte.py),executor,claude-sonnet-5-5,185220,59,1765,True,nenhum,18 seções lidas; calibração 2 mm; 15 testes; aferição ok

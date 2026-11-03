@@ -27,9 +27,9 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-03T18:36:00Z'
-  fim: null
+  fim: '2026-11-03T19:10:00Z'
 - id: E3
   nome: Seções no modelo e conferência (área, fundo, cotas da sequência executiva, seções médias)
   entregaveis:
@@ -40,8 +40,8 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-03T19:12:00Z'
   fim: null
 - id: E4
   nome: Build real, relatório, balanço, aceite do Fable e PR
