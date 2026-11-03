@@ -234,31 +234,60 @@ def _br(valor: float, casas: int = 2) -> str:
 
 
 def classe_solo(descricao: str, classe: str | None = None) -> dict:
-    """Classe e categoria de escavação de uma camada pela descrição (ou pela classe já dada): a 1ª regex que casa."""
+    """Classe e categoria de escavação de uma camada pela descrição (ou pela classe já dada).
+
+    Pela NBR 6484 a designação começa pelo solo principal e os termos seguintes são adjetivos ("areia fina
+    argilosa" é areia): vale a regex que casa mais cedo no texto (empate: ordem da lista). Exceção: `rocha_alterada`
+    qualifica a rocha ("rocha alterada") e vence `rocha` quando casa em qualquer posição.
+    Decisão do Caio 03/11/2026 (D5).
+    """
     texto = _norm(f"{classe or ''} {descricao or ''}")
+    melhor, melhor_pos = None, None
     for c in REGRAS["solos"]["classes"]:
-        if re.search(c["regex"], texto):
-            return c
-    return {"classe": "indefinido", "categoria": CATEGORIA_INDEFINIDA}
+        achado = re.search(c["regex"], texto)
+        if achado and (melhor_pos is None or achado.start() < melhor_pos):
+            melhor, melhor_pos = c, achado.start()
+    if melhor is not None and melhor["classe"] == "rocha":
+        alterada = next(
+            c for c in REGRAS["solos"]["classes"] if c["classe"] == "rocha_alterada"
+        )
+        if re.search(alterada["regex"], texto):
+            return alterada
+    return melhor or {"classe": "indefinido", "categoria": CATEGORIA_INDEFINIDA}
 
 
 def solo_na_faixa(furo: dict, de_m: float, ate_m: float) -> dict[str, float]:
     """Fração da faixa [de_m, ate_m] (profundidades a partir da boca) em cada classe de solo do furo.
 
-    O que a sondagem não cobre entra como `indefinido`, de modo que as frações somam 1.
+    Furo impenetrável: a parte da faixa abaixo do topo do impenetrável (`topo_rocha_m`) conta como rocha (decisão do
+    Caio 03/11/2026, D6; premissa `impenetravel_e_rocha`). O que a sondagem não cobre entra como `indefinido`, de
+    modo que as frações somam 1.
     """
     espessura_m = ate_m - de_m
     if espessura_m <= 0:
         return {}
+    limite_m = math.inf
+    if furo.get("impenetravel") and PREMISSAS["impenetravel_e_rocha"]["valor"]:
+        topo_m = topo_rocha_m(furo)
+        if topo_m is not None:
+            limite_m = topo_m
     fatias: dict[str, float] = {}
     for c in furo.get("camadas") or []:
         topo_m, base_m = c.get("de"), c.get("ate")
         if topo_m is None or base_m is None or topo_m >= ate_m or base_m <= de_m:
             continue
+        base_m = min(base_m, limite_m)
+        if base_m <= max(topo_m, de_m):
+            continue
         classe = classe_solo(c.get("descricao"), c.get("classe"))["classe"]
         fatias[classe] = (
             fatias.get(classe, 0.0)
             + (min(base_m, ate_m) - max(topo_m, de_m)) / espessura_m
+        )
+    if limite_m < ate_m:
+        # as camadas foram cortadas no topo do impenetrável; abaixo dele é rocha
+        fatias["rocha"] = (
+            fatias.get("rocha", 0.0) + (ate_m - max(limite_m, de_m)) / espessura_m
         )
     resto = 1.0 - sum(fatias.values())
     if resto > 1e-6:
@@ -715,7 +744,9 @@ def _trechos_por_furo(texto: str) -> dict[str, dict]:
     for pagina in texto.split("\f"):
         linhas = pagina.splitlines()
         ids = [i for i in map(_cabecalho, linhas) if i]
-        em_bloco = any(_sem_acento(x).upper().strip().startswith("TERMINO") for x in linhas)
+        em_bloco = any(
+            _sem_acento(x).upper().strip().startswith("TERMINO") for x in linhas
+        )
         if em_bloco and len({_chave(i) for i in ids}) == 1:
             atual = trechos.setdefault(
                 _chave(ids[0]), {"id": _id_limpo(ids[0]), "linhas": []}

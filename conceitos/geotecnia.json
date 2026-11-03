@@ -38,12 +38,14 @@
    "fonte": "G3 (rodada 25): tolerância absoluta das conferências projeto × sondagem (ponta da estaca × impenetrável, fundo de cava × NA); conferir com o geotécnico"},
   "tolerancia_boca_m": {"valor": 0.50, "unidade": "m", "estado": "premissa",
    "fonte": "F (rodada 25): tolerância absoluta da cota da boca do furo (topográfica) contra o terreno do MDS do drone no mesmo ponto; maior que a das demais conferências (0,10 m) porque o MDS do drone tem incerteza vertical de decímetros e a boca pode estar sobre aterro ou copa; conferir com o topógrafo"},
+  "impenetravel_e_rocha": {"valor": true, "unidade": null, "estado": "premissa",
+   "fonte": "decisão do Caio 03/11/2026 (D6): em furo impenetrável, a parte da faixa abaixo do impenetrável (topo_rocha_m) conta como rocha"},
   "passo_amostragem_m": {"valor": 1.0, "unidade": "m", "estado": "premissa",
    "fonte": "G3 (rodada 25): espaçamento dos pontos amostrados no trecho para medir a fração sem furo no raio (o mesmo passo de 1 m de conceitos/valas.json)"}
  },
  "solos": {
   "estado": "premissa",
-  "fonte": "descrição da camada da sondagem (NBR 6484); a 1ª palavra que casa decide; categoria de escavação Sanepar: 1ª = solo, 2ª = rocha branda/alterada, 3ª = rocha sã",
+  "fonte": "descrição da camada da sondagem (NBR 6484); vale a regex que casa mais cedo no texto (o substantivo; os termos seguintes são adjetivos), com `rocha_alterada` vencendo `rocha` (decisão do Caio 03/11/2026, D5); categoria de escavação Sanepar: 1ª = solo, 2ª = rocha branda/alterada, 3ª = rocha sã",
   "classes": [
    {"classe": "aterro", "regex": "ATERRO|ENTULHO", "categoria": "1ª categoria"},
    {"classe": "rocha_alterada", "regex": "ALTERA|BRANDA|SAPROL|MATAC", "categoria": "2ª categoria"},
