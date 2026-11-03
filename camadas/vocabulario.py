@@ -25,6 +25,9 @@ QTD_DEPOIS = re.compile(NAO_E_NUMERO + NUMERO + r"\s*("
                         + "|".join(re.escape(g) for g in sorted(GRAFIAS, key=len, reverse=True)) + r")\b")
 QTD_ANTES = re.compile(NAO_E_NUMERO + NUMERO + r"\s+(?:[A-Z]+\s+){0,2}$")
 
+UNIDADE_ANTES = re.compile(r"(?<![A-Z0-9])(?:" + "|".join(re.escape(g) for g in sorted(GRAFIAS, key=len, reverse=True))
+                           + r")\s*[:|-]*\s*$")
+
 
 def normalizar(texto) -> str:
     """Maiúsculas, sem acento e espaços simples: a forma em que os termos dos conceitos são escritos (² vira 2)."""
@@ -71,9 +74,17 @@ def numero_br(texto: str) -> float:
     return float(texto.replace(".", "").replace(",", "."))
 
 
+def _de_outra_unidade(linha: str, antes: re.Match, inicio_termo: int) -> bool:
+    """O número do fallback 'número + termo' pertence a outra unidade: vem logo depois de uma unidade ('m³ 45',
+    'un: 250') ou há uma unidade entre ele e o termo ('3.000 metros de estacas')."""
+    if UNIDADE_ANTES.search(linha[:antes.start(1)]):
+        return True
+    return any(p in GRAFIAS for p in re.findall(r"[A-Z0-9]+", linha[antes.end(1):inicio_termo]))
+
+
 def quantidade(linha: str, termos: list[str]) -> tuple[float | None, str | None]:
     """Primeiro 'número unidade' da linha (300 UN, 1.250,5 M3, 12 METROS CUBICOS); senão 'número + termo' (300
-    ESTACAS) → un, procurando o número antes do primeiro termo que casa. Unidade convertida para comparação.
+    ESTACAS) → un (se o número não é de outra unidade), procurando o número antes do primeiro termo que casa. Unidade convertida para comparação.
     Número colado a letra ou hífen (DN150, C30, CA-50) e dimensão de especificação (DN 150, Ø 40 cm) não são
     quantidade. Só vale 'número unidade' (e 'número termo'): 'DN150 m 320' fica sem quantidade."""
     linha = DIMENSAO.sub(lambda d: " " * len(d[0]), linha)
@@ -82,7 +93,8 @@ def quantidade(linha: str, termos: list[str]) -> tuple[float | None, str | None]
         return converter(numero_br(m[1]), GRAFIAS[m[2]])
     for termo in termos:
         achado = re.search(termo, linha)
-        if achado and (antes := QTD_ANTES.search(linha[:achado.start()])):
+        antes = QTD_ANTES.search(linha[:achado.start()]) if achado else None
+        if antes and not _de_outra_unidade(linha, antes, achado.start()):
             return numero_br(antes[1]), "un"
     return None, None
 

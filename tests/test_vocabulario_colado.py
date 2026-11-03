@@ -25,3 +25,18 @@ TERMOS = ["ESTACA", "ESCAVACAO"]
 )
 def test_quantidade_ignora_numero_colado(linha, esperado):
     assert quantidade(normalizar(linha), TERMOS) == esperado
+
+
+@pytest.mark.parametrize(
+    "linha, esperado",
+    [
+        ("Concreto C30 m³ 45 para estacas", (None, None)),
+        ("3.000 metros de estacas", (3000.0, "m")),
+        ("un 250 Bloco de coroamento", (None, None)),
+        ("kg: 1.200 estacas", (None, None)),
+        ("250 estacas", (250.0, "un")),
+        ("Serão executadas 250 estacas hélice", (250.0, "un")),
+    ],
+)
+def test_fallback_numero_termo_recusa_numero_de_outra_unidade(linha, esperado):
+    assert quantidade(normalizar(linha), ["ESTACA", "BLOCO"]) == esperado
