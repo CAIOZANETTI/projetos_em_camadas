@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.43.0 — 2026-11-03 · Leitura por IA: planilha como documento de leitura
+- **`evidencias.paginas_planilha`**: xlsx/xlsm/csv (xls com `xlrd`) viram documento de leitura da IA. Cada aba é uma
+  página e cada linha não vazia é uma linha de texto, com as células unidas por " | " e os números em pt-BR sem
+  arredondar (250.0 → "250", 1250.5 → "1.250,5"); csv sai como está no arquivo. Determinístico.
+- **Localizador `{"aba", "linha"}`** conferido contra a linha real da planilha (linhas vazias contam, como no Excel):
+  "aba citada não existe no documento" e "linha citada não contém o trecho"; "p. N" continua valendo como índice da
+  aba. As regras da conferência valem iguais ("Estaca hélice | m | 12 | un | 250" proposto como 12 un é recusado).
+- CLI `conferir … --planilha arquivo.xlsx`; `etapa` reconhece planilha em `evidencias.documentos` pela extensão.
+  O método determinístico `planilha` (`de_planilha`) não muda.
+- Fecha a pendência "aceitar planilha como documento de leitura" de `docs/EAP.md` §10.
+- Lição L039.
+
 ## 0.42.0 — 2026-11-02 · Calibração de premissas pela evidência (premissa × observado)
 - **`camadas/calibracao.py`**: para cada serviço associado com fato observado fora do próprio cálculo (edital,
   planilha, IA conferida ou decisão), calcula a **premissa implícita** `p × observado / calculado` quando a fórmula é
