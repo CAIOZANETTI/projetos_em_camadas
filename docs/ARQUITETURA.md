@@ -258,6 +258,7 @@ Decisão do Caio vale como regra até ser superada por outra, sempre registrada 
 | D6 | 03/11 | o furo impenetrável vale como rocha na faixa abaixo dele (escavação, escoramento, esgotamento) | vigente |
 | D7 | 03/11 | tubo fora da Tabela I do MOS: largura pela NBR 12266 (DE + 0,60 m), com alerta, numa regra só no `lineares` | vigente |
 | D8 | 03/11 | o reaterro desconta o berço e a envoltória, que já são lançados como serviços | vigente |
+| D9 | 03/11 | o fallback usa o DE do tubo (dado, ou pela tabela DN → DE do material); trecho em MND não tem largura de vala; o bota-fora inclui o solo deslocado pelo berço e pela envoltória | vigente |
 
 ## 7. Quem faz o quê
 
