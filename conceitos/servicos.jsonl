@@ -26,3 +26,27 @@
 {"id": "teste_estanqueidade", "nome": "Teste hidrostático / estanqueidade", "unidades": ["m", "un", "vb"], "pacote": "HID.TUB", "termos": "TESTE (HIDROSTATICO|DE ESTANQUEIDADE|DE PRESSAO)|ESTANQUEIDADE"}
 {"id": "fornecimento", "nome": "Fornecimento", "unidades": ["un", "m", "cj", "kg", "vb"], "pacote": null, "termos": "FORNECIMENTO|AQUISICAO"}
 {"id": "montagem", "nome": "Montagem / instalação", "unidades": ["un", "m", "cj", "vb"], "pacote": null, "termos": "MONTAGEM|INSTALACAO"}
+{"id": "mobilizacao", "nome": "Mobilização de equipe e equipamentos", "unidades": ["vb", "un", "mês"], "pacote": null, "termos": "(?<!DES)MOBILIZACAO"}
+{"id": "canteiro", "nome": "Canteiro de obras e instalações provisórias", "unidades": ["vb", "mês", "m²", "un"], "pacote": null, "termos": "(?<!CENTRAL )\\bCANTEIROS?\\b(?! CENTRAL)|\\bTAPUMES?\\b|\\bBARRACOES?\\b|INSTALACOES? PROVISORIAS?|LIGACOES? PROVISORIAS?"}
+{"id": "placa_obra", "nome": "Placa de obra", "unidades": ["un", "m²"], "pacote": null, "termos": "PLACAS? DE OBRAS?"}
+{"id": "locacao_topografia", "nome": "Locação e levantamento topográfico", "unidades": ["vb", "m", "m²", "un"], "pacote": null, "termos": "LOCACAO (TOPOGRAFICA|D[AOE]S? ?(OBRA|TRACADO|EIXOS?|REDES?|ADUTORAS?|PROJETO|ESTRUTURAS|CAVAS)?)|LOCACAO E NIVELAMENTO|TOPOGRAF"}
+{"id": "sinalizacao_obra", "nome": "Sinalização e segurança de tráfego", "unidades": ["vb", "m", "un", "mês", "dia"], "pacote": null, "termos": "SINALIZACAO|FITAS? ZEBRADAS?|SEGURANCA DE (TRAFEGO|TRANSITO)"}
+{"id": "ensaio_tecnologico", "nome": "Ensaios de materiais e controle tecnológico", "unidades": ["un", "vb", "m", "m²", "m³"], "pacote": null, "termos": "ENSAIO|CONTROLE (TECNOLOGICO|DE QUALIDADE)"}
+{"id": "comissionamento", "nome": "Comissionamento e operação assistida", "unidades": ["vb", "un", "h", "dia", "mês"], "pacote": null, "termos": "COMISSIONAMENTO|OPERACAO ASSISTIDA|PRE.?OPERACAO|START.?UP|TESTES? "}
+{"id": "desinfeccao", "nome": "Desinfecção e limpeza da rede", "unidades": ["vb", "m", "un"], "pacote": null, "termos": "DESINFECCAO|LAVAGEM"}
+{"id": "inspecao_cftv", "nome": "Inspeção por CFTV (vídeo-inspeção)", "unidades": ["m", "vb", "un"], "pacote": null, "termos": "CFTV|VIDEO.?INSPECAO|TELEVISIONA|CAMERA"}
+{"id": "limpeza_final", "nome": "Limpeza final da obra", "unidades": ["vb", "m²", "m"], "pacote": null, "termos": "LIMPEZA"}
+{"id": "recomposicao_faixa", "nome": "Recomposição final da faixa e de áreas degradadas", "unidades": ["vb", "m", "m²"], "pacote": null, "termos": "RECOMPOSICAO|RECUPERACAO|RECONFORMACAO|REGULARIZACAO"}
+{"id": "cadastro_as_built", "nome": "Cadastro técnico e as built", "unidades": ["vb", "m", "un"], "pacote": null, "termos": "AS.?BUILT|CADASTR|CONSTRUIDO|EXECUTADO"}
+{"id": "desmobilizacao", "nome": "Desmobilização e retirada do canteiro", "unidades": ["vb", "un"], "pacote": null, "termos": "DESMOBILIZACAO|RETIRADA DO CANTEIRO"}
+{"id": "metodo_nao_destrutivo", "nome": "Método não destrutivo (MND/HDD, cravação, túnel liner)", "unidades": ["m", "vb", "un"], "pacote": null, "termos": "MND|HDD|DIRECIONAL|DESTRUTIV|TUNEL|CRAVACAO|CRAVADA"}
+{"id": "travessia", "nome": "Travessia de rio, ferrovia ou rodovia (encamisamento)", "unidades": ["m", "un", "vb"], "pacote": null, "termos": "TRAVESSIA|ENCAMISAMENTO|TUBO.CAMISA|PASSAGEM|CRUZAMENTO"}
+{"id": "bloco_ancoragem", "nome": "Bloco de ancoragem de concreto", "unidades": ["un", "m³"], "pacote": null, "termos": "ANCORAGEM|BLOCOS? DE REACAO|BLOCOS? DE APOIO"}
+{"id": "caixa_camara", "nome": "Caixa ou câmara de descarga, ventosa e registro", "unidades": ["un", "vb"], "pacote": null, "termos": "CAIXAS?|CAMARAS?"}
+{"id": "drenagem_superficial", "nome": "Drenagem superficial (sarjeta, canaleta, boca de lobo)", "unidades": ["m", "m²", "m³", "un"], "pacote": null, "termos": "DRENAGEM|SARJETAS?|CANALETAS?|VALETAS?|BOCAS? DE LOBO|BUEIROS?|DISSIPADORES?"}
+{"id": "cercamento", "nome": "Cercamento, alambrado e portões", "unidades": ["m", "m²", "un"], "pacote": null, "termos": "CERCAMENTO|ALAMBRADO|GRADIL|\\bGRADIS?\\b|CERCAS? |PORTOES?"}
+{"id": "paisagismo", "nome": "Paisagismo e revegetação", "unidades": ["m²", "un"], "pacote": null, "termos": "PAISAGISMO|GRAMA|PLANTIO|ARBORIZACAO|REVEGETACAO|HIDROSSEMEADURA|JARDIM|JARDINS"}
+{"id": "revestimento", "nome": "Revestimentos (argamassa, cerâmica, piso, forro)", "unidades": ["m²"], "pacote": null, "termos": "REVESTIMENTO|CHAPISCO|REBOCO|EMBOCO|EMASSAMENTO|AZULEJO|PORCELANATO|CERAMICO|RODAPE|SOLEIRA|PEITORIL|FORRO"}
+{"id": "esquadria", "nome": "Esquadrias (portas, janelas, portões, guarda-corpo)", "unidades": ["un", "m²", "m"], "pacote": null, "termos": "ESQUADRIA|JANELA|\\bPORTAS?\\b(?! DE VISITA)|GUARDA.?CORPO"}
+{"id": "cobertura", "nome": "Cobertura (estrutura, telhas, telhado)", "unidades": ["m²", "un"], "pacote": null, "termos": "COBERTURA|TELHA|TELHADO|TELHAMENTO"}
+{"id": "pintura", "nome": "Pintura (tinta, verniz, textura)", "unidades": ["m²"], "pacote": null, "termos": "PINTURA|TINTA|VERNIZ|TEXTURA"}

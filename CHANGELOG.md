@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.52.0 — 2026-11-03 · Conferência das cavas por seções de corte e cotas da sequência executiva
+## 0.53.0 — 2026-11-03 · Conferência das cavas por seções de corte e cotas da sequência executiva
 - **`camadas/secoes_corte.py`** lê as pranchas de corte (Civil 3D, vetoriais). Cada quadro é calibrado pelas marcas
   de 1 m e pelos rótulos de 5 m lidos por OCR (resíduo de 2 mm). Por seção saem a área de corte e a cota de fundo:
   terreno original × contorno da escavação, área por integral exata. Foz tem 18 seções.
@@ -26,6 +26,29 @@
   - prancha com PDF ausente;
   - inventário sem listagem do Drive (ou com `_baixados.csv` de outro formato);
   - escavação sem controle vertical, que antes sumia **sem aviso**.
+- Lição L049.
+
+## 0.52.0 — 2026-11-03 · Itens codificados para as folhas vazias da EAP padrão
+- **17 itens novos na EAP codificada** (`conceitos/eap_geral.jsonl`), disciplina nova `GER` "Serviços gerais"
+  (`PRE` mobilização, topografia, sinalização; `CTL` ensaios, comissionamento, desinfecção, CFTV; `FIN` limpeza,
+  faixa, cadastro/as built, desmobilização), `CIV.ACA.ACB` acabamentos, `CIV.PAV.URB` urbanização e
+  `HID.TUB.ANC/TRV/MND/CAM` (ancoragens, travessias, MND/HDD, caixas e câmaras); 24 serviços e a unidade "mês".
+  As 21 folhas da EAP padrão que só se preenchiam à mão agora apontam para esses itens e são preenchidas pelos
+  documentos (edital, memorial, planilha, IA conferida).
+- Termos regex no padrão das planilhas Sanepar, com prioridade entre itens e regra de inclusão: o termo depois de
+  "inclusive/incluso/com/…" não vira item próprio ("estaca …, inclusive mobilização" continua estaca). 84 testes de
+  frases que devem e que não devem casar. Roteiros de ataque da IA com saída idêntica; hash de referência igual.
+- Revisão (650 frases comparadas antes × depois): a regra de inclusão saiu do regex e virou **regra da cabeça da
+  descrição** em código (`evidencias._achados_da_cabeca`): item acessório (`"acessorio": true` — mobilização,
+  topografia, desinfecção, travessia, MND, cadastro, ancoragem, caixa/câmara, acabamento…) só classifica a linha se
+  nenhum item principal aparecer antes dele; vale em `classificar`, `buscar_texto` e na conferência da IA. Linha
+  que continua a anterior herda a cabeça. Termos com objeto (desinfecção só de rede de água; CFTV só inspeção de
+  rede; travessia só de rio/rodovia/ferrovia; MND só método/perfuração; faixa só recomposição final); "COM MND" na
+  linha de assentamento vai para MND. "Mês" só vale como unidade em contexto de canteiro/manutenção/operação (não
+  prazo, garantia ou cronograma). `HID.TUB.LIG` casa "ligação predial" no singular. As frases que mudaram de um
+  item existente para outro são só as intencionais (cadastro, ancoragem, caixa/câmara, CFTV, travessia, pintura de
+  parede, ensaio de compactação, teste de funcionamento de bomba, mobilização como cabeça).
+- Limite: os itens novos ainda não vêm das pranchas (sem layer/construtivo); só dos documentos.
 - Lição L048.
 
 ## 0.51.0 — 2026-11-03 · Decisão D9: DE no fallback, MND sem vala e bota-fora com berço e envoltória

@@ -65,10 +65,15 @@ U1                         Unidade 1 — ETA Vila C (obra localizada, água)
    ├─ .GEO.FUN             Fundações ─ EST estacas · BLO blocos · CON contenções
    ├─ .GEO.MOV             Movimentação de solo ─ ESC escavação · REA reaterro · VAL vala · SUP supressão
    ├─ .CIV.EST             Estruturas de concreto ─ PIS piso/laje · BAL baldrame · VIG viga · PIL pilar · PAR parede
-   ├─ .CIV.PAV             Pavimentação ─ REC demolição e recomposição
+   ├─ .CIV.PAV             Pavimentação e urbanização ─ REC demolição e recomposição · CAL calçada · URB drenagem superficial, cercamento e paisagismo
+   ├─ .CIV.ACA             Acabamentos e arquitetura ─ ACB revestimentos, esquadrias, cobertura e pintura
    ├─ .HID.EQP             Equipamentos ─ EQU fornecimento e montagem
    ├─ .HID.TUB             Tubulações ─ RED tubo · VAL válvulas e conexões · PVS poços de visita (só esgoto) · LIG ligações
-   └─ .ELE                 FOR instalações · ATE aterramento e SPDA
+   │                         · MND método não destrutivo · TRV travessias · ANC ancoragens · CAM caixas e câmaras (obra linear)
+   ├─ .ELE                 FOR instalações · ATE aterramento e SPDA
+   └─ .GER                 Serviços gerais ─ PRE preliminares (MOB mobilização e canteiro · TOP locação e topografia · SIN sinalização)
+                           · CTL controle (ENS ensaios · COM comissionamento · DSF desinfecção · CFT inspeção por CFTV)
+                           · FIN finais (LIM limpeza final · FAI faixa · CAD cadastro e as built · DES desmobilização)
 U2                         Unidade 2 — Adutoras (obra linear, água)
 └─ U2.AAT06                vala · pavimento · tubo · ligações (sem estaca, sem estrutura de concreto)
 ```
@@ -248,7 +253,7 @@ de serviços, dos sinônimos e da planilha CUSTO CIVIL.
   - FERRAGEM, CA-50, VERGALHÃO → ARMACAO;
   - BALDRAME → VIGA BALDRAME;
   - CBUQ → RECOMPOSIÇÃO DE PAVIMENTO.
-- **Unidades**: M3, MC, METROS CÚBICOS → m³; ML, MT → m; UND, PÇ → un; TON → t; VB, GL → vb. A conversão t → kg
+- **Unidades**: M3, MC, METROS CÚBICOS → m³; ML, MT → m; UND, PÇ → un; TON → t; VB, GL → vb; MES, MESES → mês. A conversão t → kg
   permite comparar armadura em toneladas com armadura em quilos.
 - "30 MPa" e "DN 300 mm" **não** viram quantidade.
 
@@ -608,6 +613,74 @@ escopo e **precisa ser preenchido** a cada obra. Dois tipos:
 
 Cada folha tem `id` (`OL.03.02`: tipo, etapa, folha), `nome`, `aponta`, `escopo` (água, esgoto ou ambos), `obrigatoria`
 (a obra desse tipo sempre tem; mobilização sim, método não destrutivo não) e, sem item codificado, `observacao`.
+
+**Folhas sem item e itens gerais.** As 21 folhas que nasceram sem `aponta` (preliminares, acabamentos, urbanização,
+ensaios, comissionamento, serviços finais, ancoragens, travessias, MND, caixas, desinfecção, CFTV e cadastro) agora
+apontam para itens da EAP codificada: a disciplina nova `GER` (serviços gerais: `PRE`, `CTL`, `FIN`), o pacote `CIV.ACA`,
+o item `CIV.PAV.URB` e os itens `HID.TUB.MND/TRV/ANC/CAM`. Assim o loop de evidências (regex sobre edital, memorial e
+planilha; IA conferida) preenche essas folhas como as outras. Nenhuma folha ficou sem item; o mecanismo de "sem item
+codificado" e de preenchimento manual continua valendo para folha futura (e é coberto por teste com folhas esvaziadas).
+
+| Folha | Item | Obra · escopo |
+|---|---|---|
+| OP.01.01 · OL.01.01 Mobilização e canteiro | `GER.PRE.MOB` (serviços mobilização, canteiro, placa de obra) | ambas · água e esgoto |
+| OP.01.02 · OL.01.02 Locação e topografia | `GER.PRE.TOP` | ambas · água e esgoto |
+| OL.01.03 Sinalização e segurança de tráfego | `GER.PRE.SIN` | linear · água e esgoto |
+| OP.06.02 Revestimentos, esquadrias, cobertura e pintura | `CIV.ACA.ACB` | localizada |
+| OP.10.03 Drenagem superficial, cercamento e paisagismo | `CIV.PAV.URB` | localizada |
+| OP.11.02 Ensaios de materiais e controle tecnológico | `GER.CTL.ENS` | localizada |
+| OP.11.03 Comissionamento e operação assistida | `GER.CTL.COM` | localizada |
+| OP.12.01 Limpeza final · OL.11.02 Limpeza e recomposição final da faixa | `GER.FIN.LIM` (e `GER.FIN.FAI` na faixa) | ambas · linear |
+| OP.12.02 · OL.11.01 Cadastro e as built | `GER.FIN.CAD` | ambas |
+| OP.12.03 · OL.11.03 Desmobilização | `GER.FIN.DES` e `GER.PRE.MOB` · `mobilizacao` (linha "mobilização e desmobilização") | ambas |
+| OL.04.04 Ancoragens e blocos de ancoragem | `HID.TUB.ANC` | linear |
+| OL.06.01 Travessias de rios, ferrovias e rodovias | `HID.TUB.TRV` | linear |
+| OL.06.02 Método não destrutivo (MND/HDD) | `HID.TUB.MND` | linear |
+| OL.07.02 Caixas e câmaras (descarga, ventosa, registro) | `HID.TUB.CAM` | linear |
+| OL.09.02 Desinfecção e limpeza da rede | `GER.CTL.DSF` | linear · só água |
+| OL.09.03 Inspeção por CFTV | `GER.CTL.CFT` | linear · só esgoto |
+
+**Item acessório e a cabeça da descrição** (`eap_geral.jsonl`: `"acessorio": true`, `evidencias._achados_da_cabeca`).
+Mobilização, desmobilização, topografia, sinalização, ensaios, comissionamento, desinfecção, CFTV, travessia, MND,
+cadastro/as built, limpeza final, faixa, ancoragem, caixas/câmaras e acabamentos são **complementos** de um item
+principal. A regra é uma só, em código, e vale na classificação (`classificar`), na busca (`buscar_texto`), no
+"número + termo" e na conferência da IA (`_termos_da_linha`): um termo acessório só conta se **nenhum termo de item não
+acessório começa antes dele na linha** (a cabeça da descrição manda). "Estaca hélice contínua, inclusive / + / c/ /
+considerando / (mobilização inclusa) mobilização" continua sendo estaca, sem lista de marcas de inclusão;
+"cadastro técnico da rede coletora", "locação e nivelamento da rede coletora" e "pintura de paredes internas" são do
+acessório porque ele vem primeiro. Exceção declarada no item (`acessorio_exceto`): em MND, "assentamento de tubo COM/POR
+MND" ou "em método não destrutivo" vai para `HID.TUB.MND` mesmo com o tubo antes (o MND é o método da linha).
+A cabeça vale com os itens de qualquer tipo de obra: "estaca … mobilização" em documento linear não vira mobilização.
+
+**Continuação de descrição** (`buscar_texto`, mesmo teste `_continua_a_descricao` da conferência): linha que continua a
+anterior (anterior sem "." nem ":" e esta em minúscula ou com conectivo) e só tem item acessório é do item da cabeça
+("estaca …, inclusive⏎mobilização e desmobilização 250 un" = 250 estacas), nunca mobilização própria.
+
+**Termos com objeto.** Para não tomar texto de equipamento de ETA ou de segurança patrimonial: desinfecção só de
+rede, tubulação ou adutora (e não de esgoto, coletora, reservatório, cloro, bomba dosadora); CFTV só como
+inspeção ou vídeo-inspeção; travessia só com rio, córrego, rodovia, ferrovia, canal, BR-/PR-, DNIT, DER, APP ou MND
+(não "travessia de rua" nem "de pedestres"); MND "não destrutivo" só com método, perfuração, furo ou túnel (não
+"ensaio não destrutivo"); limpeza final só "da obra" (não de reservatório, rede ou faixa); faixa só com recomposição,
+restauração, recuperação ou limpeza **final** da faixa (limpeza de faixa de servidão é abertura); fita de sinalização de
+rede enterrada não é sinalização de tráfego; acabamentos não pegam pintura de tubulação ou aço, janela ou porta de
+inspeção, revestimento de talude (revestimento vegetal é urbanização). "Limpeza geral do terreno" é supressão
+(`GEO.MOV.SUP`). "Ligação predial/domiciliar" no singular passou a casar `HID.TUB.LIG`.
+
+**Mobilização e desmobilização numa linha só** (comum em planilha) é classificada como mobilização
+(`GER.PRE.MOB`, serviço `mobilizacao`); só "desmobilização" isolada, "retirada/desmontagem do canteiro" vão para
+`GER.FIN.DES`. As folhas OP.12.03 e OL.11.03 apontam para os dois (o segundo é `GER.PRE.MOB` · `mobilizacao`, com
+observação) e a mesma linha aparece também em OP.01.01 e OL.01.01; é uma premissa de leitura, não soma nova.
+
+**Unidade `mês`** (`vocabulario.meses_so_em_contexto`): `MES`/`MESES` só são unidade em linha de serviço medido por mês
+(canteiro, administração, manutenção, comissionamento, locação, fiscalização…; `contexto_mes` em `sinonimos.json`) e
+fora de prazo, garantia, vigência ou cronograma (`fora_de_contexto_mes`). Nas outras viram "PERIODO" no texto de
+busca: "prazo de 12 meses" e "MES 1 MES 2" não são quantidade. Na coluna Un de planilha, "mês" continua valendo.
+
+Os itens de termo genérico (urbanização) ficam depois dos antigos (prioridade 55); `CIV.ACA.ACB` tem prioridade 28 para
+"pintura de paredes" não virar parede de concreto, mas só vale se a cabeça não for de item principal. Item de obra linear
+não casa em obra localizada e vice-versa. "Teste hidrostático" e "teste de estanqueidade" continuam sendo o serviço
+`teste_estanqueidade` de `HID.TUB.RED`, sem item novo. Ainda não há geometria de prancha para esses itens
+(`construtivos` e `layers` vazios): vêm só dos documentos.
 
 **Relação com a EAP codificada.** A EAP por disciplina (GEO, CIV, HID, ELE → pacote → item) continua sendo a linha
 mestra técnica. O padrão é uma **vista**: `aponta` é uma lista de `{item: "DISC.PAC.ITEM", servico}` de `eap_geral.jsonl`

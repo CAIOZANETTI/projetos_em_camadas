@@ -29,6 +29,11 @@ UNIDADE_ANTES = re.compile(r"(?<![A-Z0-9])(?:" + "|".join(re.escape(g) for g in 
                            + r")\s*[:|-]*\s*$")
 
 
+UNIDADES_DE_ESPECIFICACAO = {"MPA", "KPA", "MCA"}
+"""Unidades de especificação ('fck 20 MPa para bloco de ancoragem'): não são quantidade, mas o número que as precede não
+é a contagem do termo que vem depois."""
+
+
 def normalizar(texto) -> str:
     """Maiúsculas, sem acento e espaços simples: a forma em que os termos dos conceitos são escritos (² vira 2)."""
     t = unicodedata.normalize("NFKD", str(texto or ""))
@@ -48,9 +53,19 @@ def canonicos(linha: str) -> list[str]:
             if any(re.search(rf"(?<![A-Z]){v}(?![A-Z])", linha) for v in variantes)]
 
 
+def meses_so_em_contexto(linha: str) -> str:
+    """'MES'/'MESES' só são unidade (mês) em linha de serviço medido por mês (canteiro, administração, manutenção,
+    comissionamento…; `contexto_mes`) e fora de prazo, garantia ou cronograma (`fora_de_contexto_mes`). Nas outras, viram
+    'PERIODO': 'prazo de 12 meses' e o cabeçalho 'MES 1 MES 2' não são quantidade."""
+    linha = re.sub(r"\bMES (?=\d)", "PERIODO ", linha)               # 'MES 1 MES 2' é cabeçalho de cronograma
+    if re.search(REGRAS["contexto_mes"], linha) and not re.search(REGRAS["fora_de_contexto_mes"], linha):
+        return linha
+    return re.sub(r"\bMES(?:ES)?\b", "PERIODO", linha)
+
+
 def preparar(texto) -> tuple[str, str]:
     """(texto para medir, texto para classificar): normalizado com abreviações; e o mesmo + ' | ' + canônicos."""
-    linha = abreviacoes(normalizar(texto))
+    linha = meses_so_em_contexto(abreviacoes(normalizar(texto)))
     extras = [c for c in canonicos(linha) if not re.search(rf"\b{c}\b", linha)]
     return linha, (linha + " | " + " ".join(extras)) if extras else linha
 
@@ -79,7 +94,7 @@ def _de_outra_unidade(linha: str, antes: re.Match, inicio_termo: int) -> bool:
     'un: 250') ou há uma unidade entre ele e o termo ('3.000 metros de estacas')."""
     if UNIDADE_ANTES.search(linha[:antes.start(1)]):
         return True
-    return any(p in GRAFIAS for p in re.findall(r"[A-Z0-9]+", linha[antes.end(1):inicio_termo]))
+    return any(p in GRAFIAS or p in UNIDADES_DE_ESPECIFICACAO for p in re.findall(r"[A-Z0-9]+", linha[antes.end(1):inicio_termo]))
 
 
 def quantidade(linha: str, termos: list[str]) -> tuple[float | None, str | None]:
@@ -102,7 +117,8 @@ def quantidade(linha: str, termos: list[str]) -> tuple[float | None, str | None]
 def validar() -> list[str]:
     """Problemas do vocabulário: regex que não compila, grafia de unidade repetida, conversão para unidade inexistente."""
     problemas = []
-    for padrao in [p for p, _ in REGRAS["abreviacoes"]] + [v for vs in REGRAS["sinonimos"].values() for v in vs]:
+    padroes = [p for p, _ in REGRAS["abreviacoes"]] + [v for vs in REGRAS["sinonimos"].values() for v in vs]
+    for padrao in padroes + [REGRAS["contexto_mes"], REGRAS["fora_de_contexto_mes"]]:
         try:
             re.compile(padrao)
         except re.error as erro:
