@@ -160,7 +160,10 @@ def _gasto_agentes(base: str, alvo: str) -> list[dict]:
     for linha in csv.DictReader(io.StringIO("\n".join([cab, *novas]))):
         m = soma.setdefault(linha.get("modelo") or "?", {"modelo": linha.get("modelo") or "?", "execucoes": 0, "tokens": 0})
         m["execucoes"] += 1
-        m["tokens"] += int(float(linha.get("tokens") or 0))
+        try:                                         # linha fora do cabeçalho (colunas trocadas) não soma tokens
+            m["tokens"] += int(float(linha.get("tokens") or 0))
+        except ValueError:
+            m["linhas_fora_do_formato"] = m.get("linhas_fora_do_formato", 0) + 1
     return sorted(soma.values(), key=lambda m: -m["tokens"])
 
 
