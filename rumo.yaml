@@ -8,7 +8,7 @@ criterio_de_pronto:
 - paridade.json, conciliacao_eap.json e resumo.json de Foz lidos e explicados no relatório
 - relatório em docs/plano com o que bateu, o que diferiu e o que falta; achados viram
   pendências, não correções sem teste
-base: c36ed5e
+base: 666554b
 etapas:
 - id: E1
   nome: 'Ingestão do Drive: inventário, PDFs, fotos do drone e planilha'
@@ -60,9 +60,9 @@ etapas:
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 200000
-  status: fazendo
+  status: feito
   inicio: '2026-11-03T00:46:54Z'
-  fim: null
+  fim: '2026-11-03T01:07:36Z'
 historico:
 - data: '2026-11-02'
   mudanca: 'objetivo anterior (de outra sessão): Travar o comportamento atual do pipeline
@@ -89,3 +89,15 @@ historico:
   mudanca: 'E3 levou 6 execuções do build: cada uma revelou um insumo real que derrubava o build (laudo Geoazimute,
     estacas.csv, aba Obras Lineares em 3 leitores, serviço sem item) ou um par unidade/sistema ausente'
   motivo: o dado real de Foz não cabia no que o sintético testava; cada achado foi corrigido com teste antes de seguir
+- data: '2026-11-03'
+  mudanca: 'E4 com dois aceites do Fable (REVISAR → ACEITA) e merge da main (0.43.0/0.44.0 de outra sessão): a
+    versão da rodada passou a 0.45.0 e a lição a L041'
+  motivo: outra sessão publicou na main durante a rodada
+- data: '2026-11-03'
+  mudanca: base passa a 666554b (a main no fim da rodada)
+  motivo: com a base anterior, os arquivos trazidos pelo merge da main (0.43.0/0.44.0 de outra sessão) apareciam como
+    'fora do plano'
+- data: '2026-11-03'
+  mudanca: 'desvio aceito: 9 módulos de camadas/ e os testes alterados fora dos entregáveis'
+  motivo: o plano previa só rodar o build; o dado real de Foz exigiu 5 correções (relatório, seção Achados) e as 5 da
+    revisão do Fable, todas com teste
