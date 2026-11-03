@@ -1,0 +1,1003 @@
+"""Conferência das cavas do modelo (MDS × fundo das marcas) contra as seções de corte do projeto.
+
+    O volume das cavas vem de `escavacao.calcular` (MDS do drone × fundo interpolado das marcas de cota). As pranchas de
+    corte (009 e 010) são uma testemunha independente: cada seção traz o terreno original, o contorno da escavação, a
+    área de corte e a cota de fundo (`secoes_corte`). Aqui as duas coisas se encontram:
+
+    linhas       = linha de cada seção na planta de escavação (traço-ponto verde do layer `CORTES` + letra, lida por OCR
+                   do recorte) em UTM pela afim da prancha. O layer `INDICAÇÃO  SEÇÃO` não é de corte: traz as cotas
+                   "TRECHO AA – Comprimento do Trecho" da contenção por estacas.
+    modelo       = o corte do modelo amostrado ao longo da linha (passo = resolução da grade): área, fundo, largura, terreno
+    seções       = diferença de área, de fundo e de terreno por seção; situação `confere` / `difere` / `não conferível`
+    seções médias = onde duas linhas quase paralelas cortam a mesma cava: V = (A1 + A2)/2 · d contra o corte do modelo
+                   na faixa entre as linhas
+    sequência    = cotas da sequência executiva escritas nas notas da planta (texto vetorial decodificado)
+
+Nada é inventado: o que não dá para conferir vira "não conferível" com o motivo. Python calcula; o HTML só apresenta
+(`para_html` formata os números).
+"""
+
+from __future__ import annotations
+
+import itertools
+import json
+import re
+from pathlib import Path
+
+import numpy as np
+import shapely
+
+from . import escavacao, geo
+
+# --- tolerâncias (cotas e coordenadas: tolerância absoluta, regra do projeto) --------------------------------------
+TOL_FUNDO_M = 0.30  # fundo: a marca de cota é lida por OCR (centímetro) e o terreno do MDS tem ±0,3 m de controle vertical
+TOL_TERRENO_M = 0.30  # terreno médio MDS × TERRENO ORIGINAL do corte: o controle vertical do MDS é desse porte
+TOL_AREA_REL = 0.15  # área: a diferença de talude e o erro de traçado do projeto pesam ~15 % da área de corte
+TOL_VOLUME_REL = 0.20  # seções médias: o método das áreas médias já erra alguns % numa cava que não é prismática
+AREA_MINIMA_M2 = 1.0  # corte com menos de 1 m² de área no projeto é "sem corte" (a seção só passa pela borda da cava)
+FRACAO_MINIMA_NO_MDS = (
+    0.8  # a linha precisa ter ≥ 80 % do comprimento dentro da grade válida do MDS
+)
+ANGULO_PARALELO_GRAUS = 5.0  # duas linhas de seção são "quase paralelas" abaixo disso
+DIVERGENCIA_LINHA_M = (
+    0.5  # a mesma seção em duas plantas: as linhas não podem divergir mais que isto
+)
+
+# --- leitura das linhas na planta --------------------------------------------------------------------------------
+LAYER_CORTES = "CORTES"
+TRACO_MIN_PT, TRACO_MAX_PT, ESPESSURA_MAX_PT = (
+    4.0,
+    10.0,
+    1.0,
+)  # um traço do tracejado: quadro fino de ~7 × 0,6 pt
+VIZINHO_MAX_PT = 16.0  # entre dois traços do tracejado (passo ~10,6 pt)
+ALINHAMENTO_MAX_PT = 1.0  # desvio lateral de um traço em relação ao eixo do vizinho
+ANGULO_TRACO_MAX_GRAUS = 3.0
+TRACOS_MINIMOS = (
+    6  # menos que isso não é linha de seção (a seta e a legenda têm poucos traços)
+)
+RAIO_LETRA_PT = 45.0  # a letra fica a até isto da ponta da linha
+OCR_DPI = 400
+TRACO_FINO_RAZAO = 3.5  # letra mais alta que 3,5 × a largura é a barra do "I"
+SEGMENTO_MINIMO_M = 5.0  # segmento de seção não colinear com menos que isto é resto de traço, não outra parte da linha
+COLINEAR_GRAUS = 2.0  # segmentos da mesma seção em plantas diferentes: mesma reta se o ângulo for menor que isto
+LETRAS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def _eixo_do_quadro(q: np.ndarray) -> tuple[np.ndarray, float, float]:
+    """Eixo maior de um quadro (4 vértices): direção unitária, comprimento e espessura em pt."""
+    c = q - q.mean(0)
+    _, v = np.linalg.eigh(c.T @ c)
+    eixo = v[:, 1]
+    p = c @ eixo, c @ v[:, 0]
+    return eixo, float(np.ptp(p[0])), float(np.ptp(p[1]))
+
+
+def tracos_do_tracejado(
+    tracos: list[dict],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Traços do tracejado de corte: centros (n, 2), eixos unitários (n, 2) e comprimentos (n,), em pt.
+
+    Cada traço é um quadro preenchido fino (`TRACO_MIN_PT`–`TRACO_MAX_PT` de comprimento, até `ESPESSURA_MAX_PT`) do
+    layer `CORTES`; as letras (sem cor de traço) e os lados da seta (curtos ou de outro ângulo) ficam de fora."""
+    centros, eixos, comprimentos = [], [], []
+    for t in tracos:
+        if t["layer"] != LAYER_CORTES or t["preenchimento"] is None or t["cor"] is None:
+            continue
+        for parte in t["partes"]:
+            q = np.asarray(parte, float)
+            if len(q) != 4:
+                continue
+            eixo, comp, esp = _eixo_do_quadro(q)
+            if TRACO_MIN_PT <= comp <= TRACO_MAX_PT and esp <= ESPESSURA_MAX_PT:
+                centros.append(q.mean(0))
+                eixos.append(eixo)
+                comprimentos.append(comp)
+    return (
+        np.array(centros).reshape(-1, 2),
+        np.array(eixos).reshape(-1, 2),
+        np.array(comprimentos),
+    )
+
+
+def _componentes(vizinho: np.ndarray) -> np.ndarray:
+    """Rótulo de componente conexo de uma matriz de adjacência booleana (busca em largura)."""
+    n = len(vizinho)
+    rotulo = np.full(n, -1)
+    k = 0
+    for i in range(n):
+        if rotulo[i] >= 0:
+            continue
+        rotulo[i] = k
+        fila = [i]
+        while fila:
+            j = fila.pop()
+            novos = np.flatnonzero(vizinho[j] & (rotulo < 0))
+            rotulo[novos] = k
+            fila.extend(novos.tolist())
+        k += 1
+    return rotulo
+
+
+def agrupar_tracejados(centros: np.ndarray, eixos: np.ndarray) -> np.ndarray:
+    """Rótulo de linha de cada traço: vizinhos a ≤ `VIZINHO_MAX_PT`, de mesmo ângulo e alinhados pelo centro."""
+    if not len(centros):
+        return np.zeros(0, int)
+    d = centros[None, :, :] - centros[:, None, :]
+    dist = np.linalg.norm(d, axis=2)
+    cos = np.abs((eixos[:, None, :] * eixos[None, :, :]).sum(2))
+    lateral = np.abs(
+        d[..., 0] * eixos[:, None, 1] - d[..., 1] * eixos[:, None, 0]
+    )  # desvio lateral em relação a i
+    vizinho = (
+        (dist <= VIZINHO_MAX_PT)
+        & (cos >= np.cos(np.radians(ANGULO_TRACO_MAX_GRAUS)))
+        & (lateral <= ALINHAMENTO_MAX_PT)
+    )
+    return _componentes(vizinho)
+
+
+def _pontas_da_linha(
+    centros: np.ndarray, eixos: np.ndarray, comprimentos: np.ndarray
+) -> np.ndarray:
+    """Duas pontas (pt) de um grupo de traços: os extremos projetados no eixo médio, mais meio traço."""
+    eixo = eixos[0] * np.sign(eixos @ eixos[0]).reshape(-1, 1)
+    eixo = eixo.mean(0)
+    eixo /= np.linalg.norm(eixo)
+    s = (centros - centros[0]) @ eixo
+    meio = comprimentos / 2
+    i0, i1 = int(np.argmin(s - meio)), int(np.argmax(s + meio))
+    centro_lateral = centros.mean(0) - ((centros.mean(0) - centros[0]) @ eixo) * eixo
+    return np.array(
+        [
+            centro_lateral + (s[i0] - meio[i0]) * eixo,
+            centro_lateral + (s[i1] + meio[i1]) * eixo,
+        ]
+    )
+
+
+def letras_do_layer(tracos: list[dict]) -> list[np.ndarray]:
+    """Contornos (pt) das letras do layer `CORTES`: quadros preenchidos sem cor de traço (os traços do tracejado e da
+    seta têm cor)."""
+    return [
+        np.asarray(p, float)
+        for t in tracos
+        if t["layer"] == LAYER_CORTES
+        and t["preenchimento"] is not None
+        and t["cor"] is None
+        for p in t["partes"]
+    ]
+
+
+def _caixa_da_letra(ponta: np.ndarray, letras: list[np.ndarray]) -> tuple | None:
+    """Caixa (x0, y0, x1, y1; pt) da letra mais próxima da ponta: o contorno mais perto e os que o tocam."""
+    if not letras:
+        return None
+    centros = np.array([q.mean(0) for q in letras])
+    d = np.linalg.norm(centros - ponta, axis=1)
+    if d.min() > RAIO_LETRA_PT:
+        return None
+    base = letras[int(np.argmin(d))]
+    perto = [
+        q for q, c in zip(letras, centros) if np.linalg.norm(c - base.mean(0)) <= 6.0
+    ]
+    todos = np.vstack(perto)
+    return (*(todos.min(0) - 1.0), *(todos.max(0) + 1.0))
+
+
+def ler_letra(pagina, caixa_pt: tuple) -> str | None:
+    """OCR de uma letra (recorte de `caixa_pt`, sem rotação: a letra da seção fica de pé na planta)."""
+    import pymupdf
+    import pytesseract
+    from PIL import Image
+
+    px = pagina.get_pixmap(dpi=OCR_DPI, clip=pymupdf.Rect(*caixa_pt))
+    rgb = (
+        np.frombuffer(px.samples, np.uint8)
+        .reshape(px.h, px.w, px.n)[..., :3]
+        .astype(int)
+    )
+    verde = (rgb[..., 1] - np.maximum(rgb[..., 0], rgb[..., 2]) > 40) | (
+        rgb.max(2) < 110
+    )
+    linhas, colunas = np.nonzero(verde)
+    if linhas.size and np.ptp(linhas) + 1 > TRACO_FINO_RAZAO * (np.ptp(colunas) + 1):
+        return "I"  # barra vertical fina: o OCR não lê uma letra I isolada
+    img = np.pad(np.where(verde, 0, 255).astype(np.uint8), 25, constant_values=255)
+    texto = pytesseract.image_to_string(
+        Image.fromarray(img), config=f"--psm 10 -c tessedit_char_whitelist={LETRAS}"
+    )
+    achados = re.findall(r"[A-Z]", texto.upper())
+    return achados[0] if achados else None
+
+
+def linhas_da_planta(
+    pdf: str | Path, M: np.ndarray, clip=None, prancha: str = ""
+) -> list[dict]:
+    """Linhas de seção de uma planta: [{secao, prancha, inicio_utm, fim_utm, comprimento_m, alertas}].
+
+    O rótulo é a letra das duas pontas (OCR do recorte), dobrada ("A" -> "AA", o nome do corte); se as pontas
+    discordam ou o OCR falha, a linha sai com `secao` None e um alerta."""
+    import pymupdf
+
+    from .pdf_cad import extrair
+
+    tracos = extrair(pdf, clip=clip)
+    centros, eixos, comprimentos = tracos_do_tracejado(tracos)
+    rotulo = agrupar_tracejados(centros, eixos)
+    letras = letras_do_layer(tracos)
+    saida = []
+    with pymupdf.open(pdf) as doc:
+        pagina = doc[0]
+        for k in np.unique(rotulo):
+            sel = rotulo == k
+            if sel.sum() < TRACOS_MINIMOS:
+                continue
+            pontas = _pontas_da_linha(centros[sel], eixos[sel], comprimentos[sel])
+            caixas = [_caixa_da_letra(p, letras) for p in pontas]
+            if not any(caixas):
+                continue  # tracejado sem letra perto das pontas (eixo, quadra): não é seção
+            lidas = [ler_letra(pagina, cx) if cx else None for cx in caixas]
+            saida.append(_linha(pontas, lidas, M, prancha))
+    return saida
+
+
+def _linha(pontas_pt: np.ndarray, lidas: list, M: np.ndarray, prancha: str) -> dict:
+    """Linha em UTM com o nome da seção a partir das letras lidas nas duas pontas."""
+    utm = geo.aplicar(np.asarray(M), pontas_pt)
+    distintas = {v for v in lidas if v}
+    alertas = []
+    if len(distintas) == 1:
+        secao = distintas.pop() * 2
+        if None in lidas:
+            alertas.append("letra lida só numa das pontas")
+    else:
+        secao = None
+        alertas.append(
+            "letra não lida"
+            if not distintas
+            else f"letras discordam nas pontas: {sorted(distintas)}"
+        )
+    return {
+        "secao": secao,
+        "prancha": prancha,
+        "inicio_utm": utm[0].round(3).tolist(),
+        "fim_utm": utm[1].round(3).tolist(),
+        "comprimento_m": round(float(np.linalg.norm(utm[1] - utm[0])), 3),
+        "alertas": alertas,
+    }
+
+
+# --- seção do modelo -----------------------------------------------------------------------------------------------
+def _amostrar_linha(linha: dict, g: dict) -> tuple:
+    """Pontos da linha a cada `res` (no centro de cada passo): s (m), xy (UTM), passo, linha e coluna da grade e se
+    caem na grade."""
+    ini, fim = (
+        np.asarray(linha["inicio_utm"], float),
+        np.asarray(linha["fim_utm"], float),
+    )
+    comprimento = float(np.linalg.norm(fim - ini))
+    n = max(round(comprimento / g["res"]), 1)
+    passo = comprimento / n
+    s = (np.arange(n) + 0.5) * passo
+    xy = ini + (fim - ini) * (s / max(comprimento, 1e-9))[:, None]
+    lin = np.floor((g["n1"] - xy[:, 1]) / g["res"]).astype(int)
+    col = np.floor((xy[:, 0] - g["e0"]) / g["res"]).astype(int)
+    dentro = (lin >= 0) & (lin < g["forma"][0]) & (col >= 0) & (col < g["forma"][1])
+    return (
+        s,
+        xy,
+        passo,
+        np.clip(lin, 0, g["forma"][0] - 1),
+        np.clip(col, 0, g["forma"][1] - 1),
+        dentro,
+    )
+
+
+def perfil_do_modelo(linha: dict, g: dict, corte: np.ndarray) -> dict:
+    """Seção do modelo ao longo da linha: área de corte (∫ corte ds), fundo mínimo (terreno − corte onde há corte),
+    largura do corte e terreno [[s_m, z_m]]; `fracao_no_mds` é a parte da linha dentro da grade válida e
+    `corte_na_ponta` diz se o corte vai até uma das pontas (a cava continua além da linha)."""
+    s, _, passo, lin, col, dentro = _amostrar_linha(linha, g)
+    valido = dentro & g["valido"][lin, col]
+    c = np.where(valido, corte[lin, col], 0.0).astype(float)
+    z = np.where(valido, g["terreno"][lin, col], np.nan).astype(float)
+    com_corte = c > 0.01
+    fundo = float(np.min(z[com_corte] - c[com_corte])) if com_corte.any() else None
+    return {
+        "area_corte_m2": float(c.sum() * passo),
+        "cota_fundo_min_m": fundo,
+        "largura_corte_m": float(com_corte.sum() * passo),
+        "terreno": np.c_[s, z][valido].round(3).tolist(),
+        "fracao_no_mds": float(valido.mean()),
+        "corte_na_ponta": bool(com_corte[0] or com_corte[-1]),
+        "passo_m": float(passo),
+    }
+
+
+def comparar_terreno(
+    terreno_projeto: list, terreno_modelo: list, passo_m: float
+) -> dict | None:
+    """Terreno do MDS contra o TERRENO ORIGINAL do corte. A largura do quadro e o comprimento da linha podem diferir e
+    o sentido da seta não é lido: o perfil mais curto desliza sobre o mais longo, nos dois sentidos, e vale o ajuste de
+    menor desvio-padrão da diferença. Devolve a diferença média (modelo − projeto), o desvio, o sentido e o deslocamento."""
+    p, m = (
+        np.asarray(terreno_projeto, float).reshape(-1, 2),
+        np.asarray(terreno_modelo, float).reshape(-1, 2),
+    )
+    if len(p) < 2 or len(m) < 2:
+        return None
+    larg_p, larg_m = float(p[-1, 0] - p[0, 0]), float(m[-1, 0] - m[0, 0])
+    modelo_e_o_longo = larg_m >= larg_p
+    curto, longo = (p, m) if modelo_e_o_longo else (m, p)
+    folga = abs(larg_m - larg_p)
+    xs = np.arange(0.0, float(curto[-1, 0] - curto[0, 0]) + 1e-9, passo_m)
+    zc = np.interp(xs, curto[:, 0] - curto[0, 0], curto[:, 1])
+    extensao = float(longo[-1, 0] - longo[0, 0])
+    melhor = None
+    for sentido in (1, -1):
+        for desloc in np.arange(0.0, folga + 1e-9, passo_m):
+            pos = desloc + xs if sentido == 1 else extensao - desloc - xs
+            zl = np.interp(pos + longo[0, 0], longo[:, 0], longo[:, 1])
+            dif = (zl - zc) if modelo_e_o_longo else (zc - zl)  # modelo − projeto
+            if melhor is None or dif.std() < melhor["desvio_m"]:
+                melhor = {
+                    "dif_media_m": float(dif.mean()),
+                    "desvio_m": float(dif.std()),
+                    "sentido": sentido,
+                    "deslocamento_m": float(desloc),
+                }
+    return {**melhor, "largura_projeto_m": larg_p, "comprimento_linha_m": larg_m}
+
+
+def talude_do_projeto(escavacao_xz: list) -> float | None:
+    """Talude H:V das paredes do contorno de escavação do corte: o recuo horizontal da parede dividido pela queda, a
+    mediana das duas paredes; 0 é parede vertical (contenção por estacas). None sem contorno."""
+    e = np.asarray(escavacao_xz, float).reshape(-1, 2)
+    if len(e) < 3:
+        return None
+    no_fundo = np.flatnonzero(e[:, 1] <= e[:, 1].min() + 0.05)
+    esq, dire = e[: no_fundo[0] + 1], e[no_fundo[-1] :][::-1]
+    valores = [
+        abs(w[-1, 0] - w[0, 0]) / (w[0, 1] - w[-1, 1])
+        for w in (esq, dire)
+        if w[0, 1] - w[-1, 1] > 0.3
+    ]
+    return round(float(np.median(valores)), 2) if valores else None
+
+
+# --- conferência por seção -----------------------------------------------------------------------------------------
+def _motivo_nao_conferivel(sec: dict, mod: dict | None) -> str | None:
+    """Motivo de a seção não ser conferível (ou None): sem linha, sem corte, área parcial, fora do MDS, cava continua."""
+    if mod is None:
+        return "sem linha de seção na planta de escavação"
+    if mod.get("quebrada"):
+        return "linha de seção quebrada na planta (segmentos não colineares): um perfil reto não a representa"
+    if sec["area_corte_m2"] < AREA_MINIMA_M2:
+        return f"sem corte no projeto (área < {AREA_MINIMA_M2:g} m²)"
+    parcial = [
+        a
+        for a in sec.get("alertas", [])
+        if "área parcial" in a or "borda do quadro" in a
+    ]
+    if parcial:
+        return "área parcial no projeto (" + parcial[0] + ")"
+    if mod["fracao_no_mds"] < FRACAO_MINIMA_NO_MDS:
+        return f"linha fora do MDS ({mod['fracao_no_mds']:.0%} dentro da grade válida)"
+    if mod["corte_na_ponta"]:
+        return "o corte do modelo vai até a ponta da linha (a cava continua além dela)"
+    return None
+
+
+def conferir_secao(sec: dict, mod: dict | None) -> dict:
+    """Uma linha da conferência: números do projeto e do modelo, diferenças e situação."""
+    linha = {
+        "secao": sec["secao"],
+        "prancha": sec["prancha"][:3],
+        "area_projeto_m2": sec["area_corte_m2"],
+        "fundo_projeto_m": sec["cota_fundo_min_m"],
+        "largura_projeto_m": sec["largura_corte_m"],
+        "talude_projeto_h_v": talude_do_projeto(sec["escavacao"]),
+        "alertas_projeto": sec.get("alertas", []),
+    }
+    if mod is not None:
+        linha.update(
+            area_modelo_m2=mod["area_corte_m2"],
+            fundo_modelo_m=mod["cota_fundo_min_m"],
+            largura_modelo_m=mod["largura_corte_m"],
+            linha_prancha=mod.get("linha_prancha"),
+            comprimento_linha_m=mod.get("comprimento_linha_m"),
+        )
+    motivo = _motivo_nao_conferivel(sec, mod)
+    if motivo:
+        return {**linha, "situacao": "não conferível", "motivo": motivo}
+    terr = comparar_terreno(sec["terreno"], mod["terreno"], mod["passo_m"])
+    dif_area = mod["area_corte_m2"] - sec["area_corte_m2"]
+    tol_area = max(
+        TOL_AREA_REL * sec["area_corte_m2"], TOL_TERRENO_M * sec["largura_corte_m"]
+    )
+    dif_fundo = (
+        None
+        if mod["cota_fundo_min_m"] is None
+        else mod["cota_fundo_min_m"] - sec["cota_fundo_min_m"]
+    )
+    falhas = []
+    if abs(dif_area) > tol_area:
+        falhas.append(f"área {dif_area:+.1f} m² (tolerância ±{tol_area:.1f})")
+    if dif_fundo is None:
+        falhas.append("o modelo não tem cava na linha")
+    elif abs(dif_fundo) > TOL_FUNDO_M:
+        falhas.append(f"fundo {dif_fundo:+.2f} m (tolerância ±{TOL_FUNDO_M:.2f})")
+    if terr and abs(terr["dif_media_m"]) > TOL_TERRENO_M:
+        falhas.append(
+            f"terreno {terr['dif_media_m']:+.2f} m (tolerância ±{TOL_TERRENO_M:.2f})"
+        )
+    return {
+        **linha,
+        "dif_area_m2": dif_area,
+        "dif_area_rel": dif_area / sec["area_corte_m2"],
+        "tol_area_m2": tol_area,
+        "dif_fundo_m": dif_fundo,
+        "terreno": terr,
+        "situacao": "difere" if falhas else "confere",
+        "motivo": "; ".join(falhas),
+    }
+
+
+def conferir_secoes(projeto: list[dict], modelo: dict[str, dict]) -> list[dict]:
+    """Conferência por seção: `projeto` = saída de `secoes_corte.ler_secoes`; `modelo` = {seção: perfil do modelo} só das
+    seções com linha na planta."""
+    return [conferir_secao(s, modelo.get(s["secao"])) for s in projeto]
+
+
+# --- linhas das várias plantas -------------------------------------------------------------------------------------
+def _colineares(a: dict, b: dict) -> bool:
+    """Dois segmentos na mesma reta: ângulo < `COLINEAR_GRAUS` e as pontas de b a ≤ `DIVERGENCIA_LINHA_M` da reta de a."""
+    pa, ua, _ = _direcao(a)
+    pb = np.array([b["inicio_utm"], b["fim_utm"]], float)
+    ub = (pb[1] - pb[0]) / np.linalg.norm(pb[1] - pb[0])
+    angulo = np.degrees(np.arccos(min(abs(ua @ ub), 1.0)))
+    lateral = np.abs((pb - pa) @ np.array([-ua[1], ua[0]]))
+    return bool(angulo < COLINEAR_GRAUS and lateral.max() <= DIVERGENCIA_LINHA_M)
+
+
+def _fundir(a: dict, b: dict) -> dict:
+    """União de dois segmentos colineares: os extremos ao longo da direção de a."""
+    pa, ua, _ = _direcao(a)
+    pts = np.array(
+        [a["inicio_utm"], a["fim_utm"], b["inicio_utm"], b["fim_utm"]], float
+    )
+    s = (pts - pa) @ ua
+    ini, fim = pa + s.min() * ua, pa + s.max() * ua
+    prancha = (
+        a["prancha"]
+        if b["prancha"] in a["prancha"].split("+")
+        else f"{a['prancha']}+{b['prancha']}"
+    )
+    return {
+        **a,
+        "prancha": prancha,
+        "inicio_utm": ini.round(3).tolist(),
+        "fim_utm": fim.round(3).tolist(),
+        "comprimento_m": round(float(s.max() - s.min()), 3),
+        "alertas": sorted({*a["alertas"], *b["alertas"]}),
+    }
+
+
+def unir_linhas(linhas: list[dict]) -> tuple[list[dict], list[str]]:
+    """Uma linha por seção. A mesma seção em mais de um segmento (plantas diferentes, ou quebrada por uma estrutura)
+    se funde quando os segmentos são colineares (< `COLINEAR_GRAUS` e a ≤ `DIVERGENCIA_LINHA_M`); se não são, a linha é
+    de seção quebrada: sai com `quebrada` e nenhum perfil reto a representa. Linhas sem letra lida saem nos alertas."""
+    unicas, alertas = {}, []
+    for l in linhas:
+        if not l["secao"]:
+            alertas.append(
+                f"linha sem letra em {l['prancha']} ({l['comprimento_m']:.1f} m): {'; '.join(l['alertas'])}"
+            )
+        elif l["secao"] not in unicas:
+            unicas[l["secao"]] = l
+        elif _colineares(unicas[l["secao"]], l):
+            unicas[l["secao"]] = _fundir(unicas[l["secao"]], l)
+        elif l["comprimento_m"] < SEGMENTO_MINIMO_M:
+            alertas.append(
+                f"seção {l['secao']}: segmento de {l['comprimento_m']:.1f} m em {l['prancha']} não colinear, "
+                "ignorado (resto de traço)"
+            )
+        else:
+            a = unicas[l["secao"]]
+            unicas[l["secao"]] = {**a, "quebrada": True}
+            alertas.append(
+                f"seção {l['secao']}: segmentos não colineares ({a['prancha']} {a['comprimento_m']:.1f} m; "
+                f"{l['prancha']} {l['comprimento_m']:.1f} m): linha quebrada"
+            )
+    return sorted(unicas.values(), key=lambda l: l["secao"]), alertas
+
+
+# --- seções médias -------------------------------------------------------------------------------------------------
+def _direcao(linha: dict) -> tuple[np.ndarray, np.ndarray, float]:
+    ini, fim = (
+        np.asarray(linha["inicio_utm"], float),
+        np.asarray(linha["fim_utm"], float),
+    )
+    v = fim - ini
+    comp = float(np.linalg.norm(v))
+    return ini, v / comp, comp
+
+
+def volume_na_faixa(
+    la: dict, lb: dict, contorno, g: dict, corte: np.ndarray
+) -> tuple[float, float] | None:
+    """(distância d entre as linhas, soma do corte na faixa entre elas dentro da cava), ou None se não houver faixa.
+    A faixa vai de uma linha à outra, limitada ao trecho que as duas têm em comum ao longo da direção da primeira."""
+    pa, ua, ca = _direcao(la)
+    n = np.array([-ua[1], ua[0]])
+    extremos_b = (np.array([lb["inicio_utm"], lb["fim_utm"]], float) - pa) @ ua
+    d = float((np.asarray(lb["inicio_utm"], float) - pa) @ n)
+    u0, u1 = max(0.0, extremos_b.min()), min(ca, extremos_b.max())
+    if abs(d) < 1.0 or u1 - u0 < 1.0:
+        return None
+    x0, y0, x1, y1 = contorno.bounds
+    c0, c1 = (
+        max(int((x0 - g["e0"]) / g["res"]) - 1, 0),
+        min(int((x1 - g["e0"]) / g["res"]) + 2, g["forma"][1]),
+    )
+    r0, r1 = (
+        max(int((g["n1"] - y1) / g["res"]) - 1, 0),
+        min(int((g["n1"] - y0) / g["res"]) + 2, g["forma"][0]),
+    )
+    lin, col = np.mgrid[r0:r1, c0:c1]
+    x, y = g["e0"] + (col + 0.5) * g["res"], g["n1"] - (lin + 0.5) * g["res"]
+    rel = np.stack([x - pa[0], y - pa[1]], -1)
+    u, t = rel @ ua, rel @ n
+    faixa = (
+        (u >= u0)
+        & (u <= u1)
+        & (t >= min(0, d))
+        & (t <= max(0, d))
+        & shapely.contains_xy(contorno, x, y)
+    )
+    return abs(d), float(corte[lin, col][faixa].sum() * g["res"] ** 2)
+
+
+def _pares_paralelos(cortam: list[dict]) -> list[tuple[dict, dict]]:
+    """Pares vizinhos de linhas quase paralelas: agrupa pela direção da primeira ainda sem grupo e ordena pelo
+    afastamento lateral."""
+    restantes, pares = list(cortam), []
+    while restantes:
+        ref = restantes.pop(0)
+        p0, u0, _ = _direcao(ref)
+        grupo = [(0.0, ref)]
+        for l in list(restantes):
+            p, u, _ = _direcao(l)
+            if np.degrees(np.arccos(min(abs(u @ u0), 1.0))) < ANGULO_PARALELO_GRAUS:
+                grupo.append((float((p - p0) @ np.array([-u0[1], u0[0]])), l))
+                restantes.remove(l)
+        grupo.sort(key=lambda x: x[0])
+        pares += [(a[1], b[1]) for a, b in itertools.pairwise(grupo)]
+    return pares
+
+
+def _media_do_par(
+    cid: str, la: dict, lb: dict, contorno, por_secao: dict, g: dict, corte: np.ndarray
+) -> dict:
+    """Linha das seções médias para o par (la, lb) de uma cava."""
+    a, b = por_secao.get(la["secao"]), por_secao.get(lb["secao"])
+    base = {"cava": cid, "secoes": [la["secao"], lb["secao"]]}
+    ruins = [
+        x["secao"] for x in (a, b) if x is None or x["situacao"] == "não conferível"
+    ]
+    if ruins:
+        return {
+            **base,
+            "situacao": "não conferível",
+            "motivo": f"seção sem área completa no projeto: {', '.join(ruins)}",
+        }
+    faixa = volume_na_faixa(la, lb, contorno, g, corte)
+    if faixa is None:
+        return {
+            **base,
+            "situacao": "não conferível",
+            "motivo": "as linhas não têm faixa em comum (< 1 m)",
+        }
+    d, v_modelo = faixa
+    v_projeto = (a["area_projeto_m2"] + b["area_projeto_m2"]) / 2 * d
+    dif = v_modelo - v_projeto
+    return {
+        **base,
+        "distancia_m": d,
+        "volume_projeto_m3": v_projeto,
+        "volume_modelo_m3": v_modelo,
+        "dif_m3": dif,
+        "dif_rel": dif / v_projeto,
+        "situacao": "confere" if abs(dif) <= TOL_VOLUME_REL * v_projeto else "difere",
+        "motivo": "",
+    }
+
+
+def secoes_medias(
+    linhas: list[dict], conferidas: list[dict], cavas: dict, g: dict, corte: np.ndarray
+) -> list[dict]:
+    """Seções médias por cava: onde ≥ 2 linhas quase paralelas (< `ANGULO_PARALELO_GRAUS`) cortam a mesma cava,
+    V_projeto = (A1 + A2)/2 · d e V_modelo = corte na faixa entre as linhas (pares vizinhos). `cavas` = {id: contorno}."""
+    por_secao = {c["secao"]: c for c in conferidas}
+    saida = []
+    for cid, contorno in cavas.items():
+        cortam = [
+            l
+            for l in linhas
+            if shapely.intersects(
+                contorno, shapely.LineString([l["inicio_utm"], l["fim_utm"]])
+            )
+        ]
+        pares = _pares_paralelos(cortam)
+        if not pares:
+            saida.append(
+                {
+                    "cava": cid,
+                    "situacao": "não conferível",
+                    "motivo": "sem par de seções paralelas",
+                }
+            )
+        saida += [
+            _media_do_par(cid, la, lb, contorno, por_secao, g, corte)
+            for la, lb in pares
+        ]
+    return saida
+
+
+# --- sequência executiva (notas da planta) ------------------------------------------------------------------------
+# A fonte das notas tem codificação deslocada: letras minúsculas e dígitos saem em pontos de código fixos; as
+# maiúsculas iniciais saem como controles ou símbolos (só se restaura o que se conhece por palavra).
+TABELA_FONTE = {
+    "Ɛ": "s",
+    "Đ": "c",
+    "Ă": "a",
+    "ǀ": "v",
+    "ĕ": "ç",
+    "Ć": "ã",
+    "Ž": "o",
+    "ŝ": "i",
+    "Ŷ": "n",
+    "ũ": "j",
+    "Ğ": "e",
+    "ǆ": "x",
+    "Ƶ": "u",
+    "ƚ": "t",
+    "Ś": "h",
+    "Ġ": "é",
+    "ů": "l",
+    "ş": "í",
+    "ŵ": "m",
+    "ƌ": "r",
+    "Ě": "d",
+    "Ɖ": "p",
+    "ď": "b",
+    "Ő": "g",
+    "Ĩ": "f",
+    "ǌ": "z",
+    "Ƌ": "q",
+    "ſ": "ó",
+    "ġ": "ê",
+    "ą": "â",
+    "Ɓ": "õ",
+    "͕": ",",
+    "Ͳ": "-",
+    "͘": ".",
+    "͖": ";",
+    "Ϳ": ")",
+    "\x03": " ",
+}
+TABELA_FONTE.update({chr(0x3EC + d): str(d) for d in range(10)})
+NOTA = re.compile(r"(?m)^(\d+)\s*-\s*(Escavação|Reaterro)\b(.*)$")
+COTA = re.compile(r"cota\s+(\d{3})\s*[,.]\s*(\d{2})")
+ESTRUTURA = re.compile(r"(Câmara de Contato|Caixa de Saída \d+)")
+INICIO_DE_LISTA = re.compile(r"(?m)^1\s*-\s*")
+
+
+def decodificar_texto(texto: str) -> str:
+    """Texto das notas com a fonte deslocada decodificada. Restaura só o que a tabela não tem e se conhece por palavra:
+    o 'E' inicial perdido de 'Escavação' e 'Execução', e o 'R', 'S' e 'C' iniciais de 'Reaterro', 'Saída' e 'Câmara'."""
+    t = "".join(TABELA_FONTE.get(c, c) for c in texto)
+    t = re.sub(r";(?=base da viga)", "(", t)
+    t = re.sub(r"(?<![A-Za-zÀ-ÿ])scavação", "Escavação", t)
+    t = re.sub(r"(?<![A-Za-zÀ-ÿ])xecução", "Execução", t)
+    t = re.sub(r"(?<![A-Za-zÀ-ÿ])Zeaterro", "Reaterro", t)
+    t = t.replace("^aída", "Saída")
+    return re.sub(r"\x12(?=âmara|aixa|ontato)", "C", t)
+
+
+def notas_do_texto(texto: str) -> list[dict]:
+    """Notas de escavação e reaterro de um texto já decodificado: [{bloco, fase, tipo, cota_m, estrutura, texto}].
+    `bloco` numera as listas (a numeração recomeça em 1); `fase` é o número da nota; `estrutura` é a citada no mesmo
+    bloco ou None; `cota_m` é None onde a nota diz só 'cota final'."""
+    inicios = [m.start() for m in INICIO_DE_LISTA.finditer(texto)] + [len(texto)]
+    notas, bloco = [], 0
+    for ini, fim in itertools.pairwise(inicios):
+        achada = ESTRUTURA.search(texto[ini:fim])
+        achadas = list(NOTA.finditer(texto, ini, fim))
+        bloco += bool(
+            achadas
+        )  # só as listas com notas de escavação ou reaterro são numeradas
+        for m in achadas:
+            cota = COTA.search(m[3])
+            notas.append(
+                {
+                    "bloco": bloco,
+                    "fase": int(m[1]),
+                    "tipo": m[2].lower(),
+                    "cota_m": float(f"{cota[1]}.{cota[2]}") if cota else None,
+                    "estrutura": achada[1] if achada else None,
+                    "texto": f"{m[2]}{m[3]}".strip(),
+                }
+            )
+    return notas
+
+
+def sequencia_executiva(pdf: str | Path) -> list[dict]:
+    """Notas da sequência executiva de uma planta (texto vetorial decodificado por `decodificar_texto`)."""
+    import pymupdf
+
+    with pymupdf.open(pdf) as doc:
+        return notas_do_texto(decodificar_texto(doc[0].get_text()))
+
+
+def ligar_sequencia(notas: list[dict], cavas: list[dict]) -> list[dict]:
+    """Confere cada cota de escavação contra o fundo do modelo só onde a ligação é objetiva: exatamente uma cava com
+    fundo mínimo a ±`TOL_FUNDO_M` da cota (ligação por valor; a nota não diz onde). O resto é "não conferível" com o
+    motivo: reaterro (o modelo não tem cota de reaterro), cota final sem valor, nenhuma cava ou várias com esse fundo."""
+    saida = []
+    for n in notas:
+        r = {**n, "situacao": "não conferível", "cava": None}
+        if n["tipo"] != "escavação":
+            r["motivo"] = "o modelo não tem cota de reaterro"
+        elif n["cota_m"] is None:
+            r["motivo"] = "a nota diz 'cota final' sem valor numérico"
+        else:
+            perto = [
+                c for c in cavas if abs(c["fundo_m"][0] - n["cota_m"]) <= TOL_FUNDO_M
+            ]
+            if len(perto) == 1:
+                r.update(
+                    situacao="confere",
+                    cava=perto[0]["id"],
+                    motivo=(
+                        f"fundo do modelo na cava {perto[0]['id']}: {perto[0]['fundo_m'][0]:.2f} m "
+                        f"(a ±{TOL_FUNDO_M:.2f} m; ligação só por valor)"
+                    ),
+                )
+            else:
+                onde = f"{len(perto)} cavas" if perto else "nenhuma cava"
+                r["motivo"] = (
+                    f"{onde} com fundo a ±{TOL_FUNDO_M:.2f} m da cota: a nota não diz onde"
+                )
+        saida.append(r)
+    return _sem_ligacao_repetida(saida)
+
+
+def _sem_ligacao_repetida(linhas: list[dict]) -> list[dict]:
+    """A mesma cava ligada por notas de estruturas diferentes (cotas iguais escritas para estruturas distintas) não
+    prova onde a cota vale: essas ligações voltam a "não conferível"."""
+    estruturas: dict[str, set] = {}
+    for r in linhas:
+        if r["cava"]:
+            estruturas.setdefault(r["cava"], set()).add(r["estrutura"])
+    for r in linhas:
+        if r["cava"] and len(estruturas[r["cava"]]) > 1:
+            r["motivo"] = (
+                f"a cava {r['cava']} também casa com notas de {len(estruturas[r['cava']]) - 1} outra(s) "
+                "estrutura(s): a nota não diz onde"
+            )
+            r["situacao"], r["cava"] = "não conferível", None
+    return linhas
+
+
+# --- apresentação (texto pronto para o HTML) -----------------------------------------------------------------------
+def _txt(valor, casas: int = 2, sinal: bool = False) -> str:
+    """Número com vírgula decimal; '—' onde não há valor."""
+    if valor is None:
+        return "—"
+    return (
+        f"{valor:+.{casas}f}".replace(".", ",")
+        if sinal
+        else f"{valor:.{casas}f}".replace(".", ",")
+    )
+
+
+def formatar_secao(r: dict) -> dict:
+    """Linha de seção da conferência com os números já em texto (o HTML só mostra)."""
+    terr = r.get("terreno")
+    return {
+        "secao": r["secao"],
+        "prancha": r["prancha"],
+        "situacao": r["situacao"],
+        "motivo": r.get("motivo", ""),
+        "area_projeto_txt": _txt(r["area_projeto_m2"], 1),
+        "area_modelo_txt": _txt(r.get("area_modelo_m2"), 1),
+        "dif_area_txt": _txt(r.get("dif_area_m2"), 1, True),
+        "dif_area_rel_txt": "—"
+        if r.get("dif_area_rel") is None
+        else f"{r['dif_area_rel']:+.0%}".replace(".", ","),
+        "fundo_projeto_txt": _txt(r["fundo_projeto_m"]),
+        "fundo_modelo_txt": _txt(r.get("fundo_modelo_m")),
+        "dif_fundo_txt": _txt(r.get("dif_fundo_m"), 2, True),
+        "dif_terreno_txt": _txt(terr and terr["dif_media_m"], 2, True),
+        "talude_projeto_txt": _txt(r.get("talude_projeto_h_v"), 2),
+    }
+
+
+def formatar_media(r: dict) -> dict:
+    """Linha de seção média com os números em texto."""
+    return {
+        "cava": r["cava"],
+        "secoes": " e ".join(r.get("secoes", [])) or "—",
+        "situacao": r["situacao"],
+        "motivo": r.get("motivo", ""),
+        "distancia_txt": _txt(r.get("distancia_m"), 1),
+        "volume_projeto_txt": _txt(r.get("volume_projeto_m3"), 0),
+        "volume_modelo_txt": _txt(r.get("volume_modelo_m3"), 0),
+        "dif_rel_txt": "—"
+        if r.get("dif_rel") is None
+        else f"{r['dif_rel']:+.0%}".replace(".", ","),
+    }
+
+
+def formatar_nota(n: dict) -> dict:
+    """Linha da sequência executiva com a cota em texto."""
+    return {
+        "bloco": n["bloco"],
+        "fase": n["fase"],
+        "tipo": n["tipo"],
+        "cota_txt": _txt(n["cota_m"]),
+        "estrutura": n["estrutura"] or "—",
+        "situacao": n["situacao"],
+        "motivo": n["motivo"],
+    }
+
+
+def placar(linhas: list[dict]) -> dict[str, int]:
+    """Contagem por situação (confere / difere / não conferível)."""
+    return {
+        s: sum(l["situacao"] == s for l in linhas)
+        for s in ("confere", "difere", "não conferível")
+    }
+
+
+def _tolerancias_txt() -> list[str]:
+    return [
+        f"fundo ±{TOL_FUNDO_M:.2f} m (absoluta)".replace(".", ","),
+        f"terreno médio MDS × TERRENO ORIGINAL ±{TOL_TERRENO_M:.2f} m (absoluta)".replace(
+            ".", ","
+        ),
+        f"área: o maior entre {TOL_AREA_REL:.0%} da área do projeto e {TOL_TERRENO_M:.2f} m × largura do corte".replace(
+            ".", ","
+        ),
+        f"seções médias: volume ±{TOL_VOLUME_REL:.0%}",
+        f"corte com área < {AREA_MINIMA_M2:g} m²: sem corte no projeto",
+    ]
+
+
+# --- etapa do build ------------------------------------------------------------------------------------------------
+def _assinatura(pdf: str | Path, extra="") -> str:
+    arq = Path(pdf)
+    return f"{arq.stat().st_size}:{int(arq.stat().st_mtime)}:{extra}"
+
+
+def _com_cache(cache: dict, chave: str, assinatura: str, calcular):
+    """Resultado em cache (a leitura de PDF e o OCR são lentos), recalculado se a assinatura do arquivo mudou."""
+    if cache.get(chave, {}).get("assinatura") != assinatura:
+        cache[chave] = {"assinatura": assinatura, "valor": calcular()}
+    return cache[chave]["valor"]
+
+
+def _ler_pdfs(
+    c: dict, pranchas: list, cache: dict, log
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Seções do projeto (pranchas de corte), linhas das plantas e notas da sequência executiva."""
+    from . import secoes_corte
+
+    projeto = []
+    for pdf in c["pranchas_corte"]:
+        projeto += _com_cache(
+            cache,
+            f"corte:{pdf}",
+            _assinatura(pdf),
+            lambda pdf=pdf: secoes_corte.ler_secoes(pdf),
+        )
+    linhas, notas = [], []
+    por_id = {p["id"]: p for p in pranchas}
+    for pid in c["pranchas_planta"]:
+        p = por_id.get(pid)
+        if p is None or p.get("M") is None or not Path(p["pdf"]).exists():
+            log(
+                f"Conferência das cavas: planta {pid} sem georreferência ou sem PDF, fica de fora"
+            )
+            continue
+        M = np.asarray(p["M"], float)
+        linhas += _com_cache(
+            cache,
+            f"linhas:{pid}",
+            _assinatura(p["pdf"], M.round(6).tolist()),
+            lambda p=p, M=M: linhas_da_planta(p["pdf"], M, p.get("clip"), p["id"]),
+        )
+        notas += _com_cache(
+            cache,
+            f"notas:{pid}",
+            _assinatura(p["pdf"]),
+            lambda p=p: sequencia_executiva(p["pdf"]),
+        )
+    return projeto, linhas, notas
+
+
+def conferir(projeto: list, linhas: list, notas: list, saida: dict) -> dict:
+    """Junta tudo: `saida` é o que a escavação entregou (`g`, `corte`, `contornos`, `resultado`)."""
+    g, corte = saida["g"], saida["corte"]
+    unicas, alertas = unir_linhas(linhas)
+    retas = [l for l in unicas if not l.get("quebrada")]
+    modelo = {
+        l["secao"]: {
+            **perfil_do_modelo(l, g, corte),
+            "linha_prancha": l["prancha"],
+            "comprimento_linha_m": l["comprimento_m"],
+            "quebrada": bool(l.get("quebrada")),
+        }
+        for l in unicas
+    }
+    secoes = conferir_secoes(projeto, modelo)
+    medias = secoes_medias(retas, secoes, saida["contornos"], g, corte)
+    return {
+        "secoes": secoes,
+        "medias": medias,
+        "sequencia": ligar_sequencia(notas, saida["cavas_info"]),
+        "linhas": unicas,
+        "alertas": alertas,
+    }
+
+
+def etapa(
+    cfg: dict, pranchas: list, out: Path, saida_gavetas: dict | None, log=print
+) -> dict | None:
+    """Etapa do build: confere as cavas do modelo contra as seções de corte do projeto. Grava
+    `conferencia_cavas.json` e devolve o pacote do HTML (números já em texto). Sem PDF de corte no disco ou sem as
+    cavas calculadas, pula com a pendência no log."""
+    c = (cfg.get("escavacao") or {}).get("conferencia")
+    if not c:
+        return None
+    if not any(Path(p).exists() for p in c["pranchas_corte"]):
+        log(
+            "Conferência das cavas: PDFs das pranchas de corte ausentes no disco (pendência; o build segue sem ela)"
+        )
+        return None
+    if not saida_gavetas or "corte" not in saida_gavetas:
+        log(
+            "Conferência das cavas: a escavação não foi calculada (pendência; o build segue sem ela)"
+        )
+        return None
+    cache_arq = out / "conferencia_cavas_cache.json"
+    cache = json.loads(cache_arq.read_text()) if cache_arq.exists() else {}
+    c = {**c, "pranchas_corte": [p for p in c["pranchas_corte"] if Path(p).exists()]}
+    projeto, linhas, notas = _ler_pdfs(c, pranchas, cache, log)
+    cache_arq.write_text(json.dumps(cache, ensure_ascii=False))
+    r = conferir(projeto, linhas, notas, saida_gavetas)
+    (out / "conferencia_cavas.json").write_text(
+        json.dumps(r, ensure_ascii=False, indent=1, default=float)
+    )
+    p = placar(r["secoes"])
+    log(
+        f"Conferência das cavas: {len(r['secoes'])} seções — {p['confere']} confere, {p['difere']} difere, "
+        f"{p['não conferível']} não conferível; seções médias {placar(r['medias'])}; {len(r['alertas'])} alerta(s)"
+    )
+    return para_html(r)
+
+
+def para_html(r: dict) -> dict:
+    """Pacote do HTML: linhas já formatadas em Python (o front só apresenta)."""
+    return {
+        "placar": placar(r["secoes"]),
+        "secoes": [formatar_secao(s) for s in r["secoes"]],
+        "medias": [formatar_media(m) for m in r["medias"]],
+        "sequencia": [formatar_nota(n) for n in r["sequencia"]],
+        "alertas": r["alertas"],
+        "tolerancias": _tolerancias_txt(),
+        "nota": f"O modelo usa talude {escavacao.VALOR['talude_h_v']:g}H:1V; onde o projeto tem contenção por "
+        "estacas (talude ~0) a área do modelo tende a ser maior.".replace(".", ","),
+    }

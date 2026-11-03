@@ -533,7 +533,18 @@
     0.63
    ]
   },
-  "fonte": "PBGE ESCAVAÇÃO 1/2/3 (folhas 06-08/14, R2): base = estruturas projetadas, fundo = marcas de nível (OCR), crista = RETALUDAMENTO"
+  "fonte": "PBGE ESCAVAÇÃO 1/2/3 (folhas 06-08/14, R2): base = estruturas projetadas, fundo = marcas de nível (OCR), crista = RETALUDAMENTO",
+  "conferencia": {
+   "pranchas_corte": [
+    "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/009-SAA-0017-8820-PBGE-DE-0000ETA01CORTES1-R2.pdf",
+    "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/010-SAA-0017-8820-PBGE-DE-0000ETA01CORTES2-R2.pdf"
+   ],
+   "pranchas_planta": [
+    "es1",
+    "es2",
+    "es3"
+   ]
+  }
  },
  "valas": {
   "fonte": "posição do tubo nas plantas (SJMH_ADUTORA_DIVISAS na AAT00; meio-fio SJMH_ADUTORA_VIAS × alinhamento SJMH_ADUTORA_DIVISAS nas AAT01/02; 549_QUADRAS na AAT06), ortofoto do drone e urbanização da ETA (H01 = asfalto novo, 2 780 m² × 2 704 m² no contrato; o H05 marca o interior de estruturas, não piso — fica de fora)",

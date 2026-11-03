@@ -25,6 +25,7 @@ import cv2
 import numpy as np
 
 from . import (
+    conferencia_cavas,
     construtivos,
     eap,
     eap_html,
@@ -832,6 +833,8 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
     lote; os elementos construtivos da aba Obra (`camadas.construtivos`), que juntam tudo o que já é vetor; a EAP
     (`camadas.eap`), que dá código e quantidade a cada elemento; e o loop de evidências (`camadas.evidencias`)."""
+    if cavas and cavas.get("conferencia"):                      # conferência das cavas × seções de corte (aba EAP)
+        dados["conferencia_cavas"] = cavas["conferencia"]
     pacotes["obras_lineares"] = obras_lineares.etapa(cfg, dados["sondagens"], out, log=_log)   # vala (MOS) da planilha
     servicos_gavetas = None
     try:                                                       # a base das gavetas não pode derrubar o build
@@ -876,6 +879,17 @@ def _sondagens_no_build(dados: dict, cfg: dict, furos: list, esc: dict | None, e
         dados["modelo3d"]["sondagens"] = sondagens_3d(furos, dados["modelo3d"]["origem"])
 
 
+def _escavacao_e_conferencia(cfg: dict, pranchas: list, out: Path, vertical: dict | None, cavas_gavetas: dict):
+    """Escavação e reaterro (`escavacao.etapa`) e, logo depois, a conferência das cavas contra as seções de corte do
+    projeto (`camadas.conferencia_cavas`), que fica em `cavas_gavetas["conferencia"]`; a conferência nunca derruba o build."""
+    esc = escavacao.etapa(cfg, pranchas, out, vertical, log=_log, saida_gavetas=cavas_gavetas)
+    try:
+        cavas_gavetas["conferencia"] = conferencia_cavas.etapa(cfg, pranchas, out, cavas_gavetas, log=_log)
+    except Exception as erro:  # noqa: BLE001 - falha da conferência vira pendência, não erro do build
+        _log(f"Conferência das cavas: não concluída (pendência; {type(erro).__name__}: {erro})")
+    return esc
+
+
 def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     cfg = json.loads(Path(cfg_path).read_text())
     out = Path(cfg["saida"])
@@ -892,7 +906,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     lista, vetores, pendentes = _pranchas_no_mapa(cfg, pranchas, orto["extensao_utm"], epsg)
     crs = visualizador.crs_info(epsg, [e0, n0, e1, n1], rel["alt_decolagem_m"])
     cavas_gavetas: dict = {}                          # o que a escavação entrega às gavetas (cavas)
-    esc = escavacao.etapa(cfg, pranchas, out, vertical, log=_log, saida_gavetas=cavas_gavetas)   # escavação e reaterro
+    esc = _escavacao_e_conferencia(cfg, pranchas, out, vertical, cavas_gavetas)   # escavação, reaterro e conferência
     escopo = etapa_escopo(cfg)
     if escopo:
         escopo["tubo_x_desenho"] = tubo_contrato_x_desenho(escopo, lista, cfg)
