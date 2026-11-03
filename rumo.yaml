@@ -1,14 +1,10 @@
-objetivo: 'Conferir as cavas da memória espacial de Foz por testemunhas independentes do
-  cálculo pelo MDS: área e fundo de cada seção das pranchas de corte e cotas da sequência executiva'
+objetivo: 'Conferir as cavas da memória espacial de Foz por testemunhas independentes do cálculo pelo MDS: área e fundo de cada seção das pranchas de corte e cotas da sequência executiva'
 criterio_de_pronto:
-- seções das pranchas de corte (009 e 010) lidas em código: área de corte (m²) e cota de fundo
-  por seção, com o método e a tolerância declarados
-- as mesmas seções medidas no modelo (terreno do MDS × fundo da cava) pela linha de seção da planta
-- cotas de fundo e de reaterro da sequência executiva (planta 02) conferidas contra o modelo, com
-  tolerância absoluta
-- volume por seções médias só onde duas ou mais seções paralelas cortam a mesma cava; o resto
-  fica declarado como não conferível
-- build real de Foz refeito; relatório em docs/plano com o que bateu e o que diferiu
+- "seções das pranchas de corte (009 e 010) lidas em código: área de corte (m²) e cota de fundo por seção, com método e tolerância declarados"
+- "as mesmas seções medidas no modelo (terreno do MDS × fundo da cava) pela linha de seção da planta"
+- "cotas de fundo e de reaterro da sequência executiva (planta 02) conferidas contra o modelo, com tolerância absoluta"
+- "volume por seções médias só onde duas ou mais seções paralelas cortam a mesma cava; o resto fica declarado como não conferível"
+- "build real de Foz refeito; relatório em docs/plano com o que bateu e o que diferiu"
 base: 7f7ab41
 etapas:
 - id: E1
@@ -66,8 +62,7 @@ etapas:
 historico:
 - data: '2026-11-03'
   mudanca: 'objetivo anterior concluído: build real de Foz (PR #46, 0.45.0)'
-  motivo: 'Caio pediu a conferência das cavas; a planilha do contrato e as pranchas não declaram
-    volume de cava, e ele escolheu a conferência por cortes e cotas'
+  motivo: 'Caio pediu a conferência das cavas; a planilha do contrato e as pranchas não declaram volume de cava, e ele escolheu a conferência por cortes e cotas'
 - data: '2026-11-02'
   mudanca: 'objetivo anterior (de outra sessão): Travar o comportamento atual do pipeline
     (camadas/obra.py) com testes de caracterização antes de novas mudanças — concluído
