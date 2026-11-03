@@ -1,18 +1,21 @@
 {
  "metadata": {
-  "fonte": "prática de orçamento de obras de saneamento e organização por etapas de execução do MOS Sanepar (Manual de Obras de Saneamento); o MOS não está no repositório (só referencias/sanepar/MOS_largura_de_vala_tabela_I.png), então a numeração e os nomes das etapas são premissa a conferir com o MOS",
+  "fonte": "prática de orçamento de obras de saneamento e organização por etapas de execução do MOS Sanepar (Manual de Obras de Saneamento); o MOS não está no repositório (só referencias/sanepar/MOS_largura_de_vala_tabela_I.png), então a numeração e os nomes das etapas são premissa a conferir com o MOS; títulos de etapa da planilha de contrato Sanepar 211/26 (Foz do Iguaçu, aba CUSTO CIVIL), em `titulos_sanepar` de cada etapa. A estrutura da Sanepar (UNIDADE → frente numerada → título de etapa) casa com a EAP codificada: a UNIDADE é a unidade/sistema do código (U1.SISTEMA…), a frente é um recorte dentro da unidade e o título de etapa é a etapa deste padrão (cada tipo de obra tem a sua)",
   "estado": "premissa",
-  "observacoes": "Esqueleto de EAP por ETAPA DE EXECUÇÃO (ordem de obra), por tipo de obra, a preencher a cada obra. É uma vista: cada folha aponta para códigos da EAP codificada (conceitos/eap_geral.jsonl, DISC.PAC.ITEM) e, se couber, para um serviço de conceitos/servicos.jsonl; não cria quantificação nova. Folha sem `aponta` não tem item codificado e é preenchida à mão (hoje todas apontam: GER, CIV.ACA, CIV.PAV.URB e HID.TUB.MND/TRV/ANC/CAM cobrem as que não tinham). `obrigatoria` = a obra desse tipo sempre tem o serviço (mobilização sim, método não destrutivo não). `escopo` opcional: agua, esgoto ou ambos (padrão). Prefixos dos ids: OP = obra pontual (localizada: ETA, reservatório, estação elevatória, unidade de tratamento); OL = obra linear (adutora, rede, emissário, coletor). Não há número de capítulo ou módulo do MOS aqui, de propósito."
+  "observacoes": "Esqueleto de EAP por ETAPA DE EXECUÇÃO (ordem de obra), por tipo de obra, a preencher a cada obra. É uma vista: cada folha aponta para códigos da EAP codificada (conceitos/eap_geral.jsonl, DISC.PAC.ITEM) e, se couber, para um serviço de conceitos/servicos.jsonl; não cria quantificação nova. Folha sem `aponta` não tem item codificado e é preenchida à mão (hoje todas apontam: GER, CIV.ACA, CIV.PAV.URB e HID.TUB.MND/TRV/ANC/CAM cobrem as que não tinham). `obrigatoria` = a obra desse tipo sempre tem o serviço (mobilização sim, método não destrutivo não). `escopo` opcional: agua, esgoto ou ambos (padrão). Prefixos dos ids: OP = obra pontual (localizada: ETA, reservatório, estação elevatória, unidade de tratamento); OL = obra linear (adutora, rede, emissário, coletor). Não há número de capítulo ou módulo do MOS aqui, de propósito. `titulos_sanepar` (lista, possivelmente vazia) traz os títulos de etapa (N2) reais do contrato Sanepar 211/26 que correspondem à etapa; é só referência de leitura (a validação confere o formato). A etapa 00 (administração local da obra, ALO) abre cada unidade na planilha Sanepar. Títulos sem etapa própria: nenhum título N2 ficou sem etapa, mas alguns casam com mais de uma ('MATERIAIS EQUIPAMENTOS' em 07 e 08; 'ÁGUA POTÁVEL' agrupa vala, assentamento e reaterro da adutora; 'BLOCOS DE APOIO' vai em OL.04 sem folha própria, junto das ancoragens). As frentes numeradas (N1: interligações água bruta/potável, aplicações de produtos químicos e coletas, reforma de edifício/guarita/abrigos/urbanização, infraestrutura e sistemas de microareia, válvulas e comportas, instalações elétricas, adutoras AAT 06/AAT 02/Vila C) não são etapas: são recortes por frente dentro da unidade e ficam fora do padrão."
  },
  "tipos": {
   "obra_localizada": {"nome": "Obra localizada (ETA, reservatório, estação elevatória, unidade de tratamento)", "prefixo": "OP", "etapas": [
-   {"id": "OP.01", "nome": "Serviços preliminares", "folhas": [
+   {"id": "OP.00", "nome": "Administração local da obra", "titulos_sanepar": ["ADMINISTRAÇÃO LOCAL DE OBRA - ALO"], "folhas": [
+    {"id": "OP.00.01", "nome": "Administração local da obra (ALO)", "aponta": [{"item": "GER.PRE.ALO"}], "obrigatoria": true, "observacao": "Medida por mês (equipe técnica e administrativa da obra); na planilha Sanepar abre cada unidade."}
+   ]},
+   {"id": "OP.01", "nome": "Serviços preliminares", "titulos_sanepar": ["SERVIÇOS PRELIMINARES"], "folhas": [
     {"id": "OP.01.01", "nome": "Mobilização e canteiro", "aponta": [{"item": "GER.PRE.MOB"}], "obrigatoria": true},
     {"id": "OP.01.02", "nome": "Locação e topografia", "aponta": [{"item": "GER.PRE.TOP"}], "obrigatoria": true},
     {"id": "OP.01.03", "nome": "Corte e demolição de pavimento existente", "aponta": [{"item": "CIV.PAV.REC", "servico": "corte_pavimento"}, {"item": "CIV.PAV.CAL", "servico": "corte_pavimento"}, {"item": "CIV.PAV.REC", "servico": "demolicao"}, {"item": "CIV.PAV.CAL", "servico": "demolicao"}], "obrigatoria": false, "observacao": "Demolição de estruturas de concreto ou alvenaria existentes não tem item codificado: preencher manualmente."},
     {"id": "OP.01.04", "nome": "Supressão vegetal e limpeza do terreno", "aponta": [{"item": "GEO.MOV.SUP"}], "obrigatoria": false}
    ]},
-   {"id": "OP.02", "nome": "Movimento de terra", "folhas": [
+   {"id": "OP.02", "nome": "Movimento de terra", "titulos_sanepar": [], "folhas": [
     {"id": "OP.02.01", "nome": "Escavação de cava", "aponta": [{"item": "GEO.MOV.ESC"}], "obrigatoria": true},
     {"id": "OP.02.02", "nome": "Escoramento de cava", "aponta": [{"item": "GEO.MOV.ESC", "servico": "escoramento"}], "obrigatoria": false},
     {"id": "OP.02.03", "nome": "Esgotamento e rebaixamento do lençol", "aponta": [{"item": "GEO.MOV.ESC", "servico": "esgotamento"}, {"item": "GEO.MOV.ESC", "servico": "rebaixamento"}], "obrigatoria": false},
@@ -20,7 +23,7 @@
     {"id": "OP.02.05", "nome": "Carga, transporte e bota-fora", "aponta": [{"item": "GEO.MOV.ESC", "servico": "bota_fora"}], "obrigatoria": false},
     {"id": "OP.02.06", "nome": "Valas de tubulações internas", "aponta": [{"item": "GEO.MOV.VAL"}], "obrigatoria": false}
    ]},
-   {"id": "OP.03", "nome": "Fundações", "folhas": [
+   {"id": "OP.03", "nome": "Fundações", "titulos_sanepar": [], "folhas": [
     {"id": "OP.03.01", "nome": "Estacas", "aponta": [{"item": "GEO.FUN.EST"}], "obrigatoria": false},
     {"id": "OP.03.02", "nome": "Arrasamento de estacas", "aponta": [{"item": "GEO.FUN.EST", "servico": "arrasamento"}], "obrigatoria": false},
     {"id": "OP.03.03", "nome": "Contenções e tirantes", "aponta": [{"item": "GEO.FUN.CON"}], "obrigatoria": false},
@@ -28,7 +31,7 @@
     {"id": "OP.03.05", "nome": "Vigas baldrame", "aponta": [{"item": "CIV.EST.BAL"}], "obrigatoria": false},
     {"id": "OP.03.06", "nome": "Lastro de concreto magro", "aponta": [{"item": "GEO.FUN.BLO", "servico": "lastro"}, {"item": "CIV.EST.BAL", "servico": "lastro"}, {"item": "CIV.EST.PIS", "servico": "lastro"}], "obrigatoria": false}
    ]},
-   {"id": "OP.04", "nome": "Estrutura de concreto", "folhas": [
+   {"id": "OP.04", "nome": "Estrutura de concreto", "titulos_sanepar": [], "folhas": [
     {"id": "OP.04.01", "nome": "Pisos e lajes", "aponta": [{"item": "CIV.EST.PIS"}], "obrigatoria": true},
     {"id": "OP.04.02", "nome": "Vigas", "aponta": [{"item": "CIV.EST.VIG"}], "obrigatoria": false},
     {"id": "OP.04.03", "nome": "Pilares", "aponta": [{"item": "CIV.EST.PIL"}], "obrigatoria": false},
@@ -38,90 +41,94 @@
     {"id": "OP.04.07", "nome": "Concreto estrutural", "aponta": [{"item": "GEO.FUN.EST", "servico": "concreto"}, {"item": "GEO.FUN.BLO", "servico": "concreto"}, {"item": "CIV.EST.BAL", "servico": "concreto"}, {"item": "CIV.EST.PIS", "servico": "concreto"}, {"item": "CIV.EST.VIG", "servico": "concreto"}, {"item": "CIV.EST.PIL", "servico": "concreto"}, {"item": "CIV.EST.PAR", "servico": "concreto"}], "obrigatoria": true},
     {"id": "OP.04.08", "nome": "Escoramento e cimbramento", "aponta": [{"item": "CIV.EST.PIS", "servico": "escoramento"}, {"item": "CIV.EST.VIG", "servico": "escoramento"}], "obrigatoria": false}
    ]},
-   {"id": "OP.05", "nome": "Impermeabilização", "folhas": [
+   {"id": "OP.05", "nome": "Impermeabilização", "titulos_sanepar": [], "folhas": [
     {"id": "OP.05.01", "nome": "Impermeabilização de paredes, lajes e baldrames", "aponta": [{"item": "CIV.EST.PAR", "servico": "impermeabilizacao"}, {"item": "CIV.EST.PIS", "servico": "impermeabilizacao"}, {"item": "CIV.EST.BAL", "servico": "impermeabilizacao"}], "obrigatoria": false}
    ]},
-   {"id": "OP.06", "nome": "Arquitetura e acabamentos", "folhas": [
+   {"id": "OP.06", "nome": "Arquitetura e acabamentos", "titulos_sanepar": ["REFORMA EDIFÍCIO LODO", "GUARITA", "ABRIGOS"], "folhas": [
     {"id": "OP.06.01", "nome": "Alvenaria e vedações", "aponta": [{"item": "CIV.EST.PAR", "servico": "alvenaria"}], "obrigatoria": false},
     {"id": "OP.06.02", "nome": "Revestimentos, esquadrias, cobertura e pintura", "aponta": [{"item": "CIV.ACA.ACB"}], "obrigatoria": false}
    ]},
-   {"id": "OP.07", "nome": "Instalações hidráulicas", "folhas": [
+   {"id": "OP.07", "nome": "Instalações hidráulicas", "titulos_sanepar": ["MATERIAIS EQUIPAMENTOS"], "folhas": [
     {"id": "OP.07.01", "nome": "Tubulações", "aponta": [{"item": "HID.TUB.RED"}], "obrigatoria": true},
     {"id": "OP.07.02", "nome": "Conexões, válvulas e peças especiais", "aponta": [{"item": "HID.TUB.VAL"}], "obrigatoria": true},
-    {"id": "OP.07.03", "nome": "Poços de visita e caixas", "aponta": [{"item": "HID.TUB.PVS"}], "escopo": "esgoto", "obrigatoria": false}
+    {"id": "OP.07.03", "nome": "Poços de visita e caixas", "aponta": [{"item": "HID.TUB.PVS"}], "obrigatoria": false}
    ]},
-   {"id": "OP.08", "nome": "Equipamentos", "folhas": [
+   {"id": "OP.08", "nome": "Equipamentos", "titulos_sanepar": ["MATERIAIS EQUIPAMENTOS", "SISTEMA PNEUMÁTICO"], "folhas": [
     {"id": "OP.08.01", "nome": "Equipamentos hidromecânicos e de processo", "aponta": [{"item": "HID.EQP.EQU"}], "obrigatoria": true}
    ]},
-   {"id": "OP.09", "nome": "Elétrica e automação", "folhas": [
+   {"id": "OP.09", "nome": "Elétrica e automação", "titulos_sanepar": [], "folhas": [
     {"id": "OP.09.01", "nome": "Instalações elétricas, automação e instrumentação", "aponta": [{"item": "ELE.FOR.INS"}], "obrigatoria": true},
     {"id": "OP.09.02", "nome": "Aterramento e SPDA", "aponta": [{"item": "ELE.ATE.ATE"}], "obrigatoria": true}
    ]},
-   {"id": "OP.10", "nome": "Urbanização e pavimentação", "folhas": [
+   {"id": "OP.10", "nome": "Urbanização e pavimentação", "titulos_sanepar": ["URBANIZAÇÃO", "RECOMPOSIÇÃO DE PAVIMENTO"], "folhas": [
     {"id": "OP.10.01", "nome": "Recomposição de pavimento", "aponta": [{"item": "CIV.PAV.REC"}], "obrigatoria": false},
     {"id": "OP.10.02", "nome": "Calçadas e passeios", "aponta": [{"item": "CIV.PAV.CAL"}], "obrigatoria": false},
     {"id": "OP.10.03", "nome": "Drenagem superficial, cercamento e paisagismo", "aponta": [{"item": "CIV.PAV.URB"}], "obrigatoria": false}
    ]},
-   {"id": "OP.11", "nome": "Ensaios, testes e comissionamento", "folhas": [
+   {"id": "OP.11", "nome": "Ensaios, testes e comissionamento", "titulos_sanepar": [], "folhas": [
     {"id": "OP.11.01", "nome": "Testes hidrostáticos e de estanqueidade", "aponta": [{"item": "HID.TUB.RED", "servico": "teste_estanqueidade"}], "obrigatoria": true},
     {"id": "OP.11.02", "nome": "Ensaios de materiais e controle tecnológico", "aponta": [{"item": "GER.CTL.ENS"}], "obrigatoria": false},
     {"id": "OP.11.03", "nome": "Comissionamento e operação assistida", "aponta": [{"item": "GER.CTL.COM"}], "obrigatoria": false}
    ]},
-   {"id": "OP.12", "nome": "Serviços finais", "folhas": [
+   {"id": "OP.12", "nome": "Serviços finais", "titulos_sanepar": ["SERVIÇOS FINAIS"], "folhas": [
     {"id": "OP.12.01", "nome": "Limpeza final", "aponta": [{"item": "GER.FIN.LIM"}], "obrigatoria": true},
     {"id": "OP.12.02", "nome": "Cadastro e as built", "aponta": [{"item": "GER.FIN.CAD"}], "obrigatoria": true},
     {"id": "OP.12.03", "nome": "Desmobilização", "aponta": [{"item": "GER.FIN.DES"}, {"item": "GER.PRE.MOB", "servico": "mobilizacao"}], "obrigatoria": true, "observacao": "Planilha costuma trazer \"mobilização e desmobilização\" numa linha só: ela é classificada como mobilização (GER.PRE.MOB, serviço mobilizacao) e lida aqui também; só \"desmobilização\" isolada vai para GER.FIN.DES."}
    ]}
   ]},
   "obra_linear": {"nome": "Obra linear (adutora, rede, emissário, coletor)", "prefixo": "OL", "etapas": [
-   {"id": "OL.01", "nome": "Preliminares", "folhas": [
+   {"id": "OL.00", "nome": "Administração local da obra", "titulos_sanepar": ["ADMINISTRAÇÃO LOCAL DE OBRA - ALO"], "folhas": [
+    {"id": "OL.00.01", "nome": "Administração local da obra (ALO)", "aponta": [{"item": "GER.PRE.ALO"}], "obrigatoria": true, "observacao": "Medida por mês (equipe técnica e administrativa da obra); na planilha Sanepar abre cada unidade."}
+   ]},
+   {"id": "OL.01", "nome": "Preliminares", "titulos_sanepar": ["SERVIÇOS PRELIMINARES"], "folhas": [
     {"id": "OL.01.01", "nome": "Mobilização e canteiro", "aponta": [{"item": "GER.PRE.MOB"}], "obrigatoria": true},
     {"id": "OL.01.02", "nome": "Locação e topografia do traçado", "aponta": [{"item": "GER.PRE.TOP"}], "obrigatoria": true},
     {"id": "OL.01.03", "nome": "Sinalização e segurança de tráfego", "aponta": [{"item": "GER.PRE.SIN"}], "obrigatoria": true},
     {"id": "OL.01.04", "nome": "Supressão vegetal e limpeza da faixa", "aponta": [{"item": "GEO.MOV.SUP"}], "obrigatoria": false}
    ]},
-   {"id": "OL.02", "nome": "Remoção de pavimento", "folhas": [
+   {"id": "OL.02", "nome": "Remoção de pavimento", "titulos_sanepar": [], "folhas": [
     {"id": "OL.02.01", "nome": "Corte de pavimento", "aponta": [{"item": "CIV.PAV.REC", "servico": "corte_pavimento"}, {"item": "CIV.PAV.CAL", "servico": "corte_pavimento"}], "obrigatoria": false},
     {"id": "OL.02.02", "nome": "Demolição e remoção de pavimento", "aponta": [{"item": "CIV.PAV.REC", "servico": "demolicao"}, {"item": "CIV.PAV.CAL", "servico": "demolicao"}], "obrigatoria": false}
    ]},
-   {"id": "OL.03", "nome": "Vala", "folhas": [
+   {"id": "OL.03", "nome": "Vala", "titulos_sanepar": ["ÁGUA POTÁVEL"], "folhas": [
     {"id": "OL.03.01", "nome": "Escavação de vala", "aponta": [{"item": "GEO.MOV.VAL", "servico": "escavacao"}, {"item": "GEO.MOV.VAL", "servico": "escavacao_rocha"}], "obrigatoria": true},
     {"id": "OL.03.02", "nome": "Escoramento de vala", "aponta": [{"item": "GEO.MOV.VAL", "servico": "escoramento_pontaleteamento"}, {"item": "GEO.MOV.VAL", "servico": "escoramento_descontinuo"}, {"item": "GEO.MOV.VAL", "servico": "escoramento_continuo"}, {"item": "GEO.MOV.VAL", "servico": "escoramento_especial"}, {"item": "GEO.MOV.VAL", "servico": "escoramento"}], "obrigatoria": false},
     {"id": "OL.03.03", "nome": "Esgotamento e rebaixamento do lençol", "aponta": [{"item": "GEO.MOV.VAL", "servico": "esgotamento"}, {"item": "GEO.MOV.VAL", "servico": "rebaixamento"}], "obrigatoria": false}
    ]},
-   {"id": "OL.04", "nome": "Assentamento", "folhas": [
+   {"id": "OL.04", "nome": "Assentamento", "titulos_sanepar": ["BLOCOS DE ANCORAGEM", "BLOCOS DE APOIO", "ÁGUA POTÁVEL"], "folhas": [
     {"id": "OL.04.01", "nome": "Berço do tubo", "aponta": [{"item": "GEO.MOV.VAL", "servico": "berco"}], "obrigatoria": false},
     {"id": "OL.04.02", "nome": "Assentamento do tubo", "aponta": [{"item": "HID.TUB.RED"}, {"item": "HID.TUB.RED", "servico": "assentamento"}], "obrigatoria": true},
     {"id": "OL.04.03", "nome": "Envoltória do tubo", "aponta": [{"item": "GEO.MOV.VAL", "servico": "envoltoria"}], "obrigatoria": false},
     {"id": "OL.04.04", "nome": "Ancoragens e blocos de ancoragem", "aponta": [{"item": "HID.TUB.ANC"}], "obrigatoria": false}
    ]},
-   {"id": "OL.05", "nome": "Reaterro e compactação", "folhas": [
+   {"id": "OL.05", "nome": "Reaterro e compactação", "titulos_sanepar": ["ÁGUA POTÁVEL"], "folhas": [
     {"id": "OL.05.01", "nome": "Reaterro de vala", "aponta": [{"item": "GEO.MOV.VAL", "servico": "reaterro"}], "obrigatoria": true},
     {"id": "OL.05.02", "nome": "Compactação", "aponta": [{"item": "GEO.MOV.VAL", "servico": "compactacao"}], "obrigatoria": true},
     {"id": "OL.05.03", "nome": "Carga, transporte e bota-fora", "aponta": [{"item": "GEO.MOV.VAL", "servico": "bota_fora"}], "obrigatoria": true}
    ]},
-   {"id": "OL.06", "nome": "Travessias e método não destrutivo", "folhas": [
+   {"id": "OL.06", "nome": "Travessias e método não destrutivo", "titulos_sanepar": [], "folhas": [
     {"id": "OL.06.01", "nome": "Travessias de rios, ferrovias e rodovias", "aponta": [{"item": "HID.TUB.TRV"}], "obrigatoria": false},
     {"id": "OL.06.02", "nome": "Método não destrutivo (MND/HDD)", "aponta": [{"item": "HID.TUB.MND"}], "obrigatoria": false}
    ]},
-   {"id": "OL.07", "nome": "Poços de visita, caixas e peças especiais", "folhas": [
-    {"id": "OL.07.01", "nome": "Poços de visita e de inspeção", "aponta": [{"item": "HID.TUB.PVS"}], "escopo": "esgoto", "obrigatoria": false},
+   {"id": "OL.07", "nome": "Poços de visita, caixas e peças especiais", "titulos_sanepar": ["MATERIAIS EQUIPAMENTOS"], "folhas": [
+    {"id": "OL.07.01", "nome": "Poços de visita e de inspeção", "aponta": [{"item": "HID.TUB.PVS"}], "obrigatoria": false},
     {"id": "OL.07.02", "nome": "Caixas e câmaras (descarga, ventosa, registro)", "aponta": [{"item": "HID.TUB.CAM"}], "obrigatoria": false},
-    {"id": "OL.07.03", "nome": "Conexões, peças especiais, válvulas e registros", "aponta": [{"item": "HID.TUB.VAL"}], "obrigatoria": true, "observacao": "O item HID.TUB.VAL junta válvulas e conexões; as conexões da etapa 04 (assentamento) são lidas aqui."}
+    {"id": "OL.07.03", "nome": "Conexões, peças especiais, válvulas e registros", "aponta": [{"item": "HID.TUB.VAL"}], "obrigatoria": true, "observacao": "O item HID.TUB.VAL junta válvulas e conexões; as conexões da etapa 04 (assentamento) são lidas aqui."},
+    {"id": "OL.07.04", "nome": "Macromedidores e instrumentação de linha", "aponta": [{"item": "ELE.FOR.INS"}], "obrigatoria": false, "observacao": "Macromedidor, medidor de vazão e hidrômetro de DN 50 ou mais (não são ligação predial)."}
    ]},
-   {"id": "OL.08", "nome": "Recomposição de pavimento", "folhas": [
+   {"id": "OL.08", "nome": "Recomposição de pavimento", "titulos_sanepar": ["RECOMPOSIÇÃO DE PAVIMENTO"], "folhas": [
     {"id": "OL.08.01", "nome": "Recomposição de pavimento de pista", "aponta": [{"item": "CIV.PAV.REC"}, {"item": "CIV.PAV.REC", "servico": "recomposicao"}], "obrigatoria": false},
     {"id": "OL.08.02", "nome": "Recomposição de calçadas e passeios", "aponta": [{"item": "CIV.PAV.CAL"}, {"item": "CIV.PAV.CAL", "servico": "recomposicao"}], "obrigatoria": false}
    ]},
-   {"id": "OL.09", "nome": "Testes", "folhas": [
+   {"id": "OL.09", "nome": "Testes", "titulos_sanepar": [], "folhas": [
     {"id": "OL.09.01", "nome": "Testes de estanqueidade e de pressão", "aponta": [{"item": "HID.TUB.RED", "servico": "teste_estanqueidade"}], "obrigatoria": true},
     {"id": "OL.09.02", "nome": "Desinfecção e limpeza da rede", "aponta": [{"item": "GER.CTL.DSF"}], "escopo": "agua", "obrigatoria": false},
     {"id": "OL.09.03", "nome": "Inspeção por CFTV", "aponta": [{"item": "GER.CTL.CFT"}], "escopo": "esgoto", "obrigatoria": false}
    ]},
-   {"id": "OL.10", "nome": "Ligações", "folhas": [
+   {"id": "OL.10", "nome": "Ligações", "titulos_sanepar": [], "folhas": [
     {"id": "OL.10.01", "nome": "Ligações prediais e hidrometria", "aponta": [{"item": "HID.TUB.LIG"}], "obrigatoria": false}
    ]},
-   {"id": "OL.11", "nome": "Cadastro e desmobilização", "folhas": [
+   {"id": "OL.11", "nome": "Cadastro e desmobilização", "titulos_sanepar": ["SERVIÇOS FINAIS"], "folhas": [
     {"id": "OL.11.01", "nome": "Cadastro e as built", "aponta": [{"item": "GER.FIN.CAD"}], "obrigatoria": true},
     {"id": "OL.11.02", "nome": "Limpeza e recomposição final da faixa", "aponta": [{"item": "GER.FIN.FAI"}, {"item": "GER.FIN.LIM"}], "obrigatoria": true},
     {"id": "OL.11.03", "nome": "Desmobilização", "aponta": [{"item": "GER.FIN.DES"}, {"item": "GER.PRE.MOB", "servico": "mobilizacao"}], "obrigatoria": true, "observacao": "Planilha costuma trazer \"mobilização e desmobilização\" numa linha só: ela é classificada como mobilização (GER.PRE.MOB, serviço mobilizacao) e lida aqui também; só \"desmobilização\" isolada vai para GER.FIN.DES."}

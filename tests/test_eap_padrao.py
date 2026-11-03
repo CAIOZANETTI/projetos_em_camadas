@@ -73,6 +73,18 @@ def sem_item(monkeypatch, *ids):
     _mutar(monkeypatch, esvaziar)
 
 
+def so_de_esgoto(monkeypatch, folha_id="OP.07.03"):
+    """Marca a folha como só de esgoto (o poço de visita agora vale para água e esgoto; as folhas com escopo restrito
+    que sobraram são só as de testes da obra linear), para exercitar "fora do escopo" na obra localizada. Parte do
+    TIPOS vigente, então vale depois de `sem_item`."""
+    copia = json.loads(json.dumps(eap_padrao.TIPOS))
+    for etapa in copia["obra_localizada"]["etapas"]:
+        for folha in etapa["folhas"]:
+            if folha["id"] == folha_id:
+                folha["escopo"] = "esgoto"
+    monkeypatch.setattr(eap_padrao, "TIPOS", copia)
+
+
 def test_json_real_sem_erros_e_sem_aviso():
     erros, avisos = eap_padrao.validar()
     assert erros == [] and avisos == []
@@ -90,23 +102,17 @@ def test_ids_unicos_e_etapas_ordenadas():
 
 def test_validar_reprova_item_servico_id_obrigatoria_e_escopo(monkeypatch):
     def ruim(tipos):
-        folhas = tipos["obra_linear"]["etapas"][0]["folhas"]
+        # etapa 0 agora é a administração local (1 folha); as folhas a estragar passam para a etapa 1
+        folhas = tipos["obra_linear"]["etapas"][1]["folhas"]
         folhas[0]["aponta"] = [{"item": "XXX.YYY.ZZZ"}]
         folhas[1]["aponta"] = [{"item": "GEO.MOV.SUP", "servico": "concreto"}]
         folhas[2]["id"] = folhas[1]["id"]
         folhas[3]["obrigatoria"] = "sim"
         del folhas[3]["obrigatoria"]
-        tipos["obra_linear"]["etapas"][1]["folhas"][0]["escopo"] = "esgoto"
-        tipos["obra_linear"]["etapas"][1]["folhas"][0]["aponta"] = [
-            {"item": "HID.TUB.LIG"}
-        ]
-        tipos["obra_linear"]["etapas"][1]["folhas"][0]["aponta"][0]["item"] = (
-            "HID.TUB.PVS"
-        )
-        tipos["obra_linear"]["etapas"][1]["folhas"][1]["escopo"] = "agua"
-        tipos["obra_linear"]["etapas"][1]["folhas"][1]["aponta"] = [
-            {"item": "HID.TUB.PVS"}
-        ]
+        # poço de visita vale para água e esgoto: o item só de esgoto é GER.CTL.CFT
+        folha_escopo = tipos["obra_linear"]["etapas"][2]["folhas"][0]
+        folha_escopo["escopo"] = "agua"
+        folha_escopo["aponta"] = [{"item": "GER.CTL.CFT"}]
 
     _mutar(monkeypatch, ruim)
     texto = " | ".join(eap_padrao.validar()[0])
@@ -254,11 +260,11 @@ def test_servico_associado_e_calculada_nao_preenchida():
     r = bloco["resumo"]
     assert (
         r["n_calculadas"] == 1
-        and r["pct_calculada_txt"] == "2,4 % calculada"
-        and r["pct_txt"] == "7,1 %"
+        and r["pct_calculada_txt"] == "2,3 % calculada"
+        and r["pct_txt"] == "7,0 %"
     )
     assert (
-        r["n_preenchidas"] == 3 and r["n_aplicaveis"] == 42
+        r["n_preenchidas"] == 3 and r["n_aplicaveis"] == 43
     )  # calculada fica no denominador
 
 
@@ -358,7 +364,7 @@ def test_nao_se_aplica_com_quantidade_real_vira_conflito_no_denominador():
         and f["destaque"] is True
     )
     assert f["classe"] == "conflito" and f["quantidades_txt"] == ["12 un"]
-    assert bloco["resumo"]["n_aplicaveis"] == 42 and bloco["resumo"]["conflitos"] == 1
+    assert bloco["resumo"]["n_aplicaveis"] == 43 and bloco["resumo"]["conflitos"] == 1
     assert bloco["resumo"]["n_preenchidas"] == 0
 
 
@@ -379,12 +385,12 @@ def test_percentual_por_etapa_e_total_excluem_nao_se_aplica():
     assert r["pct"] == pytest.approx(33.3, abs=0.05) and r["pct_txt"] == "33,3 %"
     total = bloco["resumo"]
     assert (
-        total["n_folhas"] == 42
-        and total["n_aplicaveis"] == 40
+        total["n_folhas"] == 43
+        and total["n_aplicaveis"] == 41
         and total["n_preenchidas"] == 2
     )
-    assert total["pct_txt"] == "5,0 %"
-    assert sum(s["n"] for s in total["por_situacao"]) == 42
+    assert total["pct_txt"] == "4,9 %"
+    assert sum(s["n"] for s in total["por_situacao"]) == 43
 
 
 def test_etapa_toda_fora_do_denominador_nao_divide_por_zero():
@@ -416,9 +422,9 @@ def test_preenchimento_manual_de_folha_sem_item_com_documento(monkeypatch):
     assert (
         r["n_preenchidas"] == 1
         and r["n_sem_item"] == 8
-        and r["teto_pct"] == pytest.approx(81.0, abs=0.05)
+        and r["teto_pct"] == pytest.approx(81.4, abs=0.05)
     )
-    assert r["teto_txt"] == "teto sem preenchimento manual: 81,0 %"
+    assert r["teto_txt"] == "teto sem preenchimento manual: 81,4 %"
     problemas = {
         "documento": {"id": "OP.12.02", "quantidade": 1, "unidade": "vb"},
         "com item": {
@@ -446,14 +452,15 @@ def test_preenchimento_manual_de_folha_sem_item_com_documento(monkeypatch):
             eap_padrao.preencher("obra_localizada", None, None, None, None, [ruim])
 
 
-def test_escopo_da_folha_fora_do_escopo_da_obra_sai_do_denominador():
+def test_escopo_da_folha_fora_do_escopo_da_obra_sai_do_denominador(monkeypatch):
+    so_de_esgoto(monkeypatch)
     bloco = eap_padrao.preencher("obra_localizada", None, escopos={"agua"})
     f = _folhas(bloco)
     assert (
         f["OP.07.03"]["situacao"] == "fora do escopo"
         and f["OP.07.03"]["destaque"] is False
     )
-    assert bloco["resumo"]["n_aplicaveis"] == 41
+    assert bloco["resumo"]["n_aplicaveis"] == 42
     com_esgoto = eap_padrao.preencher(
         "obra_localizada", None, escopos={"agua", "esgoto"}
     )
@@ -575,8 +582,8 @@ def test_montar_grava_json_e_formata(tmp_path):
     ] == ["1.500,50 m (extensão)"]
     assert f["OL.06.01"]["situacao"] == "não se aplica"
     assert (
-        f["OL.07.01"]["situacao"] == "fora do escopo"
-    )  # PVS é esgoto; a unidade U2 é de água
+        f["OL.09.03"]["situacao"] == "fora do escopo"
+    )  # o teste de esgoto (CFT) não vale: a unidade U2 é de água
     assert (
         resultado["estado"] == "premissa"
         and "MOS" in resultado["aviso"]
