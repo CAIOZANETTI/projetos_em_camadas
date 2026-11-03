@@ -651,6 +651,29 @@ Relatório com contagens antes × depois: `docs/plano/2026-11-03_foz_eap_padrao_
 - **`titulos_sanepar`.** Cada etapa traz a lista dos títulos de nível 2 que a Sanepar usa para o mesmo trabalho
   (SERVIÇOS PRELIMINARES, BLOCOS DE ANCORAGEM, URBANIZAÇÃO, SERVIÇOS FINAIS…). É só rótulo de conferência com a
   planilha; `validar()` confere o formato (lista de textos não vazios, quando presente) e nada mais lê o campo.
+- **Etapa pelo título da planilha** (`orcamento_sanepar.extrair_custo_civil`, `evidencias.titulos_da_planilha`,
+  `eap_padrao.preencher`). Na aba CUSTO CIVIL a hierarquia é unidade → frente numerada → títulos, e os títulos são de dois
+  tipos: **trecho/subfrente** ("ENTRADA DA ADUTORA DE ÁGUA BRUTA", "INTERLIGAÇÃO: …") e **etapa** ("SERVIÇOS
+  PRELIMINARES", "URBANIZAÇÃO"…). É etapa o título que, normalizado (sem acento, caixa ou espaço repetido), casa um
+  `titulos_sanepar` do padrão (`eap_padrao.eh_titulo_de_etapa`: fonte única, a lista não é copiada). `escopo_itens.csv`
+  ganhou, ao fim das colunas, `titulo_etapa` (último título de etapa acima, na mesma frente e no mesmo trecho) e
+  `titulo_trecho` (último título que não é etapa); em MATS E EQUIP ficam vazias. Regras de reinício: título de trecho zera
+  a etapa; troca de frente ou de unidade zera as duas; linha de escopo sem composição, sem quantidade e que não é etapa
+  (MEDIDORES DE VAZÃO) abre bloco próprio e também encerra a etapa; marcador que é etapa (RECOMPOSIÇÃO DE PAVIMENTO, BLOCOS
+  DE APOIO) é linha e título ao mesmo tempo. Título é a linha sem composição na coluna B e sem quantidade (a unidade da
+  coluna D não conta: os trechos trazem "M"). `grupo` e `subgrupo` seguem como eram. As colunas F e G (preço, total) não
+  são lidas.
+  - **Evidência.** Com `titulo_etapa`, o `localizador` da evidência da planilha vira `{aba, linha, titulo_etapa}`
+  (sem título continua o texto `CUSTO CIVIL linha N`): rastreabilidade, a classificação por item não muda.
+  - **Preenchimento.** `evidencias.titulos_da_planilha` lista as linhas sob título de etapa, com ou sem item (a linha sem
+  item não gera evidência), e `evidencias.etapa` as entrega em `dados["evidencias"]["titulos_etapa"]`. `preencher` só olha
+  linha de unidade do mesmo tipo de obra e título que alguma etapa do tipo lista (título repetido, como ÁGUA POTÁVEL ou
+  MATERIAIS EQUIPAMENTOS, vale para todas as etapas que o listam): (a) item apontado por folha da etapa do título: nada
+  muda; (b) linha sem item: a etapa fica **citada no contrato** (`citada_no_contrato`, `n_linhas_citadas`,
+  `exemplos_citados`, `citada_txt`; sem quantidade, porque não há item); (c) item que nenhuma folha da etapa aponta:
+  aviso **item fora da etapa do título** (`avisos_titulo`, com a descrição, o item e o nº de linhas), útil para revisar a
+  classificação. Nenhum dos dois muda a situação de folha. A aba EAP (seção EAP padrão) mostra `citada_txt` e
+  `avisos_titulo` sob o resumo de cada etapa, texto pronto do Python.
 - **Escopo.** Poço de visita (`HID.TUB.PVS`) vale para água e esgoto (a ETA de água também os tem): as folhas
   `OP.07.03` e `OL.07.01` deixaram de ser só de esgoto. `HID.TUB.LIG` ficou restrito a ligação predial, domiciliar,
   ramal e hidrômetro pequeno; `ELE.FOR.INS` passou a existir também em obra linear e recebe macromedidor, medidor de
