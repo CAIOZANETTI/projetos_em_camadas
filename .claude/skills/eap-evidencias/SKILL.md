@@ -14,7 +14,8 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
    uv run python -m camadas.evidencias roteiro --escopo esgoto --obra localizada --saida saida/<obra>/roteiro.md
    ```
    Cada item traz código, nome, termos de busca (com sinônimos), serviços admitidos e unidades aceitas.
-2. **Ler cada documento**, página por página (`camadas.evidencias.paginas_pdf(pdf)` devolve o texto por página).
+2. **Ler cada documento**, página por página (`camadas.evidencias.paginas_pdf(pdf)` devolve o texto por página; para planilha .xlsx/.xls/.csv,
+   `paginas_planilha(arquivo)` devolve uma página por aba, com uma linha de texto por linha não vazia).
    Percorra o roteiro item a item; procure os termos e os serviços.
 3. **Escrever uma linha JSON por afirmação** em `saida/<obra>/ia.jsonl`, com:
    - `metodo: "ia"` e `documento.tipo: "ia"`; `documento.id` = nome do arquivo (`memorial_fundacoes.pdf`);
@@ -80,6 +81,17 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
 - Limitações conhecidas (pendências em `docs/EAP.md` §10): número colado a letra ou hífen ("DN150 m 320", "C30 m³ 45",
   "CA-50 kg 1.200") não vale como quantidade, como no regex; bloco de mais de 3 linhas, com linha em branco ou com
   quantidade em linha anterior é recusado: procure a linha de tabela que reúne os três ou devolva à escada.
+- **Planilha** (`--planilha arquivo.xlsx`, repetível; também .xls e .csv): uma página por aba. O `trecho` é a linha da
+  planilha como o código a lê: as células não vazias unidas por `" | "`, na ordem das colunas, com número em pt-BR sem
+  arredondar (`Estaca hélice contínua Ø40 | un | 250`; `Escavação de solo | m³ | 1.250,5`). O `localizador` é
+  `{"aba": "Fundações", "linha": 2}`, com `linha` a linha da planilha (1 = primeira da aba, contando as vazias, como no
+  Excel); o trecho tem de estar nessa linha. `"p. N"` vale como índice da aba. **A quantidade vem das colunas Un/Qtd**:
+  a linha de cabeçalho da aba (rótulos `Un`/`Unid`/`Unidade` e `Qtd`/`Qtde`/`Quant`/`Quantidade`) vale para as linhas
+  abaixo; `valor` é o número da coluna Qtd e `unidade` a da coluna Un, e o trecho tem de incluir as duas células. Preço
+  e código nunca são quantidade (em "Estaca | m | 250 | 1.250,5" o valor é 250 m, não 1250,5). Sem cabeçalho, só vale o
+  par dentro de uma célula ("250 un"). Célula de fórmula sem valor guardado ("[fórmula sem valor]") recusa a linha:
+  peça à pessoa para salvar a planilha com os valores calculados. Cole o trecho como o `paginas_planilha` mostra. O
+  resto das regras é o do texto (item mais próximo do número; bloco de 2 a 3 linhas seguidas).
 - Texto puro (`--texto`): as páginas são separadas por quebra de página (`\f`); sem ela, é uma página só.
 - `id`, `citacao`, `derivada`, `autor` e `justificativa` são do código: se vierem na linha, são descartados e `id` é
   recalculado. `documento.id` com caminho vira o nome do arquivo.

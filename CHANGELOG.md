@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.43.0 — 2026-11-03 · Leitura por IA: planilha como documento de leitura
+- **`evidencias.paginas_planilha`**: xlsx/xlsm/csv (xls com `xlrd`) viram documento de leitura da IA. Cada aba é uma
+  página e cada linha não vazia é uma linha de texto, com as células unidas por " | " e os números em pt-BR sem
+  arredondar (250.0 → "250", 1250.5 → "1.250,5"); csv sai como está no arquivo. Determinístico.
+- **Localizador `{"aba", "linha"}`** conferido contra a linha real da planilha (linhas vazias contam, como no Excel):
+  "aba citada não existe no documento" e "linha citada não contém o trecho"; "p. N" continua valendo como índice da
+  aba. As regras da conferência valem iguais ("Estaca hélice | m | 12 | un | 250" proposto como 12 un é recusado).
+- CLI `conferir … --planilha arquivo.xlsx`; `etapa` reconhece planilha em `evidencias.documentos` pela extensão.
+  O método determinístico `planilha` (`de_planilha`) não muda.
+- Revisão: na planilha a quantidade vem das **colunas** — cabeçalho com rótulo de unidade (UN, UND, UNID, UNIDADE) e
+  de quantidade (QTD, QTDE, QUANT, QUANTIDADE); o valor tem de ser o da coluna Qtd e a unidade a da coluna Un da
+  linha citada; preço e código do item nunca viram quantidade; sem cabeçalho só vale "250 un" numa mesma célula.
+  Fórmula sem valor guardado e número fora de 1e-6–1e15 não conferem. Separador do csv pela consistência do número
+  de campos (`;` no empate; ambíguo → documento recusado com aviso, sem derrubar o build); quebra de linha dentro de
+  aspas vira espaço. Bloco só com linhas consecutivas da planilha; com localizador aba/linha, o par tem de estar na
+  linha citada. `buscar_texto` em planilha usa aba/linha e as colunas. `.xls` sem `xlrd` é recusado com aviso.
+  `evidencia.schema.json`: `localizador` aceita texto ou `{aba, linha}`.
+- Fecha a pendência "aceitar planilha como documento de leitura" de `docs/EAP.md` §10.
+- Lição L039.
+
 ## 0.42.0 — 2026-11-02 · Calibração de premissas pela evidência (premissa × observado)
 - **`camadas/calibracao.py`**: para cada serviço associado com fato observado fora do próprio cálculo (edital,
   planilha, IA conferida ou decisão), calcula a **premissa implícita** `p × observado / calculado` quando a fórmula é
