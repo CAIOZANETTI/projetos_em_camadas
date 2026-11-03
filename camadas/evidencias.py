@@ -140,7 +140,7 @@ def buscar_texto(documento: dict, paginas: list[str]) -> list[dict]:
         for nl, bruta in enumerate(str(pagina).splitlines(), 1):
             medir, linha = preparar(bruta)
             item, servico, regra = classificar(linha, documento.get("obra"), documento.get("escopo"))
-            if item is None:
+            if item is None or item.endswith(".*"):     # serviço sem item: '*' só vale em unidade e sistema
                 continue
             valor, un = (_quantidade_da_planilha(pagina, nl - 1, termos_dos_itens) if planilha
                          else quantidade(medir, termos_dos_itens))
@@ -217,7 +217,7 @@ def de_planilha(itens: pd.DataFrame, documento: dict, catalogo: dict | None = No
         item, servico, regra = classificar(linha, obra)
         if espec and (pelo_cadastro := item_do_material(espec)):
             item, regra = pelo_cadastro, f"cadastro Sanepar {r.codigo} ({espec.get('subcategoria')}) → {pelo_cadastro}"
-        if item is None:
+        if item is None or item.endswith(".*"):     # serviço sem item: '*' só vale em unidade e sistema
             continue
         valor, un = (None, None) if pd.isna(r.quantidade) or not unidade_medida(r.unidade) else \
             vocabulario.converter(float(r.quantidade), unidade_medida(r.unidade))
@@ -1180,10 +1180,12 @@ def _documentos(cfg: dict, log=print) -> list[dict]:
 
 def _obras_lineares_da_obra(cfg: dict, furos: list | None, log=print) -> list[dict]:
     """Evidências da planilha Obras Lineares do obra.json (`obras_lineares`: planilha, aba?, eap?, metodo?): digitado e
-    recálculo do MOS dos mesmos trechos, com o método escolhido para cada um. Sem planilha no disco, nada."""
+    recálculo do MOS dos mesmos trechos, com o método escolhido para cada um. Sem planilha no disco ou sem a aba, nada."""
     from . import obras_lineares
     c = cfg.get("obras_lineares") or {}
-    if not c.get("planilha") or not Path(c["planilha"]).exists():
+    if not c.get("planilha") or not obras_lineares.tem_aba(c):
+        if c.get("planilha"):
+            log(f"  evidências: planilha {c['planilha']} ausente ou sem a aba '{c.get('aba', 'Obras Lineares')}' (pendência)")
         return []
     aba, escolha = c.get("aba", "Obras Lineares"), {obras_lineares.norm(k): v for k, v in (c.get("metodo") or {}).items()}
     trechos = [{**t, "metodo": escolha.get(obras_lineares.norm(t["local"]), t["metodo"])}

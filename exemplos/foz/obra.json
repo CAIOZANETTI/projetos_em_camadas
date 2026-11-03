@@ -434,8 +434,9 @@
  },
  "sondagens": "dados/foz/geotec/sondagens.json",
  "gavetas": {
-  "executor_sondagens": "Sonnet",
-  "fonte": "pdca/determinismo.json, etapa sondagens: o sondagens.json foi escrito por um Sonnet a partir do laudo"
+  "executor_sondagens": "código",
+  "unidade_sistema_padrao": {"unidade": "u1", "sistema": "ETA", "classes": ["conjunto_cavas"], "fonte": "sistema_geral de conceitos/unidades_construtivas.json: cava sem estacas (sem estacas.csv) fica no sistema geral; as redes têm sistema pelo nome (local); só para as cavas, para que uma rede nova sem chave vire pendência (revisão do Fable)"},
+  "fonte": "pdca/determinismo.json, etapa sondagens: desde o build real de 02/11/2026 o sondagens.json é escrito por camadas.geotecnia.ler_laudo a partir do laudo Geoazimute"
  },
  "obras_lineares": {
   "planilha": "dados/foz/orcamento/211 - SAA Foz do Iguaçú.xlsx",

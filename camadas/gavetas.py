@@ -947,7 +947,8 @@ def _sistemas_do_local(local: str) -> list[str]:
 
 def _par_do_objeto(fatos: dict, fatos_setor: dict, padrao: dict | None) -> tuple[tuple[str, str] | None, str | None]:
     """((unidade, sistema), None) ou (None, motivo). Ordem: (a) fatos do setor, (b) `local` com as chaves,
-    (c) padrão do obra.json. Achado o par em uma fonte, as seguintes não são consultadas."""
+    (c) padrão do obra.json (já filtrado pela classe em `unidade_sistema`). Achado o par em uma fonte, as seguintes não
+    são consultadas."""
     if fatos_setor.get("unidade") and fatos_setor.get("sistema"):
         par = (str(fatos_setor["unidade"]["valor"]), str(fatos_setor["sistema"]["valor"]))
     elif "local" in fatos and (achados := _sistemas_do_local(fatos["local"]["valor"])):
@@ -966,7 +967,8 @@ def unidade_sistema(base: dict, ind: dict | None, cfg: dict, setor_por_servico: 
                     servicos: list[dict] | None = None) -> tuple[dict, list[dict]]:
     """({objeto_id: (unidade, sistema)}, pendências) dos objetos com regra de serviço (fora os `setor`). Busca: (a) fatos
     `unidade` e `sistema` do setor do objeto (`setor_de`), (b) `local` casado com as `chaves` de
-    `unidades_construtivas.json`, (c) `cfg["gavetas"]["unidade_sistema_padrao"]`. Sem nenhuma, com mais de um sistema
+    `unidades_construtivas.json`, (c) `cfg["gavetas"]["unidade_sistema_padrao"]`, só para as `classes` que ele declara
+    (sem `classes`, para todas). Sem nenhuma, com mais de um sistema
     pelo local ou com sistema de outra unidade: pendência, sem par. Com `servicos` e `setor_por_servico`
     (`setor_dos_servicos`), o serviço com `ponto` cujo setor declara unidade e sistema entra no mapa pelo seu
     `servico_id`, que vale mais que o do objeto."""
@@ -979,7 +981,8 @@ def unidade_sistema(base: dict, ind: dict | None, cfg: dict, setor_por_servico: 
         if o["classe"] == "setor" or regra_de(o["classe"], fatos) is None:
             continue
         setor = setor_por_objeto.get(o["objeto_id"])
-        par, motivo = _par_do_objeto(fatos, ind["fatos"].get(setor, {}) if setor else {}, padrao)
+        vale = padrao if padrao and o["classe"] in padrao.get("classes", [o["classe"]]) else None
+        par, motivo = _par_do_objeto(fatos, ind["fatos"].get(setor, {}) if setor else {}, vale)
         if par:
             mapa[o["objeto_id"]] = par
         else:

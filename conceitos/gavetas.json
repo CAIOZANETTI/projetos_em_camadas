@@ -202,7 +202,7 @@
   "local": {
    "unidade": null,
    "tipo": "texto",
-   "obs": "nome do trecho na planilha (ex.: 'Entrada de água bruta')"
+   "obs": "nome do trecho na planilha (ex.: 'Entrada de água bruta') ou da rede (ex.: 'AAT06'); casa com as chaves de conceitos/unidades_construtivas.json"
   },
   "sond_ini": {
    "unidade": null,

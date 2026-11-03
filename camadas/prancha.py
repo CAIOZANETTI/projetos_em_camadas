@@ -796,6 +796,9 @@ def etapa(cfg: dict, pranchas: list, escopo: dict | None, out: Path, log=print) 
     cad = orcamento_sanepar.catalogo(cfg["escopo"]["catalogo"]) if cfg.get("escopo", {}).get("catalogo") else {}
     fichas = []
     for f in cfg["fichas"]:
+        if f["piloto"] == "estrutura" and not Path(f["ancoras"]).exists():
+            log(f"Ficha {f['id']}: NÃO LIDA — falta o arquivo de âncoras {f['ancoras']} (pendência; o build segue)")
+            continue
         pdf = Path(f.get("pdf") or por_id[f["id"]]["pdf"])
         assinatura = f"v{VERSAO}:{pdf.stat().st_size}:{int(pdf.stat().st_mtime)}:{json.dumps(f, sort_keys=True)}"
         if cache.get(f["id"], {}).get("assinatura") != assinatura:

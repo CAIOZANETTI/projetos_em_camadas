@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.45.0 — 2026-11-03 · Build real de Foz: a memória espacial com dados verdadeiros
+- **Build completo de Foz até o HTML** com os dados do Drive. Gavetas: 30 objetos, 75 serviços, 0 erros de conferência
+  e 0 diferenças de paridade. Escavação e reaterro das cavas dão "confere" com a EAP codificada (8 585,6 e
+  5 462,7 m³, diferença 0). Isso **não valida o volume**, porque as duas trilhas vêm do mesmo `escavacao`; a
+  conferência independente contra o CUSTO CIVIL fica pendente. Relatório em `docs/plano/2026-11-02_foz_build_real.md`.
+- **Revisão do Fable**:
+  - a página inteira vai a um furo só na folha em bloco, e a continuação do perfil no layout de tabela fica com o seu
+    furo;
+  - as etapas puladas vão a `dados["pendentes"]` (HTML);
+  - `unidade_sistema_padrao.classes` limita o padrão (Foz: só cavas);
+  - uma profundidade sem descrição no meio do bloco não funde camadas.
+- **`geotecnia.ler_laudo` lê o layout Geoazimute**:
+  - coordenada rotulada ("Sonda SP01: N = …; E = …") e coordenada na folha do perfil;
+  - furo complementar (SP 02A);
+  - página de um furo só é toda dele, porque o NA vem antes do id;
+  - camadas em bloco, de baixo para cima;
+  - NA pela frase de conclusão;
+  - NSPT exige espaço entre profundidade e golpes.
+
+  São 23 furos, e a etapa sondagens passa de IA a código.
+- **O build não cai mais por falta de insumo**: ficha de estrutura sem `estacas.csv`, planilha sem a aba "Obras
+  Lineares" (`obras_lineares.tem_aba`, usado por obras lineares, gavetas e evidências) e serviço sem item (`PACOTE.*`),
+  que não vira evidência. O schema da evidência continua o da `main`.
+- **Rede de vala com `local`** (o seu nome): unidade e sistema pelas chaves de `unidades_construtivas.json`. Foz declara
+  `gavetas.unidade_sistema_padrao` u1/ETA (o sistema geral, para a cava sem estacas).
+- Lição L041.
+
 ## 0.44.0 — 2026-11-03 · Número colado a letra não é quantidade (regex e IA, uma regra só)
 - **`camadas/vocabulario.py`** (`NAO_E_NUMERO`, `DIMENSAO`, `UNIDADE_ANTES`): número colado a letra ou letra+hífen
   (DN150, C30, CA-50) não é quantidade; dimensão com prefixo (DN 150, Ø 40 cm, diâmetro) é apagada antes da busca;

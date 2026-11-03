@@ -213,7 +213,7 @@ def test_rede_de_vala_passa_por_gavetas_e_paridade():
     base = eg.de_valas([rede])
     assert gavetas.conferir_base(base) == [] and base["objetos"] == [{"objeto_id": "RV-R1", "classe": "rede_vala"}]
     assert {f["propriedade"]: f["natureza"] for f in base["fatos"]} == {
-        "de_mm": "projetado", "extensao_m": "projetado", "classes_por_metro": "projetado", "pesos_m": "projetado",
+        "local": "projetado", "de_mm": "projetado", "extensao_m": "projetado", "classes_por_metro": "projetado", "pesos_m": "projetado",
         "finais": "projetado"}
     ev = base["evidencias"][0]
     assert ev["classe"] == "projeto" and ev["localizador"] == {
@@ -474,3 +474,22 @@ def _planilha_sem_sistema(tmp_path):
     caminho = tmp_path / "sem_sistema.xlsx"
     wb.save(caminho)
     return caminho
+
+
+def test_rede_tem_unidade_e_sistema_pelo_nome():
+    """Achado do build real de Foz: as redes não tinham `local` e saíam todas com 'unidade e sistema não definidos'."""
+    base = eg.de_valas([{**_rede_vala(), "id": "AAT06"}, {**_rede_vala(), "id": "ETA drenagem DN400"},
+                        {**_rede_vala(), "id": "R1"}])
+    mapa, pend = gavetas.unidade_sistema(base, None, {})
+    assert mapa == {"RV-AAT06": ("u2", "AAT06"), "RV-ETA drenagem DN400": ("u1", "DREN_DN400")}
+    assert [p["objeto_id"] for p in pend] == ["RV-R1"]   # nome sem chave: pendência, sem código inventado
+
+
+def test_padrao_de_unidade_e_sistema_vale_so_para_as_classes_declaradas():
+    """Revisão do Fable: com o padrão u1/ETA de Foz, uma adutora nova (AAT07) não pode virar U1.ETA em silêncio."""
+    base = eg.de_valas([{**_rede_vala(), "id": "AAT07"}])
+    cfg = {"gavetas": {"unidade_sistema_padrao": {"unidade": "u1", "sistema": "ETA", "classes": ["conjunto_cavas"]}}}
+    mapa, pend = gavetas.unidade_sistema(base, None, cfg)
+    assert mapa == {} and [p["objeto_id"] for p in pend] == ["RV-AAT07"]
+    sem_classes = {"gavetas": {"unidade_sistema_padrao": {"unidade": "u1", "sistema": "ETA"}}}
+    assert gavetas.unidade_sistema(base, None, sem_classes)[0] == {"RV-AAT07": ("u1", "ETA")}   # o de antes

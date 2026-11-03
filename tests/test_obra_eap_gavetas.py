@@ -48,3 +48,19 @@ def test_aba_projeto_conciliacao_com_defeito_nao_derruba_o_build(tmp_path, monke
     dados = {"sondagens": []}
     obra._aba_projeto(dados, {}, tmp_path, None, None, {})
     assert "conciliacao" not in dados["eap_gavetas"] and not (tmp_path / "conciliacao_eap.json").exists()
+
+
+def test_etapa_pulada_com_pendencia_vai_aos_pendentes_do_html(capsys):
+    """Revisão do Fable: a etapa pulada por insumo ausente aparecia só no terminal."""
+    from camadas import obra
+
+    obra.AVISOS_DO_BUILD.clear()
+    obra._log("Ficha f1: NÃO LIDA — falta o arquivo de âncoras estacas.csv (pendência; o build segue)")
+    obra._log("Ficha f1: NÃO LIDA — falta o arquivo de âncoras estacas.csv (pendência; o build segue)")  # repetida
+    obra._log("Gavetas: 30 objetos")
+    dados = {"pendentes": {"Estrutura": ["formas"]}}
+    obra._avisos_nas_pendencias(dados, obra.AVISOS_DO_BUILD)
+    assert dados["pendentes"]["Build (etapas puladas)"] == [
+        "Ficha f1: NÃO LIDA — falta o arquivo de âncoras estacas.csv (pendência; o build segue)"]
+    assert dados["pendentes"]["Estrutura"] == ["formas"]
+    obra.AVISOS_DO_BUILD.clear()

@@ -56,8 +56,21 @@ def _regras(p: dict) -> list[dict]:
     return pdf_cad.regras(REGRAS.get(p.get("regras", ""), "classes_genericas"))
 
 
+AVISOS_DO_BUILD: list[str] = []      # etapas puladas por insumo ausente: vão ao HTML, não só ao terminal
+MARCA_PENDENCIA = "(pendência"
+
+
 def _log(*a):
+    texto = " ".join(map(str, a))
+    if MARCA_PENDENCIA in texto and texto.strip() not in AVISOS_DO_BUILD:
+        AVISOS_DO_BUILD.append(texto.strip())
     print(*a, flush=True)
+
+
+def _avisos_nas_pendencias(dados: dict, avisos: list[str]) -> None:
+    """Etapas puladas com motivo entram em `dados["pendentes"]["Build (etapas puladas)"]`, que o HTML já mostra."""
+    if avisos:
+        dados.setdefault("pendentes", {}).setdefault("Build (etapas puladas)", []).extend(avisos)
 
 
 # 1 ---------------------------------------------------------------------------
@@ -908,6 +921,8 @@ def nome_html(cfg: dict, data: str | None = None) -> str:
 
 def _gravar(cfg: dict, out: Path, dados: dict, pranchas: list, epsg: int) -> Path:
     """dados.json, pacote SIG e o HTML (offline; e o do Artifact, com bibliotecas do CDN, se pedido)."""
+    _avisos_nas_pendencias(dados, AVISOS_DO_BUILD)    # as etapas puladas deste build; a lista é consumida
+    AVISOS_DO_BUILD.clear()
     (out / "dados.json").write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")))
     if cfg.get("sig", True):
         etapa_sig(out, dados, pranchas, epsg)

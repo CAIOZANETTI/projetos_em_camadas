@@ -260,3 +260,14 @@ def test_escala_em_fonte_acima_da_vista():
 def test_folha_sem_blocos_nao_quebra():
     """ETL01 (reforma do edifício do lodo): estacas sem bloco novo — rótulos e pilares vazios, sem IndexError."""
     assert prancha.rotulos(None, []) == [] and prancha.pilares(None, [], 50) == []
+
+
+def test_ficha_de_estrutura_sem_ancoras_e_pulada_com_motivo(tmp_path):
+    """Sem o CSV de âncoras (estacas.csv) a ficha de estrutura não é lida, mas o build segue (build real de Foz)."""
+    pdf = tmp_path / "forma.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    cfg = {"fichas": [{"id": "forma", "piloto": "estrutura", "pdf": str(pdf),
+                       "ancoras": str(tmp_path / "estacas.csv")}]}
+    mensagens = []
+    assert prancha.etapa(cfg, [], None, tmp_path, log=mensagens.append) == []
+    assert any("forma" in m and "estacas.csv" in m for m in mensagens)

@@ -135,11 +135,9 @@
    "id": "sondagens",
    "portao": "G2",
    "nome": "Laudo de sondagem → furos com E/N, NSPT e camadas",
-   "executor": "ia",
-   "papel": "leitura",
-   "itens": 16,
-   "fonte": "docs/PLANO_FOZ.md §5 (Sonnet → sondagens.json)",
-   "para_codigo": "leitor de laudo: tabela de coordenadas e perfis SPT por texto do PDF, schema validado"
+   "executor": "codigo",
+   "itens": 23,
+   "fonte": "camadas.geotecnia.ler_laudo (build real de Foz, 02/11/2026): 16 furos + 7 complementares (SP 02A…), coordenadas no texto e na folha do perfil, camadas em bloco, NA pela conclusão; NSPT deste layout ainda não é lido"
   },
   {
    "id": "estacas",

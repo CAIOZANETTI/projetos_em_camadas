@@ -307,3 +307,26 @@ def test_aba_obras_lineares_conta_como_edital_na_cobertura_e_nos_associados():
     assert ass.loc[("GEO.MOV.VAL", "escoramento"), "situacao"].startswith("não citado no edital")   # a aba não traz m²
     cob = evidencias.cobertura(evs).set_index(["unidade", "item"])
     assert cob.loc[("U1", "GEO.MOV.VAL"), "situacao"] == "só edital: sem evidência no projeto"
+
+
+def test_planilha_sem_a_aba_obras_lineares_nao_gera_evidencia_nem_erro(tmp_path):
+    """Achado do build real de Foz: a planilha do contrato não tem a aba do protótipo."""
+    import openpyxl
+
+    planilha = tmp_path / "contrato.xlsx"
+    openpyxl.Workbook().save(planilha)
+    mensagens = []
+    cfg = {"obras_lineares": {"planilha": str(planilha), "aba": "Obras Lineares"}}
+    assert evidencias._obras_lineares_da_obra(cfg, [], log=mensagens.append) == []
+    assert any("sem a aba" in m for m in mensagens)
+
+
+def test_servico_sem_item_nao_vira_evidencia_de_planilha_nem_de_texto():
+    """Achado do build real de Foz: classificar devolve 'CIV.EST.*' (serviço sem item) e o schema recusa o '*' no item
+    ('*' só vale em unidade e sistema), o que derrubava o build. A linha fica fora das evidências."""
+    import pandas as pd
+
+    itens = pd.DataFrame([{"descricao": "Forma plana em compensado plastificado", "codigo": "", "unidade_obra": "UNIDADE 2",
+                           "quantidade": 3.0, "unidade": "UN", "aba": "MATS E EQUIP", "linha_origem": 808}])
+    assert evidencias.de_planilha(itens, {"id": "escopo_itens.csv", "tipo": "planilha", "nome": "contrato"}) == []
+    assert evidencias.buscar_texto(PROJETO, ["Forma plana em compensado plastificado."]) == []
