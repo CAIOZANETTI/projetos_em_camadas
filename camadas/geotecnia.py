@@ -259,7 +259,7 @@ def classe_solo(descricao: str, classe: str | None = None) -> dict:
 def solo_na_faixa(furo: dict, de_m: float, ate_m: float) -> dict[str, float]:
     """Fração da faixa [de_m, ate_m] (profundidades a partir da boca) em cada classe de solo do furo.
 
-    Furo impenetrável: a parte da faixa abaixo do topo do impenetrável (`topo_rocha_m`) conta como rocha (decisão do
+    Furo impenetrável: a parte da faixa abaixo da profundidade do impenetrável (`fundo_impenetravel_m`) conta como rocha (decisão do
     Caio 03/11/2026, D6; premissa `impenetravel_e_rocha`). O que a sondagem não cobre entra como `indefinido`, de
     modo que as frações somam 1.
     """
@@ -268,9 +268,9 @@ def solo_na_faixa(furo: dict, de_m: float, ate_m: float) -> dict[str, float]:
         return {}
     limite_m = math.inf
     if furo.get("impenetravel") and PREMISSAS["impenetravel_e_rocha"]["valor"]:
-        topo_m = topo_rocha_m(furo)
-        if topo_m is not None:
-            limite_m = topo_m
+        fundo_m = fundo_impenetravel_m(furo)
+        if fundo_m is not None:
+            limite_m = fundo_m
     fatias: dict[str, float] = {}
     for c in furo.get("camadas") or []:
         topo_m, base_m = c.get("de"), c.get("ate")
@@ -285,7 +285,7 @@ def solo_na_faixa(furo: dict, de_m: float, ate_m: float) -> dict[str, float]:
             + (min(base_m, ate_m) - max(topo_m, de_m)) / espessura_m
         )
     if limite_m < ate_m:
-        # as camadas foram cortadas no topo do impenetrável; abaixo dele é rocha
+        # as camadas foram cortadas no impenetrável; abaixo dele é rocha
         fatias["rocha"] = (
             fatias.get("rocha", 0.0) + (ate_m - max(limite_m, de_m)) / espessura_m
         )
@@ -312,6 +312,17 @@ def na_m(furo: dict, margem_m: float | None = None) -> float | None:
         return None
     margem_m = MARGEM_NA_M if margem_m is None else margem_m
     return max(0.0, float(nivel_m) - margem_m)
+
+
+def fundo_impenetravel_m(furo: dict) -> float | None:
+    """Profundidade (m) em que o furo impenetrável parou: `profundidade_m`, ou o maior `ate` das camadas; None se o
+    furo não é impenetrável. As camadas acima dele (inclusive rocha alterada) mantêm a classe descrita."""
+    if not furo.get("impenetravel"):
+        return None
+    if _numero(furo.get("profundidade_m")):
+        return float(furo["profundidade_m"])
+    ates = [c["ate"] for c in furo.get("camadas") or [] if _numero(c.get("ate"))]
+    return float(max(ates)) if ates else None
 
 
 def topo_rocha_m(furo: dict) -> float | None:

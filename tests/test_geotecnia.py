@@ -768,3 +768,15 @@ def test_impenetravel_vale_como_rocha_na_faixa():
     assert fatias["rocha"] == pytest.approx(1 / 3)
     assert fatias["argila"] == pytest.approx(2 / 3)
     assert "indefinido" not in fatias
+
+
+def test_impenetravel_corta_no_fundo_do_furo_e_preserva_a_rocha_alterada():
+    """Ressalva do Fable (D6): o corte é na profundidade do impenetrável, não no topo da primeira rocha."""
+    furo = {"id": "SP-R", "impenetravel": True, "profundidade_m": 6.0,
+            "camadas": [{"de": 0.0, "ate": 3.0, "descricao": "Argila siltosa"},
+                        {"de": 3.0, "ate": 4.0, "descricao": "Rocha"},
+                        {"de": 4.0, "ate": 6.0, "descricao": "Rocha alterada"}]}
+    f = geo.solo_na_faixa(furo, 0.0, 7.0)
+    assert f["rocha_alterada"] == pytest.approx(2 / 7) and f["rocha"] == pytest.approx(2 / 7)
+    assert sum(f.values()) == pytest.approx(1.0)
+
