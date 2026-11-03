@@ -305,3 +305,15 @@ def test_aba_obras_lineares_conta_como_edital_na_cobertura_e_nos_associados():
     assert ass.loc[("GEO.MOV.VAL", "escoramento"), "situacao"].startswith("não citado no edital")   # a aba não traz m²
     cob = evidencias.cobertura(evs).set_index(["unidade", "item"])
     assert cob.loc[("U1", "GEO.MOV.VAL"), "situacao"] == "só edital: sem evidência no projeto"
+
+
+def test_planilha_sem_a_aba_obras_lineares_nao_gera_evidencia_nem_erro(tmp_path):
+    """Achado do build real de Foz: a planilha do contrato não tem a aba do protótipo."""
+    import openpyxl
+
+    planilha = tmp_path / "contrato.xlsx"
+    openpyxl.Workbook().save(planilha)
+    mensagens = []
+    cfg = {"obras_lineares": {"planilha": str(planilha), "aba": "Obras Lineares"}}
+    assert evidencias._obras_lineares_da_obra(cfg, [], log=mensagens.append) == []
+    assert any("sem a aba" in m for m in mensagens)

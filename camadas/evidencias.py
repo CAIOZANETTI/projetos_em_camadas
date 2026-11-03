@@ -462,10 +462,12 @@ def _documentos(cfg: dict, log=print) -> list[dict]:
 
 def _obras_lineares_da_obra(cfg: dict, furos: list | None, log=print) -> list[dict]:
     """Evidências da planilha Obras Lineares do obra.json (`obras_lineares`: planilha, aba?, eap?, metodo?): digitado e
-    recálculo do MOS dos mesmos trechos, com o método escolhido para cada um. Sem planilha no disco, nada."""
+    recálculo do MOS dos mesmos trechos, com o método escolhido para cada um. Sem planilha no disco ou sem a aba, nada."""
     from . import obras_lineares
     c = cfg.get("obras_lineares") or {}
-    if not c.get("planilha") or not Path(c["planilha"]).exists():
+    if not c.get("planilha") or not obras_lineares.tem_aba(c):
+        if c.get("planilha"):
+            log(f"  evidências: planilha {c['planilha']} ausente ou sem a aba '{c.get('aba', 'Obras Lineares')}' (pendência)")
         return []
     aba, escolha = c.get("aba", "Obras Lineares"), {obras_lineares.norm(k): v for k, v in (c.get("metodo") or {}).items()}
     trechos = [{**t, "metodo": escolha.get(obras_lineares.norm(t["local"]), t["metodo"])}
