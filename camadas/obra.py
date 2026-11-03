@@ -852,7 +852,6 @@ def _sondagens_no_build(dados: dict, cfg: dict, furos: list, esc: dict | None, e
 
 def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     cfg = json.loads(Path(cfg_path).read_text())
-    AVISOS_DO_BUILD.clear()
     out = Path(cfg["saida"])
     out.mkdir(parents=True, exist_ok=True)
     rel = etapa_sfm(cfg, out, "sfm" in refazer)
@@ -909,7 +908,6 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     }
     _sondagens_no_build(dados, cfg, furos, esc, epsg, vertical)
     _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala}, redes_vala, cavas_gavetas)
-    _avisos_nas_pendencias(dados, AVISOS_DO_BUILD)
     return _gravar(cfg, out, dados, pranchas, epsg)
 
 
@@ -923,6 +921,8 @@ def nome_html(cfg: dict, data: str | None = None) -> str:
 
 def _gravar(cfg: dict, out: Path, dados: dict, pranchas: list, epsg: int) -> Path:
     """dados.json, pacote SIG e o HTML (offline; e o do Artifact, com bibliotecas do CDN, se pedido)."""
+    _avisos_nas_pendencias(dados, AVISOS_DO_BUILD)    # as etapas puladas deste build; a lista é consumida
+    AVISOS_DO_BUILD.clear()
     (out / "dados.json").write_text(json.dumps(dados, ensure_ascii=False, separators=(",", ":")))
     if cfg.get("sig", True):
         etapa_sig(out, dados, pranchas, epsg)
