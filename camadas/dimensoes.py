@@ -9,10 +9,10 @@ Cada tipo (conceitos/dimensoes.json) diz de onde vem cada dimensão — valor da
 UTM, padrão ou premissa — e os cálculos até as dimensões padronizadas. O que falta não é suposto: o cálculo que
 depende da dimensão não sai e ela fica em `faltando`.
 
-A vala é o único tipo com dimensionamento próprio (`dimensionar_vala`), porque depende de decisões e não só de
-contas: profundidade, solo, rocha e NA da sondagem mais próxima, escoramento (NR-18 e agravantes), largura e tipo de
-pavimento. A largura sai de cada método de `vala.metodos` (NBR 12266, MOS Sanepar…): um elemento por método, e cada
-método é uma fonte de evidência — o código não escolhe, a consolidação mostra convergência ou conflito.
+A vala é o único tipo com dimensionamento próprio (`dimensionar_vala`), mas ele é só um adaptador: a regra mora em
+`lineares.dimensionar_vala` (profundidade, solo, rocha e NA da sondagem mais próxima pelo modelo geotécnico único,
+escoramento, largura pelo MOS, escavação, reaterro, bota-fora e pavimento) e aqui só se converte a saída para as
+dimensões que os serviços associados esperam (decisão do Caio 03/11/2026: dimensionador único). Uma grandeza, uma regra.
 """
 from __future__ import annotations
 
@@ -22,9 +22,9 @@ import re
 import numpy as np
 import pandas as pd
 import shapely
-from shapely.geometry import Point, shape
+from shapely.geometry import shape
 
-from . import geo
+from . import geo, geotecnia
 from .formulas import avaliar, conferir, premissa
 from .pdf_cad import CONCEITOS
 
@@ -98,7 +98,7 @@ def _derivados(el: dict) -> list[dict]:
                      f"derivado de {el['id']}") for d in TIPOS[el["tipo"]]["derivados"]]
 
 
-# vala --------------------------------------------------------------------------------------------------------------
+# vala (adaptador do dimensionador único: lineares.dimensionar_vala) --------------------------------------------------
 def _faixa(tabela: list, x: float):
     """Valor da primeira faixa [limite, valor] com x ≤ limite."""
     return next(v for lim, v in tabela if x <= lim)
@@ -112,83 +112,49 @@ def material_do_tubo(texto: str) -> str | None:
     return "rigido" if re.search(VP["tubo"]["rigidos"]["valor"], t) else None
 
 
-def classe_solo(descricao: str | None, classe: str | None = None) -> str | None:
-    """Classe da camada (rocha, areia, argila, silte, aterro) pela palavra principal; a primeira regra que casa vence."""
-    from .vocabulario import normalizar
-    t = normalizar(f"{classe or ''} {descricao or ''}")
-    return next((c for c, rx in VP["solo"]["classes"]["valor"] if re.search(rx, t)), None)
+def classe_solo(descricao: str | None, classe: str | None = None) -> str:
+    """Classe da camada pela descrição: a regra única do modelo geotécnico (`geotecnia.classe_solo`)."""
+    return geotecnia.classe_solo(descricao or "", classe)["classe"]
 
 
 def sondagem_proxima(geometria, furos: list) -> tuple[dict | None, float | None]:
-    """Furo com E/N mais próximo da geometria do trecho (UTM) dentro do raio; (None, distância) fora dele."""
-    candidatos = [(geometria.distance(Point(f["E"], f["N"])), f) for f in furos or []
-                  if geometria is not None and f.get("E") is not None and f.get("N") is not None]
-    if not candidatos:
+    """Furo mais próximo do eixo do trecho (UTM) pela regra única (`geotecnia.furo_mais_proximo`, raio de influência de
+    `geotecnia.json`): (furo, distância em m) dentro do raio; (None, distância) fora dele; (None, None) sem furo ou eixo."""
+    pontos_m = _pontos(geometria)
+    if pontos_m is None:
         return None, None
-    d, furo = min(candidatos, key=lambda c: c[0])
-    return (furo, round(d, 1)) if d <= VP["sondagem"]["raio_m"]["valor"] else (None, round(d, 1))
+    indices, distancias_m = geotecnia.furo_mais_proximo(pontos_m, furos or [])
+    k = int(distancias_m.argmin())
+    if indices[k] < 0:
+        return None, None
+    distancia_m = round(float(distancias_m[k]), 1)
+    return (furos[indices[k]], distancia_m) if distancia_m <= geotecnia.RAIO_INFLUENCIA_M else (None, distancia_m)
 
 
-def solo_na_vala(furo: dict | None, h: float, desloc_m: float = 0.0) -> dict:
-    """O que o furo diz da faixa 0–h do trecho (profundidades do furo + desloc = cota do trecho − cota da boca)."""
-    if furo is None:
-        return {"furo": None, "classes": [], "nao_coesivo": False, "nspt_min": None, "topo_rocha_m": None, "na_m": None}
-    camadas = furo.get("camadas") or []
-    classes = list(dict.fromkeys(filter(None, (classe_solo(c.get("descricao"), c.get("classe")) for c in camadas
-                                               if c.get("de") is None or c["de"] + desloc_m < h))))
-    rochas = [c["de"] + desloc_m for c in camadas if c.get("de") is not None
-              and classe_solo(c.get("descricao"), c.get("classe")) == "rocha"]
-    if furo.get("impenetravel") and furo.get("profundidade_m") and VP["solo"]["impenetravel_e_rocha"]["valor"]:
-        rochas.append(float(furo["profundidade_m"]) + desloc_m)
-    golpes = [g for prof, g in furo.get("nspt") or [] if prof + desloc_m <= h]
-    na = furo.get("na_m")
-    return {"furo": furo.get("id"), "classes": classes,
-            "nao_coesivo": bool(set(classes) & set(VP["escoramento"]["agravantes"]["solos_nao_coesivos"])),
-            "nspt_min": min(golpes) if golpes else None, "topo_rocha_m": round(min(rochas), 2) if rochas else None,
-            "na_m": round(na + desloc_m - VP["lencol"]["margem_m"]["valor"], 2) if na is not None else None}
-
-
-def escoramento(h: float, solo: dict) -> tuple[str, str]:
-    """(tipo, motivo) pela profundidade e pelos agravantes do solo e da água."""
-    tipo = _faixa(VP["escoramento"]["profundidade_max_m"]["valor"], h)
-    ag = VP["escoramento"]["agravantes"]
-    if tipo == "nenhum":
-        return tipo, f"vala rasa (h = {h:.2f} m ≤ 1,25 m, NR-18)"
-    motivos = [m for m, sim in (("solo não coesivo", solo["nao_coesivo"]),
-                                (f"NSPT {solo['nspt_min']} < {ag['nspt_min']}", solo["nspt_min"] is not None
-                                 and solo["nspt_min"] < ag["nspt_min"]),
-                                ("abaixo do NA", solo["na_m"] is not None and solo["na_m"] < h)) if sim]
-    ordem = [t for _, t in VP["escoramento"]["profundidade_max_m"]["valor"]]
-    if motivos and ordem.index(tipo) < ordem.index(ag["tipo_minimo"]):
-        return ag["tipo_minimo"], f"h = {h:.2f} m e " + ", ".join(motivos)
-    return tipo, f"h = {h:.2f} m" + (f" ({', '.join(motivos)})" if motivos else "")
-
-
-def _agua(h: float, solo: dict, L: float, de_mm: float) -> tuple[float, str, float]:
-    """(altura de água, método 'nenhum' | 'bomba' | 'ponteiras', horas) pela vala abaixo do NA."""
-    hw = max(0.0, h - solo["na_m"]) if solo["na_m"] is not None else 0.0
-    if hw <= 0:
-        return 0.0, "nenhum", 0.0
-    metodo = "ponteiras" if solo["nao_coesivo"] or _faixa(VP["lencol"]["metodo"]["valor"], hw).startswith("rebaix") \
-        else "bomba"
-    horas = L / _faixa(VP["lencol"]["produtividade_m_dia"]["valor"], de_mm) * VP["lencol"]["horas_por_dia"]["valor"]
-    return hw, metodo, horas
+def _furo_na_cota_do_trecho(furo: dict, cota_terreno_m: float | None) -> dict:
+    """Furo com as profundidades referidas ao terreno do trecho (profundidade do furo + cota do trecho − cota da boca);
+    igual ao original sem uma das duas cotas. Só troca de referência: quem decide solo, rocha e NA é o lineares."""
+    if cota_terreno_m is None or furo.get("cota_boca") is None:
+        return furo
+    desloc_m = float(cota_terreno_m) - float(furo["cota_boca"])
+    if desloc_m == 0:
+        return furo
+    novo = dict(furo)
+    novo["camadas"] = [{**c, "de": max(0.0, c["de"] + desloc_m), "ate": c["ate"] + desloc_m}
+                       for c in furo.get("camadas") or [] if c["ate"] + desloc_m > 0]
+    novo["nspt"] = [[prof_m + desloc_m, golpes] for prof_m, golpes in furo.get("nspt") or [] if prof_m + desloc_m >= 0]
+    for chave in ("na_m", "profundidade_m"):
+        if furo.get(chave) is not None:
+            novo[chave] = float(furo[chave]) + desloc_m
+    return novo
 
 
 def _constantes_vala() -> dict:
-    emp, reap = VP["volumes"]["empolamento"]["valor"], VP["volumes"]["reaproveitamento"]["valor"]
-    return {"sobre": VALAS["sobrelargura_recorte_m"]["valor"], "cortes": VP["pavimentos"]["cortes_por_trecho"]["valor"],
-            "berco": VALAS["berco_m"]["valor"], "acima": VP["tubo"]["envoltoria_acima_m"]["valor"],
-            "paredes": VP["escoramento"]["paredes"]["valor"], "ponteiras_lados": VP["lencol"]["ponteiras_lados"]["valor"],
-            "emp_solo": emp["solo"], "emp_rocha": emp["rocha"], "emp_pav": emp["pavimento"], "reap_solo": reap["solo"],
-            "reap_mole": reap["mole"]}
-
-
-def _largura_nbr(d: float, de_mm: float, h: float, tipo: str, material_texto: str) -> tuple[float | None, str]:
-    """NBR 12266: b = max(DE + folga, mínimo da profundidade) + acréscimo do tipo de escoramento."""
-    bmin = _faixa(VP["largura"]["minimo_por_profundidade"]["valor"], h)
-    b = max(d + VALAS["largura_vala"]["folga_m"], bmin) + VP["largura"]["acrescimo_escoramento_m"]["valor"][tipo]
-    return b, f"b (NBR 12266) = max(DE + folga, b_min {bmin}) + acréscimo do escoramento = {b:.2f} m"
+    """O que o lineares não calcula: berço, envoltória, cortes do pavimento, ponteiras e reaproveitamento do solo."""
+    reap = VP["volumes"]["reaproveitamento"]["valor"]
+    return {"cortes": VP["pavimentos"]["cortes_por_trecho"]["valor"], "berco": VALAS["berco_m"]["valor"],
+            "acima": VP["tubo"]["envoltoria_acima_m"]["valor"], "ponteiras_lados": VP["lencol"]["ponteiras_lados"]["valor"],
+            "reap_solo": reap["solo"], "reap_mole": reap["mole"]}
 
 
 def material_mos(texto: str) -> str | None:
@@ -198,56 +164,19 @@ def material_mos(texto: str) -> str | None:
     return next((m for m, rx in VP["metodos"]["mos_sanepar"]["materiais"] if re.search(rx, t)), None)
 
 
-LARGURAS = {"nbr12266": _largura_nbr}
-
-
-def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: str, solo_fn, profundidade,
-                   metodo: str = "nbr12266") -> tuple[dict | None, list]:
-    """Dimensões de um segmento de vala pelo método de largura (as decisões) e a memória de cada uma; (None, [motivo])
-    quando o método não se aplica (material fora da tabela)."""
-    c = _constantes_vala()
-    rec = VALAS["recobrimento_m"][VALAS["classes"].get(sup, {}).get("recobrimento", "outros")]
-    h = profundidade if profundidade is not None else rec + d + c["berco"]
-    solo = solo_fn(h)
-    tipo, motivo = escoramento(h, solo)
-    b, texto_b = _largura_nbr(d, de_mm, h, tipo, material_texto)
-    if b is None:
-        return None, [texto_b]
-    flexivel = material_do_tubo(material_texto) == "flexivel"
-    pav = VP["pavimentos"]["tipos"][VP["pavimentos"]["superficie_tipo"]["valor"].get(sup, "terra")]
-    e_pav = sum(esp for _, esp in pav["camadas"])
-    rocha = solo["topo_rocha_m"]
-    h_rocha = max(0.0, h - max(rocha, e_pav)) if rocha is not None else 0.0
-    hw, metodo, horas = _agua(h, solo, L, de_mm)
-    mole = solo["nspt_min"] is not None and solo["nspt_min"] < VP["escoramento"]["agravantes"]["nspt_min"]
-    dims = {**c, "L": L, "d": d, "h": h, "b": b, "e_pav": e_pav, "h_rocha": h_rocha, "h_solo": max(0.0, h - e_pav - h_rocha),
-            "escorado": 0.0 if tipo == "nenhum" else 1.0, "tipo_escoramento": tipo, "flexivel": 1.0 if flexivel else 0.0,
-            "item_pavimento": pav["item"] or "", "pavimento": pav["nome"], "h_agua": hw, "metodo_agua": metodo,
-            "horas_agua": horas, "reap": c["reap_mole"] if mole else c["reap_solo"]}
-    origem_h = "perfil longitudinal" if profundidade is not None else f"recobrimento {rec} + DE {d} + berço {c['berco']}"
-    memoria = [f"h = {origem_h} = {h:.2f} m",
-               (f"solo (furo {solo['furo']}): {', '.join(solo['classes']) or 'sem informação'}; "
-                f"NSPT mín {solo['nspt_min']}; topo de rocha {rocha}; NA de projeto {solo['na_m']}"),
-               f"escoramento {VP['largura']['nomes_escoramento'][tipo]}: {motivo}",
-               texto_b,
-               f"pavimento: {pav['nome']} (e = {e_pav:.2f} m) → {pav['item'] or 'sem item'}",
-               f"h_rocha = {h_rocha:.2f} m; h_solo = {dims['h_solo']:.2f} m",
-               f"água: {hw:.2f} m na vala → {metodo}" + (f", {horas:.0f} h" if horas else "")]
-    return dims, memoria
-
-
 def _pontos(geometria, passo_m: float = 1.0):
-    """Eixo do trecho amostrado a cada metro (UTM), para a sondagem de cada metro no dimensionador MOS."""
+    """Eixo do trecho amostrado a cada metro (UTM), para a sondagem de cada metro no dimensionador."""
     if geometria is None or geometria.length == 0:
         return None
     return np.array([geometria.interpolate(s).coords[0] for s in np.arange(0.0, geometria.length + 1e-9, passo_m)])
 
 
-def _segmento_mos(sup: str, L: float, d: float, de_mm: float, material_texto: str, furos: list | None, pts,
-                  profundidade, furo_proximo: dict | None) -> tuple[dict | None, list]:
-    """Dimensões de um segmento pelo dimensionador único da main (`lineares.dimensionar_vala`, MOS): largura,
-    escoramento, escavação, reaterro, bota-fora, escoramento (m²), pavimento e esgotamento são os dele; as dimensões
-    dadas vencem os cálculos genéricos do tipo `vala`, e berço/envoltória saem da regra genérica com a largura do MOS."""
+def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: str, furos: list | None, pts,
+                   profundidade: float | None) -> tuple[dict | None, list]:
+    """Adaptador: dimensões de um segmento no formato do tipo `vala`, todas vindas de `lineares.dimensionar_vala`
+    (largura, profundidade, escoramento, esgotamento, escavação, reaterro, bota-fora, escoramento em m² e pavimento em
+    m²); (None, [motivo]) quando o MOS não cobre o tubo. Daqui saem só o berço e a envoltória (regra genérica, com a
+    largura do MOS), as horas de esgotamento e a divisão da escavação em solo e rocha pela fração de rocha do lineares."""
     from . import lineares
     material = material_mos(material_texto)
     if material is None:
@@ -257,7 +186,7 @@ def _segmento_mos(sup: str, L: float, d: float, de_mm: float, material_texto: st
     h = profundidade if profundidade is not None else rec + d + c["berco"]
     pav_mos = VP["metodos"]["mos_sanepar"]["pavimentos"]["valor"].get(sup, "terra")
     trecho = {"local": sup, "dn_mm": de_mm, "material": material, "prof_m": h, "comp_m": L, "metodo": "VCA",
-              "pavimentos": {pav_mos: L}, "sond_ini": (furo_proximo or {}).get("id")}
+              "pavimentos": {pav_mos: L}}
     r = lineares.dimensionar_vala(trecho, furos or [], pts=pts)
     if not r.get("largura_m"):
         return None, [f"MOS: {material} DN {de_mm:g} fora da Tabela I"]
@@ -266,20 +195,22 @@ def _segmento_mos(sup: str, L: float, d: float, de_mm: float, material_texto: st
     metodo_agua = r.get("tipo_esgotamento") or "nenhum"
     horas = L / _faixa(VP["lencol"]["produtividade_m_dia"]["valor"], de_mm) * VP["lencol"]["horas_por_dia"]["valor"] \
         if metodo_agua != "nenhum" else 0.0
-    b = float(r["largura_m"])
-    dims = {**c, "L": L, "d": d, "h": float(r["profundidade_m"]), "b": b, "e_pav": sum(e for _, e in pav["camadas"]),
-            "h_rocha": 0.0, "h_solo": float(r["profundidade_m"]), "escorado": 0.0 if tipo == "nenhum" else 1.0,
+    b, h = float(r["largura_m"]), float(r["profundidade_m"])
+    fracao_rocha = sum(f for classe, f in r["geotecnia"]["solos"].items() if classe.startswith("rocha"))
+    v_rocha = float(r["escavacao_m3"]) * fracao_rocha
+    dims = {**c, "L": L, "d": d, "h": h, "b": b, "e_pav": sum(e for _, e in pav["camadas"]),
+            "h_rocha": h * fracao_rocha, "h_solo": h * (1 - fracao_rocha), "escorado": 0.0 if tipo == "nenhum" else 1.0,
             "tipo_escoramento": tipo, "flexivel": 1.0 if material_do_tubo(material_texto) == "flexivel" else 0.0,
             "item_pavimento": pav["item"] or "", "pavimento": pav["nome"], "h_agua": float(r.get("altura_agua_m") or 0.0),
             "metodo_agua": metodo_agua, "horas_agua": horas, "reap": c["reap_solo"],
-            "V_solo": float(r["escavacao_m3"]), "V_rocha": 0.0, "V_reat": float(r["reaterro_m3"]),
+            "V_solo": float(r["escavacao_m3"]) - v_rocha, "V_rocha": v_rocha, "V_reat": float(r["reaterro_m3"]),
             "V_bota": float(r["bota_fora_m3"]), "A_escoramento": float(r.get("escoramento_m2") or 0.0),
             "A_demol": float(sum((r.get("pavimento_m2") or {}).values())) if pav["item"] else 0.0}
-    memoria = [(f"MOS (lineares.dimensionar_vala): h = {dims['h']:.2f} m ({r.get('fonte_profundidade')}), "
+    memoria = [(f"MOS (lineares.dimensionar_vala): h = {h:.2f} m ({r.get('fonte_profundidade')}), "
                 f"L = {b:.2f} m ({material} DN {de_mm:g})"),
                f"escoramento {VP['largura']['nomes_escoramento'].get(tipo, tipo)}"
                + (f" ({', '.join(r.get('agravantes_escoramento') or [])})" if r.get("agravantes_escoramento") else ""),
-               (f"escavação {r['escavacao_m3']:g} m³ · reaterro {r['reaterro_m3']:g} m³ · "
+               (f"escavação {r['escavacao_m3']:g} m³ (rocha {fracao_rocha:.0%}) · reaterro {r['reaterro_m3']:g} m³ · "
                 f"bota-fora {r['bota_fora_m3']:g} m³ · pavimento {r.get('pavimento_m2')}"),
                f"água: {dims['h_agua']:.2f} m na vala → {metodo_agua}", *r.get("alertas", [])]
     return dims, memoria
@@ -288,33 +219,31 @@ def _segmento_mos(sup: str, L: float, d: float, de_mm: float, material_texto: st
 def dimensionar_vala(trecho: dict, sondagens: list | None = None,
                      metodos: list[str] | None = None) -> list[tuple[str, str, tuple, list[str]]]:
     """[(segmento, método, (dimensões, faltando, memória), alertas)] de um trecho: {id, de_mm, segmentos: {superfície:
-    m}, material_texto?, geometria (UTM)?, cota_terreno?, profundidade_m?}, por método de largura (todos os de
-    `vala.metodos` por padrão). Método que não se aplica ao tubo fica de fora com alerta."""
+    m}, material_texto?, geometria (UTM)?, cota_terreno?, profundidade_m?}. Adaptador de `lineares.dimensionar_vala`
+    (decisão do Caio 03/11/2026: dimensionador único): o único método é `mos_sanepar`; outro método pedido (ex.:
+    'nbr12266') não tem regra própria e fica de fora com alerta. Tubo que o MOS não cobre sai com a largura em `faltando`."""
     furo, dist = sondagem_proxima(trecho.get("geometria"), sondagens)
-    alertas = [] if furo else [f"nenhuma sondagem a até {VP['sondagem']['raio_m']['valor']:.0f} m"
+    alertas = [] if furo else [f"nenhuma sondagem a até {geotecnia.RAIO_INFLUENCIA_M:.0f} m"
                                + (f" (a mais próxima a {dist:.0f} m)" if dist else "")
                                + ": solo, rocha e NA sem informação; bombeamento não avaliado"]
-    desloc = 0.0
-    if furo and trecho.get("cota_terreno") is not None and furo.get("cota_boca") is not None:
-        desloc = float(trecho["cota_terreno"]) - float(furo["cota_boca"])
-    elif furo:
+    if furo and (trecho.get("cota_terreno") is None or furo.get("cota_boca") is None):
         alertas.append(f"terreno do trecho tomado na cota da boca do furo {furo.get('id')} ({dist:.0f} m)")
-    material = material_do_tubo(trecho.get("material_texto"))
-    if material is None:
+    if material_do_tubo(trecho.get("material_texto")) is None:
         alertas.append("material do tubo não identificado: sem envoltória (tratado como rígido)")
-    saida, fora = [], []                                  # fora: método que não se aplica, avisado em todo o trecho
+    furos = [_furo_na_cota_do_trecho(f, trecho.get("cota_terreno")) for f in sondagens or []]
     pts = _pontos(trecho.get("geometria"))
+    saida, fora = [], []                                  # fora: método sem regra própria, avisado em todo o trecho
     for metodo in metodos or list(VP["metodos"]):
+        if metodo not in VP["metodos"]:
+            fora.append(f"método '{metodo}' sem regra própria: a largura sai só do MOS "
+                        "(decisão do Caio 03/11/2026: dimensionador único em lineares)")
+            continue
         for sup, L in trecho["segmentos"].items():
-            if metodo == "mos_sanepar":
-                dims, memoria = _segmento_mos(sup, L, trecho["de_mm"] / 1000, trecho["de_mm"], trecho.get("material_texto"),
-                                              sondagens, pts, trecho.get("profundidade_m"), furo)
-            else:
-                dims, memoria = _segmento_vala(sup, L, trecho["de_mm"] / 1000, trecho["de_mm"],
-                                               trecho.get("material_texto"), lambda h: solo_na_vala(furo, h, desloc),
-                                               trecho.get("profundidade_m"), metodo)
-            if dims is None:
-                fora.append(f"{sup}: {memoria[0]}")
+            dims, memoria = _segmento_vala(sup, L, trecho["de_mm"] / 1000, trecho["de_mm"], trecho.get("material_texto"),
+                                           furos, pts, trecho.get("profundidade_m"))
+            if dims is None:                              # o que falta não é suposto: só o que não depende da largura sai
+                d, faltando, mem = dimensionar("vala", dados={"L": L, "d": trecho["de_mm"] / 1000})
+                saida.append((sup, metodo, (d, [f"b (falta {memoria[0]})", *faltando], mem), alertas + [f"{sup}: {memoria[0]}"]))
                 continue
             d, faltando, mem = dimensionar("vala", dados=dims)
             alerta_agua = [f"{sup}: vala atinge o NA ({dims['h_agua']:.2f} m de água): {dims['metodo_agua']}"] \
@@ -405,5 +334,5 @@ def validar() -> list[str]:
     problemas += [f"de_fatos: tipo '{r['tipo']}' inexistente" for r in REGRAS["de_fatos"] if r["tipo"] not in TIPOS]
     problemas += [f"{t}.{nome}: {erro}" for t, s in TIPOS.items() for nome, expr in s["calculos"].items()
                   if (erro := conferir(expr))]
-    problemas += [f"vala.metodos: '{m}' sem código" for m in VP["metodos"] if m not in (*LARGURAS, "mos_sanepar")]
+    problemas += [f"vala.metodos: '{m}' sem código" for m in VP["metodos"] if m != "mos_sanepar"]
     return problemas

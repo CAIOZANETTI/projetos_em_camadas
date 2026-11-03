@@ -123,14 +123,17 @@ def test_planilha_parcelas_somam_e_cadastro_de_materiais_classifica():
 
 def test_servicos_associados_por_formula():
     evs, sem_valor = associados.de_elementos(_construtivos(), EPSG)
-    por = {(e["codigo"], e["servico"]): e for e in evs if e["documento"]["id"] != "metodo:mos_sanepar"}
+    por = {(e["codigo"], e["servico"]): e for e in evs}          # a vala tem um método só (MOS): sem duplicata por método
     assert por[("U1.FILTROS.GEO.MOV.ESC", "")]["valor"] == pytest.approx(20.0, rel=1e-3)   # (16 + 0,5·16 + 1)·0,80
     assert por[("U1.FILTROS.GEO.MOV.REA", "")]["valor"] == pytest.approx(7.2, rel=1e-3)
     assert por[("U1.FILTROS.GEO.FUN.BLO", "forma")]["valor"] == pytest.approx(12.0, rel=1e-3)
     assert por[("U1.FILTROS.GEO.FUN.BLO", "lastro")]["valor"] == pytest.approx(16 * 0.05, rel=1e-3)   # área × e
-    # vala (camadas.dimensoes): escavação abaixo dos 0,35 m de pavimento; demolição em b + 2 × 0,15
-    assert por[("U2.AAT06.GEO.MOV.VAL", "escavacao")]["valor"] == pytest.approx(1.23 * (1.73 - 0.35) * 180, rel=1e-3)
-    assert por[("U2.AAT06.CIV.PAV.REC", "demolicao")]["valor"] == pytest.approx(180 * 1.53, rel=1e-3)
+    # vala (camadas.dimensoes, adaptador de lineares.dimensionar_vala): largura do MOS (PEAD DN 630: 0,63 + 0,35 + 0,10 =
+    # 1,08 m), escavação pela profundidade inteira, demolição = L × b.
+    # Antes (NBR 12266): b 1,23 m; escavação 1,23 × (1,73 − 0,35) × 180 = 305,5 m³; demolição 180 × 1,53 = 275,4 m².
+    # Agora: escavação 1,08 × 1,73 × 180 = 336,3 m³; demolição 180 × 1,08 = 194,4 m². decisão do Caio 03/11/2026: dimensionador único (lineares)
+    assert por[("U2.AAT06.GEO.MOV.VAL", "escavacao")]["valor"] == pytest.approx(1.08 * 1.73 * 180, rel=1e-3)
+    assert por[("U2.AAT06.CIV.PAV.REC", "demolicao")]["valor"] == pytest.approx(180 * 1.08, rel=1e-3)
     assert por[("U2.AAT06.GEO.MOV.VAL", "escoramento_pontaleteamento")]["valor"] == pytest.approx(2 * 1.73 * 180, rel=1e-3)
     assert "Af = A + f * P + 4 * f ** 2 = 25" in por[("U1.FILTROS.GEO.MOV.ESC", "")]["trecho"]   # memória de cálculo
     assert "u1-FILTROS-pilar-P5 (falta A_forma ← h)" in sem_valor["forma"]            # o pilar não tem altura: não inventa
