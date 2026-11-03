@@ -85,9 +85,13 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
   planilha como o código a lê: as células não vazias unidas por `" | "`, na ordem das colunas, com número em pt-BR sem
   arredondar (`Estaca hélice contínua Ø40 | un | 250`; `Escavação de solo | m³ | 1.250,5`). O `localizador` é
   `{"aba": "Fundações", "linha": 2}`, com `linha` a linha da planilha (1 = primeira da aba, contando as vazias, como no
-  Excel); o trecho tem de estar nessa linha. `"p. N"` vale como índice da aba. As regras são as do texto: o par
-  (`valor`, `unidade`) vem da mesma linha, e o número é do item mais próximo ("Estaca hélice | m | 12 | un | 250" com
-  12 `un` é recusado).
+  Excel); o trecho tem de estar nessa linha. `"p. N"` vale como índice da aba. **A quantidade vem das colunas Un/Qtd**:
+  a linha de cabeçalho da aba (rótulos `Un`/`Unid`/`Unidade` e `Qtd`/`Qtde`/`Quant`/`Quantidade`) vale para as linhas
+  abaixo; `valor` é o número da coluna Qtd e `unidade` a da coluna Un, e o trecho tem de incluir as duas células. Preço
+  e código nunca são quantidade (em "Estaca | m | 250 | 1.250,5" o valor é 250 m, não 1250,5). Sem cabeçalho, só vale o
+  par dentro de uma célula ("250 un"). Célula de fórmula sem valor guardado ("[fórmula sem valor]") recusa a linha:
+  peça à pessoa para salvar a planilha com os valores calculados. Cole o trecho como o `paginas_planilha` mostra. O
+  resto das regras é o do texto (item mais próximo do número; bloco de 2 a 3 linhas seguidas).
 - Texto puro (`--texto`): as páginas são separadas por quebra de página (`\f`); sem ela, é uma página só.
 - `id`, `citacao`, `derivada`, `autor` e `justificativa` são do código: se vierem na linha, são descartados e `id` é
   recalculado. `documento.id` com caminho vira o nome do arquivo.

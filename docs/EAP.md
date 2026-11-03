@@ -191,12 +191,25 @@ mesma fonte (L025/L029: fonte independente = documento diferente), então não a
 
 **Planilha como documento de leitura da IA** (`paginas_planilha`): cada aba vira uma página (csv = uma página), com uma
 linha de texto por linha não vazia: as células não vazias unidas por " | ", na ordem das colunas; número em pt-BR, sem
-arredondar (250.0 → `250`, 1250.5 → `1.250,5`), data `dd/mm/aaaa`. É o texto sobre o qual a IA copia o trecho, e todas as
-regras acima valem sobre ele (fronteira de número, par na mesma linha, item mais próximo, bloco de 2 a 3 linhas). O
-localizador pode ser `{"aba": "<nome>", "linha": N}`, com N a linha da planilha (1 = primeira da aba, contando as vazias,
-como no Excel): o trecho tem de estar nessa linha da aba ("linha citada não contém o trecho"; aba que não existe: "aba
-citada não existe no documento"). "p. N" continua valendo, como índice da aba. Isso é só leitura pela IA: a leitura
-determinística da planilha do contrato segue em `de_planilha` (método `planilha`).
+arredondar (250.0 → `250`, 1250.5 → `1.250,5`), percentual `15%`, data `dd/mm/aaaa`. É o texto sobre o qual a IA copia o
+trecho. O localizador pode ser `{"aba": "<nome>", "linha": N}`, com N a linha da planilha (1 = primeira da aba, contando
+as vazias, como no Excel): o trecho tem de estar nessa linha da aba ("linha citada não contém o trecho"; aba que não
+existe: "aba citada não existe no documento"; nome comparado em NFC, sem espaço nas pontas). "p. N" continua valendo, como
+índice da aba. As regras do texto valem para o item (termo mais próximo do número, bloco de 2 a 3 linhas seguidas, sem
+linha vazia entre elas, com o par na última), mas **a quantidade não vem do " | "**:
+- **Colunas Un/Qtd.** Em cada aba, a linha com um rótulo de unidade (`Un`, `Und`, `Unid`, `Unidade`) e um de quantidade
+  (`Qtd`, `Qtde`, `Quant`, `Quantidade`) é o cabeçalho das linhas abaixo dela (o último cabeçalho acima vence). O valor
+  proposto tem de ser o número da coluna Qtd e a unidade a da coluna Un (normalizada pelo vocabulário), as duas células
+  dentro do trecho. Preço, código e outras colunas nunca viram quantidade; Qtd vazia não vira quantidade.
+- **Sem cabeçalho** reconhecido: só valem pares dentro de uma mesma célula ("250 un").
+- **Célula que não vale como dado**: fórmula sem valor guardado ("[fórmula sem valor]") e número fora de 1e-6 a 1e15
+  (ou NaN/infinito) recusam a linha ("célula sem valor calculado na planilha").
+- **csv**: separador `;`, tabulação ou `,` pelo número de campos consistente nas linhas (empate: `;`); inconsistente, o
+  documento é recusado. `.xls` exige `xlrd`; sem ele o documento é recusado com aviso (o build segue).
+- A leitura por regex (`buscar_texto`) de uma planilha segue as mesmas colunas e grava o localizador `{aba, linha}`.
+
+Isso é leitura pela IA (e pelo regex); a leitura determinística da planilha do contrato segue em `de_planilha`
+(método `planilha`).
 
 **Cobertura**: para cada unidade e item, mostra se há evidência no projeto (pranchas, geometria) e no edital
 (edital, memorial, planilha):
