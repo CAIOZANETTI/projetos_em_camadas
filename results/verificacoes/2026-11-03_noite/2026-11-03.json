@@ -1,0 +1,487 @@
+{
+ "medicoes": {
+  "base": "9538d49",
+  "alvo": "0f724aa",
+  "versao_alvo": "0.55.0",
+  "git": {
+   "commits": 96,
+   "prs": [
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59
+   ],
+   "arquivos": 113,
+   "inseridas": 15805,
+   "removidas": 674,
+   "historia": [
+    [
+     "0f724aa",
+     "Merge pull request #59 from CAIOZANETTI/claude/nifty-meitner-uqs554"
+    ],
+    [
+     "5e2aead",
+     "Merge pull request #58 from CAIOZANETTI/claude/focused-dijkstra-m2k7pj"
+    ],
+    [
+     "023c544",
+     "Merge pull request #57 from CAIOZANETTI/claude/nifty-meitner-uqs554"
+    ],
+    [
+     "23c5e34",
+     "Conferência das cavas de Foz por seções de corte e cotas da sequência executiva (0.53.0) (#56)"
+    ],
+    [
+     "e8c9cac",
+     "Merge pull request #55 from CAIOZANETTI/claude/nifty-meitner-uqs554"
+    ],
+    [
+     "d34515f",
+     "Merge pull request #54 from CAIOZANETTI/claude/focused-dijkstra-m2k7pj"
+    ],
+    [
+     "5ca0056",
+     "Merge pull request #53 from CAIOZANETTI/claude/focused-dijkstra-m2k7pj"
+    ],
+    [
+     "7f7ab41",
+     "Merge pull request #52 from CAIOZANETTI/claude/focused-dijkstra-m2k7pj"
+    ],
+    [
+     "e97d4bd",
+     "Merge pull request #51 from CAIOZANETTI/claude/nifty-meitner-uqs554"
+    ],
+    [
+     "1d942b2",
+     "Merge pull request #50 from CAIOZANETTI/claude/nifty-meitner-uqs554"
+    ],
+    [
+     "56b7992",
+     "Merge pull request #49 from CAIOZANETTI/claude/nifty-meitner-uqs554"
+    ],
+    [
+     "0c7f91b",
+     "Merge pull request #48 from CAIOZANETTI/claude/focused-dijkstra-m2k7pj"
+    ]
+   ]
+  },
+  "testes": {
+   "passaram": 1025,
+   "falharam": 0,
+   "pulados": 67,
+   "duracao_s": 27.4,
+   "ok": true
+  },
+  "ruff": {
+   "ok": false,
+   "erros": 3,
+   "linhas": [
+    "I001 em scripts/bancada_calculo.py:88:5",
+    "DTZ011 em scripts/bancada_calculo.py:99:48",
+    "DTZ011 em scripts/bancada_gavetas.py:239:49"
+   ]
+  },
+  "afericao": {
+   "ok": true,
+   "funcoes": 1247,
+   "longas": [
+    "camadas/mosaico.py:ajustar_global",
+    "camadas/mosaico.py:renderizar",
+    "camadas/orcamento_sanepar.py:extrair_mats",
+    "camadas/sfm.py:densificar",
+    "camadas/sfm.py:ortofoto",
+    "scripts/exemplo_irati.py:main"
+   ],
+   "pioras": []
+  },
+  "determinismo": {
+   "ok": true,
+   "indice_etapas": 0.731,
+   "indice_registros": 0.812,
+   "etapas": {
+    "codigo": 19,
+    "ia": 7,
+    "humano": 1
+   },
+   "licoes": 51,
+   "licoes_com_teste": 49,
+   "tendencia": {
+    "alvo": 0.85,
+    "falta_pp": 11.9,
+    "rodadas_ate_a_meta": 3
+   }
+  },
+  "determinismo_base": {
+   "rodada": "2026-11-01 14:49",
+   "obra": "foz-vilac",
+   "etapas": {
+    "codigo": 17,
+    "ia": 8,
+    "humano": 1
+   },
+   "itens": {
+    "codigo": 3334,
+    "ia": 791,
+    "humano": 1
+   },
+   "indice_etapas": 0.68,
+   "indice_registros": 0.808,
+   "ia_por_papel": {
+    "configuração": 2,
+    "julgamento": 3,
+    "leitura": 2,
+    "operação": 1
+   },
+   "licoes": 23,
+   "licoes_com_teste": 21,
+   "tendencia": {
+    "alvo": 0.85,
+    "falta_pp": 17.0,
+    "rodadas_ate_a_meta": 4
+   },
+   "agentes": {
+    "sonnet": {
+     "chamadas": 25,
+     "tokens": 2003699,
+     "sem_medicao": 2
+    },
+    "fable": {
+     "chamadas": 17,
+     "tokens": 1697124,
+     "sem_medicao": 0
+    },
+    "haiku": {
+     "chamadas": 3,
+     "tokens": 197098,
+     "sem_medicao": 0
+    }
+   }
+  },
+  "vcm": {
+   "ok": true,
+   "decisao": "DECISAO_HUMANA",
+   "cartao": "results/iteracoes/9538d49_0f724aa.html",
+   "pioras": [
+    "| sloc_por_funcao | enxuto |  | 13,037 | 13,322 | +2,2% | ▼ piorou |"
+   ]
+  },
+  "gabaritos": [],
+  "processo": {
+   "versoes_novas": [
+    "0.55.0",
+    "0.54.0",
+    "0.53.0",
+    "0.52.0",
+    "0.51.0",
+    "0.50.0",
+    "0.49.0",
+    "0.48.0",
+    "0.47.0",
+    "0.46.0"
+   ],
+   "versoes_sem_licao": [],
+   "versoes_duplicadas": [],
+   "licoes_duplicadas": [],
+   "licoes_novas": 10,
+   "agentes": [
+    {
+     "modelo": "claude-sonnet-5-5",
+     "execucoes": 19,
+     "tokens": 3874863
+    },
+    {
+     "modelo": "claude-fable-5-1",
+     "execucoes": 8,
+     "tokens": 1606303
+    },
+    {
+     "modelo": "claude-haiku-5-5",
+     "execucoes": 4,
+     "tokens": 444872
+    },
+    {
+     "modelo": " bota-fora com berço e envoltória)",
+     "execucoes": 1,
+     "tokens": 0,
+     "linhas_fora_do_formato": 1
+    }
+   ]
+  },
+  "referencia": {
+   "base": "0602c637b4b6e18271f78df964927123c045db2f70598dfddc58e5b2971ac6de",
+   "alvo": "0602c637b4b6e18271f78df964927123c045db2f70598dfddc58e5b2971ac6de",
+   "igual": true
+  },
+  "data": "2026-11-03"
+ },
+ "itens": [
+  {
+   "grupo": "Medição",
+   "item": "Testes",
+   "estado": "OK",
+   "evidencia": "1025 passaram, 0 falharam, 67 pulados (27.4 s)",
+   "origem": "medido"
+  },
+  {
+   "grupo": "Medição",
+   "item": "Lint (ruff)",
+   "estado": "ATENÇÃO",
+   "evidencia": "3 erro(s): I001 em scripts/bancada_calculo.py:88:5; DTZ011 em scripts/bancada_calculo.py:99:48; DTZ011 em scripts/bancada_gavetas.py:239:49",
+   "origem": "medido"
+  },
+  {
+   "grupo": "Medição",
+   "item": "Aferição (funções longas, fundas, duplicatas)",
+   "estado": "OK",
+   "evidencia": "aferição ok",
+   "origem": "medido"
+  },
+  {
+   "grupo": "Medição",
+   "item": "Hash do conjunto de referência",
+   "estado": "OK",
+   "evidencia": "igual ao da base (0602c637b4b6…)",
+   "origem": "medido"
+  },
+  {
+   "grupo": "Medição",
+   "item": "Balanço do vcm",
+   "estado": "ATENÇÃO",
+   "evidencia": "decisão proposta: DECISAO_HUMANA; piorou: sloc_por_funcao 13,037 13,322 +2,2%",
+   "origem": "medido"
+  },
+  {
+   "grupo": "Medição",
+   "item": "Índice de determinismo (etapas)",
+   "estado": "OK",
+   "evidencia": "0.68 → 0.731 (alvo 0.85)",
+   "origem": "medido"
+  },
+  {
+   "grupo": "Processo",
+   "item": "Lição formalizada por versão",
+   "estado": "OK",
+   "evidencia": "10 versões novas; sem lição: nenhuma",
+   "origem": "medido"
+  },
+  {
+   "grupo": "Processo",
+   "item": "Versões e lições sem colisão",
+   "estado": "OK",
+   "evidencia": "versões repetidas: nenhuma; lições repetidas: nenhuma",
+   "origem": "medido"
+  },
+  {
+   "grupo": "Regras",
+   "item": "Python em português nos módulos novos (eap_padrao, secoes_corte, conferencia_cavas, orcamento_sanepar)",
+   "estado": "OK",
+   "evidencia": "Os 141 nomes de função dos três módulos novos (camadas/eap_padrao.py 52, secoes_corte.py 29, conferencia_cavas.py 60) são em português (preencher, tipo_da_obra, eh_titulo_de_etapa, calibrar, area_de_corte, ler_secoes, conferir_secoes, secoes_medias, sequencia_executiva, placar); a busca por def com get/set/load/parse/compute/check/width/depth/value/result/count/read/write/build/update/find não achou nada. Docstrings e avisos em português (secoes_corte.py:5 'Nada de camadas.escavacao, nada de IA no caminho do número'; obras_lineares.py:441 'NÃO CALCULADAS — … (pendência; o build segue)').",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Regras",
+   "item": "Python calcula; HTML/JS só apresentam (seções EAP padrão e conferência das cavas na aba EAP)",
+   "estado": "OK",
+   "evidencia": "camadas/templates/visualizador.html (+39/−): htmlEapPadrao só lê r.pct, r.pct_txt, n_preenchidas, n_aplicaveis, quantidades_txt, citada_txt (eap_padrao._pct/_pct_txt/resumir calculam); htmlConferenciaCavas usa area_projeto_txt, dif_area_rel_txt, volume_modelo_txt, placar (conferencia_cavas.formatar_secao/placar/_tolerancias_txt), com o comentário 'tudo já formatado pelo Python … aqui só se exibe'. Único operador aritmético novo no JS: r.pct === null ? 0 : r.pct para a largura da barra. Testes no Chromium: tests/test_visualizador_eap_padrao.py (+159) e test_visualizador_eap.py (+36). docs/arquitetura.html (novo, gerado por scripts/verificacao_noturna.py) tem 0 <script>.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Regras",
+   "item": "SI com unidade como sufixo do nome",
+   "estado": "ATENÇÃO",
+   "evidencia": "Os módulos novos seguem a regra: secoes_corte/conferencia_cavas usam area_corte_m2 (15 ocorrências), cota_fundo_min_m (12), largura_corte_m (8), residuo_calibracao_m, volume_projeto_m3, x_origem_pt, y_base_pt; a saída do lineares ganhou de_m (0.51.0); conferencia_cavas.py:561 só traduz a chave antiga 'cota' das marcas para cota_m. Mas a pendência anterior continua: conceitos/dimensoes.json:104-128 e :275 mantêm dims sem sufixo (A_escoramento, V_bota = 'V_bota_mos + …'), o furo canônico segue com E, N, cota_boca sem sufixo (camadas/geotecnia.py:5) e conceitos/de_para_extracao.json:69-71 ainda diz cota_boca_m e 'módulo geotecnia a fazer'. Nenhum plano da janela retomou isso.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Regras",
+   "item": "Nenhuma IA no caminho do resultado de engenharia (seções de corte, títulos de etapa, EAP padrão)",
+   "estado": "OK",
+   "evidencia": "secoes_corte.py lê vetores do PDF (pdf_cad.extrair) e os rótulos de cota por OCR tesseract (secoes_corte.py:13, :244 pytesseract, OCR_DPI = 400 em :81): código determinístico, com 'sem OCR/rótulos concordantes: sem cota, alerta, nenhuma área' (:16); conferencia_cavas.py importa só numpy, shapely, escavacao e geo (:27-30). O título de etapa (0.55.0) casa por regex com titulos_sanepar de conceitos/eap_padrao.json (eap_padrao.eh_titulo_de_etapa), sem IA. A EAP padrão é 'vista' da EAP codificada e 'não cria quantidade' (CHANGELOG 0.48.0; docs/EAP.md:729); a IA só entra como 'IA conferida' na situação de folha, pelo mesmo conferir_citacao de 0.39.0. Os gabaritos de engenharia (ver Gabaritos) não mudaram e o hash de referência é o mesmo.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Regras",
+   "item": "Fato de IA conferida com status 'fonte única' vira elemento e gera serviços associados (ATENÇÃO da verificação anterior)",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança: camadas/dimensoes.py:332-348 (de_fatos) continua aceitando status convergente/fonte única/decidido sem olhar o método da evidência, e docs/EAP.md só cita de_fatos em :468 (recálculo por elemento), sem declarar essa regra. Não entra nas quantidades de obra (dados['eap'] vem dos construtivos) e nenhum plano da janela a tratou. Pendência pequena, já apontada em 03/11.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Regras",
+   "item": "Sem nomes de modelo fixos no código",
+   "estado": "OK",
+   "evidencia": "grep em camadas/ e scripts/ (py e html): nenhum id claude-*; 'Sonnet'/'Haiku' só em docstrings da escada (escada.py:1 e :25, extracao.py:6, gavetas.py:411 'o executor não serve de critério'); scripts/verificacao_noturna.py (novo, 308 linhas) não cita modelo. Nomes de modelo só em dados: results/agentes/execucoes.csv e pdca/agentes.jsonl.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Regras",
+   "item": "Reprodutibilidade, tolerâncias e testes verdes",
+   "estado": "OK",
+   "evidencia": "Hash do conjunto de referência agora: 0602c637b4b6…, igual ao de 0.31.0 e 0.45.0; cada CHANGELOG de 0.49.0 a 0.55.0 declara 'hash da referência igual'. 1025 testes passam (689 → 1025, +336 na janela: test_conferencia_cavas +701, test_eap_itens_gerais +726, test_conciliacao_origem +726, test_eap_padrao +645, test_titulos_etapa +410, test_secoes_corte +311). Tolerâncias declaradas na conferência das cavas (conferencia_cavas._tolerancias_txt, tabela na aba EAP; plano das cavas 'tolerância absoluta' para cotas) e na calibração das seções (resíduo 2 mm, CHANGELOG 0.53.0).",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Regras",
+   "item": "Volume das cavas depende do SfM, que não é bit a bit",
+   "estado": "ATENÇÃO",
+   "evidencia": "docs/plano/2026-11-03_conferencia_cavas.md, 'Leitura honesta' item 6: o mesmo conjunto de fotos reconstruído em outro contêiner deu 8 612 m³ contra 8 585,6 m³ em 02/11 (+0,3 %), com 12 pontos de controle vertical em vez de 13 (SP03 descartado). O código é determinístico e o limite ficou registrado, mas a regra 'cálculo de engenharia determinístico' não tem tolerância declarada para a reconstrução (nem no vcm.yaml nem em pdca/determinismo.json); vale decidir se 0,3 % é aceitável e gravar como tolerância.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Um único dimensionador de vala e um único modelo geotécnico (DESVIO 1 da verificação anterior)",
+   "estado": "OK",
+   "evidencia": "Resolvido na 0.49.0 (3d670de, PR #52, decisão D4). camadas/dimensoes.py:101 'adaptador do dimensionador único': _segmento_vala chama lineares.dimensionar_vala (:194), sondagem_proxima/classe_solo delegam a geotecnia (:115-120); solo_na_vala, escoramento, _agua e o método nbr12266 foram removidos (grep por 300, 0.5, 1.25 e nbr em dimensoes.py só acha a docstring da D7). conceitos/dimensoes.json:305 registra as premissas removidas (raio 300 m, NA 0,5 m, empolamento 1,25, faixas de escoramento, largura NBR). D7 (fallback DE + 0,60 m) ficou numa regra só, no lineares (valas.py:197 e conceitos/lineares.json:107): 'FD DN 630: 1,23 m nos três caminhos'. Antes × depois por teste em results/iteracoes/2026-11-03_dimensionador_unico.md; aceite do Fable 'ACEITO COM RESSALVAS' (execucoes.csv, D4).",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "docs/ARQUITETURA.md atualizada com o entregue (DESVIO 2 da verificação anterior)",
+   "estado": "ATENÇÃO",
+   "evidencia": "Resolvido em parte: R10 de 03/11 (commits 19b0742, 34bcfa3, ab4d17c) com a tabela D1–D9, §5 corrigido ('até a 0.26.0 havia dois interpretadores'), §12 telas e §13 banco de gavetas. Mas o título diz 'estado do código em 0.49.0' e a main está em 0.55.0: o documento não cita eap_padrao (conceitos/eap_padrao.json e camadas/eap_padrao.py, 0.48/0.52/0.54/0.55, uma vista nova com 72 folhas e titulos_sanepar), nem secoes_corte.py e conferencia_cavas.py (0.53.0, etapa nova do build que grava conferencia_cavas.json), nem a tabela de conferência na aba EAP (§12 descreve a aba sem ela); grep por eap_padrao|secoes_corte|conferencia_cavas|titulos_sanepar em ARQUITETURA.md não acha nada. Esses pontos estão documentados em docs/EAP.md §9.1 (:604-676) e docs/MEMORIA_ESPACIAL.md (0.53.0), então o atraso é de um dia, não de 14 versões como antes.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "EAP padrão por tipo de obra: novo conceito, mantido como vista sem criar quantidade",
+   "estado": "OK",
+   "evidencia": "conceitos/eap_padrao.json: metadata.estado 'premissa', fonte declarada ('o MOS não está no repositório … numeração e nomes das etapas são premissa a conferir'); eap_padrao.preencher só classifica folhas (preenchida, só menção, a preencher, calculada, não se aplica, sem item) a partir das evidências já consolidadas, e 'Nenhum dos dois [citada_no_contrato, avisos_titulo] muda a situação de folha' (docs/EAP.md:675). O item aberto 'Conferir as etapas da EAP padrão com o MOS Sanepar' está em docs/EAP.md:826 para o Caio. Revisão independente em 0.48.0 e 0.52.0 (execucoes.csv, revisor Sonnet), com 650 frases comparadas antes × depois.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Conferência das cavas como etapa do build, com pendência visível em vez de silêncio",
+   "estado": "OK",
+   "evidencia": "conferencia_cavas.etapa/para_html gravam conferencia_cavas.json e a tabela da aba EAP (CHANGELOG 0.53.0); escavacao.calcular passou a devolver 'corte' sem mudar volumes. Três silêncios do contêiner novo viraram pendência com teste: prancha com PDF ausente (f3868a5), inventário sem listagem e 'Escavação: NÃO CALCULADA' sem sondagens.json (7c0ce51). Seções 'não conferível' sempre com motivo (conferencia_cavas._motivo_nao_conferivel, _motivo_terreno); nada de 'confere' circular: a testemunha é a prancha de corte, independente do MDS.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Geotecnia separada da civil: D5 e D6 implementadas no módulo da disciplina",
+   "estado": "OK",
+   "evidencia": "geotecnia.classe_solo pelo substantivo (D5) e solo_na_faixa com impenetravel_e_rocha (D6, conceitos/geotecnia.json:41, estado 'premissa'); tests/test_geotecnia.py +53 (test_classe_pelo_substantivo com 7 casos, test_impenetravel_vale_como_rocha_na_faixa 1/3 rocha, test_impenetravel_corta_no_fundo_do_furo… da ressalva do Fable). Cartão antes × depois em results/iteracoes/2026-11-03_D5_D6_geotecnia.md. Pendência antiga mantida: gavetas.eixo (gavetas.py:516) ainda não usa lineares.eixo (lineares.py:55), como o próprio ARQUITETURA §5 item 4 admite.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Plano",
+   "item": "Conferência das cavas (0.53.0): plano, rumo, aceites e prometido × entregue",
+   "estado": "OK",
+   "evidencia": "docs/plano/2026-11-03_conferencia_cavas.md (161 linhas) com E1–E4, por quem (Haiku E1, Sonnet E2/E3, Opus/Fable E4) e estado; rumo.yaml com estimativa × real por etapa (E2 estimado 60 min / 250 k tokens, real 29 min / 185 k; E3 real 294 k tokens) e E5 cancelada pelo Caio; três aceites do Fable (REVISAR A1–A8, REVISAR B1–B3, ACEITA) com cada achado e correção na tabela do plano; placar final 1 confere / 4 difere / 13 não conferível e a 'Leitura honesta' (fundo bate em 5 de 7 seções; área difere pelo terreno, MDS até 0,6 m abaixo da topografia). Dois cartões DECISAO_HUMANA registrados como MANTER com a troca explícita (linhas por função +3,3 %; complexidade −2,4 %; +62 testes) em results/iteracoes/d34515f_54b9969.decisao.md e e8c9cac_6b393eb.decisao.md.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Plano",
+   "item": "Decisões D4–D9: registro, antes × depois e aceite",
+   "estado": "OK",
+   "evidencia": "D4 acrescentada a docs/plano/2026-11-01_rodada25.md ('Decisões posteriores (03/11/2026)') e D4–D9 na tabela de ARQUITETURA.md; cada bloco com cartão antes × depois (results/iteracoes/2026-11-03_dimensionador_unico.md, _D5_D6_geotecnia.md, _D7_D8_vala.md, _D9_observacoes.md) e balanço vcm (1d942b2_6cdf181, 7f7ab41_a6cdd98, 5ca0056_fdd09a7); aceite do Fable nos três PRs (execucoes.csv: 'ACEITO COM RESSALVAS' para D4, D5–D8 e D9, com as ressalvas corrigidas: camada sem profundidade, corte do D6 no fundo do impenetrável, DN ausente). Não há arquivo próprio em docs/plano para D5–D9, mas ARQUITETURA.md diz 'registrada aqui e no plano da rodada' e o cartão cumpre o papel.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Plano",
+   "item": "Frente nifty-meitner (0.46, 0.47, 0.48, 0.52, 0.54, 0.55) sem plano em docs/plano e sem aceite do Fable",
+   "estado": "ATENÇÃO",
+   "evidencia": "Continua como na verificação anterior: dos seis PRs do ramo, só a 0.54.0 tem documento em docs/plano (2026-11-03_foz_eap_padrao_real.md, relatório a posteriori da passada com dado real); os outros têm só o CHANGELOG e os checkboxes de docs/EAP.md §10. Revisor independente é Sonnet em 0.46.0, 0.48.0 e 0.52.0 (execucoes.csv, papel 'revisor', claude-sonnet-5-5), e 0.54.0 e 0.55.0 não têm linha de revisor nenhuma (execucoes.csv:117-118: só executor; a 0.54.0 teve 'devolução do gerente' por ruff format global acidental). ARQUITETURA §10 pede plano em docs/plano e aceite do Fable antes da main. O processo foi seguido no resto: lição por versão, balanço por PR, registro de agentes.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Plano",
+   "item": "Pendências da rodada 25 e da verificação anterior ainda abertas",
+   "estado": "ATENÇÃO",
+   "evidencia": "Feita: classe_solo pelo substantivo (D5, 0.50.0). Abertas: furo com sufixo SI (geotecnia.py:5), de_para_extracao.json:69-71 ('módulo geotecnia a fazer' embora geotecnia.ler_laudo esteja em uso), gavetas.eixo × lineares.eixo (gavetas.py:516), CI sem --extra pdf (.github/workflows/vcm.yml sem 'extra'), valas.quantificar no fallback, conferência pelo Caio dos 23 furos de Foz com executor 'código' (pdca/determinismo.json não mudou na janela) e 'Conferir as etapas da EAP padrão com o MOS' (docs/EAP.md:826). O plano das cavas abriu mais três: terreno MDS × topografia do projeto, perfil por segmentos para linha quebrada (CC) e prancha PLANTIM-R2 ausente no Drive.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "tests/test_obras_lineares.py, test_valas.py, test_gavetas.py, test_dimensionar_vala.py, test_escavacao.py, test_lineares.py, test_cavas_gavetas.py",
+   "estado": "OK",
+   "evidencia": "git diff --numstat 9538d49 origin/main -- tests/: nenhum desses sete arquivos aparece (0 linhas alteradas). O gabarito da planilha da Giselle e o quadro da vala ficaram intactos nas decisões D4–D9, como cada CHANGELOG declara ('Gabaritos intocados; hash da referência igual'); o reaterro e o bota-fora do lineares (gabarito) não mudaram, só os do adaptador dimensoes (D8: 97,93 → 90,43 m³; D9: 48,6 → 173,5 m³).",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "tests/test_dimensoes.py, test_evidencias.py, test_eap_painel.py: números de engenharia alterados pela D4 e pela D7, com decisão citada",
+   "estado": "OK",
+   "evidencia": "test_dimensoes.py +249/−41: saem os asserts do NBR 12266 (b 0,80 m, 1,23 m; test_cada_metodo_e_uma_fonte…, test_escoramento_total_compara_metodos…, test_impenetravel_vira_topo_de_rocha) e entram os do MOS; cada mudança cita 'decisão do Caio 03/11/2026: dimensionador único (lineares)' no próprio teste (test_evidencias.py: escavação 1,23 × 1,38 × 180 = 305,5 → 1,08 × 1,73 × 180 = 336,3 m³; demolição 275,4 → 194,4 m²; test_eap_painel.py: U2 'conflito' 12/7 → 'fonte única' 12/0; test_evidencias.py: AMIANTO deixa de dar [] pela D7). Tabela completa antes × depois com causa em results/iteracoes/2026-11-03_dimensionador_unico.md. D4 e D7 estão na tabela de ARQUITETURA.md.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "tests/test_geotecnia.py só com adições",
+   "estado": "OK",
+   "evidencia": "+53/−1: a única linha removida é a lista 'linhas = [...]' reescrita em várias linhas (mesmo conteúdo); o resto são os testes de D5 e D6 e da ressalva do Fable (rocha alterada preservada, soma das fatias = 1,0). Nenhum valor esperado existente foi alterado.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "Conceitos de classificação alterados pela frente EAP com dado real, sem decisão registrada do Caio",
+   "estado": "ATENÇÃO",
+   "evidencia": "0.54.0 (462e308) mudou regras em conceitos/eap.json, eap_geral.jsonl e servicos.jsonl com base na planilha de Foz: poço de visita passa a valer para água e esgoto ('MOS módulo 09'), macromedidor DN 200 sai de ligação predial para instrumentação (folha nova OL.07.04), grade de piso vai para acabamentos, etapa 00 ALO obrigatória nos dois tipos; tests/test_eap_html.py e test_eap_painel.py trocaram HID.TUB.PVS por GER.CTL.CFT como exemplo de item só de esgoto. São classificações (não números de engenharia) e cada uma tem motivo no CHANGELOG, mas o plano 0.54 lista 'candidatos para decisão humana' (BLOCOS DE ANCORAGEM/APOIO e ÁGUA POTÁVEL dentro da ETA; 'lavagem de rede' sem item) e a mudança do PVS não passou pelo Caio nem pelo Fable.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Processo",
+   "item": "D3 revertida sem registro (DESVIO 3 da verificação anterior)",
+   "estado": "OK",
+   "evidencia": "Resolvido no mesmo dia: docs/plano/2026-11-01_rodada25.md ganhou 'Decisões posteriores (03/11/2026): D3 revertida. Entre 02 e 03/11 o Caio fez o merge de 11 PRs do ramo nifty-meitner (#18, #34, #36, #38, #40–#45, #47)'; a tabela de ARQUITETURA.md marca D3 'revertida em 02–03/11' com o que passa a fazer parte da arquitetura (EAP codificada, aba EAP, evidências, leitura por IA com citação conferida); docs/arquitetura.html (8af4013) anuncia os quatro desvios fechados.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Processo",
+   "item": "results/agentes/execucoes.csv duplicado (DESVIO 4 da verificação anterior)",
+   "estado": "OK",
+   "evidencia": "Resolvido: o diff da janela remove 56 linhas e acrescenta 32 (117 linhas de dados agora); 'rodada 23' voltou de 12 para 6 ocorrências e 'rodada 25,G1' de 2 para 1. Com chave normalizada (data, tarefa, modelo, papel, tokens) só restam 3 linhas de mesma chave, que são execuções distintas (fase EAP 0.33.0, 0.35.0 e 0.36.0, tokens diferentes). As 32 linhas novas cobrem D4, D5–D8, D9 (Sonnet + aceite Fable), a verificação de 03/11, 0.46–0.55 e as 13 execuções da conferência das cavas (3 Haiku no Drive, Sonnet E2/E3 e correções, 3 aceites do Fable), espelhadas em pdca/agentes.jsonl (+13).",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Processo",
+   "item": "Colisões de versão e de lição entre as duas frentes",
+   "estado": "OK",
+   "evidencia": "Na main a sequência é monótona: #49 0.46.0, #50 0.47.0, #51 0.48.0, #52 0.49.0, #53 0.50.0, #54 0.51.0, #55 0.52.0, #56 0.53.0, #57 0.54.0, #59 0.55.0 (git diff m^1 m -- camadas/__init__.py por merge; #48 e #58 sem bump). Duas colisões aconteceram no ramo e foram resolvidas antes do merge: d693c45 'D4 renumerada para 0.49.0 e lição L045 (a main já usava 0.48.0/L044)' e 6b393eb 'a conferência das cavas passa a 0.53.0, lição L049' (a main já tinha 0.52.0/L048). CHANGELOG sem cabeçalho repetido (grep '^## ': 0.55 … 0.42 únicos) e VERSAO = topo do CHANGELOG.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Processo",
+   "item": "Lição por versão",
+   "estado": "OK",
+   "evidencia": "pdca/licoes.jsonl: L042 (0.46.0) a L051 (0.55.0), exatamente uma por versão, dez versões, dez lições; cada uma com 'antes' e teste (L045 'uma grandeza, uma regra'; L049 'conferir contra a mesma fonte não é conferir'; L050 'o dado real derruba o que o teste sintético deixa passar'). tests/test_determinismo.py passa na suíte.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Processo",
+   "item": "Balanço vcm por PR",
+   "estado": "OK",
+   "evidencia": "Todos os 12 merges têm cartão em results/iteracoes: 9538d49_a01063d (0.46), 56b7992_aafbc21 (0.47), 1d942b2_b102a97 (0.48), 1d942b2_6cdf181 (D4), 7f7ab41_a6cdd98 (D5–D8), 5ca0056_fdd09a7 (D9), d34515f_7476999 (0.52), d34515f_54b9969 + e8c9cac_db0f348 + e8c9cac_6b393eb (cavas, com .decisao.md), 23c5e34_81938dc (0.54), 5e2aead_daf5cba (0.55). Na verificação anterior faltavam quatro cartões; nesta janela nenhum.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Processo",
+   "item": "Portão REVERTER do vcm no CI",
+   "estado": "ATENÇÃO",
+   "evidencia": ".github/workflows/vcm.yml não mudou na janela (não aparece no diff), e o próprio docs/arquitetura.html (8af4013) admite: 'Ainda aberto: o portão REVERTER do vcm no CI (o passo falha por acesso ao repositório privado)'. Os balanços continuam rodados à mão pelo gerente (cartões acima). O gh desta sessão não devolve os comentários dos PRs, então não foi possível confirmar se o passo falhou também nos PRs #48–#59; o aviso do documento vale como declaração.",
+   "origem": "revisor"
+  },
+  {
+   "grupo": "Processo",
+   "item": "Registro das execuções de agentes, rumo e aferição",
+   "estado": "OK",
+   "evidencia": "execucoes.csv e pdca/agentes.jsonl registram modelo, tokens, ferramentas, duração e aprovado de cada execução (ex.: E3 conferência 294 201 tokens / 111 chamadas / 1634 s; 3º aceite Fable 326 616 tokens). rumo.yaml com objetivo, entregáveis, estimativa × real e E5 cancelada; results/rumo.md/html. pdca/afericao.jsonl +9 rodadas, todas com 0 órfãs e 0 duplicatas, 6 funções longas estáveis, 1138 → 1247 funções. Cada PR de decisão nomeia a escada usada ('Dois Sonnet em paralelo; aceite do Fable', CHANGELOG 0.50.0).",
+   "origem": "revisor"
+  }
+ ],
+ "veredito": [
+  "COM ATENÇÕES",
+  {
+   "DESVIO": 0,
+   "ATENÇÃO": 10,
+   "OK": 26
+  }
+ ]
+}
