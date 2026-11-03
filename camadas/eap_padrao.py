@@ -164,9 +164,20 @@ def _servicos_fora_do_padrao(tipo: str, itens: dict) -> list[str]:
     ]
 
 
+def _problemas_dos_titulos(etapa: dict) -> list[str]:
+    """Erro de formato de `titulos_sanepar` da etapa (lista de textos não vazios), quando presente."""
+    titulos = etapa.get("titulos_sanepar")
+    if titulos is None or (
+        isinstance(titulos, list)
+        and all(isinstance(t, str) and t.strip() for t in titulos)
+    ):
+        return []
+    return [f"{etapa['id']}: `titulos_sanepar` deve ser lista de textos não vazios"]
+
+
 def validar() -> tuple[list[str], list[str]]:
     """(erros, avisos) do padrão. Erro: id repetido ou fora do prefixo, item ou serviço inexistente, serviço não
-    admitido pelo item, item de outro tipo de obra, escopo da folha fora do escopo do item, `obrigatoria` ausente.
+    admitido pelo item, item de outro tipo de obra, escopo da folha fora do escopo do item, `obrigatoria` ausente, `titulos_sanepar` malformado.
     Aviso (não erro): item de `eap_geral` do tipo de obra que nenhuma folha cita ("item fora do padrão") e par
     (item, serviço) admitido que nenhuma folha cobre ("serviço fora do padrão")."""
     itens, erros, avisos, ids = eap.itens(), [], [], []
@@ -182,6 +193,8 @@ def validar() -> tuple[list[str], list[str]]:
         ]
         for folha in folhas:
             erros += _problemas_da_folha(tipo, folha, itens)
+        for etapa in meta["etapas"]:
+            erros += _problemas_dos_titulos(etapa)
         avisos += [
             f"{tipo}: item fora do padrão: {i['codigo']}"
             for i in itens_fora_do_padrao(tipo)

@@ -3,7 +3,7 @@
 import pytest
 
 pytest.importorskip("playwright")
-from test_eap_padrao import ANTIGAS_SEM_ITEM, _fato, _q, sem_item
+from test_eap_padrao import ANTIGAS_SEM_ITEM, _fato, _q, sem_item, so_de_esgoto
 from test_visualizador_eap import (  # noqa: F401  (fixture)
     _abrir,
     dados_minimos,
@@ -43,6 +43,7 @@ def _padrao() -> dict:
 
 def test_aba_eap_mostra_a_eap_padrao(navegador, tmp_path, monkeypatch):  # noqa: F811
     sem_item(monkeypatch, *ANTIGAS_SEM_ITEM)
+    so_de_esgoto(monkeypatch)
     padrao = _padrao()
     pagina, erros = _abrir(
         navegador, tmp_path, {**dados_minimos(), "eap_padrao": padrao}
@@ -62,7 +63,7 @@ def test_aba_eap_mostra_a_eap_padrao(navegador, tmp_path, monkeypatch):  # noqa:
     )
     estrutura = secao.locator('details[data-etapa="OP.04"]')
     assert (
-        bloco["etapas"][3]["resumo"]["pct_txt"]
+        bloco["etapas"][4]["resumo"]["pct_txt"]
         in estrutura.locator("summary").inner_text()
     )
     assert (
