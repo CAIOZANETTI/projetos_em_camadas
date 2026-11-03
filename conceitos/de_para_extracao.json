@@ -103,6 +103,7 @@
    "objeto": "rede_vala",
    "geometria": "linha",
    "propriedades": [
+    "local",
     "de_mm",
     "extensao_m",
     "classes_por_metro",
