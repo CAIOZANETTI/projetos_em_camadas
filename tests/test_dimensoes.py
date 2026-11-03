@@ -215,8 +215,7 @@ def test_classe_do_solo_pela_palavra_principal():
     assert dimensoes.classe_solo("basalto são") == "rocha"
 
 
-@pytest.mark.xfail(strict=True, reason="pendência do Caio (plano da rodada 25): geotecnia.classe_solo pega a 1ª regex que "
-                   "casa (ARGIL antes de AREI), não o substantivo; 'areia argilosa' sai argila. Dimensionador único: D4, 03/11/2026")
+# decisão do Caio 03/11/2026 (D5): classe pelo substantivo
 def test_areia_argilosa_e_areia():
     assert dimensoes.classe_solo("areia argilosa") == "areia"
 
