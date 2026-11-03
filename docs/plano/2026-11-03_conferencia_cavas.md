@@ -54,28 +54,32 @@ O Caio escolheu duas testemunhas independentes do cálculo pelo MDS:
 
 ## Resultado (build real de 03/11, 7 cavas, 8 612 m³ de escavação)
 
-**Placar por seção: 1 confere, 5 difere, 12 não conferível.**
+**Placar por seção, depois das correções do aceite: 0 confere, 3 difere, 15 não conferível.** Na primeira versão,
+antes do aceite, era 1 / 5 / 12. A conferência ficou mais severa porque deixou de esconder motivos.
 
-| Seção | Área projeto × modelo (m²) | Fundo projeto × modelo (m) | Talude do projeto (H:V) | Situação |
-|---|---|---|---|---|
-| RR | 57,9 × 63,0 (+9 %) | 235,00 × 235,06 | 1,0 | confere |
-| HH | 89,3 × 78,5 (−12 %) | 235,35 × 235,05 | 1,0 | difere: fundo −0,30 m, no limite |
-| AA | 33,5 × 23,9 (−29 %) | 237,75 × 237,75 | 3,7 | difere: área; terreno do MDS −0,42 m |
-| FF | 61,1 × 44,4 (−27 %) | 235,97 × 236,37 | 2,4 | difere: área e fundo +0,40 m |
-| OO | 70,1 × 48,4 (−31 %) | 234,95 × 234,95 | 1,75 | difere: área; terreno −0,37 m |
-| BB | 11,6 × 0 | 237,25 × — | 1,7 | difere: o modelo não tem cava nessa linha |
-| DD, EE | 42,1 × 44,6; 114,0 × 15,0 | 237,45 × 237,45; 235,21 × 235,57 | 1,5; 5,7 | não conferível: a cava do modelo passa da ponta da linha |
-| PP, QQ | 17,9 × 9,1; 16,6 × 9,9 | 235,57 × 235,92 / 235,95 | 1,0 a 1,5 | não conferível: área parcial no projeto (borda do quadro) |
-| CC | 77,3 × 23,6 | 234,46 × 237,76 | 5,2 | não conferível: linha quebrada na planta |
-| NN | 62,6 × 68,6 | 234,50 × 234,50 | 1,75 | não conferível: só 75 % da linha dentro do MDS |
-| GG, JJ, KK, LL, MM | — | — | — | não conferível: sem linha de seção legível na planta |
-| II | 0,5 × 1,9 | 239,30 × 239,42 | — | não conferível: sem corte no projeto (< 1 m²) |
+| Seção | Área projeto × modelo × modelo corrigido pelo terreno (m²) | Fundo projeto × modelo (m) | Terreno MDS − projeto (m) | Situação |
+|---|---|---|---:|---|
+| AA | 33,5 × 23,9 × **33,9 (+1 %)** | 237,75 × 237,75 | −0,42 | difere: área e terreno; corrigida pelo terreno, a área bate |
+| FF | 61,1 × 44,4 × 47,8 (−22 %) | 235,97 × 236,37 | −0,14 | difere: área e fundo +0,40 (marca 237,15 a 1,3 m da linha) |
+| HH | 89,3 × 78,5 × 82,2 (−8 %) | 235,35 × 235,05 | −0,12 | difere: fundo −0,30, no limite |
+| RR | 57,9 × 63,0 × 67,6 (+17 %) | 235,00 × 235,06 | −0,22 | não conferível: terreno do MDS irregular na linha (desvio 0,46 m) |
+| OO | 70,1 × 48,4 × 55,9 (−20 %) | 234,95 × 234,95 | −0,37 | não conferível: edificação existente em 30 % da linha |
+| LL | 102,6 × 117,1 × 108,5 (+6 %) | 235,57 × 235,57 | +0,17 | não conferível: linha quebrada (segmento de 6,2 m) |
+| BB | 11,6 × 0 | 237,25 × — | +1,02 | não conferível: linha incompleta e sobre edificação |
+| DD | 42,1 × 44,6 × 36,3 | 237,45 × 237,45 | +0,35 | não conferível: linha incompleta (26,2 de 35 m); terreno irregular |
+| EE | 114,0 × 15,0 | 235,21 × 235,57 | +2,50 | não conferível: linha incompleta (15,6 de 45 m); edificação |
+| KK | 245,3 × 42,4 | 235,35 × 237,90 | +0,58 | não conferível: linha incompleta (35,3 de 100 m) |
+| JJ, NN | 58,5 × 7,9; 62,6 × 68,6 | 236,85 × 237,94; 234,50 × 234,50 | — | não conferível: linha fora do MDS (69 % e 75 % dentro) |
+| CC | 77,3 × 23,6 | 234,46 × 237,76 | +1,21 | não conferível: linha quebrada |
+| PP, QQ | 17,9 × 9,1; 16,6 × 9,9 | 235,57 × 235,92 / 235,95 | +1,5 | não conferível: área parcial no projeto (borda do quadro) |
+| GG, MM | 0 | — | — | não conferível: sem linha legível na planta |
+| II | 0,5 × 1,9 | 239,30 × 239,42 | +0,14 | não conferível: sem corte no projeto (< 1 m²) |
 
 **Seções médias:** a cava C01, entre FF e HH (d = 11,4 m), dá V_projeto 856 m³ × V_modelo 742 m³ (−13 %) e **confere**.
 Das outras 9 combinações, nenhuma tem par paralelo com as duas seções completas.
 
 **Sequência executiva (planta 02):**
-- **Escavação 239,20 (Caixa de Saída 01):** liga só a C07, cujo fundo no modelo é 239,42 m; confere.
+- **Escavação 239,20 (Caixa de Saída 01):** compatível por valor só com C07 (fundo 239,42 m); a nota não diz onde.
 - **237,50 e 236,80:** aparecem para a Câmara de Contato e para a Caixa de Saída 02 com o mesmo valor. Ligar a uma cava
   seria inventar, então ficam como não conferíveis.
 - **Notas "cota final":** sem número, não conferíveis.
