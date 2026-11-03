@@ -208,7 +208,7 @@ método aplicado, padrão do leitor virando fato, chave do incremental sem as co
 gavetas reproduz o atual em todos os testes. Nos dados sintéticos, a resposta é sim: o processo ficou mais orientado
 e rastreável, sem perder o resultado.
 
-**Build real de Foz (0.43.0, 03/11/2026).** O build rodou com os dados verdadeiros até o HTML:
+**Build real de Foz (0.45.0, 03/11/2026).** O build rodou com os dados verdadeiros até o HTML:
 - gavetas com 30 objetos e 75 serviços, 0 erros de conferência e `paridade.json` vazio;
 - escavação e reaterro das cavas dão "confere" com a EAP codificada, com diferença zero. A conferência é circular,
   porque as duas trilhas vêm do mesmo `escavacao`; falta a conferência independente contra o CUSTO CIVIL;
@@ -219,7 +219,7 @@ opcionais que derrubavam o build, o serviço sem item e a falta de unidade e sis
 `docs/plano/2026-11-02_foz_build_real.md`.
 
 **O que falta para fechar a tese:**
-1. ~~o build real de Foz~~ (0.43.0); falta a aba EAP conferida pelo Caio e, para as obras lineares, a planilha do
+1. ~~o build real de Foz~~ (0.45.0); falta a aba EAP conferida pelo Caio e, para as obras lineares, a planilha do
    protótipo com a aba "Obras Lineares", que não está no Drive;
 2. ~~cavas~~ e ~~setores da ETA~~: feitos na rodada 5 (0.34.0); falta o MDS e os setores reais de Foz;
 3. ~~casar OL, RD e CV com a EAP codificada~~ (rodada 6, 0.36.0), conferido em Foz nas cavas;

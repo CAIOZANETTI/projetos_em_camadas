@@ -189,6 +189,28 @@ selo `citacao` do arquivo: reconfere as evidências `ia` contra os documentos do
 afirmação própria (`documento.id` = `ia:<arquivo>`), para nunca somar com o regex do mesmo documento; mas conta como a
 mesma fonte (L025/L029: fonte independente = documento diferente), então não aumenta a `forca`.
 
+**Planilha como documento de leitura da IA** (`paginas_planilha`): cada aba vira uma página (csv = uma página), com uma
+linha de texto por linha não vazia: as células não vazias unidas por " | ", na ordem das colunas; número em pt-BR, sem
+arredondar (250.0 → `250`, 1250.5 → `1.250,5`), percentual `15%`, data `dd/mm/aaaa`. É o texto sobre o qual a IA copia o
+trecho. O localizador pode ser `{"aba": "<nome>", "linha": N}`, com N a linha da planilha (1 = primeira da aba, contando
+as vazias, como no Excel): o trecho tem de estar nessa linha da aba ("linha citada não contém o trecho"; aba que não
+existe: "aba citada não existe no documento"; nome comparado em NFC, sem espaço nas pontas). "p. N" continua valendo, como
+índice da aba. As regras do texto valem para o item (termo mais próximo do número, bloco de 2 a 3 linhas seguidas, sem
+linha vazia entre elas, com o par na última), mas **a quantidade não vem do " | "**:
+- **Colunas Un/Qtd.** Em cada aba, a linha com um rótulo de unidade (`Un`, `Und`, `Unid`, `Unidade`) e um de quantidade
+  (`Qtd`, `Qtde`, `Quant`, `Quantidade`) é o cabeçalho das linhas abaixo dela (o último cabeçalho acima vence). O valor
+  proposto tem de ser o número da coluna Qtd e a unidade a da coluna Un (normalizada pelo vocabulário), as duas células
+  dentro do trecho. Preço, código e outras colunas nunca viram quantidade; Qtd vazia não vira quantidade.
+- **Sem cabeçalho** reconhecido: só valem pares dentro de uma mesma célula ("250 un").
+- **Célula que não vale como dado**: fórmula sem valor guardado ("[fórmula sem valor]") e número fora de 1e-6 a 1e15
+  (ou NaN/infinito) recusam a linha ("célula sem valor calculado na planilha").
+- **csv**: separador `;`, tabulação ou `,` pelo número de campos consistente nas linhas (empate: `;`); inconsistente, o
+  documento é recusado. `.xls` exige `xlrd`; sem ele o documento é recusado com aviso (o build segue).
+- A leitura por regex (`buscar_texto`) de uma planilha segue as mesmas colunas e grava o localizador `{aba, linha}`.
+
+Isso é leitura pela IA (e pelo regex); a leitura determinística da planilha do contrato segue em `de_planilha`
+(método `planilha`).
+
 **Cobertura**: para cada unidade e item, mostra se há evidência no projeto (pranchas, geometria) e no edital
 (edital, memorial, planilha):
 - `só projeto: verificar se o edital considera`;
@@ -225,6 +247,9 @@ de serviços, dos sinônimos e da planilha CUSTO CIVIL.
 - "30 MPa" e "DN 300 mm" **não** viram quantidade.
 
 O trecho da evidência é sempre a linha original. O vocabulário ajuda a achar, mas não reescreve o documento.
+
+Número colado a letra ou hífen (`DN150`, `C30`, `CA-50`, `Ø40`) e dimensão com espaço (`DN 150`, `Ø 40 cm`, `diâmetro 150`)
+não são quantidade, nem no regex (`quantidade`) nem na conferência da IA: a regra é uma só (`NAO_E_NUMERO`, `DIMENSAO`).
 
 ## 7. Serviços associados: elemento → dimensões → serviços
 
@@ -520,11 +545,15 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
 - [x] **Skill de leitura por IA** (`.claude/skills/eap-evidencias`, `evidencias.roteiro`, `evidencias.conferir_arquivo`):
   a IA lê edital, TR, memorial e laudo seguindo o roteiro e só entra com citação conferida pelo código (§5).
 - [x] Conferir também o localizador (a página citada contém o trecho).
-- [ ] Aceitar planilha como documento de leitura.
+- [x] **Aceitar planilha como documento de leitura** (`evidencias.paginas_planilha`; CLI `conferir --planilha`;
+  `evidencias.documentos` aceita .xlsx/.xls/.csv): uma página por aba, uma linha de texto por linha não vazia (células
+  não vazias unidas por " | ", números em pt-BR sem arredondar) e localizador `{"aba", "linha"}` conferido (§5).
 - [x] **Conferência por bloco de linha de tabela** (IA): bloco de 2 a 3 linhas seguidas do trecho, sem linha em branco,
   com o par (valor, unidade) na última linha e nenhuma quantidade nas anteriores (§5; `_confere_bloco`).
-- [ ] **Número colado a letra ou hífen em outro campo da linha** ("DN150 m 320", "C30 m³ 45", "CA-50 kg 1.200"): o
-  número com letra colada não é lido como quantidade, e o regex que não é IA lê igual. Pendência comum aos dois métodos.
+- [x] **Número colado a letra ou hífen em outro campo da linha** ("DN150 m 320", "C30 m³ 45", "CA-50 kg 1.200"): o
+  número com letra ou letra+hífen colada não é quantidade, e o regex que não é IA lê igual: regra única em
+  `vocabulario.NAO_E_NUMERO` (e `DIMENSAO` para "DN 150", "Ø 40 cm"), usada por `vocabulario.quantidade` e pela guarda da IA.
+  O regex só lê "número unidade" (e "número termo"): "DN150 m 320" fica sem quantidade (só menção).
 - [x] **Calibração de premissas pela evidência** (`camadas/calibracao.py`, §7.4): premissa implícita e situação
   (`confere`/`diverge`/`não calibrável`) por serviço associado com fato de fora; nunca sobrescreve a premissa.
 - [ ] Calibrar com dados reais de obra (lista de ferros, planilhas): decidir, premissa a premissa, quais valores mudam.

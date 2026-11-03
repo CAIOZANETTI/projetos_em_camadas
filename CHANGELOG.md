@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.43.0 — 2026-11-03 · Build real de Foz: a memória espacial com dados verdadeiros
+## 0.45.0 — 2026-11-03 · Build real de Foz: a memória espacial com dados verdadeiros
 - **Build completo de Foz até o HTML** com os dados do Drive. Gavetas: 30 objetos, 75 serviços, 0 erros de conferência
   e 0 diferenças de paridade. Escavação e reaterro das cavas dão "confere" com a EAP codificada (8 585,6 e
   5 462,7 m³, diferença 0). Isso **não valida o volume**, porque as duas trilhas vêm do mesmo `escavacao`; a
@@ -25,6 +25,37 @@
   que não vira evidência. O schema da evidência continua o da `main`.
 - **Rede de vala com `local`** (o seu nome): unidade e sistema pelas chaves de `unidades_construtivas.json`. Foz declara
   `gavetas.unidade_sistema_padrao` u1/ETA (o sistema geral, para a cava sem estacas).
+- Lição L041.
+
+## 0.44.0 — 2026-11-03 · Número colado a letra não é quantidade (regex e IA, uma regra só)
+- **`camadas/vocabulario.py`** (`NAO_E_NUMERO`, `DIMENSAO`, `UNIDADE_ANTES`): número colado a letra ou letra+hífen
+  (DN150, C30, CA-50) não é quantidade; dimensão com prefixo (DN 150, Ø 40 cm, diâmetro) é apagada antes da busca;
+  o fallback "número + termo" recusa número logo depois de unidade ("m³ 45", "un 250") ou com unidade no meio.
+  A conferência da IA passa a usar as mesmas expressões do vocabulário (saída dos roteiros de ataque inalterada).
+- Corrige o método regex: "Tubo PVC DN150 m 320" deixava 150 m, "Concreto C30 m³ 45" deixava 30 m³ e "aço CA-50
+  kg 1.200" deixava 50 kg; agora ficam sem quantidade (só menção), porque o formato "unidade antes do número" não é
+  lido pelo regex. "Tubo DN 150 320 m" dá 320 m; "fck 30 MPa 45 m³" dá 45 m³.
+- Hash de referência inalterado. Fecha a pendência "número colado a letra ou hífen" de `docs/EAP.md` §10.
+- Lição L040.
+
+## 0.43.0 — 2026-11-03 · Leitura por IA: planilha como documento de leitura
+- **`evidencias.paginas_planilha`**: xlsx/xlsm/csv (xls com `xlrd`) viram documento de leitura da IA. Cada aba é uma
+  página e cada linha não vazia é uma linha de texto, com as células unidas por " | " e os números em pt-BR sem
+  arredondar (250.0 → "250", 1250.5 → "1.250,5"); csv sai como está no arquivo. Determinístico.
+- **Localizador `{"aba", "linha"}`** conferido contra a linha real da planilha (linhas vazias contam, como no Excel):
+  "aba citada não existe no documento" e "linha citada não contém o trecho"; "p. N" continua valendo como índice da
+  aba. As regras da conferência valem iguais ("Estaca hélice | m | 12 | un | 250" proposto como 12 un é recusado).
+- CLI `conferir … --planilha arquivo.xlsx`; `etapa` reconhece planilha em `evidencias.documentos` pela extensão.
+  O método determinístico `planilha` (`de_planilha`) não muda.
+- Revisão: na planilha a quantidade vem das **colunas** — cabeçalho com rótulo de unidade (UN, UND, UNID, UNIDADE) e
+  de quantidade (QTD, QTDE, QUANT, QUANTIDADE); o valor tem de ser o da coluna Qtd e a unidade a da coluna Un da
+  linha citada; preço e código do item nunca viram quantidade; sem cabeçalho só vale "250 un" numa mesma célula.
+  Fórmula sem valor guardado e número fora de 1e-6–1e15 não conferem. Separador do csv pela consistência do número
+  de campos (`;` no empate; ambíguo → documento recusado com aviso, sem derrubar o build); quebra de linha dentro de
+  aspas vira espaço. Bloco só com linhas consecutivas da planilha; com localizador aba/linha, o par tem de estar na
+  linha citada. `buscar_texto` em planilha usa aba/linha e as colunas. `.xls` sem `xlrd` é recusado com aviso.
+  `evidencia.schema.json`: `localizador` aceita texto ou `{aba, linha}`.
+- Fecha a pendência "aceitar planilha como documento de leitura" de `docs/EAP.md` §10.
 - Lição L039.
 
 ## 0.42.0 — 2026-11-02 · Calibração de premissas pela evidência (premissa × observado)

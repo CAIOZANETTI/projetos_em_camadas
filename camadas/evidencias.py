@@ -22,12 +22,20 @@ Escolher um valor é uma evidência `decisao`, com autor e justificativa, que n�
 from __future__ import annotations
 
 import argparse
+import csv
+import datetime
+import decimal
 import hashlib
+import importlib.util
+import io
 import itertools
 import json
 import math
 import re
+import unicodedata
+import zipfile
 from pathlib import Path
+from typing import NamedTuple
 
 import pandas as pd
 
@@ -122,21 +130,41 @@ def _codigo(unidade: str, sistema: str, item: str) -> str:
 
 def buscar_texto(documento: dict, paginas: list[str]) -> list[dict]:
     """Evidências de um documento de texto (edital, memorial, relatório), linha a linha. `documento` traz id, tipo,
-    nome e, se souber, unidade ('U1'), sistema, obra e escopo; o que não souber fica '*'."""
+    nome e, se souber, unidade ('U1'), sistema, obra e escopo; o que não souber fica '*'. Em planilha, o localizador é
+    {aba, linha} e a quantidade vem das colunas Un/Qtd (ou de uma célula só), nunca de células diferentes."""
     unidade, sistema = documento.get("unidade", "*"), documento.get("sistema", "*")
+    termos_dos_itens = [it["termos"] for it in eap.itens().values()]
     saida = []
     for np_, pagina in enumerate(paginas, 1):
+        planilha = isinstance(pagina, PaginaPlanilha)
         for nl, bruta in enumerate(str(pagina).splitlines(), 1):
             medir, linha = preparar(bruta)
             item, servico, regra = classificar(linha, documento.get("obra"), documento.get("escopo"))
             if item is None or item.endswith(".*"):     # serviço sem item: '*' só vale em unidade e sistema
                 continue
-            valor, un = quantidade(medir, [it["termos"] for it in eap.itens().values()])
+            valor, un = (_quantidade_da_planilha(pagina, nl - 1, termos_dos_itens) if planilha
+                         else quantidade(medir, termos_dos_itens))
+            local = {"aba": pagina.aba, "linha": pagina.linhas[nl - 1]} if planilha else f"p. {np_}, linha {nl}"
             saida.append(evidencia(codigo=_codigo(unidade, sistema, item), servico=servico, unidade=un, valor=valor,
-                                   parcela=False, documento=_doc(documento), localizador=f"p. {np_}, linha {nl}",
+                                   parcela=False, documento=_doc(documento), localizador=local,
                                    trecho=bruta.strip(), metodo="regex", regra=regra,
                                    escopo=documento.get("escopo")))
     return saida
+
+
+def _quantidade_da_planilha(pagina: PaginaPlanilha, indice: int, termos: list[str]) -> tuple[float | None, str | None]:
+    """(valor, unidade) da linha de planilha: das colunas Un/Qtd do cabeçalho; sem cabeçalho, só de uma célula (nunca
+    de células diferentes). Célula marcada ou sem quantidade: (None, None), e a linha fica como menção."""
+    celulas = pagina.celulas[indice]
+    if any(c.problema for c in celulas):
+        return None, None
+    if cabecalho := pagina.cabecalhos[indice]:
+        por_coluna = {c.coluna: c for c in celulas}
+        qtd, un = por_coluna.get(cabecalho[1]), por_coluna.get(cabecalho[0])
+        unidade = unidade_medida(un.texto) if un else None
+        return vocabulario.converter(qtd.numero, unidade) if qtd and qtd.numero is not None and unidade else (None, None)
+    achados = (quantidade(preparar(c.texto)[0], termos) for c in celulas)
+    return next((a for a in achados if a[0] is not None), (None, None))
 
 
 def _doc(documento: dict) -> dict:
@@ -286,12 +314,11 @@ _ROTULO_DE_QUANTIDADE = re.compile(r"\b(?:QUANTIDADE|QUANT|QTDE|QTD|QT)\b")   # 
 _ASPAS_E_TRACOS = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'",
                                  "–": "-", "—": "-", "−": "-"})
 _UNIDADES_RE = "|".join(re.escape(g) for g in sorted(vocabulario.GRAFIAS, key=len, reverse=True))
-_NUMERO_INTEIRO = vocabulario.NUMERO + r"(?![\d]|[.,]\d)"
-_NAO_E_NUMERO = r"(?<![\d.,ØA-Z])(?<![A-Z]-)"      # "DN150", "C30", "CA-50" não são quantidades
+_NUMERO_INTEIRO = vocabulario.NUMERO_INTEIRO
+_NAO_E_NUMERO = vocabulario.NAO_E_NUMERO      # mesma regra do regex: "DN150", "C30", "CA-50" não são quantidades
 _NUMERO_ANTES_DA_UNIDADE = re.compile(_NAO_E_NUMERO + _NUMERO_INTEIRO + r"\s*(" + _UNIDADES_RE + r")(?![A-Z0-9])")
 _UNIDADE_ANTES_DO_NUMERO = re.compile(r"(?<![A-Z0-9])(" + _UNIDADES_RE + r")\s*[:|-]*\s*" + _NAO_E_NUMERO + _NUMERO_INTEIRO)
-_DIMENSAO = re.compile(r"(?<![A-Z0-9])(?:Ø|DN|DIAMETRO|DIAM\.?)\s*[:=]?\s*" + _NUMERO_INTEIRO
-                       + r"(?:\s*(?:MM|CM|M|POL)(?![A-Z0-9])(?!\s*[:=]?\s*\d)|(?![ ]*[A-Z]))")
+_DIMENSAO = vocabulario.DIMENSAO
 _NUMERO_ANTES_DO_TERMO = re.compile(_NAO_E_NUMERO + _NUMERO_INTEIRO + r"\s*(?:\([^)]*\)\s*)?(?:[A-Z]+\s+){0,2}$")
 
 
@@ -331,9 +358,19 @@ def _unidades_do_item(item: dict, servico: str = "") -> list[str]:
     return list(dict.fromkeys(unidades)) or list(vocabulario.REGRAS["unidades"])
 
 
+def _pagina_normalizada(pagina: str) -> str:
+    """Página normalizada. A de planilha mantém uma linha para cada linha de texto (sem desfazer hífen de fim de linha),
+    para o mapa linha de texto → linha da planilha continuar valendo; a célula marcada (fórmula sem valor, número fora
+    da faixa) não entra no texto de busca, e a linha fica recusada na conferência."""
+    if not isinstance(pagina, PaginaPlanilha):
+        return "\n".join(_linhas_normalizadas(pagina, marcar_brancos=True))
+    return "\n".join((_MINUSCULA if cs[0].texto[:1].islower() else "")
+                      + " | ".join(_norm_celula(c.texto) for c in cs if not c.problema) for cs in pagina.celulas)
+
+
 def _paginas_normalizadas(paginas: list[str]) -> list[str]:
     """Texto de cada página normalizado, uma linha por linha do documento: feito uma vez por documento."""
-    return ["\n".join(_linhas_normalizadas(p, marcar_brancos=True)) for p in paginas]
+    return [_pagina_normalizada(p) for p in paginas]
 
 
 def _termos_da_linha(linha: str) -> list[tuple[int, int, str]]:
@@ -540,6 +577,135 @@ def _status_da_conferencia(achados: dict[int, list], normalizadas: list[str], va
             else "item não citado no trecho")
 
 
+def _localizacao_citada(localizador, paginas: list[str]) -> tuple[int | None, int | None, str | None]:
+    """(página, linha da planilha, motivo da recusa) do localizador: 'p. N' é o índice da página (ou da aba); o objeto
+    {"aba", "linha"} só vale em planilha, pela aba de mesmo nome (NFC, sem espaço nas pontas) e linha inteira >= 1."""
+    if isinstance(localizador, dict):
+        linha, alvo = localizador.get("linha"), _nome_da_aba(localizador.get("aba"))
+        if not isinstance(linha, int) or isinstance(linha, bool) or linha < 1:
+            return None, None, "localizador inválido: a linha tem de ser um inteiro a partir de 1"
+        abas = [_nome_da_aba(getattr(p, "aba", None)) for p in paginas]
+        if alvo is None or alvo not in abas:
+            return None, None, "aba citada não existe no documento"
+        if abas.count(alvo) > 1:
+            return None, None, "aba citada ambígua: duas abas com o mesmo nome"
+        return abas.index(alvo) + 1, linha, None
+    cita = re.search(r"\b(?:PAG|P)\.?\s*(\d+)", normalizar(localizador or ""))
+    return (int(cita[1]) if cita else None), None, None
+
+
+def _linhas_do_casamento(normalizada: str, casamento: re.Match) -> range:
+    """Índices (0 = primeira) das linhas de texto da página que o casamento do trecho cobre."""
+    primeira, ultima = (normalizada.count("\n", 0, i) for i in (casamento.start(), casamento.end()))
+    return range(primeira, ultima + 1)
+
+
+def _achados_na_linha(achados: dict[int, list], pagina: int, original: str, normalizada: str,
+                      linha: int) -> tuple[dict[int, list], str | None]:
+    """Só os casamentos da aba que cobrem a linha da planilha citada; sem nenhum, o motivo da recusa."""
+    mapa = getattr(original, "linhas", ())
+    cobertos = [m for m in achados[pagina] if linha in [mapa[i] for i in _linhas_do_casamento(normalizada, m)]]
+    return ({pagina: cobertos}, None) if cobertos else (achados, "linha citada não contém o trecho")
+
+
+def _mesmo_par(numero: float, unidade_celula: str, valor, unidade: str | None) -> bool:
+    """O par da planilha é o proposto (com a unidade convertida para comparação, t → kg, como o regex)."""
+    return any(abs(n - valor) < 1e-9 and u == unidade
+               for n, u in ((numero, unidade_celula), vocabulario.converter(numero, unidade_celula)))
+
+
+def _par_das_colunas(pagina: PaginaPlanilha, i: int, pecas: list[str], valor, unidade) -> tuple[str, set] | None:
+    """(texto do par, peças que ele usa) pelas colunas Un/Qtd do cabeçalho da linha `i`: o valor proposto é o número da
+    coluna Qtd, a unidade a da coluna Un, e as duas células estão no trecho. Preço, código e outras colunas nunca valem."""
+    por_coluna = {c.coluna: c for c in pagina.celulas[i]}
+    qtd, un = por_coluna.get(pagina.cabecalhos[i][1]), por_coluna.get(pagina.cabecalhos[i][0])
+    medida = unidade_medida(un.texto) if un else None
+    if not (qtd and qtd.numero is not None and medida and _mesmo_par(qtd.numero, medida, valor, unidade)):
+        return None
+    numero, texto_un = _norm_celula(qtd.texto), _norm_celula(un.texto)
+    return (f"{numero} {texto_un}", {numero, texto_un}) if numero in pecas and texto_un in pecas else None
+
+
+def _par_de_uma_celula(pecas: list[str], valor, unidade, item: dict) -> tuple[str, set] | None:
+    """Sem cabeçalho: o par (valor, unidade) só vale dentro de uma mesma célula ('250 un'), nunca entre células."""
+    peca = next((p for p in pecas if _confere_fragmento(p, valor, unidade, item)[0]), None)
+    return (peca, {peca}) if peca else None
+
+
+def _tem_quantidade_na_linha(pagina: PaginaPlanilha, i: int, pecas: list[str]) -> bool:
+    """A linha afirma quantidade: número na coluna Qtd do cabeçalho, ou (sem cabeçalho) par dentro de uma célula."""
+    if pagina.cabecalhos[i]:
+        return any(c.coluna == pagina.cabecalhos[i][1] and c.numero is not None for c in pagina.celulas[i])
+    return any(_tem_quantidade(p) for p in pecas)
+
+
+def _pecas_da_linha(fragmentos: list[str], primeira: int, i: int) -> list[str]:
+    """Células (peças entre ' | ') do trecho na linha `i`, normalizadas."""
+    return fragmentos[i - primeira].lstrip(_MINUSCULA).split(" | ")
+
+
+def _descricao_do_bloco(pagina: PaginaPlanilha, fragmentos: list[str], indices: range, i: int, usadas: set) -> list[str]:
+    """Peças com letra, fora as do par, da linha `i` e das linhas seguidas (sem linha vazia entre elas, até
+    LINHAS_DO_BLOCO no total) que o trecho cobre antes dela; o bloco pára na primeira linha que já afirma quantidade."""
+    bloco = [i]
+    while (len(bloco) < LINHAS_DO_BLOCO and bloco[0] - 1 in indices
+           and pagina.linhas[bloco[0]] - pagina.linhas[bloco[0] - 1] == 1
+           and not _tem_quantidade_na_linha(pagina, bloco[0] - 1, _pecas_da_linha(fragmentos, indices[0], bloco[0] - 1))):
+        bloco.insert(0, bloco[0] - 1)
+    return [p for j in bloco for p in _pecas_da_linha(fragmentos, indices[0], j) if re.search("[A-Z]", p) and p not in usadas]
+
+
+def _situacao_da_linha(pagina: PaginaPlanilha, indices: range, fragmentos: list[str], i: int, item: dict, valor,
+                       unidade: str | None) -> str:
+    """'valor' (o par não é o da planilha), ou a situação do item ('citado', 'ausente', 'outro') com o par da linha
+    `i`: as colunas Un/Qtd do cabeçalho; sem cabeçalho, uma célula só. O item é conferido numa linha sintética com a
+    descrição do trecho e o par, por `_confere_fragmento`, e ';' impede que a descrição se cole ao par."""
+    pecas = _pecas_da_linha(fragmentos, indices[0], i)
+    par = (_par_das_colunas(pagina, i, pecas, valor, unidade) if pagina.cabecalhos[i]
+           else _par_de_uma_celula(pecas, valor, unidade, item))
+    if par is None:
+        return "valor"
+    descricao = _descricao_do_bloco(pagina, fragmentos, indices, i, par[1])
+    achou, situacao = _confere_fragmento(" ".join(descricao) + " ; " + par[0], valor, unidade, item)
+    return situacao if achou else "valor"
+
+
+def _situacoes_do_casamento(pagina: PaginaPlanilha, normalizada: str, casamento: re.Match, item: dict, valor,
+                            unidade: str | None, linha_citada: int | None) -> list[str]:
+    """Situações do item, ou 'valor', ou o motivo da recusa da célula (fórmula sem valor, número fora da faixa), em cada
+    linha que pode trazer o par: a citada e a última do bloco; sem linha citada, todas as que o trecho cobre."""
+    indices = _linhas_do_casamento(normalizada, casamento)
+    if problemas := [c.problema for i in indices for c in pagina.celulas[i] if c.problema]:
+        return [problemas[0]]
+    fragmentos = casamento.group().split("\n")
+    if valor is None:
+        return [_confere_fragmento(f.lstrip(_MINUSCULA), None, None, item)[1] for f in fragmentos]
+    candidatas = [i for i in indices if linha_citada is None or pagina.linhas[i] == linha_citada or i == indices[-1]]
+    return [_situacao_da_linha(pagina, indices, fragmentos, i, item, valor, unidade) for i in candidatas]
+
+
+def _status_da_planilha(achados: dict[int, list], paginas: list[str], normalizadas: list[str], valor,
+                        unidade: str | None, item: dict, linha_citada: int | None) -> str:
+    """Status da citação em planilha. A quantidade vem das colunas Un/Qtd do cabeçalho (sem cabeçalho, de uma célula
+    só); o item, do trecho, com as regras do texto (item mais próximo do número, bloco). Célula marcada recusa."""
+    situacoes = [x for n, ms in achados.items() for m in ms
+                 for x in _situacoes_do_casamento(paginas[n - 1], normalizadas[n - 1], m, item, valor, unidade, linha_citada)]
+    if "citado" in situacoes:
+        return "conferida"
+    if recusa := next((x for x in situacoes if x.startswith("célula")), None):
+        return recusa
+    if valor is not None and all(x == "valor" for x in situacoes):
+        return "valor não está no trecho"
+    return "número pertence a outro item" if "outro" in situacoes else "item não citado no trecho"
+
+
+def _sem_marcas(trecho: str) -> str:
+    """Trecho sem as peças que são marca de célula inválida da planilha (a página de busca também não as tem)."""
+    if not any(m in trecho for m in _MARCAS):
+        return trecho
+    return " | ".join(p for p in trecho.split(" | ") if not any(m in p for m in _MARCAS))
+
+
 def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | None = None) -> dict:
     """Evidência de IA conferida contra as páginas do documento (`normalizadas`: o `_paginas_normalizadas` delas, se já
     feito). O trecho (3 palavras ou 15 caracteres e uma letra) tem de estar numa página, com fronteira de palavra e de
@@ -550,15 +716,20 @@ def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | Non
     tem de ser citado. Se o localizador
     diz 'p. N' ou 'pág. N' (índice da página no PDF), o trecho tem de estar na página N."""
     normalizadas = _paginas_normalizadas(paginas) if normalizadas is None else normalizadas
-    trecho = " ".join(_linhas_normalizadas(ev.get("trecho", "")))
+    trecho = _sem_marcas(" ".join(_linhas_normalizadas(ev.get("trecho", ""))))
     valor, unidade, item = ev.get("valor"), ev.get("unidade"), _item_do_codigo(ev.get("codigo"))
-    cita = re.search(r"\b(?:PAG|P)\.?\s*(\d+)", normalizar(ev.get("localizador", "")))
-    pagina = int(cita[1]) if cita else None
+    pagina, linha, erro = _localizacao_citada(ev.get("localizador"), paginas)
+    if erro:
+        return {**ev, "citacao": erro}
     tokens = trecho.split()
     curto = not (re.search("[A-Z]", trecho) and (len(tokens) >= 3 or len(trecho) >= 15))
     achados = {} if curto else _achar(_padrao_do_trecho(trecho, tokens), tokens, normalizadas, pagina)
-    status = (_recusa_antes_da_conferencia(curto, achados, pagina, item, valor)
-              or _status_da_conferencia(achados, normalizadas, valor, unidade, item))
+    status = _recusa_antes_da_conferencia(curto, achados, pagina, item, valor)
+    if status is None and linha is not None:
+        achados, status = _achados_na_linha(achados, pagina, paginas[pagina - 1], normalizadas[pagina - 1], linha)
+    if status is None and paginas and all(isinstance(p, PaginaPlanilha) for p in paginas):
+        status = _status_da_planilha(achados, paginas, normalizadas, valor, unidade, item, linha)
+    status = status or _status_da_conferencia(achados, normalizadas, valor, unidade, item)
     return {**ev, "citacao": status}
 
 
@@ -748,6 +919,220 @@ def paginas_pdf(caminho: str | Path) -> list[str]:
         return [pg.get_text("text") for pg in doc]
 
 
+class Celula(NamedTuple):
+    """Célula não vazia de planilha: coluna (1 = A), texto como lê o leitor, número (se for número) e, se a célula não
+    pode valer como dado, o motivo da recusa (`problema`)."""
+    coluna: int
+    texto: str
+    numero: float | None = None
+    problema: str | None = None
+
+
+_SEM_VALOR = "célula sem valor calculado na planilha"
+_FORA_DA_FAIXA = "célula com número fora da faixa legível na planilha"
+_MARCA_SEM_VALOR, _MARCA_FORA_DA_FAIXA = "[fórmula sem valor]", "[número fora da faixa]"
+_MARCAS = (normalizar(_MARCA_SEM_VALOR), normalizar(_MARCA_FORA_DA_FAIXA))
+_ROTULOS_DE_UNIDADE = {"UN", "UND", "UNID", "UNIDADE"}
+_ROTULOS_DE_QUANTIDADE = {"QTD", "QTDE", "QUANT", "QUANTIDADE"}
+_NUMERO_DE_TEXTO = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?")
+_LIMITE_DE_LEITURA_CSV = 0.6      # fração mínima das linhas do csv com o número de campos mais comum
+
+
+def _nome_da_aba(nome) -> str | None:
+    """Nome de aba comparável: NFC e sem espaço nas pontas; None se não for texto."""
+    return unicodedata.normalize("NFC", nome).strip() if isinstance(nome, str) else None
+
+
+def _norm_celula(texto: str) -> str:
+    """Texto da célula normalizado como a página (maiúsculas, sem acento, aspas e travessões unificados)."""
+    return normalizar(texto.translate(_ASPAS_E_TRACOS))
+
+
+def _cabecalho_da_linha(celulas: list[Celula]) -> tuple[int, int] | None:
+    """(coluna da unidade, coluna da quantidade) se a linha traz um rótulo de cada ('Un'/'Unid'/'Unidade' e
+    'Qtd'/'Qtde'/'Quant'/'Quantidade')."""
+    rotulos = [(c.coluna, normalizar(c.texto).strip(" .:")) for c in celulas]
+    unidade = next((col for col, r in rotulos if r in _ROTULOS_DE_UNIDADE), None)
+    quantidade_ = next((col for col, r in rotulos if r in _ROTULOS_DE_QUANTIDADE), None)
+    return (unidade, quantidade_) if unidade is not None and quantidade_ is not None else None
+
+
+def _cabecalhos(celulas_por_linha) -> tuple[tuple[int, int] | None, ...]:
+    """Para cada linha, as colunas (Un, Qtd) do último cabeçalho acima dela; a própria linha de cabeçalho e as de antes
+    dele ficam sem colunas."""
+    atual, saida = None, []
+    for celulas in celulas_por_linha:
+        novo = _cabecalho_da_linha(list(celulas))
+        saida.append(None if novo else atual)
+        atual = novo or atual
+    return tuple(saida)
+
+
+class PaginaPlanilha(str):
+    """Texto de uma aba (ou do csv): uma linha de texto por linha não vazia da planilha, as células não vazias unidas
+    por ' | '. Guarda o nome da aba, a linha da planilha de cada linha de texto (1 = primeira linha da aba, contando as
+    vazias, como no Excel), as células e, por linha, as colunas (Un, Qtd) do cabeçalho que vale para ela."""
+    aba: str
+    linhas: tuple[int, ...]
+    celulas: tuple[tuple[Celula, ...], ...]
+    cabecalhos: tuple[tuple[int, int] | None, ...]
+
+    def __new__(cls, aba: str, linhas: list[tuple[int, list[Celula]]]):
+        pagina = super().__new__(cls, "\n".join(" | ".join(c.texto for c in cs) for _, cs in linhas))
+        pagina.aba = aba
+        pagina.linhas = tuple(n for n, _ in linhas)
+        pagina.celulas = tuple(tuple(cs) for _, cs in linhas)
+        pagina.cabecalhos = _cabecalhos(pagina.celulas)
+        return pagina
+
+
+def _numero_ptbr(valor: decimal.Decimal) -> str:
+    """Número como lê quem abre a planilha em pt-BR, sem arredondar: 250 → '250'; 1250.5 → '1.250,5'; -0 → '0'."""
+    if valor == 0:
+        return "0"
+    inteira, _, fracao = format(valor, "f").partition(".")
+    fracao = fracao.rstrip("0")
+    sinal, inteira = ("-", inteira[1:]) if inteira.startswith("-") else ("", inteira)
+    return sinal + f"{int(inteira):,}".replace(",", ".") + ("," + fracao if fracao else "")
+
+
+def _legivel(valor) -> bool:
+    """Número finito, zero ou com módulo entre 1e-6 e 1e15 (fora disso a representação não é confiável)."""
+    try:
+        v = float(valor)
+    except OverflowError:
+        return False
+    return math.isfinite(v) and (v == 0 or 1e-6 <= abs(v) <= 1e15)
+
+
+def _celula_numerica(coluna: int, valor, percentual: bool) -> Celula:
+    """Célula de número: texto pt-BR exato (`repr` do float); percentual vira 'valor×100%' e não é quantidade; número
+    fora da faixa legível, NaN ou infinito vira texto marcado que não confere."""
+    if not _legivel(valor):
+        return Celula(coluna, _MARCA_FORA_DA_FAIXA, None, _FORA_DA_FAIXA)
+    exato = decimal.Decimal(repr(valor)) if isinstance(valor, float) else decimal.Decimal(valor)
+    if percentual:
+        return Celula(coluna, _numero_ptbr(exato * 100) + "%")
+    return Celula(coluna, _numero_ptbr(exato), float(exato))
+
+
+def _celula(coluna: int, valor, percentual: bool = False, formula: bool = False) -> Celula | None:
+    """Célula como o leitor a vê, ou None se vazia. Fórmula sem valor guardado vira texto marcado que não confere;
+    data vira dd/mm/aaaa; texto com espaços e quebras reduzidos a um espaço (e número, se for só um número em pt-BR)."""
+    if hasattr(valor, "item"):                                                          # escalar do NumPy
+        valor = valor.item()
+    if valor is None:
+        return Celula(coluna, _MARCA_SEM_VALOR, None, _SEM_VALOR) if formula else None
+    if isinstance(valor, bool):
+        return Celula(coluna, "VERDADEIRO" if valor else "FALSO")
+    if isinstance(valor, (datetime.datetime, datetime.date)):
+        return Celula(coluna, valor.strftime("%d/%m/%Y"))
+    if isinstance(valor, (int, float, decimal.Decimal)):
+        return _celula_numerica(coluna, valor, percentual)
+    texto = " ".join(str(valor).split())
+    return Celula(coluna, texto, numero_br(texto) if _NUMERO_DE_TEXTO.fullmatch(texto) else None) if texto else None
+
+
+def _linhas_da_planilha(linhas_brutas) -> list[tuple[int, list[Celula]]]:
+    """[(linha da planilha, células)] das linhas com alguma célula; `linhas_brutas`: [(linha, [Celula ou None])]."""
+    saida = []
+    for numero, celulas in linhas_brutas:
+        if cs := [c for c in celulas if c is not None]:
+            saida.append((numero, cs))
+    return saida
+
+
+def _contagem_de_campos(texto: str, separador: str) -> tuple[int, float]:
+    """(número de campos mais comum, fração das linhas não vazias com esse número) do csv lido com o separador."""
+    campos = [len(r) for r in csv.reader(io.StringIO(texto, newline=""), delimiter=separador) if any(c.strip() for c in r)]
+    if not campos:
+        return 1, 1.0
+    moda = max(set(campos), key=lambda k: (campos.count(k), k))
+    return moda, campos.count(moda) / len(campos)
+
+
+def _separador_do_csv(texto: str) -> str:
+    """Separador do csv entre ';', tabulação e ',': o que dá número de campos consistente nas linhas (a moda; ao menos 2
+    campos), com ';' ganhando os empates, depois o palpite do `csv.Sniffer`. Sem nenhum consistente, o documento é
+    recusado (ValueError)."""
+    try:
+        palpite = csv.Sniffer().sniff(texto[:4096], delimiters=";\t,").delimiter
+    except csv.Error:
+        palpite = ";"
+    ordem = list(dict.fromkeys([";", palpite, "\t", ","]))
+    contagens = {sep: _contagem_de_campos(texto, sep) for sep in ordem}
+    melhor = max(ordem, key=lambda sep: (contagens[sep][0] >= 2, contagens[sep][1]))
+    if contagens[melhor][0] >= 2 and contagens[melhor][1] < _LIMITE_DE_LEITURA_CSV:
+        raise ValueError("csv com separador ambíguo ou número de campos inconsistente nas linhas: "
+                         "salve com ';' e as mesmas colunas em todas as linhas")
+    return melhor
+
+
+def _pagina_do_csv(caminho: Path) -> PaginaPlanilha:
+    """Página do csv (utf-8, senão latin-1); a linha vazia conta, e a quebra dentro de aspas vira espaço."""
+    bruto = caminho.read_bytes()
+    try:
+        texto = bruto.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        texto = bruto.decode("latin-1")
+    leitor = csv.reader(io.StringIO(texto, newline=""), delimiter=_separador_do_csv(texto))
+    return PaginaPlanilha(caminho.stem, _linhas_da_planilha(
+        (n, [_celula(i, v) for i, v in enumerate(campos, 1)]) for n, campos in enumerate(leitor, 1)))
+
+
+def _paginas_do_xls(caminho: Path) -> list[PaginaPlanilha]:
+    """Abas de um .xls (pandas + xlrd); sem o xlrd instalado, o documento é recusado (ValueError)."""
+    if importlib.util.find_spec("xlrd") is None:
+        raise ValueError(f"{caminho.name}: ler .xls exige a biblioteca xlrd, que não está instalada; salve como .xlsx")
+    abas = pd.read_excel(caminho, sheet_name=None, header=None, dtype=object)
+    return [PaginaPlanilha(nome, _linhas_da_planilha(
+        (i, [_celula(j, None if pd.isna(v) else v) for j, v in enumerate(linha, 1)])
+        for i, linha in enumerate(df.itertuples(index=False), 1))) for nome, df in abas.items()]
+
+
+def _paginas_do_xlsx(caminho: Path) -> list[PaginaPlanilha]:
+    """Abas de um .xlsx/.xlsm (openpyxl, valores guardados); célula de fórmula sem valor guardado fica marcada."""
+    from openpyxl import load_workbook
+    from openpyxl.utils.exceptions import InvalidFileException
+    try:
+        formulas = load_workbook(caminho)
+        valores = load_workbook(caminho, data_only=True)
+    except (OSError, zipfile.BadZipFile, InvalidFileException, KeyError, ValueError) as erro:
+        raise ValueError(f"{caminho.name}: planilha ilegível ({erro})") from erro
+    try:
+        com_formula = {a.title: {c.coordinate for linha in a.iter_rows() for c in linha if c.data_type == "f"}
+                       for a in formulas.worksheets}
+        return [PaginaPlanilha(aba.title, _linhas_da_planilha(
+            (linha[0].row, [_celula(c.column, c.value, "%" in str(c.number_format),
+                                    c.coordinate in com_formula.get(aba.title, ())) for c in linha])
+            for linha in aba.iter_rows() if linha)) for aba in valores.worksheets]
+    finally:
+        formulas.close()
+        valores.close()
+
+
+def paginas_planilha(caminho: str | Path) -> list[PaginaPlanilha]:
+    """Páginas de uma planilha (.xlsx, .xlsm, .xls, .csv) para a IA citar: uma por aba, na ordem do arquivo (csv = uma
+    página), com uma linha de texto por linha não vazia (células não vazias unidas por ' | ', números em pt-BR sem
+    arredondar). Determinístico. Levanta ValueError se o documento não pode ser lido com segurança (csv de separador
+    ambíguo, .xls sem xlrd, arquivo ilegível)."""
+    arquivo = Path(caminho)
+    sufixo = arquivo.suffix.lower()
+    if sufixo == ".csv":
+        return [_pagina_do_csv(arquivo)]
+    return _paginas_do_xls(arquivo) if sufixo == ".xls" else _paginas_do_xlsx(arquivo)
+
+
+_EXTENSOES_DE_PLANILHA = {".xlsx", ".xlsm", ".xls", ".csv"}
+
+
+def paginas_do_arquivo(caminho: str | Path) -> list[str]:
+    """Páginas de um documento de leitura pela extensão: planilha (.xlsx/.xls/.csv) ou PDF."""
+    if Path(caminho).suffix.lower() in _EXTENSOES_DE_PLANILHA:
+        return paginas_planilha(caminho)
+    return paginas_pdf(caminho)
+
+
 def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: dict | None = None,
          epsg: int | None = None, ia: list[dict] | None = None, decisoes: list[dict] | None = None,
          sondagens: list | None = None, declarados: list[dict] | None = None,
@@ -777,13 +1162,19 @@ def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: di
 
 
 def _documentos(cfg: dict, log=print) -> list[dict]:
-    """Documentos de texto do obra.json (`evidencias.documentos`: pdf, tipo, unidade?, sistema?), com as páginas."""
+    """Documentos de leitura do obra.json (`evidencias.documentos`: pdf (PDF ou planilha .xlsx/.xls/.csv), tipo, unidade?,
+    sistema?), com as páginas."""
     saida = []
     for d in (cfg.get("evidencias") or {}).get("documentos", []):
         if not Path(d["pdf"]).exists():
             log(f"  evidências: {d['pdf']} não está no disco")
             continue
-        saida.append({"id": Path(d["pdf"]).name, "nome": Path(d["pdf"]).name, **d, "paginas": paginas_pdf(d["pdf"])})
+        try:
+            paginas = paginas_do_arquivo(d["pdf"])
+        except ValueError as erro:                       # planilha que não se lê com segurança: fica de fora, o build segue
+            log(f"  evidências: documento recusado: {erro}")
+            continue
+        saida.append({"id": Path(d["pdf"]).name, "nome": Path(d["pdf"]).name, **d, "paginas": paginas})
     return saida
 
 
@@ -999,8 +1390,20 @@ def _problemas_de_forma(ev: dict) -> list[str]:
     """Problemas que impedem até a leitura do resto: documento que não é objeto com id, ou campo de texto de outro tipo."""
     if not isinstance(ev.get("documento"), dict) or not ev["documento"].get("id"):
         return ["documento tem de ser um objeto com id (nome do arquivo) e tipo"]
-    return [f"'{k}' tem de ser texto" for k in ("codigo", "servico", "localizador", "trecho", "regra")
-            if k in ev and not isinstance(ev[k], str)]
+    problemas = [f"'{k}' tem de ser texto" for k in ("codigo", "servico", "trecho", "regra")
+                 if k in ev and not isinstance(ev[k], str)]
+    return problemas + _problemas_do_localizador(ev["localizador"]) if "localizador" in ev else problemas
+
+
+def _problemas_do_localizador(localizador) -> list[str]:
+    """O localizador é texto ('p. 4') ou, em planilha, {"aba": texto, "linha": inteiro a partir de 1}."""
+    if isinstance(localizador, str):
+        return []
+    if (isinstance(localizador, dict) and set(localizador) == {"aba", "linha"} and isinstance(localizador["aba"], str)
+            and isinstance(localizador["linha"], int) and not isinstance(localizador["linha"], bool)
+            and localizador["linha"] >= 1):
+        return []
+    return ["'localizador' tem de ser texto ou {aba, linha} (linha inteira a partir de 1)"]
 
 
 def _problemas_ia(ev: dict) -> list[str]:
@@ -1047,15 +1450,21 @@ def conferir_arquivo(linhas: list, documentos: dict[str, list[str]]) -> tuple[li
     return aceitas, recusadas
 
 
-def _documentos_da_linha_de_comando(pdfs: list[str], textos: list[str], log=print) -> dict[str, list[str]]:
-    """Nome do arquivo → páginas: PDF por página; texto puro por página separada por quebra de página (\\f)."""
-    documentos = {}
-    for caminho in pdfs + textos:
+def _documentos_da_linha_de_comando(pdfs: list[str], textos: list[str], log=print,
+                                    planilhas: list[str] | None = None) -> dict[str, list[str]]:
+    """Nome do arquivo → páginas: PDF por página; planilha por aba; texto puro por página separada por quebra de página (\\f)."""
+    documentos, planilhas = {}, planilhas or []
+    for caminho in pdfs + planilhas + textos:
         arquivo = Path(caminho)
         if not arquivo.exists():
             log(f"  aviso: {caminho} não existe e será ignorado")
         elif caminho in pdfs:
             documentos[arquivo.name] = paginas_pdf(arquivo)
+        elif caminho in planilhas:
+            try:
+                documentos[arquivo.name] = paginas_planilha(arquivo)
+            except ValueError as erro:
+                log(f"  aviso: documento recusado: {erro}")
         else:
             documentos[arquivo.name] = arquivo.read_text(encoding="utf-8").split("\f")
     return documentos
@@ -1067,7 +1476,7 @@ def _comando_conferir(args, log=print) -> int:
     if not entrada.exists():
         log(f"erro: o arquivo {entrada} não existe")
         return 2
-    documentos = _documentos_da_linha_de_comando(args.pdf, args.texto, log)
+    documentos = _documentos_da_linha_de_comando(args.pdf, args.texto, log, args.planilha)
     aceitas, recusadas = conferir_arquivo(entrada.read_text(encoding="utf-8").splitlines(), documentos)
     log(f"Conferência de {entrada.name}: {len(aceitas)} aceitas, {len(recusadas)} recusadas "
         f"({len(documentos)} documentos fornecidos)")
@@ -1103,6 +1512,7 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("conferir", help="confere as evidências propostas pela IA contra os documentos")
     c.add_argument("ia", help="JSONL com as evidências propostas (uma por linha)")
     c.add_argument("--pdf", action="append", default=[], help="PDF do documento (repetível)")
+    c.add_argument("--planilha", action="append", default=[], help="planilha .xlsx/.xls/.csv do documento (repetível)")
     c.add_argument("--texto", action="append", default=[], help="texto puro do documento (repetível)")
     c.add_argument("--saida", help="grava só as aceitas neste JSONL")
     c.set_defaults(funcao=_comando_conferir)

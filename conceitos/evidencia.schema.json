@@ -20,7 +20,10 @@
     "nome": {"type": "string"}
    }
   },
-  "localizador": {"type": "string", "description": "onde está: 'p. 12, linha 3', 'CUSTO CIVIL linha 214', ids dos elementos"},
+  "localizador": {"oneOf": [{"type": "string"},
+                            {"type": "object", "required": ["aba", "linha"], "additionalProperties": false,
+                             "properties": {"aba": {"type": "string"}, "linha": {"type": "integer", "minimum": 1}}}],
+                  "description": "onde está: texto ('p. 12, linha 3', 'CUSTO CIVIL linha 214', ids dos elementos) ou, em planilha lida pela IA ou por regex, {aba, linha} (linha da planilha, 1 = primeira da aba)"},
   "trecho": {"type": "string", "description": "texto literal de onde o valor saiu (a IA precisa citar; o código confere)"},
   "metodo": {"enum": ["regex", "planilha", "catalogo", "geometria", "associado", "ia", "decisao"]},
   "regra": {"type": "string", "description": "qual regra casou: item e serviço da EAP geral, código do cadastro, função do código"},

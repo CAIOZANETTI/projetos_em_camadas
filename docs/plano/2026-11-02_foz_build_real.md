@@ -16,7 +16,7 @@ com o motivo, sem ser escondido.
 |---|---|---|---|
 | E1 | Ingestão do Drive: inventário, PDFs, fotos do drone e planilha | Haiku | feito: 259 PDFs (711 MB, todos com `%PDF`), 13 fotos, planilha; 0 falhas |
 | E2 | Insumos derivados: sondagens pelo leitor de laudo, escopo pela planilha | Opus | feito: 23 furos lidos por código; escopo com 1 002 itens (923 MATS E EQUIP + 79 CUSTO CIVIL) |
-| E3 | Build completo até o HTML | Opus | feito na 6ª execução (0.42.0) e refeito com as correções da revisão: `foz-vilac_camadas_v0.43.0_*.html` (23 MB) |
+| E3 | Build completo até o HTML | Opus | feito na 6ª execução (0.42.0) e refeito com as correções da revisão: `foz-vilac_camadas_v0.45.0_*.html` (23 MB) |
 | E4 | Conferência, relatório e PR | Opus; Fable | este documento |
 
 ## Resultado do build
