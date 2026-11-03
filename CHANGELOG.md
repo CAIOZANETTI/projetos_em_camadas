@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.48.0 — 2026-11-03 · Um dimensionador de vala só: `dimensoes.dimensionar_vala` virou adaptador do `lineares`
+## 0.49.0 — 2026-11-03 · Um dimensionador de vala só: `dimensoes.dimensionar_vala` virou adaptador do `lineares`
 - **Decisão do Caio (03/11/2026): dimensionador único (lineares)**, com o modelo geotécnico único (raio de influência de
   60 m, margem do NA 0 m, empolamento 1,30 solo / 1,50 rocha). `dimensoes.dimensionar_vala` mantém a interface
   (trecho, sondagens, métodos) e o formato de saída, mas largura, profundidade, escoramento (tipo e agravantes),
@@ -18,7 +18,28 @@
   faixas de escoramento e agravantes, largura NBR, classes de solo, método de esgotamento).
 - Testes de `dimensoes`, `evidencias` e `eap_painel` que fixavam números do dimensionador antigo mudaram, cada um com o
   valor antigo e o novo; tabela em `results/iteracoes/2026-11-03_dimensionador_unico.md`.
-- Lição L044. (0.47.0 já estava em uso na main; esta é a próxima versão livre.)
+- Lição L045. (0.47.0 já estava em uso na main; esta é a próxima versão livre.)
+## 0.48.0 — 2026-11-03 · EAP padrão por tipo de obra (esqueleto a preencher)
+- **`conceitos/eap_padrao.json`**: dois modelos nas etapas de execução — `obra_localizada` (OP: preliminares,
+  movimento de terra, fundações, estrutura de concreto, impermeabilização, arquitetura, instalações hidráulicas,
+  equipamentos, elétrica e automação, urbanização, ensaios e comissionamento, serviços finais) e `obra_linear` (OL:
+  preliminares, remoção de pavimento, vala, assentamento, reaterro, travessias/MND, poços de visita e peças
+  especiais, recomposição de pavimento, testes, ligações, cadastro e desmobilização). 72 folhas, 51 apontando para
+  itens/serviços da EAP codificada; todos os 21 itens de `eap_geral` estão no padrão. Estado premissa: a prática de
+  orçamento de saneamento e a organização do MOS Sanepar (o MOS não está no repositório; etapas a conferir).
+- **`camadas/eap_padrao.py`**: `validar`, `tipo_da_obra` (do obra.json ou deduzido), `preencher` — preenchida, só
+  menção, a preencher (obrigatória em destaque), não se aplica (declarada em `obra.json → eap_padrao.nao_se_aplica`
+  com justificativa) e sem item codificado — e % preenchido por etapa. É uma vista da EAP codificada: não cria
+  quantidade. Seção "EAP padrão (a preencher)" na aba EAP; `eap_padrao.json` no build.
+- Revisão: cada vista só soma unidades do seu tipo (`unidades_construtivas.json` → `obra`); código com `*` na
+  unidade fica "só menção" (unidade não atribuível). Nova situação **calculada** (só serviço associado, sem documento
+  nem medição), com "% preenchido" e "% calculada" separados. Folha que aponta item sem serviço aceita fatos de
+  qualquer serviço do item. "Não se aplica" sobre quantidade real vira conflito; declarações malformadas viram
+  avisos sem derrubar a seção. Preenchimento manual com documento para folhas sem item codificado
+  (`eap_padrao.preenchimento_manual`) e teto do % mostrado. Folha fora do escopo da obra (esgoto em obra de água)
+  sai do denominador. `tipo_da_obra` pelas unidades e pranchas (tubos internos da ETA não fazem obra linear; Foz
+  é mista pelas pranchas das adutoras). A linear ficou com 30 folhas.
+- Lição L044.
 
 ## 0.47.0 — 2026-11-03 · "Sem preço" também no texto da planilha lida pela IA
 - **`evidencias.paginas_planilha`**: colunas de preço (rótulo PREÇO*, VALOR*, CUSTO*, R$, TOTAL, SUBTOTAL, BDI, PU,

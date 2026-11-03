@@ -596,6 +596,98 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
    as pranchas de GEO de U1); no nó de disciplina a lista vem de todos os pacotes da disciplina em `eap.json`, não só
    dos pacotes-filho do nó; o checkbox aparece mesmo se nenhuma prancha tiver layer da lista (marcar desliga todas).
 
+### 9.1 EAP padrão por tipo de obra (`conceitos/eap_padrao.json`, `camadas/eap_padrao.py`)
+
+**O que é.** Um esqueleto de EAP por **etapa de execução** (ordem de obra), por tipo de obra, que orienta a montagem do
+escopo e **precisa ser preenchido** a cada obra. Dois tipos:
+
+| Tipo | Prefixo | Etapas |
+|---|---|---|
+| `obra_localizada` (ETA, reservatório, estação elevatória, unidade de tratamento) | `OP` | 01 Serviços preliminares · 02 Movimento de terra · 03 Fundações · 04 Estrutura de concreto · 05 Impermeabilização · 06 Arquitetura e acabamentos · 07 Instalações hidráulicas · 08 Equipamentos · 09 Elétrica e automação · 10 Urbanização e pavimentação · 11 Ensaios, testes e comissionamento · 12 Serviços finais |
+| `obra_linear` (adutora, rede, emissário, coletor) | `OL` | 01 Preliminares · 02 Remoção de pavimento · 03 Vala · 04 Assentamento · 05 Reaterro e compactação · 06 Travessias e método não destrutivo · 07 Poços de visita, caixas e peças especiais · 08 Recomposição de pavimento · 09 Testes · 10 Ligações · 11 Cadastro e desmobilização |
+
+Cada folha tem `id` (`OL.03.02`: tipo, etapa, folha), `nome`, `aponta`, `escopo` (água, esgoto ou ambos), `obrigatoria`
+(a obra desse tipo sempre tem; mobilização sim, método não destrutivo não) e, sem item codificado, `observacao`.
+
+**Relação com a EAP codificada.** A EAP por disciplina (GEO, CIV, HID, ELE → pacote → item) continua sendo a linha
+mestra técnica. O padrão é uma **vista**: `aponta` é uma lista de `{item: "DISC.PAC.ITEM", servico}` de `eap_geral.jsonl`
+(o `servico` de `servicos.jsonl` é opcional e tem de ser admitido pelo item) ou fica vazia quando ainda não há item
+codificado. **Não cria quantificação nova**: lê `dados["eap"]["quantidades"]` e os fatos de `dados["evidencias"]`.
+
+- **Unidade × tipo de obra.** Cada vista só lê códigos cuja unidade (`unidades_construtivas.json`) é do tipo dela: a
+  `obra_localizada` soma `U1.…` e a `obra_linear` soma `U2.…`, então uma obra mista não conta a mesma quantidade nas
+  duas. Código com `*` na unidade (ou unidade desconhecida) não é atribuível a nenhum tipo e não soma: a folha fica
+  "só menção", com o motivo "unidade não atribuível".
+- **Item sem serviço × com serviço.** Folha que aponta o item sem `servico` lê a quantidade do item e os fatos de
+  **qualquer serviço** dele (cada fato é uma linha, com o serviço e o código: "Fornecimento 12 un · convergente
+  [U1.*.HID.EQP.EQU]"; fatos distintos nunca se fundem nem se somam). Folha que aponta (item, serviço) lê só aquele
+  serviço. A EAP codificada só mede o item (soma por grandeza e unidade, nunca entre unidades).
+
+**Situações da folha** (`eap_padrao.preencher`):
+
+| Situação | Quando |
+|---|---|
+| `preenchida` | medição da EAP codificada com elemento medido, ou fato com afirmação de projeto (geometria), documento (planilha, edital, memorial, IA conferida) ou decisão. Se faltar valor em alguns elementos: "preenchida (parcial: n sem valor)" |
+| `preenchida (manual)` | folha sem item codificado, preenchida pelo `obra.json` com o documento de origem |
+| `calculada` | só serviço associado (fórmula sobre outro número): não é documento nem medição |
+| `só menção` | só fato sem valor (menção ou conflito), quantidade sem elemento medido ou unidade não atribuível; o `motivo` diz qual |
+| `a preencher` | nada nos códigos apontados; se `obrigatoria`, vem em destaque |
+| `sem item codificado` | folha sem `aponta` e sem preenchimento manual |
+| `não se aplica` | declarada no `obra.json`, com justificativa |
+| `fora do escopo` | folha de esgoto em obra só de água (ou o contrário): escopo das unidades do tipo em `unidades_construtivas.json` ou `eap_padrao.escopo` |
+| `conflito: declarada não se aplica, mas há quantidade` | declarada não se aplica e há dado real; fica no denominador, em destaque |
+
+Fato derivado de serviço associado não preenche: a decisão segue `calibracao._observado`, que também ignora a
+afirmação `tipo: "associado"`. Se algum documento ou decisão afirma o mesmo fato, ele é `preenchida`.
+
+**Percentuais** (tudo em Python, `eap_padrao.resumir`). Denominador = folhas − não se aplica − fora do escopo; calculada,
+só menção, a preencher, sem item e conflito ficam nele.
+- **% preenchido** = (preenchidas + manuais) / denominador;
+- **% calculada** à parte (fórmula não é preenchimento), exibida só se houver folha calculada;
+- **teto sem preenchimento manual** = (denominador − folhas sem item) / denominador, exibido só se houver folha sem
+  item: o máximo que o preenchimento automático alcança.
+
+**Como declarar** (`obra.json`):
+
+```json
+"eap_padrao": {
+  "tipo": ["obra_localizada", "obra_linear"],
+  "escopo": ["agua"],
+  "nao_se_aplica": [{"id": "OP.02.03", "justificativa": "lençol abaixo do fundo da cava (SP-04)", "autor": "Caio"}],
+  "preenchimento_manual": [{"id": "OP.12.02", "quantidade": 1, "unidade": "vb", "documento": "As built rev. 2", "autor": "Ana"}]
+}
+```
+
+- `nao_se_aplica`: justificativa obrigatória; declaração duplicada, de id inexistente ou sem justificativa é inválida.
+- `preenchimento_manual`: só para folha **sem item codificado**, com quantidade maior que zero, unidade e **documento**
+  obrigatórios; vira "preenchida (manual)" e mostra a fonte.
+- Registro inválido (lista de textos, objeto no lugar de lista, campo faltando, duplicado) **não derruba a seção**:
+  vira item de `avisos` (mostrado na aba) e o resto é preenchido. Registro de folha de tipo que a obra não tem também
+  vira aviso. Chamado direto, `preencher` levanta `ValueError` com a mensagem clara.
+- `tipo` é opcional; vazio ou desconhecido vira aviso e a dedução abaixo.
+
+**Tipo da obra** (`tipo_da_obra`, pelas unidades de `unidades_construtivas.json`): linear = prancha de unidade linear
+(nome do PDF casa com `linear` de `tipos_prancha.json`, ou `eap` declarado na prancha) ou `valas`; localizada =
+`estacas`, `elementos_declarados`, `escavacao` ou prancha de unidade localizada; os dois sinais → os dois tipos. A aba
+`obras_lineares` de uma unidade localizada (os tubos dentro da ETA, `eap: U1.LINEARES`) **não** é sinal de obra linear.
+A Foz continua mista porque tem pranchas das adutoras (AAT00, AAT01, AAT02, AAT06, da unidade linear U2) ao lado das da
+ETA (U1); sem elas seria só localizada.
+
+**Validação** (`eap_padrao.validar`): erros para item inexistente ou de outro tipo de obra, escopo da folha fora do escopo
+do item, serviço desconhecido ou não admitido, id repetido, `obrigatoria` ausente e folha sem item e sem observação.
+Avisos (não erro): item de `eap_geral` do tipo de obra que nenhuma folha cita ("item fora do padrão") e par (item,
+serviço) admitido que nenhuma folha cobre ("serviço fora do padrão"), exceto se alguma folha aponta o item sem serviço
+(esse já cobre todos).
+
+**Saídas**: `dados["eap_padrao"]` (tudo já em pt-BR; `aba EAP`, seção "EAP padrão (a preencher)": etapas em
+`<details>`, barra e percentual por etapa, selo da situação por folha, destaque da obrigatória a preencher e do conflito, avisos) e
+`eap_padrao.json` em `saida/<obra>/`. O JS só apresenta.
+
+**É premissa.** O MOS Sanepar (Manual de Obras de Saneamento) **não está no repositório** (só
+`referencias/sanepar/MOS_largura_de_vala_tabela_I.png`). Por isso a numeração e os nomes das etapas são prática de
+orçamento de saneamento, em estado `premissa`, **a conferir com o MOS**; nenhum número de capítulo ou módulo do MOS é
+citado.
+
 ## 10. Próximos passos
 
 - [x] **Skill de leitura por IA** (`.claude/skills/eap-evidencias`, `evidencias.roteiro`, `evidencias.conferir_arquivo`):
@@ -615,3 +707,5 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
 - [ ] Calibrar com dados reais de obra (lista de ferros, planilhas): decidir, premissa a premissa, quais valores mudam.
 - [ ] Calibração de premissas não lineares (patamares da vala): exige método próprio, não a proporção.
 - [x] Selo de status por nó da árvore, filtro por prefixo e só pranchas desta disciplina (§9).
+- [ ] **Conferir as etapas da EAP padrão com o MOS Sanepar** (§9.1): numeração, nomes, ordem e quais folhas são
+  `obrigatoria`; só então trocar o estado de `premissa` para `confirmado`.

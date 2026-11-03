@@ -1,4 +1,4 @@
-# Dimensionador único de vala (0.48.0)
+# Dimensionador único de vala (0.49.0)
 
 Decisão do Caio (03/11/2026): dimensionador único (lineares). `dimensoes.dimensionar_vala` virou adaptador de
 `lineares.dimensionar_vala`; o modelo geotécnico único (`conceitos/geotecnia.json`: raio de influência 60 m, margem do

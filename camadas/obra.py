@@ -28,6 +28,7 @@ from . import (
     construtivos,
     eap,
     eap_html,
+    eap_padrao,
     eap_painel,
     escavacao,
     escopo_obra,
@@ -807,6 +808,15 @@ def _conciliar_eaps(dados: dict, servicos: list | None, out: Path) -> None:
         _log(f"Conciliação das EAP não concluída ({type(erro).__name__}: {erro})")
 
 
+def _eap_padrao_no_build(dados: dict, cfg: dict, out: Path) -> None:
+    """EAP padrão por tipo de obra (`camadas.eap_padrao`) em `dados["eap_padrao"]` e `eap_padrao.json`. Nunca derruba o
+    build: padrão ou declaração inválida vira etapa pulada, com o motivo nas pendências do HTML."""
+    try:
+        dados["eap_padrao"] = eap_padrao.montar(dados, cfg, out)
+    except Exception as erro:  # noqa: BLE001 - a EAP padrão nunca derruba o build
+        _log(f"EAP padrão pulada (pendência: {type(erro).__name__}: {erro})")
+
+
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict,
                  redes_vala: list | None = None, cavas: dict | None = None) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
@@ -844,6 +854,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
     _conciliar_eaps(dados, servicos_gavetas, out)  # gavetas × codificada × documento: `conciliacao_eap.json` e o resumo
     dados["eap_painel"] = eap_painel.montar(dados.get("eap"), dados.get("evidencias"))   # aba EAP, já em texto
+    _eap_padrao_no_build(dados, cfg, out)          # esqueleto por etapa de execução, a preencher
 
 
 # 5 ---------------------------------------------------------------------------

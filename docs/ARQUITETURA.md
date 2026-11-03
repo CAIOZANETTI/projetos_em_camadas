@@ -1,4 +1,4 @@
-# Arquitetura — projetos em camadas (R10, 03/11/2026; estado do código em 0.48.0)
+# Arquitetura — projetos em camadas (R10, 03/11/2026; estado do código em 0.49.0)
 
 Diagrama, cenário de mesa e índice: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
 
