@@ -133,8 +133,9 @@ def test_secao_sem_linha_sem_corte_e_area_parcial_sao_nao_conferiveis():
 def test_corte_ate_a_ponta_da_linha_nao_e_conferivel():
     g = _grade()
     r = cc.conferir_secao(
-        _secao_projeto(), _modelo(g, _linha("AA", (22, 30), (40, 30)))
-    )  # a linha começa dentro da cava
+        _secao_projeto(terreno=[[0.0, 10.0], [18.0, 10.0]]),
+        _modelo(g, _linha("AA", (22, 30), (40, 30))),
+    )  # a linha (18 m, o quadro todo) começa dentro da cava
     assert r["situacao"] == "não conferível" and "ponta" in r["motivo"]
 
 
@@ -328,7 +329,7 @@ def test_ligar_sequencia_so_com_ligacao_objetiva():
         (n["bloco"], n["fase"], n["tipo"]): n for n in cc.ligar_sequencia(notas, cavas)
     }
     unica = por_fase[(1, 1, "escavação")]
-    assert unica["situacao"] == "confere" and unica["cava"] == "C01"
+    assert unica["situacao"] == "compatível por valor" and unica["cava"] == "C01"
     assert (
         "não diz onde" in por_fase[(1, 4, "escavação")]["motivo"]
         and por_fase[(1, 4, "escavação")]["situacao"] == "não conferível"
@@ -404,3 +405,215 @@ def test_mesma_cava_ligada_por_estruturas_diferentes_volta_a_nao_conferivel():
         "não conferível",
         "não conferível",
     ] and "não diz onde" in r[0]["motivo"]
+
+
+# --- correções do revisor ----------------------------------------------------------------------------------------
+def test_escolher_letra_pega_a_rotacao_de_maior_confianca():
+    assert cc.escolher_letra([("Q", 20.0, 0), ("J", 91.0, 270), ("L", 12.0, 90)]) == (
+        "J",
+        None,
+        False,
+    )
+    assert cc.escolher_letra([("7", 99.0, 0), ("K", 60.0, 90)])[0] == "K"  # só A–Z vale
+    assert cc.escolher_letra([("", 90.0, 0), ("JJ", 80.0, 90)]) == (None, None, False)
+    assert cc.escolher_letra([]) == (None, None, False)
+
+
+def test_escolher_letra_favorece_a_rotacao_esperada():
+    """A lido também como V quando girado 180° (confiança próxima): a rotação esperada decide."""
+    leituras = [("A", 85.0, 0), ("V", 82.0, 180)]
+    assert cc.escolher_letra(leituras, esperada=0) == ("A", None, True)
+    assert cc.escolher_letra(leituras, esperada=180)[0] == "V"
+    # C lido como O a 90° com confiança maior: a esperada (0°) vence pela vantagem
+    assert cc.escolher_letra([("C", 81.0, 0), ("O", 88.0, 90)], esperada=0)[0] == "C"
+
+
+def test_escolher_letra_ambigua_fica_sem_letra_com_alerta():
+    letra, alerta, _ = cc.escolher_letra([("N", 88.0, 90), ("Z", 85.0, 270)])
+    assert letra is None and "ambígua" in alerta and "N" in alerta and "Z" in alerta
+    assert cc.escolher_letra([("N", 88.0, 90), ("N", 82.0, 270)])[:2] == ("N", None)
+    assert cc.escolher_letra([("N", 90.0, 90), ("Z", 40.0, 270)])[:2] == ("N", None)
+
+
+def test_rotacao_esperada_pela_geometria_da_marca():
+    ponta, eixo_h = np.array([100.0, 100.0]), np.array([1.0, 0.0])
+    # linha horizontal, letra acima (y menor): letra de pé
+    assert cc.rotacao_esperada(ponta, np.array([100.0, 80.0]), eixo_h) == 0
+    # letra abaixo da linha: de cabeça para baixo
+    assert cc.rotacao_esperada(ponta, np.array([100.0, 120.0]), eixo_h) == 180
+    # linha vertical: o alto da letra aponta para o lado em que ela está
+    eixo_v = np.array([0.0, 1.0])
+    assert cc.rotacao_esperada(ponta, np.array([120.0, 100.0]), eixo_v) == 90
+    assert cc.rotacao_esperada(ponta, np.array([80.0, 100.0]), eixo_v) == 270
+
+
+def test_pontas_discordantes_vale_a_lida_na_rotacao_esperada():
+    r = cc._conciliar_pontas([("P", None, True), ("J", None, False)])
+    assert r[0] == ("P", None) and r[1][0] is None and "descartada" in r[1][1]
+    # as duas fortes (ou nenhuma): a discordância segue para `_linha`
+    assert cc._conciliar_pontas([("P", None, True), ("J", None, True)]) == [
+        ("P", None),
+        ("J", None),
+    ]
+    assert cc._conciliar_pontas([("P", None, False), ("P", None, True)]) == [
+        ("P", None),
+        ("P", None),
+    ]
+
+
+def test_linha_carrega_o_alerta_do_ocr():
+    pontas = np.array([[0.0, 0.0], [100.0, 0.0]])
+    l = cc._linha(pontas, ["N", None], np.eye(3), "es1", ["letra ambígua"])
+    assert l["secao"] == "NN" and "letra ambígua" in l["alertas"]
+
+
+def test_ler_letra_deitada_pelo_ocr():
+    """Letra desenhada de pé e girada 90 e 270° na folha: o OCR em quatro rotações a acha."""
+    pytest.importorskip("pytesseract")
+    pil = pytest.importorskip("PIL.ImageFont")
+    try:
+        fonte = pil.truetype("DejaVuSans-Bold.ttf", 200)
+    except OSError:
+        pytest.skip("fonte TrueType ausente")
+    from PIL import Image, ImageDraw
+
+    img = Image.new("L", (300, 300), 255)
+    ImageDraw.Draw(img).text((80, 30), "K", font=fonte, fill=0)
+    base = np.array(img)
+    try:
+        for giro in (0, 1, 3):
+            esperada = (-90 * giro) % 360  # rotação que a deixa de pé
+            leituras = cc._leituras_por_rotacao(np.rot90(base, giro))
+            assert cc.escolher_letra(leituras, esperada) == ("K", None, True)
+    except Exception as erro:  # binário do tesseract ausente
+        if "tesseract" in str(erro).lower():
+            pytest.skip("tesseract ausente")
+        raise
+
+
+def test_linha_incompleta_na_planta_nao_e_conferivel():
+    g = _grade()
+    linha = _linha("AA", (10, 22), (25.6, 22))  # 15,6 m de um quadro de 30 m
+    r = cc.conferir_secao(_secao_projeto(), _modelo(g, linha))
+    assert r["situacao"] == "não conferível"
+    assert "linha incompleta" in r["motivo"] and "15,6 m de 30,0 m" in r["motivo"]
+    assert "ponta" not in r["motivo"]
+
+
+def test_linha_completa_acima_do_limite_segue_para_conferencia():
+    g = _grade()
+    limite = cc.FRACAO_MINIMA_LINHA * 30.0
+    r = cc.conferir_secao(
+        _secao_projeto(), _modelo(g, _linha("AA", (10, 30), (10 + limite + 0.1, 30)))
+    )
+    assert "incompleta" not in r["motivo"]
+
+
+def test_edificacao_na_linha_nao_e_conferivel():
+    g = _grade()
+    lin = slice(int((g["n1"] - 31) / RES), int((g["n1"] - 29) / RES))
+    g["edificacao"][lin, int(10 / RES) : int(22 / RES)] = True  # 12 m dos 30 m
+    mod = _modelo(g, _linha("AA", (10, 30), (40, 30)))
+    assert mod["fracao_edificacao"] > cc.FRACAO_MAXIMA_EDIFICACAO
+    r = cc.conferir_secao(_secao_projeto(), mod)
+    assert r["situacao"] == "não conferível" and "edificação existente" in r["motivo"]
+
+
+def test_pouca_edificacao_na_linha_nao_bloqueia():
+    g = _grade()
+    lin = slice(int((g["n1"] - 31) / RES), int((g["n1"] - 29) / RES))
+    g["edificacao"][lin, int(38 / RES) : int(40 / RES)] = True  # 2 m dos 30 m
+    mod = _modelo(g, _linha("AA", (10, 30), (40, 30)))
+    assert 0 < mod["fracao_edificacao"] < cc.FRACAO_MAXIMA_EDIFICACAO
+    assert "edificação" not in cc.conferir_secao(_secao_projeto(), mod)["motivo"]
+
+
+def test_terreno_do_mds_irregular_nao_e_conferivel():
+    g = _grade()
+    x = g["e0"] + (np.arange(g["forma"][1]) + 0.5) * RES
+    g["terreno"][:] = (10.0 + 1.0 * np.sin(x / 2.0)).astype(np.float32)[None, :]
+    mod = _modelo(g, _linha("AA", (10, 30), (40, 30)))
+    r = cc.conferir_secao(_secao_projeto(), mod)
+    assert r["situacao"] == "não conferível" and "irregular" in r["motivo"]
+
+
+def test_area_corrigida_pelo_terreno_nao_muda_a_situacao():
+    g = _grade(terreno=10.5)  # o terreno do MDS está 0,5 m acima do projeto
+    mod = _modelo(g, _linha("AA", (10, 30), (40, 30)))
+    r = cc.conferir_secao(_secao_projeto(), mod)
+    assert r["dif_terreno_m"] == pytest.approx(0.5, abs=1e-3)
+    assert r["area_modelo_corrigida_terreno_m2"] == pytest.approx(
+        mod["area_corte_m2"] - 0.5 * mod["largura_corte_m"], abs=0.05
+    )
+    assert r["dif_area_corrigida_rel"] == pytest.approx(
+        (r["area_modelo_corrigida_terreno_m2"] - 20.0) / 20.0
+    )
+    assert (
+        r["situacao"] == "difere" and "terreno +0,50" in r["motivo"]
+    )  # situação ainda pela área e pelo terreno
+    s = cc.formatar_secao(r)
+    assert s["area_corrigida_txt"] == cc._txt(r["area_modelo_corrigida_terreno_m2"], 1)
+    assert s["dif_area_corrigida_rel_txt"].endswith("%")
+
+
+def test_area_corrigida_vazia_sem_linha():
+    r = cc.conferir_secao(_secao_projeto("ZZ"), None)
+    assert "area_modelo_corrigida_terreno_m2" not in r
+    assert cc.formatar_secao(r)["area_corrigida_txt"] == "—"
+
+
+def test_sequencia_so_compativel_por_valor_no_status_e_no_placar():
+    notas = cc.notas_do_texto(cc.decodificar_texto(TEXTO_DECODIFICADO))
+    r = cc.ligar_sequencia(notas, [{"id": "C01", "fundo_m": [237.45, 237.45]}])
+    assert "confere" not in {x["situacao"] for x in r}
+    placar = cc.placar_sequencia(r)
+    assert placar["compatível por valor"] == 1
+    assert placar["não conferível"] == len(r) - 1
+    assert "confere" not in placar
+
+
+def test_formatacao_troca_so_o_numero_e_preserva_o_ponto_final():
+    g = _grade()
+    r = cc.conferir_secao(
+        _secao_projeto(), _modelo(g, _linha("AA", (10, 30), (40, 30)))
+    )
+    pacote = cc.para_html({"secoes": [r], "medias": [], "sequencia": [], "alertas": []})
+    assert pacote["nota"].endswith("a área do modelo tende a ser maior.")
+    assert "H:1V" in pacote["nota"] and ". " not in pacote["nota"].replace("maior.", "")
+    assert "fundo ±0,30 m (absoluta)" in pacote["tolerancias"]
+
+
+def test_marca_proxima_da_linha_ignora_topo_e_sem_cota():
+    linha = _linha("AA", (10, 30), (40, 30))
+    marcas = [
+        {"utm": [25.0, 33.0], "cota": 8.0, "topo": False},
+        {"utm": [25.0, 30.5], "cota": 12.0, "topo": True},
+        {"utm": [25.0, 30.2], "cota": None},
+    ]
+    m = cc.marca_proxima_da_linha(linha, marcas)
+    assert m == {"cota_m": 8.0, "distancia_m": pytest.approx(3.0)}
+    assert cc.marca_proxima_da_linha(linha, []) is None
+
+
+def test_fundo_que_difere_mostra_a_marca_mais_proxima():
+    g = _grade()
+    mod = {
+        **_modelo(g, _linha("AA", (10, 30), (40, 30))),
+        "marca_proxima": {"cota_m": 8.7, "distancia_m": 3.0},
+    }
+    r = cc.conferir_secao(_secao_projeto(fundo=8.0 - 2 * cc.TOL_FUNDO_M), mod)
+    assert r["situacao"] == "difere"
+    assert "marca de cota mais próxima da linha: 8,70 m a 3,0 m" in r["motivo"]
+
+
+def test_linha_incompleta_sobre_edificacao_junta_os_dois_motivos():
+    g = _grade()
+    lin = slice(int((g["n1"] - 31) / RES), int((g["n1"] - 29) / RES))
+    g["edificacao"][lin, int(10 / RES) : int(18 / RES)] = True
+    mod = _modelo(
+        g, _linha("AA", (10, 30), (25.6, 30))
+    )  # 15,6 m de 30 m, metade sobre edificação
+    r = cc.conferir_secao(_secao_projeto(), mod)
+    assert r["situacao"] == "não conferível"
+    assert "linha incompleta" in r["motivo"] and "edificação existente" in r["motivo"]
+    assert "ponta" not in r["motivo"]
