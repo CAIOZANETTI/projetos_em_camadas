@@ -3,7 +3,7 @@
   "fonte": "pedido do Caio (30/10/2026): os elementos geram dimensões e as dimensões geram os serviços associados (lastro pela área do bloco, forma, escoramento, impermeabilização, escavação e reaterro, vala da rede)",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Cada tipo de elemento declara de onde vem cada dimensão (atributo do elemento construtivo, geometria em UTM, valor dado pelo obra.json/fato/elemento pai, ou padrão) e os cálculos que levam às dimensões PADRONIZADAS que as regras de serviço usam: V (concreto), A_forma, A_fundo (apoio no solo: lastro), A_escoramento, A_imperm, V_esc/V_reat (cava). Dimensão que falta não é suposta: o cálculo que depende dela não sai e o serviço fica 'sem valor', com a dimensão que faltou. `derivados` cria elementos que a execução exige (cava do bloco, vala do baldrame) com as dimensões do pai. O tipo `vala` é dimensionado por camadas.dimensoes.dimensionar_vala (profundidade, solo e NA da sondagem, escoramento, largura, pavimento) com os parâmetros de `vala`. `de_fatos` transforma fatos consolidados em elementos (laje em m² → laje com A). Elemento declarado no obra.json (`elementos_declarados`) entra com as dimensões dadas. A vala é dimensionada por TODOS os métodos de `vala.metodos` (NBR 12266 e MOS Sanepar): cada método vira um documento de evidência próprio ('metodo:<id>'), e a consolidação mostra onde os métodos convergem e onde divergem; não se escolhe um método no código."
+  "observacoes": "Cada tipo de elemento declara de onde vem cada dimensão (atributo do elemento construtivo, geometria em UTM, valor dado pelo obra.json/fato/elemento pai, ou padrão) e os cálculos que levam às dimensões PADRONIZADAS que as regras de serviço usam: V (concreto), A_forma, A_fundo (apoio no solo: lastro), A_escoramento, A_imperm, V_esc/V_reat (cava). Dimensão que falta não é suposta: o cálculo que depende dela não sai e o serviço fica 'sem valor', com a dimensão que faltou. `derivados` cria elementos que a execução exige (cava do bloco, vala do baldrame) com as dimensões do pai. O tipo `vala` é dimensionado por camadas.dimensoes.dimensionar_vala (profundidade, solo e NA da sondagem, escoramento, largura, pavimento) (adaptador de `lineares.dimensionar_vala`) com os parâmetros de `vala`. `de_fatos` transforma fatos consolidados em elementos (laje em m² → laje com A). Elemento declarado no obra.json (`elementos_declarados`) entra com as dimensões dadas. A vala é dimensionada pelo MOS Sanepar (`lineares.dimensionar_vala`), o único método (decisão do Caio 03/11/2026: dimensionador único em lineares); o método NBR 12266 deixou de ter regra própria."
  },
  "tipos": {
   "estaca": {
@@ -267,17 +267,11 @@
    "dimensoes": {},
    "premissas": {},
    "calculos": {
-    "V_solo": "b * h_solo * L",
-    "V_rocha": "b * h_rocha * L",
-    "A_demol": "L * (b + 2 * sobre)",
     "V_pav": "A_demol * e_pav",
     "V_berco": "b * berco * L",
     "V_tubo": "pi * d ** 2 / 4 * L",
     "V_env": "(b * (d + acima) * L - V_tubo) if flexivel == 1 else 0",
-    "V_reat": "max(0, V_solo + V_rocha - V_berco - V_env - V_tubo)",
-    "proprio": "min(V_reat, V_solo * reap)",
-    "V_bota": "(V_solo - proprio) * emp_solo + V_rocha * emp_rocha + V_pav * emp_pav",
-    "A_escoramento": "paredes * (h - h_rocha) * L * escorado"
+    "proprio": "min(V_reat, V_solo * reap)"
    },
    "derivados": []
   }
@@ -306,86 +300,14 @@
  ],
  "vala": {
   "fonte": "pedido do Caio (30/10/2026): cálculo dos serviços associados da rede — largura pela dimensão do tubo e profundidade, escoramento ou vala rasa, corte e demolição pelo tipo de pavimento, escavação, assentamento; solo × rocha e lençol freático pela sondagem mais próxima, com bombeamento quando a vala atinge o NA. Recobrimento, berço, folga e sobrelargura vêm de conceitos/valas.json (NBR 12266).",
-  "observacoes": "O trecho é calculado por segmento de superfície (pista, calçada, fora da via…), cada um com sua profundidade, largura, escoramento e pavimento. Profundidade h = recobrimento + DE + berço, salvo profundidade dada pelo perfil. A escavação começa abaixo do pavimento (o pavimento sai na demolição). Rocha = camada da sondagem descrita como rocha/alterada ou topo do impenetrável; sem sondagem no raio, nada de rocha nem de NA é suposto: o cálculo sai só pela profundidade, com alerta. O terreno do trecho é tomado na cota da boca do furo quando a cota do trecho não é dada (alerta). Tudo aqui é premissa de orçamento: conferir no caderno de encargos Sanepar e no perfil longitudinal.",
+  "observacoes": "Adaptador do dimensionador único de vala (decisão do Caio 03/11/2026: dimensionador único em lineares): largura, profundidade, escoramento (tipo e agravantes), esgotamento, escavação, reaterro, bota-fora, escoramento (m²) e pavimento (m²) saem de `lineares.dimensionar_vala`, com o modelo geotécnico único (conceitos/geotecnia.json: raio de influência, margem do NA, empolamento) e as faixas de conceitos/lineares.json e obras_lineares.json. Aqui ficam só o que o lineares não calcula: berço, envoltória, espessura e item EAP do pavimento, horas de esgotamento e reaproveitamento do solo, mais as tabelas de tradução (superfície → tipo de pavimento, texto do tubo → material do MOS). Premissas que repetiam as do dimensionador antigo (raio de 300 m, margem do NA de 0,5 m, empolamento 1,25, faixas de escoramento e de largura NBR) foram removidas. Recobrimento, berço e folga vêm de conceitos/valas.json. Tudo aqui é premissa de orçamento: conferir no caderno de encargos Sanepar e no perfil longitudinal.",
   "largura": {
-   "minimo_por_profundidade": {
-    "valor": [
-     [
-      1.5,
-      0.6
-     ],
-     [
-      3.0,
-      0.8
-     ],
-     [
-      99.0,
-      1.0
-     ]
-    ],
-    "estado": "premissa",
-    "fonte": "largura mínima livre crescente com a profundidade (até 1,5 m: 0,60; até 3,0 m: 0,80; acima: 1,00 m) para trabalho e compactação; conferir no caderno de encargos"
-   },
    "nomes_escoramento": {
     "nenhum": "sem escoramento",
     "pontaleteamento": "pontaleteamento",
     "descontinuo": "descontínuo",
     "continuo": "contínuo",
     "especial": "especial"
-   },
-   "acrescimo_escoramento_m": {
-    "valor": {
-     "nenhum": 0.0,
-     "pontaleteamento": 0.0,
-     "descontinuo": 0.1,
-     "continuo": 0.2,
-     "especial": 0.3
-    },
-    "estado": "premissa",
-    "fonte": "espessura das pranchas/longarinas dos dois lados somada à largura livre"
-   }
-  },
-  "escoramento": {
-   "profundidade_max_m": {
-    "valor": [
-     [
-      1.25,
-      "nenhum"
-     ],
-     [
-      2.0,
-      "pontaleteamento"
-     ],
-     [
-      3.0,
-      "descontinuo"
-     ],
-     [
-      4.5,
-      "continuo"
-     ],
-     [
-      99.0,
-      "especial"
-     ]
-    ],
-    "estado": "premissa",
-    "fonte": "NR-18: escavação com mais de 1,25 m precisa de estabilidade garantida (escoramento ou talude) — limite confirmado; os tipos por faixa são prática de orçamento"
-   },
-   "agravantes": {
-    "nspt_min": 4,
-    "solos_nao_coesivos": [
-     "areia",
-     "aterro"
-    ],
-    "tipo_minimo": "continuo",
-    "estado": "premissa",
-    "fonte": "areia, aterro, solo mole (NSPT < 4) ou vala abaixo do NA pedem escoramento contínuo quando a vala passa de 1,25 m"
-   },
-   "paredes": {
-    "valor": 2,
-    "estado": "confirmado",
-    "fonte": "área escorada = 2 paredes × altura × extensão"
    }
   },
   "pavimentos": {
@@ -470,66 +392,7 @@
     "fonte": "corte com serra nas duas bordas da faixa demolida"
    }
   },
-  "solo": {
-   "classes": {
-    "valor": [
-     [
-      "rocha",
-      "ROCHA|ALTERAD|IMPENETRAVEL|MATACA|BASALTO|GRANITO|ARENITO|DIABASIO"
-     ],
-     [
-      "areia",
-      "^AREIA|AREIA (FINA|MEDIA|GROSSA|ARGILOSA|SILTOSA)"
-     ],
-     [
-      "argila",
-      "ARGILA"
-     ],
-     [
-      "silte",
-      "SILTE"
-     ],
-     [
-      "aterro",
-      "ATERRO|ENTULHO"
-     ]
-    ],
-    "estado": "premissa",
-    "fonte": "palavra principal da descrição da camada (a primeira classe que casa vence); 'argila arenosa' é argila"
-   },
-   "impenetravel_e_rocha": {
-    "valor": true,
-    "estado": "premissa",
-    "fonte": "furo SPT impenetrável à percussão: topo de rocha ou matacão na profundidade final (confirmar com rotativa)"
-   }
-  },
-  "sondagem": {
-   "raio_m": {
-    "valor": 300.0,
-    "estado": "premissa",
-    "fonte": "furo mais distante que isso não representa o trecho; acima, o solo fica 'sem informação'"
-   }
-  },
   "lencol": {
-   "margem_m": {
-    "valor": 0.5,
-    "estado": "premissa",
-    "fonte": "NA medido na sondagem varia com a estação: considerar o NA 0,5 m mais alto"
-   },
-   "metodo": {
-    "valor": [
-     [
-      0.5,
-      "esgotamento com bomba submersível"
-     ],
-     [
-      99.0,
-      "rebaixamento com ponteiras filtrantes"
-     ]
-    ],
-    "estado": "premissa",
-    "fonte": "altura de água na vala até 0,5 m em solo coesivo: bombeamento direto; acima disso ou em areia: ponteiras"
-   },
    "produtividade_m_dia": {
     "valor": [
      [
@@ -577,15 +440,6 @@
    }
   },
   "volumes": {
-   "empolamento": {
-    "valor": {
-     "solo": 1.25,
-     "rocha": 1.5,
-     "pavimento": 1.35
-    },
-    "estado": "premissa",
-    "fonte": "fator de empolamento para o transporte"
-   },
    "reaproveitamento": {
     "valor": {
      "solo": 1.0,
@@ -597,11 +451,6 @@
    }
   },
   "metodos": {
-   "nbr12266": {
-    "nome": "NBR 12266 (premissas de valas.json)",
-    "estado": "premissa",
-    "fonte": "b = max(DE + folga 0,60; mínimo da profundidade) + acréscimo do tipo de escoramento"
-   },
    "mos_sanepar": {
     "nome": "MOS Sanepar (dimensionador único lineares.dimensionar_vala)",
     "estado": "confirmado",

@@ -1,4 +1,4 @@
-# Arquitetura — projetos em camadas (R9 proposta, 01/11/2026)
+# Arquitetura — projetos em camadas (R10, 03/11/2026; estado do código em 0.49.0)
 
 Diagrama, cenário de mesa e índice: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
 
@@ -167,9 +167,8 @@ O carimbo serve para:
 **Geotecnia é separada da civil**, com análise própria, porque a interpretação da sondagem decide boa parte do
 escopo de movimento de terra e de fundação.
 
-O que existe hoje:
-- `sondagens.json` escrito por um agente a partir do laudo, sem schema validado;
-- dois interpretadores divergentes, `obras_lineares.py` (main) e `dimensoes.dimensionar_vala` (ramo EAP):
+Até a 0.26.0 havia dois interpretadores divergentes, `obras_lineares.py` e `dimensoes.dimensionar_vala`. A tabela
+abaixo fica como registro do que motivou o modelo único:
 
 | Ponto | `obras_lineares` | `dimensionar_vala` |
 |---|---|---|
@@ -180,7 +179,7 @@ O que existe hoje:
 | empolamento | 1,30 | 1,25 (solo) / 1,50 (rocha) |
 | cota do terreno × boca do furo | ignorada | considerada |
 
-**Módulo `geotecnia`** (a fazer):
+**Módulo `geotecnia`** (`camadas/geotecnia.py`, `conceitos/geotecnia.json`; itens 1, 2 e 4 feitos entre 0.27.0 e 0.31.0, o leitor de laudo aguarda a conferência do Caio em Foz):
 1. **Leitor de laudo por código**: tabela de coordenadas (com EPSG e datum declarados) e perfil SPT por furo
    (camadas, NSPT, NA, impenetrável), lidos do texto do PDF, com schema validado. O que não sair fica "não lido" e
    entra na escada.
@@ -227,8 +226,9 @@ localiza por estaca ao longo de um eixo, se mede em metro de rede e gira em torn
 2. leitor do perfil: estaca, cota do terreno, cota da geratriz ou do fundo da vala (piloto, 0.29.0);
 3. segmentação em trechos por PV, superfície e sondagem (`lineares.trechos`, 0.31.0);
 4. **um único dimensionador de vala** (MOS Sanepar), alimentado pelo modelo geotécnico (`lineares.dimensionar_vala`,
-   0.31.0): `valas.py` e `obras_lineares.py` delegam a ele. O dimensionador do ramo da EAP não foi integrado; suas
-   faixas de escoramento entraram como premissa (D3). Falta unificar `gavetas.eixo` com `lineares.eixo`;
+   0.31.0): `valas.py` e `obras_lineares.py` delegam a ele. O ramo `nifty-meitner` trouxe para a `main` um segundo,
+   `dimensoes.dimensionar_vala` (raio 300 m, NA −0,5 m, empolamento 1,25); por decisão do Caio (03/11, D4) ele vira
+   adaptador do `lineares`, sem regra própria. Falta unificar `gavetas.eixo` com `lineares.eixo`;
 5. interferências e travessias (a fazer).
 
 A EAP já separa as duas (U1 ETA × U2 adutoras).
@@ -243,6 +243,17 @@ supera[]}`.
 - O HTML mostra a evidência superada e o nó riscado, fora da soma.
 - Ao gravar, o navegador gera uma nova versão do arquivo com o bloco de decisões; o build seguinte lê esse bloco.
 - Um teste de ida e volta garante que nada se perde.
+
+### Registro das decisões de arquitetura
+
+Decisão do Caio vale como regra até ser superada por outra, sempre registrada aqui e no plano da rodada.
+
+| Id | Data | Decisão | Situação |
+|---|---|---|---|
+| D1 | 01/11 | premissas da geotecnia: raio de influência 60 m, margem do NA 0 m, empolamento 1,30 (solo) e 1,50 (rocha) | vigente |
+| D2 | 01/11 | a vala das adutoras segue o MOS Sanepar, não a NBR 12266 (0,90 → 0,75 m no caso DE 0,30 m) | vigente |
+| D3 | 01/11 | o ramo `nifty-meitner` não seria integrado; as faixas de escoramento dele entram como premissa | **revertida em 02–03/11**: o Caio fez o merge de 11 PRs do ramo (#18, #34, #36, #38, #40–#45, #47). A EAP codificada, a aba EAP, as evidências e a leitura por IA com citação conferida passam a fazer parte da arquitetura |
+| D4 | 03/11 | fica um só dimensionador de vala, o `lineares.dimensionar_vala`, com as premissas da D1; o `dimensoes.dimensionar_vala` vira adaptador | vigente |
 
 ## 7. Quem faz o quê
 
@@ -379,4 +390,64 @@ lição que vale para todos vira mudança no kit, propagada por PR em cada repos
 - o volume vai para os menores;
 - uma devolução é custo dobrado, então o contrato de cada entrega precisa ser claro antes de abrir o agente. A
   devolução da E1 na rodada 20 veio de um prompt contraditório.
+
+## 12. As telas: como o caderno funciona
+
+Um único HTML, aberto no navegador sem servidor. O Python calcula tudo antes; a tela só apresenta, filtra e desenha
+(exceção documentada: a medição interativa no mapa).
+
+| Área | O que mostra | De onde vem |
+|---|---|---|
+| Mapa (centro) | ortofoto, satélite, pranchas por layer CAD, sondagens, valas, cavas; modo 3D com a nuvem de pontos | `dados.json` embutido: `bases`, `vetores`, `pranchas`, `modelo3d` |
+| Aba **Obra** | identificação, área da obra, resumo | `obra.json` e `info` |
+| Aba **Camadas** | liga e desliga cada camada, agrupada por disciplina | `grupos` de `pdf_cad.disciplinas()` |
+| Aba **Pranchas** | cada prancha, a georreferência e a incerteza | `georef_prancha` |
+| Aba **Etapas e escopo** | itens da planilha por etapa, o que está fora do escopo | `escopo_obra`, `orcamento_sanepar` |
+| Aba **EAP** | árvore `U.SISTEMA.DISC.PACOTE.ITEM` com quantidade e selo por nó; ao abrir um nó: serviços → regra → fatos → evidência → recorte da prancha; "ver no mapa" filtra os elementos pelo prefixo | `eap_painel`, `eap_html`, gavetas |
+| Aba **Anotações** | marcações do usuário no mapa | navegador |
+| Aba **Projeto** | versão do código, das regras e do build | `VERSAO`, `info` |
+
+**Selo por nó** (texto pronto do Python): convergente, fonte única, conflito, só menção, decidido, mesma origem. Um
+nó com decisão "não executar" aparece riscado, fora da soma, com a evidência superada à vista (decisões com ida e
+volta: a fazer, §6).
+
+## 13. O banco de gavetas e os cálculos em etapas
+
+A ideia do Caio, de dar à IA um lugar certo onde guardar o que lê e só depois calcular, é a **memória espacial**
+(`docs/MEMORIA_ESPACIAL.md`, `camadas/gavetas.py`, `conceitos/gavetas.json`). Ela separa a obra em três etapas, cada
+uma com um contrato escrito antes (os três de-para):
+
+```
+documentos ─► ETAPA 1: ler e guardar ─► GAVETAS ─► ETAPA 2: calcular serviços ─► ETAPA 3: EAP ─► HTML
+              de-para 1                  (banco)    de-para 2                      de-para 3
+              documento → gaveta                    gavetas → regra                serviço → nó
+```
+
+**As gavetas** (uma tabela cada; Parquet em `saida/<obra>/base/`, escolhido por bancada; DuckDB consulta):
+
+| Gaveta | Um registro é | Liga com |
+|---|---|---|
+| `objetos` | uma coisa física: trecho de tubo, cava, estaca, furo | — |
+| `geometria` | a forma do objeto, com CRS e datum | `objeto_id` |
+| `fatos` | uma propriedade com valor, unidade e natureza (observado, projetado, inferido, decidido) | `objeto_id`, `evidencia_id` |
+| `evidencias` | de onde o fato veio: classe, documento, local, trecho, método, executor | documento |
+| `pendencias` | o que faltou ou conflitou, com o próximo passe da escada | `objeto_id` |
+| `servicos` | uma quantidade calculada, com a regra, a versão e os `fato_id` usados | `objeto_id`, `fatos` |
+| `superficies` | grade de terreno (MDS, ortofoto) com hash | `evidencia_id` |
+
+**Como a IA interage com o banco.**
+- A IA não escreve no banco direto: devolve um retorno no schema da gaveta, com o trecho citado; o código confere o
+  trecho na página e só então grava o fato, com `executor` e `passe`.
+- Fato que só a IA afirmou não alimenta regra de cálculo (0.30.0); ele aparece como evidência e pendência até outra
+  fonte confirmar ou o Caio decidir.
+- O que não tem gaveta vira pendência, não texto solto. Gaveta nova é decisão de arquitetura.
+
+**Cálculo em mais de uma etapa e mais de uma volta.**
+- Quem lê não calcula; quem calcula não lê: a Etapa 2 só lê das gavetas, nunca do documento.
+- Cada serviço tem uma chave (`gavetas.chave_servico`): regra, versão, impressão do código e das premissas, dados,
+  fatos e furos usados. Se nada mudou, o serviço é reaproveitado; mudou um fato ou uma premissa, só o que dependia
+  dele é recalculado (`gavetas.calcular_incremental`).
+- A paridade (`gavetas.paridade`) confere o cálculo das gavetas contra o cálculo direto; na 0.45.0, Foz deu 30
+  objetos, 75 serviços, 0 erros de conferência e 0 diferenças de paridade.
+- A Etapa 3 soma os serviços nos nós da EAP; cada número abre o caminho de volta até o recorte da prancha.
 

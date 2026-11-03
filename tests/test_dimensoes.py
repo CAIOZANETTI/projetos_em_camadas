@@ -13,7 +13,7 @@ def _furo(**kw):
     return {"id": "SP-01", "E": 50.0, "N": 10.0, "cota_boca": 240.0, "profundidade_m": 10.0, **kw}
 
 
-def _vala(segmentos, de_mm=200, material="TUBO PEAD DE 200", sondagens=(), metodos=("nbr12266",), **kw):
+def _vala(segmentos, de_mm=200, material="TUBO PEAD DE 200", sondagens=(), metodos=("mos_sanepar",), **kw):
     """Elementos de vala do trecho (pelos métodos pedidos) e as evidências dos serviços (pelas regras genéricas)."""
     trecho = {"id": "t1", "de_mm": de_mm, "segmentos": segmentos, "material_texto": material, "geometria": LINHA, **kw}
     els = [dimensoes.elemento(f"t1 · {s} · {m}", "vala", "U2.AAT06", None, dims, "teste", al, m)
@@ -108,22 +108,30 @@ def test_laje_vinda_de_fato_so_tem_o_que_a_area_permite():
 # vala -----------------------------------------------------------------------------------------------------------
 def test_vala_rasa_em_terra_sem_escoramento_e_sem_pavimento():
     els, evs, _, _ = _vala({"fora_da_via": 100.0}, sondagens=[_furo(na_m=8.0)])
-    h, b = 0.6 + 0.2 + 0.1, 0.8
+    # largura b: antes 0,80 m (NBR 12266), agora 0,55 m (MOS: D 0,20 + SL 0,35); h = 0,90 m não muda
+    # (decisão do Caio 03/11/2026: dimensionador único (lineares))
+    h, b = 0.6 + 0.2 + 0.1, 0.55
     assert els[0]["dims"]["h"] == pytest.approx(h) and els[0]["dims"]["tipo_escoramento"] == "nenhum"
     assert _q(evs, "escavacao") == pytest.approx(b * h * 100, rel=1e-3)
     assert _q(evs, "demolicao") == 0 and not any(e["servico"].startswith("escoramento") for e in evs)
 
 
 def test_pista_asfalto_corte_demolicao_recomposicao_e_reaterro():
-    _, evs, _, detalhes = _vala({"pista": 100.0}, de_mm=630, material="TUBO FD K7", sondagens=[_furo()])
-    h, b = 1.0 + 0.63 + 0.1, 1.23
+    _, evs, _, detalhes = _vala({"pista": 100.0}, de_mm=300, material="TUBO FD K7", sondagens=[_furo()])
+    # (decisão do Caio 03/11/2026: dimensionador único (lineares))
+    # tubo: antes FD DN 630 (b NBR 1,23 m), agora FD DN 300, porque o FD DN 630 está fora da Tabela I do MOS;
+    # b = D 0,30 + SL 0,35 + X 0,10 (escorada) = 0,75 m
+    # demolição: antes L × (b + 0,30), agora L × b (pavimento do MOS, sem sobrelargura de recorte);
+    # escavação: antes b × (h − 0,35 de pavimento) × L, agora b × h × L (profundidade inteira);
+    # reaterro: antes escavação − berço − tubo, agora escavação − tubo (regra do lineares)
+    h, b = 1.0 + 0.3 + 0.1, 0.75
     assert _q(evs, "corte_pavimento") == pytest.approx(200.0)
-    assert _q(evs, "demolicao", "m²") == pytest.approx(100 * (b + 0.3), rel=1e-3)
+    assert _q(evs, "demolicao", "m²") == pytest.approx(100 * b, rel=1e-3)
     assert _q(evs, "recomposicao") == _q(evs, "demolicao")
-    v_esc = b * (h - 0.35) * 100
+    v_esc = b * h * 100
     assert _q(evs, "escavacao") == pytest.approx(v_esc, rel=1e-3)
     assert _q(evs, "envoltoria") == 0                                                    # FD rígido
-    assert _q(evs, "reaterro") == pytest.approx(v_esc - b * 0.1 * 100 - math.pi * 0.63 ** 2 / 4 * 100, rel=1e-3)
+    assert _q(evs, "reaterro") == pytest.approx(v_esc - math.pi * 0.3 ** 2 / 4 * 100, rel=1e-3)
     assert _q(evs, "assentamento") == 100.0
     assert {e["codigo"] for e in evs if e["servico"] == "demolicao"} == {"U2.AAT06.CIV.PAV.REC"}
     assert any(d["regra"] == "volume_demolido" for d in detalhes)
@@ -138,7 +146,9 @@ def test_areia_pede_escoramento_continuo_e_alarga_a_vala():
     furo = _furo(camadas=[{"de": 0.0, "ate": 4.0, "descricao": "areia fina fofa"}])
     els, evs, _, _ = _vala({"pista": 50.0}, de_mm=300, sondagens=[furo])
     assert els[0]["dims"]["tipo_escoramento"] == "continuo"
-    assert els[0]["dims"]["b"] == pytest.approx(0.9 + 0.2)
+    # b: antes 1,10 m (NBR: DE + folga 0,60 + 0,20 do contínuo), agora 0,75 m (MOS: D 0,30 + SL 0,35 + X 0,10)
+    # (decisão do Caio 03/11/2026: dimensionador único (lineares))
+    assert els[0]["dims"]["b"] == pytest.approx(0.3 + 0.35 + 0.1)
     assert _q(evs, "escoramento_continuo") == pytest.approx(2 * 1.4 * 50, rel=1e-3)
 
 
@@ -148,17 +158,25 @@ def test_profundidade_do_perfil_e_rocha_da_sondagem():
     els, evs, _, _ = _vala({"fora_da_via": 100.0}, profundidade_m=3.0, sondagens=[furo])
     b = els[0]["dims"]["b"]
     assert els[0]["dims"]["tipo_escoramento"] == "descontinuo"
-    assert _q(evs, "escavacao_rocha") == pytest.approx(b * 1.0 * 100, rel=1e-3)
-    assert _q(evs, "escavacao") == pytest.approx(b * 2.0 * 100, rel=1e-3)
-    assert _q(evs, "escoramento_descontinuo") == pytest.approx(2 * 2.0 * 100, rel=1e-3)   # só em solo
+    # b: antes 0,90 m (NBR), agora 0,75 m (MOS); a rocha é a fração do lineares (arredondada em 3 casas: 0,333 de 3 m)
+    # escavação em solo: antes 180 m³ (b × 2,0 × L), agora 150,075 m³; em rocha: antes 90 m³, agora 74,925 m³
+    # escoramento: antes 400 m² (só a altura em solo), agora 600 m² (2 × h × L, a altura inteira)
+    # (decisão do Caio 03/11/2026: dimensionador único (lineares))
+    assert _q(evs, "escavacao_rocha") == pytest.approx(b * 1.0 * 100, rel=2e-3)
+    assert _q(evs, "escavacao") == pytest.approx(b * 2.0 * 100, rel=2e-3)
+    assert _q(evs, "escavacao") + _q(evs, "escavacao_rocha") == pytest.approx(b * 3.0 * 100)
+    assert _q(evs, "escoramento_descontinuo") == pytest.approx(2 * 3.0 * 100)
 
 
-def test_impenetravel_vira_topo_de_rocha():
-    assert dimensoes.solo_na_vala(_furo(impenetravel=True, profundidade_m=1.2), 2.0)["topo_rocha_m"] == 1.2
+# (decisão do Caio 03/11/2026: dimensionador único (lineares)): removido o teste `impenetravel_vira_topo_de_rocha`, que
+# chamava `dimensoes.solo_na_vala` (regra própria que deixou de existir). Furo impenetrável como rocha: ver `geotecnia.topo_rocha_m`.
 
 
 def test_vala_abaixo_do_na_pede_bombeamento():
-    els, evs, _, _ = _vala({"pista": 80.0}, de_mm=300, sondagens=[_furo(na_m=1.5)])       # NA de projeto 1,0 m
+    # NA do furo: antes 1,5 m com margem de 0,5 m (NA de projeto 1,0 m); agora a margem é 0 m (geotecnia.json), então o
+    # mesmo NA de projeto de 1,0 m pede na_m = 1,0 (com 1,5 m a vala de 1,4 m não atinge a água e não há esgotamento)
+    # (decisão do Caio 03/11/2026: dimensionador único (lineares))
+    els, evs, _, _ = _vala({"pista": 80.0}, de_mm=300, sondagens=[_furo(na_m=1.0)])       # NA de projeto 1,0 m
     assert els[0]["dims"]["h_agua"] == pytest.approx(1.4 - 1.0)
     assert _q(evs, "esgotamento", "h") == pytest.approx(80 / 40 * 10)
     assert any("atinge o NA" in a for a in els[0]["alertas"])
@@ -171,7 +189,11 @@ def test_na_em_areia_pede_ponteiras():
 
 
 def test_cota_do_trecho_desloca_o_na_do_furo():
-    _, evs, _, _ = _vala({"pista": 10.0}, de_mm=300, cota_terreno=242.0, sondagens=[_furo(na_m=1.5)])
+    # com na_m = 1,5 sem deslocamento o NA ficaria abaixo do fundo (1,4 m) e o teste não provaria o deslocamento: usa 1,0 m
+    # (NA de projeto antes 1,0 m com margem de 0,5 m; agora a margem é 0 m). decisão do Caio 03/11/2026: dimensionador único (lineares)
+    sem_cota, _, _, _ = _vala({"pista": 10.0}, de_mm=300, sondagens=[_furo(na_m=1.0)])
+    assert sem_cota[0]["dims"]["h_agua"] == pytest.approx(0.4)                          # sem a cota do trecho: atinge o NA
+    _, evs, _, _ = _vala({"pista": 10.0}, de_mm=300, cota_terreno=242.0, sondagens=[_furo(na_m=1.0)])   # NA em 3,0 m
     assert _q(evs, "esgotamento") == 0
 
 
@@ -184,13 +206,28 @@ def test_sem_sondagem_no_raio_nao_supoe_rocha_nem_na():
 
 def test_tubo_flexivel_tem_envoltoria():
     _, evs, _, _ = _vala({"fora_da_via": 10.0}, de_mm=200)
-    assert _q(evs, "envoltoria") == pytest.approx(0.8 * 0.5 * 10 - math.pi * 0.04 / 4 * 10, rel=1e-3)
+    # b: antes 0,80 m (NBR), agora 0,55 m (MOS: D 0,20 + SL 0,35); decisão do Caio 03/11/2026: dimensionador único (lineares)
+    assert _q(evs, "envoltoria") == pytest.approx(0.55 * 0.5 * 10 - math.pi * 0.04 / 4 * 10, rel=1e-3)
 
 
 def test_classe_do_solo_pela_palavra_principal():
     assert dimensoes.classe_solo("argila arenosa vermelha") == "argila"
-    assert dimensoes.classe_solo("areia argilosa") == "areia"
     assert dimensoes.classe_solo("basalto são") == "rocha"
+
+
+@pytest.mark.xfail(strict=True, reason="pendência do Caio (plano da rodada 25): geotecnia.classe_solo pega a 1ª regex que "
+                   "casa (ARGIL antes de AREI), não o substantivo; 'areia argilosa' sai argila. Dimensionador único: D4, 03/11/2026")
+def test_areia_argilosa_e_areia():
+    assert dimensoes.classe_solo("areia argilosa") == "areia"
+
+
+def test_furo_com_camada_sem_profundidade_nao_quebra_o_deslocamento():
+    """Ressalva do Fable (D4): camada com `de` nulo e o trecho em outra cota não dá TypeError; a camada fica de fora."""
+    furo = {"id": "SP-X", "E": 0.0, "N": 0.0, "cota_boca": 240.0, "na_m": None,
+            "camadas": [{"de": None, "ate": 4.0, "descricao": "argila"}, {"de": 4.0, "ate": 8.0, "descricao": "areia"}],
+            "nspt": [[None, 5], [1.0, 6]]}
+    novo = dimensoes._furo_na_cota_do_trecho(furo, 242.0)
+    assert [c["de"] for c in novo["camadas"]] == [6.0] and novo["nspt"] == [[3.0, 6]]
 
 
 def test_tabela_de_dimensoes_e_de_servicos():
@@ -208,24 +245,27 @@ def test_largura_pelo_mos_sanepar():
     assert dimensoes.material_mos("TUBO PE DE 630") == "PEAD" and dimensoes.material_mos("TUBO FD K7") == "FD"
 
 
-def test_cada_metodo_e_uma_fonte_e_a_consolidacao_compara():
+def test_metodo_sem_regra_propria_fica_de_fora_com_alerta():
+    # antes: nbr12266 e mos_sanepar davam dois elementos, duas fontes e um conflito de escavação (1,23 × 1,38 × 100 =
+    # 169,74 m³ contra 1,08 × 1,73 × 100 = 186,84 m³); agora só o MOS tem regra, o NBR 12266 sai com alerta
+    # (decisão do Caio 03/11/2026: dimensionador único (lineares))
     from camadas import evidencias
     els, evs, _, _ = _vala({"pista": 100.0}, de_mm=630, material="TUBO PE DE 630",
                            metodos=("nbr12266", "mos_sanepar"), sondagens=[_furo()])
-    assert {e["metodo"] for e in els} == {"nbr12266", "mos_sanepar"}
-    assert {e["documento"]["id"] for e in evs} == {"metodo:nbr12266", "metodo:mos_sanepar"}
+    assert [e["metodo"] for e in els] == ["mos_sanepar"]
+    assert {e["documento"]["id"] for e in evs} == {"metodo:mos_sanepar"}
+    assert any("nbr12266" in a and "sem regra própria" in a for a in els[0]["alertas"])
     fatos = evidencias.consolidar(evs).set_index(["codigo", "servico", "unidade"])
-    esc = fatos.loc[("U2.AAT06.GEO.MOV.VAL", "escavacao", "m³")]
-    assert esc["status"] == "conflito" and esc["n_documentos"] == 2
-    # NBR: b 1,23 m, abaixo dos 0,35 m de pavimento; MOS (lineares.dimensionar_vala): L 1,08 m × h inteira 1,73 m
-    assert sorted(a["valor"] for a in esc["afirmacoes"]) == pytest.approx([1.23 * 1.38 * 100, 1.08 * 1.73 * 100], rel=1e-3)
-    assert fatos.loc[("U2.AAT06.HID.TUB.RED", "assentamento", "m")]["status"] == "convergente"   # não depende de b
+    assert fatos.loc[("U2.AAT06.GEO.MOV.VAL", "escavacao", "m³")]["valor"] == pytest.approx(1.08 * 1.73 * 100, rel=1e-3)
 
 
-def test_metodo_que_nao_se_aplica_fica_de_fora_com_alerta():
-    els, _, _, _ = _vala({"pista": 10.0}, material="TUBO DE MATERIAL DESCONHECIDO", metodos=("nbr12266", "mos_sanepar"))
-    assert [e["metodo"] for e in els] == ["nbr12266"]
+def test_tubo_fora_da_tabela_do_mos_fica_com_a_largura_em_faltando():
+    # antes: o NBR 12266 dava um número (b 0,80 m) para o tubo que o MOS não reconhece; agora a largura falta e só
+    # sai o que não depende dela (o assentamento). decisão do Caio 03/11/2026: dimensionador único (lineares)
+    els, evs, sem_valor, _ = _vala({"pista": 10.0}, material="TUBO DE MATERIAL DESCONHECIDO")
+    assert [e["metodo"] for e in els] == ["mos_sanepar"] and "b" not in els[0]["dims"]
     assert any("MOS: material do tubo não reconhecido" in a for a in els[0]["alertas"])
+    assert {e["servico"] for e in evs} == {"assentamento"} and "escavacao_vala" in sem_valor
 
 
 def test_metodo_mos_usa_o_dimensionador_unico_da_main():
@@ -243,14 +283,59 @@ def test_metodo_mos_usa_o_dimensionador_unico_da_main():
     assert els[0]["dims"]["b"] == r["largura_m"]
 
 
-def test_escoramento_total_compara_metodos_que_escolhem_tipos_diferentes():
-    from camadas import evidencias
-    furo = _furo(N=75.0, camadas=[{"de": 0.0, "ate": 4.0, "descricao": "areia fina fofa"}])   # 75 m: fora do raio do MOS
-    _, evs, _, _ = _vala({"pista": 120.0}, de_mm=630, material="TUBO PE DE 630",
-                         metodos=("nbr12266", "mos_sanepar"), sondagens=[furo])
-    por_tipo = {e["documento"]["id"]: e["servico"] for e in evs if e["servico"].startswith("escoramento_")}
-    assert por_tipo["metodo:nbr12266"] != por_tipo["metodo:mos_sanepar"]            # por tipo, não se comparam
-    fatos = evidencias.consolidar(evs).set_index(["codigo", "servico", "unidade"])
-    total = fatos.loc[("U2.AAT06.GEO.MOV.VAL", "escoramento", "m²")]
-    assert total["n_documentos"] == 2
-    assert {a["documento"] for a in total["afirmacoes"]} == {"metodo:nbr12266", "metodo:mos_sanepar"}
+def test_escoramento_total_compara_metodos_que_escolhem_tipos_diferentes():   # nome mantido: a lição L029 o cita
+    # antes: o teste comparava dois métodos que escolhiam tipos diferentes (NBR contínuo × MOS pontaleteamento, com o
+    # furo a 75 m, fora dos 60 m do MOS mas dentro dos 300 m da sondagem antiga); agora há uma regra só (raio de 60 m)
+    # (decisão do Caio 03/11/2026: dimensionador único (lineares))
+    camadas = [{"de": 0.0, "ate": 4.0, "descricao": "areia fina fofa"}]
+    perto, _, _, _ = _vala({"pista": 120.0}, de_mm=630, material="TUBO PE DE 630", sondagens=[_furo(camadas=camadas)])
+    longe, _, _, _ = _vala({"pista": 120.0}, de_mm=630, material="TUBO PE DE 630",
+                           sondagens=[_furo(N=75.0, camadas=camadas)])
+    assert perto[0]["dims"]["tipo_escoramento"] == "continuo"
+    assert longe[0]["dims"]["tipo_escoramento"] == "pontaleteamento"
+    assert any("nenhuma sondagem a até 60 m" in a for a in longe[0]["alertas"])
+    # o serviço "escoramento" (total, sem tipo) sai nos dois casos, com o mesmo código: é por ele que uma fonte que não diz
+    # o tipo (planilha, memorial) se compara com a vala, mesmo quando os tipos escolhidos são diferentes
+    for elementos in (perto, longe):
+        evs, _, _ = associados.aplicar(elementos)
+        assert {e["servico"] for e in evs if e["servico"].startswith("escoramento")} \
+            == {"escoramento", f"escoramento_{elementos[0]['dims']['tipo_escoramento']}"}
+
+
+def test_adaptador_e_lineares_dao_a_mesma_largura_profundidade_e_escavacao():
+    # decisão do Caio 03/11/2026: dimensionador único (lineares): uma grandeza, uma regra
+    from camadas import lineares
+    furo = _furo(na_m=1.0, camadas=[{"de": 0.0, "ate": 2.0, "descricao": "argila siltosa"},
+                                    {"de": 2.0, "ate": 6.0, "descricao": "areia média"}], nspt=[[1, 8], [2, 12]])
+    for de_mm, material, texto, profundidade_m in ((200, "PEAD", "TUBO PEAD DE 200", None),
+                                                    (630, "PEAD", "TUBO PE DE 630", None),
+                                                    (300, "FD", "TUBO FD K7", 2.6)):
+        els, _, _, _ = _vala({"pista": 90.0}, de_mm=de_mm, material=texto, sondagens=[furo],
+                             **({"profundidade_m": profundidade_m} if profundidade_m else {}))
+        dims = els[0]["dims"]
+        direto = lineares.dimensionar_vala(
+            {"local": "pista", "dn_mm": de_mm, "material": material, "prof_m": dims["h"], "comp_m": 90.0,
+             "metodo": "VCA", "pavimentos": {"asfalto": 90.0}}, [furo], pts=dimensoes._pontos(LINHA))
+        assert dims["b"] == direto["largura_m"] and dims["h"] == direto["profundidade_m"]
+        assert dims["V_solo"] + dims["V_rocha"] == pytest.approx(direto["escavacao_m3"])
+        assert dims["tipo_escoramento"] == direto["tipo_escoramento"]
+        assert dims["A_escoramento"] == pytest.approx(direto["escoramento_m2"])
+        assert dims["V_reat"] == pytest.approx(direto["reaterro_m3"]) and dims["V_bota"] == pytest.approx(direto["bota_fora_m3"])
+        assert dims["h_agua"] == pytest.approx(direto["altura_agua_m"]) and dims["metodo_agua"] == direto["tipo_esgotamento"]
+
+
+def test_sondagem_proxima_usa_o_raio_do_modelo_geotecnico():
+    from camadas import geotecnia
+    perto, dist = dimensoes.sondagem_proxima(LINHA, [_furo(), _furo(id="SP-02", N=500.0)])
+    assert perto["id"] == "SP-01" and dist == pytest.approx(10.0)
+    fora, dist = dimensoes.sondagem_proxima(LINHA, [_furo(N=geotecnia.RAIO_INFLUENCIA_M + 5)])
+    assert fora is None and dist == pytest.approx(geotecnia.RAIO_INFLUENCIA_M + 5)
+    assert dimensoes.sondagem_proxima(LINHA, []) == (None, None)
+
+
+def test_premissas_do_dimensionador_antigo_foram_removidas_do_conceito():
+    # decisão do Caio 03/11/2026: dimensionador único (lineares)
+    for chave in ("solo", "sondagem", "escoramento"):
+        assert chave not in dimensoes.VP
+    assert "empolamento" not in dimensoes.VP["volumes"] and "margem_m" not in dimensoes.VP["lencol"]
+    assert list(dimensoes.VP["metodos"]) == ["mos_sanepar"]

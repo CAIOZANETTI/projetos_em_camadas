@@ -1,0 +1,596 @@
+<title>Arquitetura Projetos em Camadas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Folha de projeto: o diagrama é a prancha, o estado de cada peça é a legenda, o carimbo fecha a folha */
+:root {
+  --bg: #f3f5f7; --papel: #ffffff; --fg: #1b2530; --mut: #5a6878; --linha: #b9c4cf; --fio: #dbe2e9;
+  --acc: #0b5fc0; --wbs-bg: #e8f0fb;
+  --cod: #0b5fc0; --cod-bg: #dde9f8;
+  --ia: #8a3f8f; --ia-bg: #f1e2f1;
+  --hum: #9a5b00; --hum-bg: #fbecd2;
+  --fora: #b42318; --fora-bg: #fdf0ee;
+  --ok: #1f7a4d; --ok-bg: #e3f3ea;
+  --hk: #0f766e; --hk-bg: #d6f1ed; --sn: #8a3f8f; --sn-bg: #f1e2f1; --op: #be185d; --op-bg: #fbe4ee; --fb: #4d7c0f; --fb-bg: #e9f3da;
+  --f-disp: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151c; --papel: #161f29; --fg: #e3e9ef; --mut: #97a5b4; --linha: #3a4a5c; --fio: #26323f;
+  --acc: #6aa8ff; --wbs-bg: #14273f; --cod: #7db3ff; --cod-bg: #1a2f4b; --ia: #e09ae4; --ia-bg: #3a2140;
+  --hum: #f0b45a; --hum-bg: #3d2c12; --fora: #ff8a7a; --fora-bg: #3a1a17; --ok: #6fd3a0; --ok-bg: #15301f;
+  --hk: #5eead4; --hk-bg: #11302d; --sn: #e09ae4; --sn-bg: #3a2140; --op: #f9a8d4; --op-bg: #3b1a2a; --fb: #a3e635; --fb-bg: #1f2d12;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151c; --papel: #161f29; --fg: #e3e9ef; --mut: #97a5b4; --linha: #3a4a5c; --fio: #26323f;
+  --acc: #6aa8ff; --wbs-bg: #14273f; --cod: #7db3ff; --cod-bg: #1a2f4b; --ia: #e09ae4; --ia-bg: #3a2140;
+  --hum: #f0b45a; --hum-bg: #3d2c12; --fora: #ff8a7a; --fora-bg: #3a1a17; --ok: #6fd3a0; --ok-bg: #15301f;
+  --hk: #5eead4; --hk-bg: #11302d; --sn: #e09ae4; --sn-bg: #3a2140; --op: #f9a8d4; --op-bg: #3b1a2a; --fb: #a3e635; --fb-bg: #1f2d12;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--f-body); }
+.folha { max-width: 1160px; margin: 0 auto; padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 30px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font: 600 12px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--mut); }
+h1 { font: 700 clamp(30px, 5vw, 44px)/1.05 var(--f-disp); margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h2 { font: 600 24px/1.1 var(--f-disp); margin: 0; letter-spacing: .02em; text-wrap: balance; }
+h3 { margin: 0; font: 700 20px var(--f-disp); letter-spacing: .02em; }
+p { margin: 0; max-width: 72ch; }
+.sub { color: var(--mut); }
+section { display: grid; gap: 12px; min-width: 0; }
+code { font: 13px var(--f-mono); }
+a { color: var(--acc); }
+a:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+.alerta { border: 1px solid var(--fora); border-left: 5px solid var(--fora); background: var(--fora-bg); padding: 14px 16px; display: grid; gap: 8px; }
+.alerta b.t { font: 700 20px var(--f-disp); color: var(--fora); letter-spacing: .03em; }
+.alerta ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; max-width: 100ch; }
+
+.legenda { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-size: 14px; }
+.chip { display: inline-block; font: 600 12px var(--f-mono); padding: 1px 9px; border-radius: 99px; margin-right: 6px; white-space: nowrap; }
+.chip.cod { background: var(--cod-bg); color: var(--cod); } .chip.ia { background: var(--ia-bg); color: var(--ia); }
+.chip.hum { background: var(--hum-bg); color: var(--hum); } .chip.fora { background: var(--fora-bg); color: var(--fora); }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+
+.prancha { background: var(--papel); border: 1px solid var(--linha); padding: 14px; overflow-x: auto; }
+.prancha svg { display: block; min-width: 900px; width: 100%; height: auto; }
+.box { fill: var(--papel); stroke: var(--linha); stroke-width: 1.2; }
+.cert { stroke: var(--cod); stroke-width: 1.8; }
+.gav { fill: var(--bg); stroke: var(--fg); stroke-width: 1.4; }
+.dup { fill: var(--fora-bg); stroke: var(--fora); stroke-width: 1.6; stroke-dasharray: 6 4; }
+.wbs { fill: var(--wbs-bg); stroke: var(--acc); stroke-width: 2.2; }
+.html { fill: var(--wbs-bg); stroke: var(--acc); stroke-width: 2.2; }
+.bloco { fill: var(--papel); stroke: var(--acc); stroke-width: 1; }
+.decis { fill: var(--hum-bg); stroke: var(--hum); stroke-width: 1.8; }
+.ag.hk { fill: var(--hk-bg); stroke: var(--hk); } .ag.sn { fill: var(--sn-bg); stroke: var(--sn); }
+.ag.op { fill: var(--op-bg); stroke: var(--op); } .ag.hm { fill: var(--hum-bg); stroke: var(--hum); }
+.foraz { fill: url(#hach); stroke: var(--fora); stroke-width: 1.4; }
+.hach-bg { fill: var(--fora-bg); } .hach { stroke: var(--fora); stroke-width: 1; opacity: .25; }
+.seta { stroke: var(--mut); stroke-width: 1.4; fill: none; } .ponta { fill: var(--mut); }
+.volta { stroke: var(--cod); stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
+.fio { stroke: var(--fio); stroke-width: 1; }
+text { font-family: var(--f-body); }
+.th { font: 600 15px var(--f-body); fill: var(--fg); }
+.thw { font: 700 19px var(--f-disp); fill: var(--acc); letter-spacing: .02em; }
+.ts { font-size: 13px; fill: var(--mut); }
+.tmono { font: 600 12px var(--f-mono); fill: var(--fg); }
+.tda { font: 600 13px var(--f-body); fill: var(--fg); }
+.tn { font: 700 26px var(--f-disp); fill: var(--acc); }
+.tl { font: 600 14px var(--f-disp); fill: var(--fg); letter-spacing: .04em; text-transform: uppercase; }
+.tfora { font: 700 15px var(--f-disp); fill: var(--fora); letter-spacing: .08em; }
+.tdup { font: 600 12px var(--f-mono); fill: var(--fora); }
+.tb { font: 600 11px var(--f-mono); }
+.b-codigo { fill: var(--cod-bg); } .tb-codigo { fill: var(--cod); }
+.b-ia { fill: var(--ia-bg); } .tb-ia { fill: var(--ia); }
+.b-humano { fill: var(--hum-bg); } .tb-humano { fill: var(--hum); }
+
+.principios { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 100ch; }
+.principios b { font-weight: 600; }
+
+.tab { background: var(--papel); border: 1px solid var(--linha); overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--fio); vertical-align: top; }
+th { font: 600 12px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--mut); background: var(--bg); }
+td:first-child { font-weight: 600; }
+td.v { font-family: var(--f-mono); font-size: 13px; color: var(--mut); white-space: nowrap; }
+tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--mut); padding-block: 6px; }
+.st { display: inline-block; font: 600 11px var(--f-mono); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.st.feito { background: var(--ok-bg); color: var(--ok); }
+.st.piloto { background: var(--cod-bg); color: var(--cod); }
+.st.fazer { background: var(--bg); color: var(--mut); border: 1px solid var(--linha); }
+.st.desvio { background: var(--fora-bg); color: var(--fora); }
+.st.conferir { background: var(--hum-bg); color: var(--hum); }
+
+.grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.dcard { background: var(--papel); border: 1px solid var(--linha); border-top: 4px solid var(--c); padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.dcard h3 { color: var(--c); }
+.dcard dl { margin: 0; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 6px 10px; font-size: 14px; }
+.dcard dt { font: 600 11px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--mut); padding-top: 3px; }
+.dcard dt.lac { color: var(--fora); }
+.dcard dd { margin: 0; }
+
+.tipo-obra { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.to { background: var(--papel); border: 1px solid var(--linha); border-top: 4px solid var(--c); padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; font-size: 14px; }
+.to h3 { color: var(--c); }
+.to ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+
+.agentes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.agente { background: var(--papel); border: 1px solid var(--linha); border-top: 4px solid var(--c); padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; font-size: 14px; }
+.agente h3 { color: var(--c); font-size: 22px; }
+.agente .papel { font-weight: 600; }
+.agente ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+
+.portoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.portao { background: var(--papel); border: 1px solid var(--linha); border-top: 3px solid var(--acc); padding: 10px 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.portao b { font: 700 20px var(--f-disp); color: var(--acc); }
+.portao span { font-weight: 600; }
+.portao small { color: var(--mut); font-size: 13px; }
+
+.idx { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; align-items: center; }
+@media (max-width: 760px) { .idx { grid-template-columns: 1fr; } }
+.hero { display: grid; gap: 2px; }
+.hn { font: 700 64px/1 var(--f-disp); font-variant-numeric: tabular-nums; }
+.hl { font-weight: 600; } .hs { color: var(--mut); font-size: 13px; }
+.graf { background: var(--papel); border: 1px solid var(--linha); padding: 10px; min-width: 0; }
+.graf svg { display: block; width: 100%; height: auto; }
+.gr { stroke: var(--fio); stroke-width: 1; } .gt { font: 11px var(--f-mono); fill: var(--mut); }
+.gmeta { stroke: var(--fora); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.glin { fill: none; stroke: var(--cod); stroke-width: 2.4; }
+.gpt { fill: var(--papel); stroke: var(--cod); stroke-width: 2; } .gfim { fill: var(--cod); stroke: var(--papel); stroke-width: 2; }
+.gl { font: 600 12px var(--f-body); fill: var(--fg); }
+
+.decidir { margin: 0; padding-left: 22px; display: grid; gap: 8px; max-width: 100ch; }
+.decidir li::marker { color: var(--hum); font-weight: 700; }
+
+.carimbo { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; border: 1.5px solid var(--fg); background: var(--papel); font-size: 13px; }
+.carimbo div { padding: 6px 10px; border-left: 1px solid var(--linha); min-width: 0; }
+.carimbo div:first-child { border-left: 0; }
+.carimbo i { display: block; font: 600 10px var(--f-mono); font-style: normal; color: var(--mut); letter-spacing: .08em; text-transform: uppercase; }
+@media (max-width: 560px) { .carimbo { grid-template-columns: 1fr 1fr; } .carimbo div:nth-child(3) { border-left: 0; } }
+
+/* mockup das telas */
+.tela { background: var(--papel); border: 1.5px solid var(--fg); display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+.tela-barra { display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--linha); background: var(--bg); font: 600 11px var(--f-mono); color: var(--mut); }
+.tela-barra i { width: 9px; height: 9px; border-radius: 50%; background: var(--linha); display: inline-block; }
+.tela-corpo { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 430px; }
+@media (max-width: 820px) { .tela-corpo { grid-template-columns: 1fr; } }
+.lado { border-right: 1px solid var(--linha); display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+@media (max-width: 820px) { .lado { border-right: 0; border-bottom: 1px solid var(--linha); } }
+.abas-m { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px; border-bottom: 1px solid var(--linha); }
+.abas-m span { font: 600 11px var(--f-mono); padding: 3px 7px; border: 1px solid var(--linha); color: var(--mut); background: var(--bg); }
+.abas-m span.on { border-color: var(--acc); color: var(--acc); background: var(--wbs-bg); }
+.arv-m { list-style: none; margin: 0; padding: 8px; display: grid; gap: 2px; font-size: 13px; align-content: start; }
+.arv-m li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 3px 6px; align-items: baseline; }
+.arv-m .c { font-family: var(--f-mono); font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+.arv-m .q { font-family: var(--f-mono); font-size: 12px; color: var(--mut); white-space: nowrap; }
+.arv-m .l1 { font-weight: 600; } .arv-m .l2 { padding-left: 16px; } .arv-m .l3 { padding-left: 28px; } .arv-m .l4 { padding-left: 40px; }
+.arv-m .sel { background: var(--wbs-bg); outline: 1px solid var(--acc); }
+.arv-m .risc .c { text-decoration: line-through; color: var(--mut); }
+.selo { font: 600 10px var(--f-mono); padding: 1px 6px; border-radius: 99px; margin-left: 4px; }
+.selo.cv { background: var(--ok-bg); color: var(--ok); } .selo.cf { background: var(--fora-bg); color: var(--fora); }
+.selo.dc { background: var(--hum-bg); color: var(--hum); } .selo.fu { background: var(--cod-bg); color: var(--cod); }
+.centro { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; }
+.mapa-m { position: relative; min-height: 250px; background: var(--bg); border-bottom: 1px solid var(--linha); overflow: hidden; }
+.mapa-m svg { display: block; width: 100%; height: 100%; }
+.trilha { padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; }
+.trilha .passos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.trilha .passo { border: 1px solid var(--linha); padding: 4px 8px; background: var(--papel); display: grid; gap: 1px; min-width: 0; }
+.trilha .passo b { font: 600 10px var(--f-mono); color: var(--mut); text-transform: uppercase; letter-spacing: .06em; }
+.trilha .seta-t { color: var(--mut); font-weight: 700; }
+.trilha .cita { font-family: var(--f-mono); font-size: 12px; background: var(--hum-bg); padding: 1px 4px; }
+.m-rua { fill: none; stroke: var(--linha); stroke-width: 20; } .m-lote { fill: var(--papel); stroke: var(--fio); }
+.m-tubo { fill: none; stroke: var(--acc); stroke-width: 3; } .m-vala { fill: none; stroke: var(--hum); stroke-width: 12; opacity: .35; }
+.m-apag { fill: none; stroke: var(--mut); stroke-width: 2; opacity: .35; stroke-dasharray: 4 3; }
+.m-furo { fill: var(--papel); stroke: var(--hum); stroke-width: 1.6; } .m-est { font: 10px var(--f-mono); fill: var(--mut); }
+.m-ctrl { fill: var(--papel); stroke: var(--linha); } .m-ctrlt { font: 600 10px var(--f-mono); fill: var(--fg); }
+.nota-tela { font-size: 13px; color: var(--mut); }
+/* banco */
+.tb-g { fill: var(--papel); stroke: var(--fg); stroke-width: 1.3; } .tb-h { fill: var(--wbs-bg); stroke: var(--fg); stroke-width: 1.3; }
+.tb-hia { fill: var(--ia-bg); stroke: var(--fg); stroke-width: 1.3; } .tb-hsv { fill: var(--cod-bg); stroke: var(--fg); stroke-width: 1.3; }
+.tb-nome { font: 700 15px var(--f-disp); fill: var(--fg); letter-spacing: .03em; }
+.tb-c { font: 12px var(--f-mono); fill: var(--fg); } .tb-k { font: 600 12px var(--f-mono); fill: var(--acc); }
+.rel { stroke: var(--mut); stroke-width: 1.3; fill: none; }
+.etapas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.etapa { background: var(--papel); border: 1px solid var(--linha); border-top: 4px solid var(--c); padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; font-size: 14px; }
+.etapa h3 { color: var(--c); }
+.etapa .regra-e { font: 600 12px var(--f-mono); color: var(--mut); }
+.etapa ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+</style>
+
+<div class="folha">
+  <header>
+    <div class="eyebrow">projetos_em_camadas · arquitetura R10.1 · estado em 0.49.0 · 03/11/2026</div>
+    <h1>Do projeto à EAP com quantidades</h1>
+    <p class="sub">Só escopo: serviços e atividades numa EAP com quantidades, sem preço e sem prazo. A entrega é um único HTML com todos os dados dentro. O código faz o que já é certeza, a IA trabalha só nas dúvidas e a decisão do engenheiro prevalece sobre a evidência. Fonte: <code>docs/ARQUITETURA.md</code>, <code>docs/MEMORIA_ESPACIAL.md</code> e <code>docs/EAP.md</code> na <code>main</code>, conferidos contra o código.</p>
+  </header>
+
+  <div class="alerta" role="note">
+    <b class="t">Verificação de 03/11: desvios em correção</b>
+    <p>A <code>main</code> andou da 0.31.0 à 0.45.0 em dois dias. A verificação noturna achou quatro pontos em que o código e este documento não batem:</p>
+    <ol>
+      <li><b>Dois dimensionadores de vala.</b> <code>lineares.dimensionar_vala</code> (raio de 60 m, margem do NA 0 m, empolamento 1,30) e <code>dimensoes.dimensionar_vala</code>, que entrou com o ramo <code>nifty-meitner</code> (300 m, 0,5 m, 1,25).</li>
+      <li><b><code>docs/ARQUITETURA.md</code> parou na 0.31.0</b> e ainda diz que esse ramo não foi integrado.</li>
+      <li><b>A decisão D3 foi revertida sem registro:</b> 11 PRs do <code>nifty-meitner</code> entraram na <code>main</code> sem decisão escrita.</li>
+      <li><b>Registro de agentes duplicado:</b> <code>results/agentes/execucoes.csv</code> repete o bloco das rodadas 21 a 25.</li>
+    </ol>
+    <p><b>Decidido pelo Caio em 03/11:</b> fica o dimensionador do <code>lineares</code> (D4) e a reversão da D3 está registrada. O <code>dimensoes</code> está virando adaptador, e o registro de agentes foi limpo (55 linhas repetidas removidas).</p>
+    <p><a href="https://claude.ai/artifact/WHiMNMrDvv2ziaCn6NUCXw">Abrir a verificação completa</a></p>
+  </div>
+
+  <section>
+    <h2>Como a informação anda</h2>
+    <div class="legenda">
+      <span><span class="chip cod">código</span>determinístico, com teste</span>
+      <span><span class="chip ia">IA</span>só para dúvidas, com citação conferida</span>
+      <span><span class="chip hum">humano</span>confere e decide</span>
+      <span><span class="chip fora">desvio</span>apontado pela verificação</span>
+    </div>
+    <div class="prancha"><svg viewBox="0 0 1100 900" role="img" aria-label="Fluxo da arquitetura: fontes, inventário, escada, gavetas, serviços, EAP e HTML">
+      <defs>
+        <marker id="ponta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ponta"/></marker>
+        <pattern id="hach" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" class="hach-bg"/><line x1="0" y1="0" x2="0" y2="8" class="hach"/></pattern>
+      </defs>
+
+      <!-- 1 Fontes -->
+      <text x="20" y="48" class="tn">1</text><text x="20" y="68" class="tl">Fontes</text>
+      <rect x="160" y="28" width="215" height="58" rx="3" class="box"/><text x="172" y="52" class="th">Pranchas em PDF</text><text x="172" y="72" class="ts">projeto, perfil, detalhe, carimbo</text>
+      <rect x="395" y="28" width="215" height="58" rx="3" class="box"/><text x="407" y="52" class="th">Planilha do contrato</text><text x="407" y="72" class="ts">itens e quantidades, sem preço</text>
+      <rect x="630" y="28" width="215" height="58" rx="3" class="box"/><text x="642" y="52" class="th">Edital, memorial, laudo</text><text x="642" y="72" class="ts">texto, tabelas, sondagens</text>
+      <rect x="865" y="28" width="215" height="58" rx="3" class="box"/><text x="877" y="52" class="th">Drone (opcional)</text><text x="877" y="72" class="ts">ortofoto, MDS, 3D</text>
+      <path d="M260,86 L260,110" class="seta" marker-end="url(#ponta)"/>
+
+      <!-- 2 Inventário e escada -->
+      <text x="20" y="134" class="tn">2</text><text x="20" y="154" class="tl">Inventário</text><text x="20" y="171" class="tl">e escada</text>
+      <rect x="160" y="112" width="200" height="62" rx="3" class="box cert"/><text x="172" y="136" class="th">P0 · Inventário</text><text x="172" y="156" class="ts">toda pasta, todo arquivo</text>
+      <rect x="378" y="112" width="200" height="62" rx="3" class="box cert"/><text x="390" y="136" class="th">P1 · Leitor por tipo</text><text x="390" y="156" class="ts">PDF, planilha, zip</text>
+      <rect x="596" y="112" width="200" height="62" rx="3" class="box cert"/><text x="608" y="136" class="th">Reavaliação</text><text x="608" y="156" class="ts">classe, estado, séries</text>
+      <path d="M360,143 L376,143" class="seta" marker-end="url(#ponta)"/><path d="M578,143 L594,143" class="seta" marker-end="url(#ponta)"/>
+      <path d="M796,143 L812,143" class="seta" marker-end="url(#ponta)"/>
+      <rect x="814" y="112" width="266" height="62" rx="3" class="box"/><text x="826" y="136" class="th">Incompleto: sobe um degrau</text><text x="826" y="156" class="ts">degraus abaixo, até a escada esgotar</text>
+      <rect x="160" y="190" width="172" height="44" rx="3" class="box cert"/><text x="172" y="217" class="tda">código alternativo</text>
+      <rect x="346" y="190" width="172" height="44" rx="3" class="ag hk"/><text x="358" y="217" class="tda">Haiku · classe, carimbo</text>
+      <rect x="532" y="190" width="172" height="44" rx="3" class="ag sn"/><text x="544" y="217" class="tda">Sonnet · sem leitor</text>
+      <rect x="718" y="190" width="172" height="44" rx="3" class="ag op"/><text x="730" y="217" class="tda">Opus · conflito</text>
+      <rect x="904" y="190" width="176" height="44" rx="3" class="ag hm"/><text x="916" y="217" class="tda">Você · escada esgotada</text>
+      <path d="M332,212 L344,212 M518,212 L530,212 M704,212 L716,212 M890,212 L902,212" class="seta"/>
+      <path d="M160,212 L140,212 L140,100 L696,100 L696,110" class="volta" marker-end="url(#ponta)"/>
+      <text x="150" y="250" class="ts">o retorno de cada passe volta à reavaliação: rodar de novo é desejado · <tspan class="tmono">camadas/escada.py</tspan></text>
+      <path d="M620,256 L620,282" class="seta" marker-end="url(#ponta)"/>
+
+      <!-- 3 Gavetas -->
+      <text x="20" y="306" class="tn">3</text><text x="20" y="326" class="tl">Gavetas</text><text x="20" y="343" class="tl">(memória)</text>
+      <text x="160" y="300" class="tmono">de-para 1 · documento → gaveta</text>
+      <rect x="160" y="310" width="920" height="96" rx="3" class="gav"/>
+      <rect x="176" y="324" width="138" height="44" rx="3" class="box bloco"/><text x="186" y="351" class="tmono">objetos</text>
+      <rect x="326" y="324" width="138" height="44" rx="3" class="box bloco"/><text x="336" y="351" class="tmono">geometria</text>
+      <rect x="476" y="324" width="138" height="44" rx="3" class="box bloco"/><text x="486" y="351" class="tmono">fatos</text>
+      <rect x="626" y="324" width="138" height="44" rx="3" class="box bloco"/><text x="636" y="351" class="tmono">evidências</text>
+      <rect x="776" y="324" width="138" height="44" rx="3" class="box bloco"/><text x="786" y="351" class="tmono">pendências</text>
+      <rect x="926" y="324" width="138" height="44" rx="3" class="box bloco"/><text x="936" y="351" class="tmono">furos</text>
+      <text x="176" y="392" class="ts">cada fato com a fonte: classe, documento, local, trecho literal, método, passe e executor · fato só da IA não alimenta regra</text>
+      <path d="M620,406 L620,442" class="seta" marker-end="url(#ponta)"/>
+
+      <!-- 4 Serviços -->
+      <text x="20" y="466" class="tn">4</text><text x="20" y="486" class="tl">Serviços</text>
+      <text x="160" y="436" class="tmono">de-para 2 · gavetas → regra de serviço</text>
+      <rect x="160" y="446" width="196" height="92" rx="3" class="box cert"/><text x="172" y="470" class="th">Geotecnia</text><text x="172" y="490" class="ts">modelo único do furo</text><text x="172" y="508" class="ts">NA, rocha, categoria</text><rect x="172" y="514" width="54" height="17" rx="8.5" class="b-codigo"/><text x="199" y="526.5" class="tb tb-codigo" text-anchor="middle">código</text>
+      <rect x="370" y="446" width="196" height="92" rx="3" class="box cert"/><text x="382" y="470" class="th">Vala da obra linear</text><text x="382" y="490" class="ts">lineares.dimensionar_vala</text><text x="382" y="508" class="ts">MOS, NR-18, perfil</text><rect x="382" y="514" width="54" height="17" rx="8.5" class="b-codigo"/><text x="409" y="526.5" class="tb tb-codigo" text-anchor="middle">código</text>
+      <rect x="580" y="446" width="196" height="92" rx="3" class="dup"/><text x="592" y="470" class="th">2º dimensionador</text><text x="592" y="490" class="ts">dimensoes.dimensionar_vala</text><text x="592" y="508" class="tdup">D4: vira adaptador</text>
+      <rect x="790" y="446" width="290" height="92" rx="3" class="box cert"/><text x="802" y="470" class="th">Associados por elemento</text><text x="802" y="490" class="ts">elemento → dimensões → serviços</text><text x="802" y="508" class="ts">calibração premissa × observado</text><rect x="802" y="514" width="54" height="17" rx="8.5" class="b-codigo"/><text x="829" y="526.5" class="tb tb-codigo" text-anchor="middle">código</text>
+      <rect x="160" y="552" width="460" height="46" rx="3" class="decis"/><text x="172" y="572" class="th">Decisões aplicadas antes do cálculo</text><text x="172" y="590" class="ts">executar · não executar · a definir (a fazer)</text><rect x="552" y="560" width="54" height="17" rx="8.5" class="b-humano"/><text x="579" y="572.5" class="tb tb-humano" text-anchor="middle">humano</text>
+      <rect x="640" y="552" width="440" height="46" rx="3" class="box"/><text x="652" y="572" class="th">Leitura por IA com citação conferida</text><text x="652" y="590" class="ts">a IA propõe, o código confere o trecho</text><rect x="1040" y="560" width="27" height="17" rx="8.5" class="b-ia"/><text x="1054" y="572.5" class="tb tb-ia" text-anchor="middle">IA</text>
+      <path d="M620,598 L620,632" class="seta" marker-end="url(#ponta)"/>
+
+      <!-- 5 EAP -->
+      <text x="20" y="656" class="tn">5</text><text x="20" y="676" class="tl">EAP</text>
+      <text x="160" y="626" class="tmono">de-para 3 · serviço → nó da EAP</text>
+      <rect x="160" y="636" width="920" height="70" rx="3" class="wbs"/>
+      <text x="176" y="662" class="thw">EAP codificada U.SISTEMA.DISC.PACOTE.ITEM</text>
+      <text x="176" y="688" class="ts">ex.: U2.AAT06.GEO.MOV.VAL · escavação · m³ · cobertura item × projeto × edital · regra dos 100 %</text>
+      <path d="M620,706 L620,736" class="seta" marker-end="url(#ponta)"/>
+
+      <!-- 6 HTML -->
+      <text x="20" y="760" class="tn">6</text><text x="20" y="780" class="tl">HTML</text>
+      <rect x="160" y="740" width="920" height="96" rx="3" class="html"/>
+      <text x="176" y="764" class="thw">Um arquivo: a entrega e a memória da obra</text>
+      <text x="176" y="790" class="ts">mapa em camadas (ortofoto, pranchas por layer, sondagens, valas) · aba EAP com selo por nó, fatos e evidências</text>
+      <text x="176" y="812" class="ts">pendências e conferências geotécnicas · o Python calcula, o HTML só apresenta</text>
+
+      <rect x="160" y="852" width="920" height="36" rx="3" class="foraz"/>
+      <text x="176" y="875" class="tfora">FORA DO SISTEMA</text><text x="330" y="875" class="ts">preço · custo · fornecedor · prazo · cronograma · 4D · curva S · produtividade</text>
+    </svg></div>
+  </section>
+
+
+  <section>
+    <h2>As telas: como o caderno funciona</h2>
+    <p class="sub">Um único HTML, aberto no navegador sem servidor. À esquerda, as abas; no centro, o mapa (ou o 3D). Na aba EAP, cada número abre o caminho de volta até a prancha. Maquete com a estrutura real do visualizador e números de exemplo.</p>
+    <div class="tela" role="img" aria-label="Maquete da tela: abas à esquerda com a árvore da EAP, mapa no centro e a trilha serviço, regra, fato e evidência embaixo">
+      <div class="tela-barra"><i></i><i></i><i></i><span>foz-vilac_camadas_v0.45.0_2026-11-03.html</span></div>
+      <div class="tela-corpo">
+        <div class="lado">
+          <div class="abas-m"><span>Obra</span><span>Camadas</span><span>Pranchas</span><span>Etapas e escopo</span><span class="on">EAP</span><span>Anotações</span><span>Projeto</span></div>
+          <ul class="arv-m">
+            <li class="l1"><span class="c">U1 · ETA Vila C</span><span class="q"></span></li>
+            <li class="l2"><span class="c">.ACT600.MOV<span class="selo cv">convergente</span></span><span class="q">8.585,6 m³</span></li>
+            <li class="l2 risc"><span class="c">U1.DRENAGEM<span class="selo dc">não executar</span></span><span class="q">fora</span></li>
+            <li class="l1"><span class="c">U2 · Adutoras</span><span class="q"></span></li>
+            <li class="l2"><span class="c">U2.AAT06</span><span class="q"></span></li>
+            <li class="l3 sel"><span class="c">.GEO.MOV.VAL<span class="selo fu">fonte única</span></span><span class="q">412,0 m³</span></li>
+            <li class="l4"><span class="c">.GEO.ESC.CON</span><span class="q">880,0 m²</span></li>
+            <li class="l3"><span class="c">.HID.TUB.RED<span class="selo cf">conflito</span></span><span class="q">440 × 460 m</span></li>
+            <li class="l3"><span class="c">.CIV.PAV.REC</span><span class="q">96,0 m²</span></li>
+          </ul>
+        </div>
+        <div class="centro">
+          <div class="mapa-m"><svg viewBox="0 0 600 250" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <rect x="20" y="20" width="230" height="80" class="m-lote"/><rect x="330" y="20" width="250" height="80" class="m-lote"/>
+            <rect x="20" y="160" width="230" height="80" class="m-lote"/><rect x="330" y="160" width="250" height="80" class="m-lote"/>
+            <path d="M0,130 L600,130" class="m-rua"/><path d="M290,0 L290,250" class="m-rua"/>
+            <path d="M330,60 L560,60" class="m-apag"/><path d="M60,200 L230,200" class="m-apag"/>
+            <path d="M20,136 L290,136 L290,245" class="m-vala"/><path d="M20,136 L290,136 L290,245" class="m-tubo"/>
+            <text x="16" y="154" class="m-est">0+00</text><text x="250" y="124" class="m-est">13+10</text><text x="298" y="232" class="m-est">18+00</text>
+            <circle cx="170" cy="182" r="6" class="m-furo"/><text x="180" y="186" class="m-est">SP-07 · NA 2,1 m</text>
+            <rect x="470" y="200" width="118" height="40" rx="3" class="m-ctrl"/><text x="480" y="216" class="m-ctrlt">ver no mapa:</text><text x="480" y="231" class="m-ctrlt">U2.AAT06.*</text>
+          </svg></div>
+          <div class="trilha">
+            <div class="passos">
+              <div class="passo"><b>serviço</b>escavação · 412,0 m³</div><span class="seta-t">→</span>
+              <div class="passo"><b>regra</b>lineares.dimensionar_vala v0.49</div><span class="seta-t">→</span>
+              <div class="passo"><b>fatos</b>DN 300 · prof. 1,40 m · solo SP-07</div><span class="seta-t">→</span>
+              <div class="passo"><b>evidência</b>perfil AAT06 folha 09</div>
+            </div>
+            <div>trecho citado: <span class="cita">"COTA DO FUNDO DA VALA 812,35"</span> · página 1 · método: texto do PDF · executor: código</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="nota-tela">Selos e textos vêm prontos do Python. "Ver no mapa" esmaece os demais elementos pelo prefixo da EAP. O nó com decisão "não executar" fica riscado e fora da soma.</p>
+  </section>
+
+  <section>
+    <h2>O banco de gavetas</h2>
+    <p class="sub">É a sua ideia de dar à IA um lugar certo para guardar o que lê e só depois calcular. Cada gaveta é uma tabela (Parquet em <code>saida/&lt;obra&gt;/base/</code>, escolhido por bancada; o DuckDB consulta). A IA nunca grava direto: devolve um retorno no schema da gaveta, com o trecho citado, e o código confere antes de guardar.</p>
+    <div class="prancha"><svg viewBox="0 0 1100 470" role="img" aria-label="Tabelas das gavetas e suas ligações: objetos, geometria, fatos, evidências, pendências, serviços e superfícies">
+      <defs><marker id="pontab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ponta"/></marker></defs>
+      <!-- IA e código -->
+      <rect x="20" y="20" width="220" height="80" rx="3" class="ag sn"/><text x="34" y="46" class="th">IA (retorno)</text><text x="34" y="66" class="ts">schema da gaveta + trecho</text><text x="34" y="84" class="ts">citado, nunca grava direto</text>
+      <rect x="20" y="130" width="220" height="80" rx="3" class="box cert"/><text x="34" y="156" class="th">Código confere</text><text x="34" y="176" class="ts">trecho existe na página?</text><text x="34" y="194" class="ts">campos da classe? então grava</text>
+      <path d="M130,100 L130,128" class="seta" marker-end="url(#pontab)"/>
+      <rect x="20" y="240" width="220" height="80" rx="3" class="box cert"/><text x="34" y="266" class="th">Leitores em código</text><text x="34" y="286" class="ts">prancha, planilha, laudo,</text><text x="34" y="304" class="ts">perfil: gravam direto</text>
+      <path d="M240,170 L300,170 L300,150 L318,150" class="seta" marker-end="url(#pontab)"/>
+      <path d="M240,280 L300,280 L300,160 L318,160" class="seta" marker-end="url(#pontab)"/>
+      <text x="252" y="336" class="ts">fato só da IA não</text><text x="252" y="352" class="ts">alimenta regra</text>
+
+      <!-- objetos -->
+      <rect x="320" y="20" width="200" height="30" class="tb-h"/><text x="332" y="41" class="tb-nome">objetos</text>
+      <rect x="320" y="50" width="200" height="74" class="tb-g"/><text x="332" y="70" class="tb-k">objeto_id</text><text x="332" y="88" class="tb-c">classe · disciplina</text><text x="332" y="106" class="tb-c">unidade</text>
+      <!-- geometria -->
+      <rect x="320" y="150" width="200" height="30" class="tb-h"/><text x="332" y="171" class="tb-nome">geometria</text>
+      <rect x="320" y="180" width="200" height="74" class="tb-g"/><text x="332" y="200" class="tb-k">objeto_id</text><text x="332" y="218" class="tb-c">coords · crs_h · datum_v</text><text x="332" y="236" class="tb-c">eixo · progressiva</text>
+      <!-- fatos -->
+      <rect x="580" y="20" width="220" height="30" class="tb-h"/><text x="592" y="41" class="tb-nome">fatos</text>
+      <rect x="580" y="50" width="220" height="92" class="tb-g"/><text x="592" y="70" class="tb-k">fato_id</text><text x="592" y="88" class="tb-c">objeto_id · propriedade</text><text x="592" y="106" class="tb-c">valor · unidade</text><text x="592" y="124" class="tb-c">natureza · evidencia_id</text>
+      <!-- evidencias -->
+      <rect x="860" y="20" width="220" height="30" class="tb-hia"/><text x="872" y="41" class="tb-nome">evidências</text>
+      <rect x="860" y="50" width="220" height="92" class="tb-g"/><text x="872" y="70" class="tb-k">evidencia_id</text><text x="872" y="88" class="tb-c">classe · documento</text><text x="872" y="106" class="tb-c">localizador · trecho</text><text x="872" y="124" class="tb-c">método · executor · passe</text>
+      <!-- pendencias -->
+      <rect x="580" y="180" width="220" height="30" class="tb-h"/><text x="592" y="201" class="tb-nome">pendências</text>
+      <rect x="580" y="210" width="220" height="56" class="tb-g"/><text x="592" y="230" class="tb-k">objeto_id</text><text x="592" y="248" class="tb-c">motivo · próximo passe</text>
+      <!-- superficies -->
+      <rect x="860" y="180" width="220" height="30" class="tb-h"/><text x="872" y="201" class="tb-nome">superfícies</text>
+      <rect x="860" y="210" width="220" height="56" class="tb-g"/><text x="872" y="230" class="tb-k">superficie_id</text><text x="872" y="248" class="tb-c">MDS · res_m · sha256</text>
+      <!-- servicos -->
+      <rect x="440" y="320" width="420" height="30" class="tb-hsv"/><text x="452" y="341" class="tb-nome">serviços (Etapa 2: calculados, não lidos)</text>
+      <rect x="440" y="350" width="420" height="74" class="tb-g"/><text x="452" y="370" class="tb-k">servico_id · chave</text><text x="452" y="388" class="tb-c">objeto_id · regra · versao_regra · saida</text><text x="452" y="406" class="tb-c">valor · unidade · fatos usados (fato_id, furos)</text>
+      <!-- relações -->
+      <path d="M520,80 L578,80" class="rel" marker-end="url(#pontab)"/><text x="528" y="74" class="ts">1 → n</text>
+      <path d="M420,124 L420,148" class="rel" marker-end="url(#pontab)"/>
+      <path d="M800,96 L858,96" class="rel" marker-end="url(#pontab)"/><text x="806" y="90" class="ts">n → 1</text>
+      <path d="M520,110 L550,110 L550,238 L578,238" class="rel" marker-end="url(#pontab)"/>
+      <path d="M690,142 L690,178" class="rel" marker-end="url(#pontab)"/>
+      <path d="M690,266 L690,318" class="rel" marker-end="url(#pontab)"/><text x="698" y="300" class="ts">fatos usados</text>
+      <path d="M420,254 L420,380 L438,380" class="rel" marker-end="url(#pontab)"/><text x="330" y="300" class="ts">geometria do</text><text x="330" y="316" class="ts">objeto e furos</text>
+      <path d="M970,266 L970,390 L862,390" class="rel" marker-end="url(#pontab)"/><text x="900" y="300" class="ts">terreno</text>
+      <text x="20" y="456" class="ts">Fonte: conceitos/gavetas.json e camadas/gavetas.py · gravar e ler são o único ponto que conhece o formato: trocar Parquet por DuckDB não muda os cálculos</text>
+    </svg></div>
+  </section>
+
+  <section>
+    <h2>Calcular em etapas, e em mais de uma volta</h2>
+    <p class="sub">Quem lê não calcula; quem calcula não lê. Cada etapa tem um contrato escrito antes (os três de-para), e cada uma pode rodar de novo sem refazer as outras.</p>
+    <div class="etapas">
+      <div class="etapa" style="--c: var(--sn)">
+        <h3>Etapa 1 · Ler e guardar</h3>
+        <span class="regra-e">de-para 1: documento → gaveta</span>
+        <ul><li>inventário, leitores em código, escada até a IA</li><li>cada fato com a evidência e a natureza</li><li>o que não tem gaveta vira pendência, não texto solto</li><li>rodar de novo fecha o que o passe anterior abriu</li></ul>
+      </div>
+      <div class="etapa" style="--c: var(--cod)">
+        <h3>Etapa 2 · Calcular serviços</h3>
+        <span class="regra-e">de-para 2: gavetas → regra</span>
+        <ul><li>só lê das gavetas, nunca do documento</li><li>cada serviço tem uma chave: regra, versão, código, premissas, fatos e furos usados</li><li>nada mudou: reaproveita; mudou um fato ou premissa: recalcula só o que dependia dele</li><li>paridade com o cálculo direto (Foz: 0 diferenças)</li></ul>
+      </div>
+      <div class="etapa" style="--c: var(--acc)">
+        <h3>Etapa 3 · EAP e HTML</h3>
+        <span class="regra-e">de-para 3: serviço → nó da EAP</span>
+        <ul><li>soma por trecho, sistema e unidade</li><li>decisões aplicadas antes da soma</li><li>cada número abre o caminho de volta até o recorte da prancha</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Princípios</h2>
+    <ol class="principios">
+      <li><b>Só escopo.</b> Serviços e atividades numa EAP com quantidades, sem preço e sem prazo.</li>
+      <li><b>A EAP é a linha mestra.</b> Os documentos são evidências; o georreferenciamento é o jeito de ver no local.</li>
+      <li><b>Inventário primeiro, e reavaliado.</b> Nada se lê antes do inventário de todos os arquivos. Ausência só por consulta: a forma do Actiflo 360 foi dada como inexistente e existia.</li>
+      <li><b>Todo fato diz de onde veio:</b> classe da fonte, documento, local, método e passe.</li>
+      <li><b>Código para a certeza, IA para a dúvida.</b> Cada dúvida resolvida vira regra com teste.</li>
+      <li><b>A decisão do engenheiro prevalece</b> sobre a evidência, sem apagá-la.</li>
+      <li><b>Um arquivo HTML</b> é a entrega e a memória da obra.</li>
+      <li><b>Cada informação tem uma gaveta.</b> Quem lê não calcula, quem calcula não lê.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Estado de cada peça na 0.49.0</h2>
+    <div class="legenda">
+      <span><span class="st feito">feito</span> com teste</span>
+      <span><span class="st piloto">piloto</span> testado em dado sintético</span>
+      <span><span class="st conferir">conferir</span> depende do Caio</span>
+      <span><span class="st fazer">a fazer</span></span>
+      <span><span class="st desvio">desvio</span></span>
+    </div>
+    <div class="tab"><table>
+      <thead><tr><th>Peça</th><th>Onde no código</th><th>Estado</th><th>Versão</th></tr></thead>
+      <tbody>
+        <tr class="grupo"><td colspan="4">Inventário e extração</td></tr>
+        <tr><td>Inventário por pasta e ausência por consulta</td><td><code>inventario.py</code>, <code>inventario.procurar</code></td><td><span class="st feito">feito</span></td><td class="v">0.22.0</td></tr>
+        <tr><td>Reavaliação e escada que fecha sozinha</td><td><code>extracao.py</code>, <code>escada.py</code>, <code>conceitos/fontes.json</code></td><td><span class="st feito">feito</span></td><td class="v">0.23.0</td></tr>
+        <tr><td>Carimbo de todas as páginas (até 20)</td><td><code>inventario.py</code></td><td><span class="st feito">feito</span></td><td class="v">0.23.0</td></tr>
+        <tr><td>Revisão e disciplina do carimbo × nome do arquivo</td><td>—</td><td><span class="st fazer">a fazer</span></td><td class="v">—</td></tr>
+        <tr><td>Leitura por IA com citação conferida (inclusive planilha)</td><td><code>evidencias.py</code>, <code>vocabulario.py</code></td><td><span class="st feito">feito</span></td><td class="v">0.39–0.44</td></tr>
+        <tr class="grupo"><td colspan="4">Memória espacial e EAP</td></tr>
+        <tr><td>Gavetas e os três de-para</td><td><code>gavetas.py</code>, <code>extrair_gavetas.py</code>, <code>conceitos/de_para_*.json</code></td><td><span class="st feito">feito</span></td><td class="v">0.25–0.36</td></tr>
+        <tr><td>Build real de Foz até o HTML</td><td><code>obra.py</code> · 30 objetos, 75 serviços, 0 erros de conferência</td><td><span class="st conferir">conferir</span></td><td class="v">0.45.0</td></tr>
+        <tr><td>EAP codificada e aba EAP (selo por nó, filtro)</td><td><code>eap.py</code>, <code>eap_painel.py</code>, <code>eap_html.py</code></td><td><span class="st feito">feito</span></td><td class="v">0.32–0.38</td></tr>
+        <tr><td>Calibração de premissas pela evidência</td><td><code>calibracao.py</code></td><td><span class="st feito">feito</span></td><td class="v">0.42.0</td></tr>
+        <tr><td>Decisões com ida e volta dentro do HTML</td><td>schema definido em §6; não está no código</td><td><span class="st fazer">a fazer</span></td><td class="v">—</td></tr>
+        <tr class="grupo"><td colspan="4">Geotecnia e obra linear</td></tr>
+        <tr><td>Leitor de laudo de sondagem</td><td><code>geotecnia.ler_laudo</code></td><td><span class="st conferir">conferir</span></td><td class="v">0.27.0</td></tr>
+        <tr><td>Modelo geotécnico único (60 m, NA 0 m, empolamento 1,30)</td><td><code>geotecnia.py</code>, <code>conceitos/geotecnia.json</code></td><td><span class="st feito">feito</span></td><td class="v">0.29.0</td></tr>
+        <tr><td>Conferências projeto × sondagem no build</td><td><code>geotecnia.conferir</code> → <code>pendencias.json</code></td><td><span class="st feito">feito</span></td><td class="v">0.31.0</td></tr>
+        <tr><td>Eixo, estaqueamento e trechos</td><td><code>lineares.py</code></td><td><span class="st feito">feito</span></td><td class="v">0.27–0.31</td></tr>
+        <tr><td>Leitor do perfil longitudinal</td><td><code>lineares.ler_perfil</code></td><td><span class="st piloto">piloto</span></td><td class="v">0.29.0</td></tr>
+        <tr><td>Um único dimensionador de vala</td><td><code>lineares.dimensionar_vala</code>; <code>dimensoes</code> é adaptador (D4)</td><td><span class="st feito">feito</span></td><td class="v">0.31 / 0.49</td></tr>
+        <tr><td>Interferências, travessias e MND</td><td>—</td><td><span class="st fazer">a fazer</span></td><td class="v">—</td></tr>
+        <tr class="grupo"><td colspan="4">Processo</td></tr>
+        <tr><td>Lição por versão com teste</td><td><code>pdca/licoes.jsonl</code>, <code>tests/test_determinismo.py</code> · 41 lições, 39 com teste</td><td><span class="st feito">feito</span></td><td class="v">0.21.0</td></tr>
+        <tr><td>Verificação noturna da arquitetura</td><td><code>scripts/verificacao_noturna.py</code> · todo dia às 18h54</td><td><span class="st feito">feito</span></td><td class="v">03/11</td></tr>
+        <tr><td>Portão REVERTER do vcm no CI</td><td>o passo do <code>vcm balanco</code> falha por acesso ao repositório privado</td><td><span class="st desvio">desvio</span></td><td class="v">—</td></tr>
+        <tr><td>Observatório entre repositórios</td><td>falta a lista de repositórios</td><td><span class="st fazer">a fazer</span></td><td class="v">—</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Disciplinas</h2>
+    <p class="sub">A geotecnia é separada da civil, porque a interpretação da sondagem decide boa parte do movimento de terra e da fundação. Todas terminam no mesmo lugar: um fato da EAP com o trecho citado.</p>
+    <div class="grade">
+      <div class="dcard" style="--c: var(--hum)">
+        <h3>Geotecnia · GEO</h3>
+        <dl>
+          <dt>Fontes</dt><dd>laudos SPT, planta de sondagens, topografia</dd>
+          <dt>Modelo</dt><dd>perfil por furo, furo mais próximo no raio, NA, topo de rocha, categoria 1ª/2ª/3ª</dd>
+          <dt>Confere</dt><dd>estaca × impenetrável · cava × NA · boca do furo × terreno · trecho sem furo</dd>
+          <dt class="lac">Lacuna</dt><dd>"Areia fina argilosa" é lida como argila; o leitor de laudo espera conferência em Foz</dd>
+        </dl>
+      </div>
+      <div class="dcard" style="--c: var(--fb)">
+        <h3>Civil · CIV</h3>
+        <dl>
+          <dt>Fontes</dt><dd>formas, armaduras, arquitetura, urbanização</dd>
+          <dt>Modelo</dt><dd>elemento pela geometria → dimensões → serviços associados</dd>
+          <dt>Serviços</dt><dd>forma, concreto, armadura por taxa, lastro, escoramento, pavimento</dd>
+          <dt class="lac">Lacuna</dt><dd>as dimensões do ramo EAP ainda não usam sufixo de unidade (L, d, h, V_solo)</dd>
+        </dl>
+      </div>
+      <div class="dcard" style="--c: var(--cod)">
+        <h3>Hidráulica</h3>
+        <dl>
+          <dt>Fontes</dt><dd>relação de materiais da prancha, memorial, planilha</dd>
+          <dt>Extração</dt><dd>tabela por OCR, balão → item, memorial pelo vocabulário</dd>
+          <dt>Cadastro</dt><dd>código Sanepar ligado à EAP (40 mil materiais)</dd>
+        </dl>
+      </div>
+      <div class="dcard" style="--c: var(--ia)">
+        <h3>Elétrica</h3>
+        <dl>
+          <dt>Fontes</dt><dd>pranchas PBEA com texto real, listas de cabos, quadro de cargas</dd>
+          <dt class="lac">Lacuna</dt><dd>só termos; o leitor de listas e quadros ainda não existe</dd>
+        </dl>
+      </div>
+    </div>
+    <div class="tipo-obra">
+      <div class="to" style="--c: var(--cod)">
+        <h3>Obra localizada</h3>
+        <ul>
+          <li><b>Espinha:</b> unidade construtiva (ACT600, filtros, EEE)</li>
+          <li><b>Unidade de trabalho:</b> a estrutura e seus elementos</li>
+          <li><b>Serviço dominante:</b> concreto armado e fundação</li>
+        </ul>
+      </div>
+      <div class="to" style="--c: var(--hum)">
+        <h3>Obra linear</h3>
+        <ul>
+          <li><b>Espinha:</b> o eixo, com o estaqueamento como coordenada</li>
+          <li><b>Unidade de trabalho:</b> o trecho, entre PVs, por superfície ou entre sondagens</li>
+          <li><b>Serviço dominante:</b> a vala, pelo MOS Sanepar (L = D + SL + X + Y) e escoramento acima de 1,25 m (NR-18)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Índice de determinismo</h2>
+    <p class="sub">Mede a IA na obra: um agente leu, julgou, configurou ou operou para o dado existir. A IA que escreve código e regras não entra, porque é o caminho para virar código. Medido em Foz por <code>scripts/determinismo.py</code>.</p>
+    <div class="idx">
+      <div class="hero"><span class="hn">73,1 %</span><span class="hl">das etapas já rodam em código</span><span class="hs">19 de 26 etapas (7 com IA, mais 1 decisão humana fora do índice) · registros: 81,2 % · meta 85 %</span></div>
+      <div class="graf"><svg viewBox="0 0 640 230" role="img" aria-label="Índice de etapas em código: 57,1 % na base, 61,9 % na rodada 18, 63,6 % na 0.21.0, 68,0 % na 0.31.0 e 73,1 % na 0.45.0; meta de 85 %">
+        <line x1="50" x2="560" y1="196" y2="196" class="gr"/><text x="42" y="200" class="gt" text-anchor="end">50 %</text>
+        <line x1="50" x2="560" y1="152" y2="152" class="gr"/><text x="42" y="156" class="gt" text-anchor="end">60 %</text>
+        <line x1="50" x2="560" y1="108" y2="108" class="gr"/><text x="42" y="112" class="gt" text-anchor="end">70 %</text>
+        <line x1="50" x2="560" y1="64" y2="64" class="gr"/><text x="42" y="68" class="gt" text-anchor="end">80 %</text>
+        <line x1="50" x2="560" y1="20" y2="20" class="gr"/><text x="42" y="24" class="gt" text-anchor="end">90 %</text>
+        <line x1="50" x2="560" y1="42" y2="42" class="gmeta"/><text x="566" y="46" class="gl">meta 85 %</text>
+        <polyline points="70,164.8 190,143.7 310,136.2 430,116.8 550,94.4" class="glin"/>
+        <circle cx="70" cy="164.8" r="4.5" class="gpt"/><circle cx="190" cy="143.7" r="4.5" class="gpt"/><circle cx="310" cy="136.2" r="4.5" class="gpt"/><circle cx="430" cy="116.8" r="4.5" class="gpt"/><circle cx="550" cy="94.4" r="6" class="gfim"/>
+        <text x="70" y="184" class="gl" text-anchor="middle">57,1</text><text x="190" y="163" class="gl" text-anchor="middle">61,9</text><text x="310" y="156" class="gl" text-anchor="middle">63,6</text><text x="430" y="136" class="gl" text-anchor="middle">68,0</text><text x="550" y="84" class="gl" text-anchor="middle">73,1</text>
+        <text x="70" y="218" class="gt" text-anchor="middle">base</text><text x="190" y="218" class="gt" text-anchor="middle">rodada 18</text><text x="310" y="218" class="gt" text-anchor="middle">0.21.0</text><text x="430" y="218" class="gt" text-anchor="middle">0.31.0</text><text x="550" y="218" class="gt" text-anchor="middle">0.45.0</text>
+      </svg></div>
+    </div>
+    <p class="nota sub">A passagem das sondagens de IA para código, que fez parte do salto da 0.45.0, ainda espera a sua conferência do leitor de laudo em Foz.</p>
+  </section>
+
+  <section>
+    <h2>Quem faz o quê</h2>
+    <div class="agentes">
+      <div class="agente" style="--c: var(--cod)"><h3>Código</h3><div class="papel">Tudo o que já é certeza</div><ul><li>inventário, leitores, reavaliação</li><li>gavetas, serviços, EAP</li><li>valida o que os agentes devolvem</li></ul></div>
+      <div class="agente" style="--c: var(--hk)"><h3>Haiku</h3><div class="papel">Volume mecânico</div><ul><li>listar e baixar o Drive</li><li>classe de arquivo desconhecido</li><li>recorte de carimbo</li></ul></div>
+      <div class="agente" style="--c: var(--sn)"><h3>Sonnet</h3><div class="papel">Leitura técnica e implementação</div><ul><li>laudos, memoriais, listas</li><li>módulo contra contrato fixo</li></ul></div>
+      <div class="agente" style="--c: var(--op)"><h3>Opus</h3><div class="papel">Executa a rodada</div><ul><li>contrato, integração, testes</li><li>PR e merge depois do aceite</li></ul></div>
+      <div class="agente" style="--c: var(--fb)"><h3>Fable</h3><div class="papel">Gerente e revisor</div><ul><li>aprova o plano, aceita ou devolve</li><li>verificação noturna</li><li>entrega final ao Caio</li></ul></div>
+      <div class="agente" style="--c: var(--hum)"><h3>Você</h3><div class="papel">Autoridade de escopo</div><ul><li>sistemas da obra nova</li><li>decisões de execução</li><li>confirma regra nova</li></ul></div>
+    </div>
+    <div class="portoes">
+      <div class="portao"><b>G0</b><span>Inventário</span><small>nenhum arquivo sem estado</small></div>
+      <div class="portao"><b>G1</b><span>EAP da obra</span><small>sistemas confirmados</small></div>
+      <div class="portao"><b>G2</b><span>Extração</span><small>loop até a escada esgotar</small></div>
+      <div class="portao"><b>G3</b><span>Georreferência</span><small>drone opcional</small></div>
+      <div class="portao"><b>G4</b><span>Fatos</span><small>com a fonte de cada um</small></div>
+      <div class="portao"><b>G5</b><span>Decisões</span><small>aplicadas antes do cálculo</small></div>
+      <div class="portao"><b>G6</b><span>Serviços</span><small>um motor por assunto</small></div>
+      <div class="portao"><b>G7</b><span>Caderno HTML</span><small>dentro do orçamento de tamanho</small></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>O que depende de você</h2>
+    <ol class="decidir">
+      <li><b>Conferir o leitor de laudo em Foz</b> (16 furos SPT) antes de as sondagens contarem como código no índice.</li>
+      <li><b>Classificação do solo pelo substantivo</b> ("Areia fina argilosa" → areia), que muda escoramento e esgotamento.</li>
+      <li><b>Quais repositórios entram no observatório.</b></li>
+    </ol>
+  </section>
+
+  <div class="carimbo">
+    <div><i>Título</i>Arquitetura de pesquisa e extração · EAP de escopo em camadas</div>
+    <div><i>Folha</i>01/01</div>
+    <div><i>Escala</i>sem escala</div>
+    <div><i>Rev. · data</i>R10.1 · 03/11/2026</div>
+  </div>
+</div>
