@@ -38,7 +38,9 @@ AREA_MINIMA_M2 = 1.0  # corte com menos de 1 m² de área no projeto é "sem cor
 FRACAO_MINIMA_NO_MDS = (
     0.8  # a linha precisa ter ≥ 80 % do comprimento dentro da grade válida do MDS
 )
-FRACAO_MINIMA_LINHA = 0.8  # a linha da planta precisa ter ≥ 80 % da largura do quadro do corte (senão é trecho da seção)
+FRACAO_MINIMA_LINHA = 0.8  # sem alinhamento do terreno: a linha precisa ter ≥ 80 % da largura do quadro do corte
+FOLGA_COBERTURA_M = 1.0  # a linha cobre o corte do projeto com esta folga nas pontas (erro de traçado e de alinhamento)
+DISTANCIA_MAXIMA_QUEBRA_M = 3.0  # segmento não colinear só quebra a linha se encostar nela (a ≤ isto); longe é outro desenho
 FRACAO_MAXIMA_EDIFICACAO = 0.20  # mais que 20 % das amostras da linha sobre edificação: a linha não mede terreno natural
 DESVIO_MAXIMO_TERRENO_M = 0.30  # desvio-padrão (modelo − projeto) do terreno acima disto: MDS irregular na linha
 ANGULO_PARALELO_GRAUS = 5.0  # duas linhas de seção são "quase paralelas" abaixo disso
@@ -447,17 +449,25 @@ def perfil_do_modelo(linha: dict, g: dict, corte: np.ndarray) -> dict:
         "terreno": np.c_[s, z][valido].round(3).tolist(),
         "fracao_no_mds": float(valido.mean()),
         "fracao_edificacao": float((valido & edificacao[lin, col]).mean()),
+        "amostras_edificacao": (valido & edificacao[lin, col]).tolist(),
         "corte_na_ponta": bool(com_corte[0] or com_corte[-1]),
         "passo_m": float(passo),
     }
 
 
 def comparar_terreno(
-    terreno_projeto: list, terreno_modelo: list, passo_m: float
+    terreno_projeto: list,
+    terreno_modelo: list,
+    passo_m: float,
+    corte_x_m: tuple[float, float] | None = None,
 ) -> dict | None:
     """Terreno do MDS contra o TERRENO ORIGINAL do corte. A largura do quadro e o comprimento da linha podem diferir e
     o sentido da seta não é lido: o perfil mais curto desliza sobre o mais longo, nos dois sentidos, e vale o ajuste de
-    menor desvio-padrão da diferença. Devolve a diferença média (modelo − projeto), o desvio, o sentido e o deslocamento."""
+    menor desvio-padrão da diferença. Devolve a diferença média (modelo − projeto), o desvio, o sentido e o deslocamento.
+
+    Com `corte_x_m` (intervalo x do corte do projeto, nas coordenadas do terreno do projeto), a diferença média e o
+    desvio valem só nesse trecho alinhado (os da linha inteira ficam em `*_total_m`) e `trecho_s_m` traz o trecho na
+    coordenada s da linha do modelo (pode passar das pontas da linha)."""
     p, m = (
         np.asarray(terreno_projeto, float).reshape(-1, 2),
         np.asarray(terreno_modelo, float).reshape(-1, 2),
@@ -483,8 +493,41 @@ def comparar_terreno(
                     "desvio_m": float(dif.std()),
                     "sentido": sentido,
                     "deslocamento_m": float(desloc),
+                    # s da linha do modelo = a + b · (x do projeto − início do terreno do projeto)
+                    "_a": float(
+                        m[0, 0] + extensao - desloc
+                        if sentido == -1
+                        else m[0, 0] + (desloc if modelo_e_o_longo else -desloc)
+                    ),
+                    "_b": float(sentido),
                 }
-    return {**melhor, "largura_projeto_m": larg_p, "comprimento_linha_m": larg_m}
+    a, b = melhor.pop("_a"), melhor.pop("_b")
+    resultado = {**melhor, "largura_projeto_m": larg_p, "comprimento_linha_m": larg_m}
+    if corte_x_m is not None:
+        resultado.update(_trecho_do_corte(p, m, passo_m, corte_x_m, a, b, resultado))
+    return resultado
+
+
+def _trecho_do_corte(
+    p, m, passo_m: float, corte_x_m: tuple, a: float, b: float, total: dict
+) -> dict:
+    """Diferença média e desvio do terreno só no trecho do corte do projeto, e o trecho na coordenada s da linha."""
+    x0, x1 = corte_x_m[0] - p[0, 0], corte_x_m[1] - p[0, 0]
+    trecho_s = sorted((a + b * x0, a + b * x1))
+    xr = np.arange(max(x0, 0.0), min(x1, p[-1, 0] - p[0, 0]) + 1e-9, passo_m)
+    s = a + b * xr
+    dentro = (s >= m[0, 0]) & (s <= m[-1, 0])
+    saida = {
+        "trecho_s_m": trecho_s,
+        "dif_media_total_m": total["dif_media_m"],
+        "desvio_total_m": total["desvio_m"],
+    }
+    if dentro.sum() >= 2:
+        dif = np.interp(s[dentro], m[:, 0], m[:, 1]) - np.interp(
+            xr[dentro] + p[0, 0], p[:, 0], p[:, 1]
+        )
+        saida.update(dif_media_m=float(dif.mean()), desvio_m=float(dif.std()))
+    return saida
 
 
 def talude_do_projeto(escavacao_xz: list) -> float | None:
@@ -518,10 +561,27 @@ def marca_proxima_da_linha(linha: dict, marcas: list[dict]) -> dict | None:
     return {"cota_m": float(uteis[k]["cota"]), "distancia_m": float(d[k])}
 
 
+def corte_x_do_projeto(sec: dict) -> tuple[float, float] | None:
+    """Intervalo x (m) onde o projeto tem corte: a extensão do contorno de escavação da seção; None sem contorno."""
+    e = np.asarray(sec.get("escavacao", []), float).reshape(-1, 2)
+    return (float(e[:, 0].min()), float(e[:, 0].max())) if len(e) >= 2 else None
+
+
+def _edificacao_no_trecho(mod: dict, terr: dict | None) -> float:
+    """Fração das amostras sobre edificação no trecho alinhado ao corte do projeto (a linha inteira sem trecho)."""
+    amostras = np.asarray(mod.get("amostras_edificacao", []), bool)
+    if not terr or "trecho_s_m" not in terr or not amostras.size:
+        return float(mod.get("fracao_edificacao", 0.0))
+    s = (np.arange(amostras.size) + 0.5) * mod["passo_m"]
+    no_trecho = (s >= terr["trecho_s_m"][0]) & (s <= terr["trecho_s_m"][1])
+    return float(amostras[no_trecho].mean()) if no_trecho.any() else 0.0
+
+
 def _motivo_terreno(mod: dict, terr: dict | None) -> str | None:
-    """Motivo de a linha não medir terreno natural: edificação existente ou MDS irregular (ou None)."""
-    if mod.get("fracao_edificacao", 0.0) > FRACAO_MAXIMA_EDIFICACAO:
-        return f"edificação existente na linha ({_txt(100 * mod['fracao_edificacao'], 0)} % das amostras)"
+    """Motivo de a linha não medir terreno natural no trecho do corte: edificação existente ou MDS irregular."""
+    fracao = _edificacao_no_trecho(mod, terr)
+    if fracao > FRACAO_MAXIMA_EDIFICACAO:
+        return f"edificação existente na linha ({_txt(100 * fracao, 0)} % das amostras do corte)"
     if terr and terr["desvio_m"] > DESVIO_MAXIMO_TERRENO_M:
         return (
             f"terreno do MDS irregular na linha (desvio {_txt(terr['desvio_m'])} m, "
@@ -553,22 +613,33 @@ def _motivo_nao_conferivel(
     return _motivo_da_linha(sec, mod, terr)
 
 
+def _linha_incompleta(sec: dict, mod: dict, terr: dict | None) -> str | None:
+    """Motivo de a linha não cobrir o corte do projeto (ou None). Com o terreno alinhado: o intervalo do corte, na
+    coordenada da linha, tem de caber nela com `FOLGA_COBERTURA_M` nas pontas; sem alinhamento, vale ≥
+    `FRACAO_MINIMA_LINHA` da largura do quadro."""
+    comprimento_m = mod.get("comprimento_linha_m")
+    if comprimento_m is None:
+        return None
+    if terr and "trecho_s_m" in terr:
+        ini, fim = terr["trecho_s_m"]
+        if ini >= -FOLGA_COBERTURA_M and fim <= comprimento_m + FOLGA_COBERTURA_M:
+            return None
+        coberto = max(min(fim, comprimento_m) - max(ini, 0.0), 0.0)
+        return f"linha incompleta na planta (cobre {_txt(coberto, 1)} m de {_txt(fim - ini, 1)} m do corte)"
+    largura_m = (
+        sec["terreno"][-1][0] - sec["terreno"][0][0]
+    )  # eixo x do quadro do corte
+    if comprimento_m < FRACAO_MINIMA_LINHA * largura_m:
+        return f"linha incompleta na planta ({_txt(comprimento_m, 1)} m de {_txt(largura_m, 1)} m)"
+    return None
+
+
 def _motivo_da_linha(sec: dict, mod: dict, terr: dict | None) -> str | None:
     """Motivos ligados à linha amostrada (juntos, com "; "): linha incompleta, edificação ou terreno irregular, cava
     até a ponta. Com a linha incompleta o corte "ir até a ponta" não é motivo (a cava continua além da linha porque
     a linha é curta)."""
-    largura_m = (
-        sec["terreno"][-1][0] - sec["terreno"][0][0]
-    )  # eixo x do quadro do corte
-    comprimento_m = mod.get("comprimento_linha_m")
-    motivos = []
-    incompleta = (
-        comprimento_m is not None and comprimento_m < FRACAO_MINIMA_LINHA * largura_m
-    )
-    if incompleta:
-        motivos.append(
-            f"linha incompleta na planta ({_txt(comprimento_m, 1)} m de {_txt(largura_m, 1)} m)"
-        )
+    incompleta = _linha_incompleta(sec, mod, terr)
+    motivos = [incompleta] if incompleta else []
     motivo_terreno = _motivo_terreno(mod, terr)
     if motivo_terreno:
         motivos.append(motivo_terreno)
@@ -634,7 +705,9 @@ def conferir_secao(sec: dict, mod: dict | None) -> dict:
     }
     terr = None
     if mod is not None:
-        terr = comparar_terreno(sec["terreno"], mod["terreno"], mod["passo_m"])
+        terr = comparar_terreno(
+            sec["terreno"], mod["terreno"], mod["passo_m"], corte_x_do_projeto(sec)
+        )
         linha.update(
             area_modelo_m2=mod["area_corte_m2"],
             fundo_modelo_m=mod["cota_fundo_min_m"],
@@ -706,6 +779,13 @@ def _fundir(a: dict, b: dict) -> dict:
     }
 
 
+def _distancia_entre_linhas(a: dict, b: dict) -> float:
+    """Menor distância (m) entre dois segmentos de linha."""
+    ra = shapely.LineString([a["inicio_utm"], a["fim_utm"]])
+    rb = shapely.LineString([b["inicio_utm"], b["fim_utm"]])
+    return float(shapely.distance(ra, rb))
+
+
 def unir_linhas(linhas: list[dict]) -> tuple[list[dict], list[str]]:
     """Uma linha por seção. A mesma seção em mais de um segmento (plantas diferentes, ou quebrada por uma estrutura)
     se funde quando os segmentos são colineares (< `COLINEAR_GRAUS` e a ≤ `DIVERGENCIA_LINHA_M`); se não são, a linha é
@@ -724,6 +804,13 @@ def unir_linhas(linhas: list[dict]) -> tuple[list[dict], list[str]]:
             alertas.append(
                 f"seção {l['secao']}: segmento de {l['comprimento_m']:.1f} m em {l['prancha']} não colinear, "
                 "ignorado (resto de traço)"
+            )
+        elif (
+            d := _distancia_entre_linhas(unicas[l["secao"]], l)
+        ) > DISTANCIA_MAXIMA_QUEBRA_M:
+            alertas.append(
+                f"seção {l['secao']}: segmento com a letra {l['secao'][0]} a {d:.1f} m da linha principal "
+                f"({l['prancha']} {l['comprimento_m']:.1f} m), descartado"
             )
         else:
             a = unicas[l["secao"]]
@@ -1101,9 +1188,9 @@ def _tolerancias_txt() -> list[str]:
         f"área: o maior entre {TOL_AREA_REL:.0%} da área do projeto e {_txt(TOL_TERRENO_M)} m × largura do corte",
         f"seções médias: volume ±{TOL_VOLUME_REL:.0%}",
         f"corte com área < {AREA_MINIMA_M2:g} m²: sem corte no projeto",
-        f"linha com menos de {FRACAO_MINIMA_LINHA:.0%} da largura do quadro do corte: linha incompleta",
+        f"linha que não cobre o corte do projeto (folga de {_txt(FOLGA_COBERTURA_M, 1)} m): linha incompleta",
         (
-            f"mais de {FRACAO_MAXIMA_EDIFICACAO:.0%} da linha sobre edificação, ou desvio do terreno acima de "
+            f"mais de {FRACAO_MAXIMA_EDIFICACAO:.0%} do trecho do corte sobre edificação, ou desvio do terreno acima de "
             f"{_txt(DESVIO_MAXIMO_TERRENO_M)} m: não conferível"
         ),
     ]

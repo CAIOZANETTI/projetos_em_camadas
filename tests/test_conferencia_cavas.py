@@ -133,9 +133,9 @@ def test_secao_sem_linha_sem_corte_e_area_parcial_sao_nao_conferiveis():
 def test_corte_ate_a_ponta_da_linha_nao_e_conferivel():
     g = _grade()
     r = cc.conferir_secao(
-        _secao_projeto(terreno=[[0.0, 10.0], [18.0, 10.0]]),
-        _modelo(g, _linha("AA", (22, 30), (40, 30))),
-    )  # a linha (18 m, o quadro todo) começa dentro da cava
+        _secao_projeto(),
+        _modelo(g, _linha("AA", (22, 30), (52, 30))),
+    )  # a linha cobre o corte do projeto, mas começa dentro da cava
     assert r["situacao"] == "não conferível" and "ponta" in r["motivo"]
 
 
@@ -256,9 +256,9 @@ def test_unir_linhas_funde_colineares_e_marca_quebrada():
     assert len(alertas) == 1 and "sem letra" in alertas[0]
     c = {**_linha("BB", (0, 0), (0, 10)), "prancha": "es1"}
     d = {
-        **_linha("BB", (5, 5), (30, 5)),
+        **_linha("BB", (-1, 5), (30, 5)),
         "prancha": "es3",
-    }  # outra direção: linha quebrada
+    }  # outra direção e cruzando a linha: linha quebrada
     unicas, alertas = cc.unir_linhas([c, d])
     assert unicas[0]["quebrada"] and "quebrada" in alertas[0]
     r = cc.conferir_secao(
@@ -496,8 +496,15 @@ def test_linha_incompleta_na_planta_nao_e_conferivel():
     linha = _linha("AA", (10, 22), (25.6, 22))  # 15,6 m de um quadro de 30 m
     r = cc.conferir_secao(_secao_projeto(), _modelo(g, linha))
     assert r["situacao"] == "não conferível"
-    assert "linha incompleta" in r["motivo"] and "15,6 m de 30,0 m" in r["motivo"]
+    assert "linha incompleta" in r["motivo"] and "do corte" in r["motivo"]
     assert "ponta" not in r["motivo"]
+
+
+def test_linha_incompleta_sem_contorno_usa_a_largura_do_quadro():
+    g = _grade()
+    linha = _linha("AA", (10, 22), (25.6, 22))
+    r = cc.conferir_secao(_secao_projeto(escavacao=[]), _modelo(g, linha))
+    assert "15,6 m de 30,0 m" in r["motivo"]
 
 
 def test_linha_completa_acima_do_limite_segue_para_conferencia():
@@ -512,7 +519,9 @@ def test_linha_completa_acima_do_limite_segue_para_conferencia():
 def test_edificacao_na_linha_nao_e_conferivel():
     g = _grade()
     lin = slice(int((g["n1"] - 31) / RES), int((g["n1"] - 29) / RES))
-    g["edificacao"][lin, int(10 / RES) : int(22 / RES)] = True  # 12 m dos 30 m
+    g["edificacao"][lin, int(20 / RES) : int(32 / RES)] = (
+        True  # s 10–22 m: sobre o corte
+    )
     mod = _modelo(g, _linha("AA", (10, 30), (40, 30)))
     assert mod["fracao_edificacao"] > cc.FRACAO_MAXIMA_EDIFICACAO
     r = cc.conferir_secao(_secao_projeto(), mod)
@@ -609,7 +618,7 @@ def test_fundo_que_difere_mostra_a_marca_mais_proxima():
 def test_linha_incompleta_sobre_edificacao_junta_os_dois_motivos():
     g = _grade()
     lin = slice(int((g["n1"] - 31) / RES), int((g["n1"] - 29) / RES))
-    g["edificacao"][lin, int(10 / RES) : int(18 / RES)] = True
+    g["edificacao"][lin, int(20 / RES) : int(26 / RES)] = True
     mod = _modelo(
         g, _linha("AA", (10, 30), (25.6, 30))
     )  # 15,6 m de 30 m, metade sobre edificação
@@ -617,3 +626,76 @@ def test_linha_incompleta_sobre_edificacao_junta_os_dois_motivos():
     assert r["situacao"] == "não conferível"
     assert "linha incompleta" in r["motivo"] and "edificação existente" in r["motivo"]
     assert "ponta" not in r["motivo"]
+
+
+def test_segmento_longe_da_linha_principal_e_descartado_e_perto_quebra():
+    principal = {**_linha("LL", (0, 0), (56, 0)), "prancha": "es3"}
+    longe = {
+        **_linha("LL", (1, 50), (1, 56.2)),
+        "prancha": "es3",
+    }  # outro desenho, a 50 m
+    unicas, alertas = cc.unir_linhas([principal, longe])
+    assert not unicas[0].get("quebrada")
+    assert unicas[0]["comprimento_m"] == pytest.approx(56.0)
+    assert (
+        "a 50,0 m da linha principal" in alertas[0].replace(".", ",")
+        and "descartado" in alertas[0]
+    )
+    perto = {**_linha("LL", (20, 0.5), (20, 8)), "prancha": "es3"}  # cotovelo encostado
+    unicas, alertas = cc.unir_linhas([principal, perto])
+    assert unicas[0]["quebrada"] and "quebrada" in alertas[0]
+
+
+def test_edificacao_fora_do_trecho_do_corte_nao_bloqueia():
+    g = _grade()
+    lin = slice(int((g["n1"] - 31) / RES), int((g["n1"] - 29) / RES))
+    g["edificacao"][lin, int(32 / RES) : int(40 / RES)] = (
+        True  # s 22–30: fora do corte (s 10–20)
+    )
+    mod = _modelo(g, _linha("AA", (10, 30), (40, 30)))
+    assert (
+        mod["fracao_edificacao"] > cc.FRACAO_MAXIMA_EDIFICACAO
+    )  # a linha inteira passaria do limite
+    r = cc.conferir_secao(_secao_projeto(), mod)
+    assert "edificação" not in r["motivo"] and r["situacao"] == "confere"
+
+
+def test_desvio_do_terreno_so_conta_no_trecho_do_corte():
+    g = _grade()
+    x = g["e0"] + (np.arange(g["forma"][1]) + 0.5) * RES
+    ruido = np.where(x > 32.0, 1.5 * np.sin(x * 3), 0.0)  # irregular só depois do corte
+    g["terreno"][:] = (10.0 + ruido).astype(np.float32)[None, :]
+    mod = _modelo(g, _linha("AA", (10, 30), (40, 30)))
+    terr = cc.comparar_terreno(
+        _secao_projeto()["terreno"], mod["terreno"], mod["passo_m"], (10.0, 20.0)
+    )
+    assert terr["desvio_total_m"] > cc.DESVIO_MAXIMO_TERRENO_M
+    assert terr["desvio_m"] < 0.01 and terr["trecho_s_m"] == pytest.approx(
+        [10.125, 20.125]
+    )
+    assert "irregular" not in cc.conferir_secao(_secao_projeto(), mod)["motivo"]
+
+
+def test_trecho_do_corte_acompanha_o_alinhamento_invertido():
+    """Terreno do projeto em rampa; a linha do modelo corre no sentido oposto: o trecho do corte espelha na linha."""
+    projeto = [[0.0, 10.0], [30.0, 40.0]]  # z = 10 + x
+    modelo = [
+        [0.125 + i * 0.25, 40.0 - (0.125 + i * 0.25)] for i in range(120)
+    ]  # z = 40 − s
+    terr = cc.comparar_terreno(projeto, modelo, 0.25, (10.0, 20.0))
+    assert terr["sentido"] == -1 and terr["desvio_m"] < 0.3
+    assert terr["trecho_s_m"] == pytest.approx([10.0, 20.0], abs=0.3)
+
+
+def test_linha_cobre_o_corte_com_folga_nas_pontas():
+    g = _grade()
+    sec = _secao_projeto()  # corte x 10–20
+    # corte coberto com sobra: a linha de 30 m tem o corte em s ≈ 10–20
+    ok = cc.conferir_secao(sec, _modelo(g, _linha("AA", (10, 30), (40, 30))))
+    assert "incompleta" not in ok["motivo"]
+    # linha de 19 m: o corte (s 10–20) passa 1,1 m do fim: além da folga de 1 m
+    curta = cc.conferir_secao(sec, _modelo(g, _linha("AA", (10, 30), (29, 30))))
+    assert "cobre" in curta["motivo"] and "do corte" in curta["motivo"]
+    # linha de 20,5 m (corte até s 20,1, folga de 1 m sobra): coberta
+    folga = cc.conferir_secao(sec, _modelo(g, _linha("AA", (10, 30), (30.5, 30))))
+    assert "incompleta" not in folga["motivo"]
