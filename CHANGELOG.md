@@ -12,10 +12,15 @@
   - liga as cotas da sequência executiva só quando a ligação é única.
 
   É uma etapa do build: grava `conferencia_cavas.json` e uma tabela na aba EAP.
-- **Foz:** 1 confere, 5 difere, 12 não conferível. Seções médias da C01: −13 %, confere. O fundo bate em 5 seções
-  (0 a 0,06 m). A área do modelo sai de −12 a −31 % menor na maioria das seções comparáveis. Isso aponta volume
-  subestimado (talude único de 1,5:1 contra 1,0 a 5,7 no projeto, e terreno do MDS). Nenhuma premissa foi alterada.
-  Relatório em `docs/plano/2026-11-03_conferencia_cavas.md`.
+- **Foz (depois do aceite do Fable):**
+  - o fundo do modelo bate em 5 de 7 seções (0 a 0,06 m);
+  - em HH e FF o fundo vem da marca de cota vizinha;
+  - a área de corte difere principalmente pelo **terreno**: o MDS fica de 0,1 a 0,4 m abaixo da topografia do projeto;
+    corrigida por isso, a área vai de +1 % (AA) a −20 % (OO), com RR em +17 %;
+  - não dá para dizer se o volume está sub ou superestimado.
+
+  O talude por seção foi cancelado pelo Caio, e nenhuma premissa mudou. Relatório em
+  `docs/plano/2026-11-03_conferencia_cavas.md`.
 - **Build no contêiner novo:** vira pendência visível, em vez de erro ou silêncio:
   - prancha com PDF ausente;
   - inventário sem listagem do Drive (ou com `_baixados.csv` de outro formato);

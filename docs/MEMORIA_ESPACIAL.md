@@ -219,9 +219,11 @@ opcionais que derrubavam o build, o serviço sem item e a falta de unidade e sis
 `docs/plano/2026-11-02_foz_build_real.md`.
 
 **Conferência das cavas (0.52.0, 03/11/2026).** As seções das pranchas de corte, independentes do cálculo pelo MDS,
-dão o placar: 1 confere, 5 difere, 12 não conferível. Seções médias da C01: −13 %, confere. O fundo do modelo bate
-(0 a 0,06 m em 5 seções), mas a área de corte sai 12 a 31 % menor na maioria das seções comparáveis. O volume pelas
-gavetas está provavelmente subestimado (talude único de 1,5:1; terreno do MDS). Relatório em
+mostram duas coisas:
+- o fundo do modelo bate com o projeto em 5 de 7 seções; nas outras 2, o modelo usou a marca de cota vizinha;
+- a área de corte difere principalmente pelo terreno: o MDS fica de 0,1 a 0,4 m abaixo da topografia do projeto.
+
+Qual terreno está certo decide se o volume está sub ou superestimado, e é a próxima pergunta da tese. Relatório em
 `docs/plano/2026-11-03_conferencia_cavas.md`.
 
 **O que falta para fechar a tese:**
