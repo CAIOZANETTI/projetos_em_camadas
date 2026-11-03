@@ -100,7 +100,8 @@ def test_propriedades_no_contrato():
     assert set(saida) == {"fonte", "classes", "arvore", "geojson"}
     for f in saida["geojson"]["features"]:
         p = f["properties"]
-        assert set(p) == {"id", "rotulo", "classe", "unidade", "sistema", "etapa", "atributos", "fonte", "doc"}
+        assert set(p) - {"origem_etapa"} == {"id", "rotulo", "classe", "unidade", "sistema", "etapa", "atributos", "fonte", "doc"}
+        assert ("origem_etapa" in p) == (p["classe"] == "cava")      # só a cava grava a etapa estruturada da conciliação
         assert p["classe"] in saida["classes"] and p["id"].startswith(p["sistema"])
         assert all(isinstance(par, list) and len(par) == 2 and par[1] is not None for par in p["atributos"])
     assert [u["id"] for u in saida["arvore"]] == ["u1", "u2"]

@@ -170,12 +170,13 @@
     "situacao": "confere (mesma origem)",
     "mesma_origem": true,
     "origem_txt": "mesma origem",
-    "origem_insumos_txt": "etapa:escavacao",
+    "origem_insumos_txt": "gavetas: etapa:escavacao; codificada: etapa:escavacao",
     "motivo": "as duas trilhas partem do mesmo insumo (etapa:escavacao): o confere não é conferência independente e não valida o número",
     "documento_txt": "408,00 m³",
     "documentos_txt": "CUSTO CIVIL.xlsx",
     "situacao_documento": "difere do documento",
-    "situacao_documento_txt": "difere do documento (Δ 2,25 m³ · 0,6 %)"
+    "situacao_documento_txt": "difere do documento (Δ 2,25 m³ · 0,6 %)",
+    "decisao_txt": "—"
    },
    {
     "codigo": "U1.ACT600.GEO.MOV.REA",
@@ -186,12 +187,13 @@
     "situacao": "difere",
     "mesma_origem": true,
     "origem_txt": "mesma origem",
-    "origem_insumos_txt": "etapa:escavacao",
+    "origem_insumos_txt": "gavetas: etapa:escavacao; codificada: etapa:escavacao",
     "motivo": "difere com a mesma origem (etapa:escavacao): erro de cálculo, não de insumo; mais grave que diferença entre origens distintas",
     "documento_txt": "—",
     "documentos_txt": "—",
     "situacao_documento": "sem documento",
-    "situacao_documento_txt": "sem documento"
+    "situacao_documento_txt": "sem documento",
+    "decisao_txt": "decisão de ana: 178,00 m³"
    },
    {
     "codigo": "U1.AB_ENTRADA.GEO.MOV.VAL",
@@ -202,12 +204,13 @@
     "situacao": "só nas gavetas",
     "mesma_origem": false,
     "origem_txt": "indeterminada",
-    "origem_insumos_txt": "",
+    "origem_insumos_txt": "gavetas: indeterminada; codificada: indeterminada",
     "motivo": "",
     "documento_txt": "—",
     "documentos_txt": "—",
     "situacao_documento": "sem documento",
-    "situacao_documento_txt": "sem documento"
+    "situacao_documento_txt": "sem documento",
+    "decisao_txt": "—"
    },
    {
     "codigo": "U1.ACT600.GEO.FUN.EST",
@@ -218,12 +221,13 @@
     "situacao": "só na EAP codificada",
     "mesma_origem": false,
     "origem_txt": "origens independentes",
-    "origem_insumos_txt": "arquivo:estacas; arquivo:pbge",
+    "origem_insumos_txt": "gavetas: arquivo:estacas; arquivo:pbge; codificada: arquivo:estacas; arquivo:pbge",
     "motivo": "",
     "documento_txt": "48 un",
     "documentos_txt": "memorial.pdf",
     "situacao_documento": "confere com documento",
-    "situacao_documento_txt": "confere com documento"
+    "situacao_documento_txt": "confere com documento",
+    "decisao_txt": "—"
    }
   ],
   "resumo_documento": {
@@ -231,6 +235,21 @@
    "difere do documento": 1,
    "documento em conflito": 0,
    "sem documento": 2
-  }
+  },
+  "totais": [
+   {
+    "codigo": "U1.*.GEO.MOV.ESC",
+    "unidade": "m³",
+    "n_linhas": 1,
+    "gavetas_txt": "410,25 m³",
+    "codificada_txt": "410,25 m³",
+    "origem_insumos_txt": "gavetas: etapa:escavacao; codificada: etapa:escavacao",
+    "documento_txt": "408,00 m³",
+    "documentos_txt": "CUSTO CIVIL.xlsx",
+    "decisao_txt": "—",
+    "situacao_documento": "difere do documento",
+    "situacao_documento_txt": "difere do documento (Δ 2,25 m³ · 0,6 %)"
+   }
+  ]
  }
 }

@@ -848,7 +848,10 @@ def _fatos_so_mencao(mencoes: list[dict], com_valor: set, tol: float) -> list[di
     return [_fato((*chave, None), [], [m for m in mencoes if (m["codigo"], m["servico"]) == chave], tol) for chave in chaves]
 
 
-def consolidar(evs: list[dict], tol: float = 0.005) -> pd.DataFrame:
+TOLERANCIA_RELATIVA = 0.005    # afirmações de documentos diferentes são "o mesmo valor" dentro dela
+
+
+def consolidar(evs: list[dict], tol: float = TOLERANCIA_RELATIVA) -> pd.DataFrame:
     """Fatos (código, serviço, unidade) com o status: convergente, fonte única, conflito, só menção ou decidido.
     IA só entra com citação conferida. Menção (sem número) reforça o fato mas não dá valor."""
     aceitas = [e for e in _sem_ia_repetida(evs) if e["metodo"] != "ia" or e.get("citacao") == "conferida"]

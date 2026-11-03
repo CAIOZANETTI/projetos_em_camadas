@@ -1035,9 +1035,10 @@ ETAPA_DA_EVIDENCIA = {"plantas de escavação": "escavacao"}
 """`localizador["criterio"]` da evidência das gavetas → etapa do build que a produziu. O lado codificado declara a mesma
 etapa em `eap.ETAPA_DA_FONTE`: é por ela que as duas trilhas de uma mesma escavação se reconhecem."""
 
-TIPOS_DOCUMENTO_INDEPENDENTE = frozenset({"edital", "memorial", "planilha", "ia", "decisao"})
+TIPOS_DOCUMENTO_INDEPENDENTE = frozenset({"edital", "memorial", "planilha", "ia"})
 """Tipos de documento (`evidencias`) que valem como terceira coluna. Nunca `geometria`, `associado` (fórmula sobre outro
-número) nem `projeto` (pranchas: a mesma fonte que o construtivo mede)."""
+número), `projeto` (pranchas: a mesma fonte que o construtivo mede) nem `decisao` (opinião do engenheiro, que aparece
+à parte)."""
 
 SEM_DOCUMENTO = "sem documento"
 CONFERE_DOCUMENTO = "confere com documento"
@@ -1050,16 +1051,23 @@ def nome_de_arquivo(texto: str) -> str:
     return Path(str(texto).strip().replace("\\", "/")).stem.lower()
 
 
-def _insumos_da_evidencia(evidencia: dict) -> set[str]:
-    """Insumos de uma evidência da base: `arquivo:<nome>` para cada documento citado e `etapa:<nome>` quando o critério
-    do localizador é de uma etapa conhecida (`ETAPA_DA_EVIDENCIA`)."""
-    insumos = {f"arquivo:{nome_de_arquivo(d)}" for d in str(evidencia.get("documento") or "").split(", ") if d.strip()}
-    localizador = evidencia.get("localizador")
-    etapa = ETAPA_DA_EVIDENCIA.get(localizador.get("criterio")) if isinstance(localizador, dict) else None
+def _insumos_da_evidencia(evidencia: dict, pdf_por_prancha: dict | None = None) -> set[str]:
+    """Insumos de uma evidência da base: `arquivo:<nome>` de cada documento e `etapa:<nome>` da etapa que a produziu.
+    Se o localizador lista `pranchas` (ids), cada uma vira o stem do PDF de origem (`pdf_por_prancha`, do `obra.json`),
+    o mesmo nome que o `construtivos` grava em `doc`; sem lista, o `documento` inteiro é um insumo só (não se separa
+    por vírgula). A etapa vem de `localizador["etapa_origem"]` e, de reserva, do critério (`ETAPA_DA_EVIDENCIA`)."""
+    pdfs = pdf_por_prancha or {}
+    localizador = evidencia.get("localizador") if isinstance(evidencia.get("localizador"), dict) else {}
+    nomes = [pdfs.get(i, i) for i in localizador.get("pranchas") or []]
+    if not nomes and str(evidencia.get("documento") or "").strip():
+        nomes = [evidencia["documento"]]
+    insumos = {f"arquivo:{nome_de_arquivo(n)}" for n in nomes}
+    etapa = localizador.get("etapa_origem") or ETAPA_DA_EVIDENCIA.get(localizador.get("criterio"))
     return insumos | ({f"etapa:{etapa}"} if etapa else set())
 
 
-def origem_do_servico(servico: dict, fatos_por_id: dict, evidencias_por_id: dict) -> list[str] | None:
+def origem_do_servico(servico: dict, fatos_por_id: dict, evidencias_por_id: dict,
+                      pdf_por_prancha: dict | None = None) -> list[str] | None:
     """Insumos de onde o serviço veio: fato → evidência → documento/etapa, de todos os fatos que ele usou. None
     (indeterminada) se o serviço não tem fatos ou algum fato ou evidência não está na base."""
     insumos: set[str] = set()
@@ -1068,16 +1076,17 @@ def origem_do_servico(servico: dict, fatos_por_id: dict, evidencias_por_id: dict
         evidencia = evidencias_por_id.get(fato["evidencia_id"]) if fato else None
         if evidencia is None:
             return None
-        insumos |= _insumos_da_evidencia(evidencia)
+        insumos |= _insumos_da_evidencia(evidencia, pdf_por_prancha)
     return sorted(insumos) or None
 
 
-def anotar_origem(servicos: list[dict], base: dict) -> None:
-    """Grava `origem` (lista de insumos ou None) em cada serviço; é anotação, não entra na chave do incremental."""
+def anotar_origem(servicos: list[dict], base: dict, pdf_por_prancha: dict | None = None) -> None:
+    """Grava `origem` (lista de insumos ou None) em cada serviço; é anotação, não entra na chave do incremental.
+    `pdf_por_prancha` = {id da prancha: caminho do PDF}, para as duas trilhas usarem o mesmo nome de documento."""
     fatos = {f["fato_id"]: f for f in base.get("fatos", [])}
     evidencias = {e["evidencia_id"]: e for e in base.get("evidencias", [])}
     for s in servicos:
-        s["origem"] = origem_do_servico(s, fatos, evidencias)
+        s["origem"] = origem_do_servico(s, fatos, evidencias, pdf_por_prancha)
 
 
 def _origem_das_gavetas(servicos: list[dict]) -> list[str] | None:
@@ -1108,54 +1117,56 @@ def _situacao_e_motivo(situacao: str, origem: str, comum: list[str]) -> tuple[st
     return situacao, ""
 
 
-def _agrupar_valores(valores: list[float], tol: float) -> list[list[float]]:
-    """Valores em ordem crescente agrupados enquanto a diferença para o primeiro do grupo é até `tol` (absoluta)."""
+def _agrupar_valores(valores: list[float], tol_relativa: float) -> list[list[float]]:
+    """Valores em ordem crescente agrupados enquanto a diferença para o primeiro do grupo é até `tol_relativa` do
+    valor (com piso de 1), a mesma regra de `evidencias._grupos`."""
     grupos: list[list[float]] = []
     for v in sorted(valores):
-        if grupos and v - grupos[-1][0] <= tol:
+        if grupos and v - grupos[-1][0] <= tol_relativa * max(1.0, abs(grupos[-1][0])):
             grupos[-1].append(v)
         else:
             grupos.append([v])
     return grupos
 
 
-def _afirmacoes_independentes(fatos: list[dict] | None, codigo: str, unidade: str) -> list[tuple[float, str]]:
-    """(valor, nome do documento) de cada afirmação de documento independente dos fatos do mesmo código (casamento com
-    `*` como em `evidencias`), com serviço vazio (o próprio item) e na mesma unidade depois de `vocabulario.converter`
-    (t × kg). Valores já na unidade comum. A decisão vale no lugar das afirmações do fato (como em `evidencias.consolidar`)."""
-    from . import evidencias, vocabulario
+def _fatos_do_codigo(fatos: list[dict] | None, codigo: str, unidade: str) -> list[tuple[dict, float]]:
+    """(fato, fator para a unidade comum) dos fatos com o MESMO código (concreto com concreto, `*` com `*`), serviço
+    vazio (o próprio item) e a mesma unidade depois de `vocabulario.converter` (t × kg)."""
+    from . import vocabulario
     comum = vocabulario.converter(1.0, unidade)[1]
     saida = []
     for f in fatos or []:
-        if f.get("servico") or not f.get("unidade") or not evidencias._casa(f["codigo"], codigo):
+        if f.get("servico") or not f.get("unidade") or f["codigo"] != codigo:
             continue
-        valor_un = vocabulario.converter(1.0, f["unidade"])
-        if valor_un[1] != comum:
-            continue
-        decisoes = f.get("decisoes") or []
-        if decisoes:
-            saida.append((float(decisoes[-1]["valor"]) * valor_un[0], f"decisão de {decisoes[-1].get('autor') or '?'}"))
-            continue
-        saida += [(float(a["valor"]) * valor_un[0], str(a["documento"])) for a in f.get("afirmacoes") or []
-                  if a.get("tipo") in TIPOS_DOCUMENTO_INDEPENDENTE]
+        fator, unidade_do_fato = vocabulario.converter(1.0, f["unidade"])
+        if unidade_do_fato == comum:
+            saida.append((f, fator))
     return saida
 
 
 def documento_independente(fatos: list[dict] | None, codigo: str, unidade: str, referencia: float | None,
                            tol: float = 0.01) -> dict:
-    """Terceira coluna da conciliação: o que documentos independentes (planilha, edital, memorial, IA conferida,
-    decisão) dizem do código, na unidade da linha, comparado com a `referencia` (a medida das gavetas ou, sem ela, a
-    codificada) pela mesma tolerância `tol` (absoluta, na unidade da linha). Devolve `documento` (valor ou None),
-    `documentos` (nomes, ordenados), `situacao_documento` (`SEM_DOCUMENTO`, `CONFERE_DOCUMENTO`, `DIFERE_DOCUMENTO` ou
-    `CONFLITO_DOCUMENTO`), `diferenca_documento` (referência − documento) e `diferenca_documento_pct` (sobre o documento)."""
-    from . import vocabulario
+    """Terceira coluna da conciliação: o que documentos independentes (planilha, edital, memorial, IA conferida)
+    dizem do código, na unidade da linha, comparado com a `referencia` (a medida das gavetas ou, sem ela, a codificada)
+    pela mesma tolerância `tol` (absoluta, na unidade da linha). Só os fatos do MESMO código: um fato `U1.*.ITEM` é o
+    total da unidade e vale para a soma das linhas (`conciliar_totais`), nunca para um sistema só. Documentos que
+    discordam entre si (tolerância relativa de `evidencias.consolidar`) dão `CONFLITO_DOCUMENTO`.
+    Devolve `documento` (valor ou None), `documentos` (nomes, ordenados), `situacao_documento` (`SEM_DOCUMENTO`,
+    `CONFERE_DOCUMENTO`, `DIFERE_DOCUMENTO` ou `CONFLITO_DOCUMENTO`), `diferenca_documento` (referência − documento),
+    `diferenca_documento_pct` (sobre o documento) e `decisoes` (a decisão do engenheiro, à parte: não é documento)."""
+    from . import evidencias, vocabulario
     fator, _ = vocabulario.converter(1.0, unidade)
-    afirmacoes = _afirmacoes_independentes(fatos, codigo, unidade)
+    afirmacoes, decisoes = [], []
+    for f, k in _fatos_do_codigo(fatos, codigo, unidade):
+        afirmacoes += [(float(a["valor"]) * k, str(a["documento"])) for a in f.get("afirmacoes") or []
+                       if a.get("tipo") in TIPOS_DOCUMENTO_INDEPENDENTE]
+        decisoes += [{"valor": float(d["valor"]) * k / fator, "autor": d.get("autor") or "?"}
+                     for d in f.get("decisoes") or []]
     vazio = {"documento": None, "documentos": sorted({n for _, n in afirmacoes}), "situacao_documento": SEM_DOCUMENTO,
-             "diferenca_documento": None, "diferenca_documento_pct": None}
+             "diferenca_documento": None, "diferenca_documento_pct": None, "decisoes": decisoes}
     if not afirmacoes or referencia is None:
         return vazio
-    grupos = _agrupar_valores([v for v, _ in afirmacoes], tol * fator)
+    grupos = _agrupar_valores([v for v, _ in afirmacoes], evidencias.TOLERANCIA_RELATIVA)
     if len(grupos) > 1:
         return {**vazio, "situacao_documento": CONFLITO_DOCUMENTO}
     documento = grupos[0][0] / fator
@@ -1163,6 +1174,42 @@ def documento_independente(fatos: list[dict] | None, codigo: str, unidade: str, 
     return {**vazio, "documento": documento, "diferenca_documento": dif,
             "diferenca_documento_pct": None if documento == 0 else 100.0 * dif / abs(documento),
             "situacao_documento": CONFERE_DOCUMENTO if abs(dif) <= tol else DIFERE_DOCUMENTO}
+
+
+def _soma_ou_none(valores: list) -> float | None:
+    """Soma só se todos os valores existem: soma parcial enganaria."""
+    return None if not valores or any(v is None for v in valores) else float(sum(valores))
+
+
+def conciliar_totais(linhas: list[dict], fatos: list[dict] | None, tol: float = 0.01) -> list[dict]:
+    """Totais por unidade e item: para cada fato com `*` no código (a planilha grava `U1.*.ITEM`), soma as linhas
+    concretas que ele casa (`evidencias._casa`, mesma unidade da linha) e compara com o documento. Não cria linha na
+    conciliação: devolve um bloco à parte. Cada total traz `codigo` (com `*`), `unidade`, `n_linhas`, `gavetas` e
+    `codificada` (somas; None se faltar um lado em alguma linha), `origem_gavetas` e `origem_codificada` (uniões, None
+    se alguma linha não tem) e a terceira coluna de `documento_independente` contra as gavetas ou, sem elas, a
+    codificada. Ordem: código, unidade."""
+    from . import evidencias
+    codigos = sorted({f["codigo"] for f in fatos or [] if "*" in f["codigo"] and not f.get("servico") and f.get("unidade")})
+    unidades = sorted({(l["unidade"]) for l in linhas})
+    totais = []
+    for codigo in codigos:
+        for unidade in unidades:
+            casadas = [l for l in linhas if l["unidade"] == unidade and evidencias._casa(codigo, l["codigo"])]
+            if not casadas:
+                continue
+            g, c = _soma_ou_none([l["gavetas"] for l in casadas]), _soma_ou_none([l["codificada"] for l in casadas])
+            doc = documento_independente(fatos, codigo, unidade, g if g is not None else c, tol)
+            if doc["situacao_documento"] == SEM_DOCUMENTO and not doc["documentos"] and not doc["decisoes"]:
+                continue                                      # o fato `*` é de outra unidade: nada a mostrar
+            totais.append({"codigo": codigo, "unidade": unidade, "n_linhas": len(casadas), "gavetas": g, "codificada": c,
+                           "origem_gavetas": _uniao_ou_none([l.get("origem_gavetas") for l in casadas]),
+                           "origem_codificada": _uniao_ou_none([l.get("origem_codificada") for l in casadas]), **doc})
+    return totais
+
+
+def _uniao_ou_none(origens: list) -> list[str] | None:
+    """União das origens; None se alguma delas é indeterminada."""
+    return None if not origens or any(not o for o in origens) else sorted({i for o in origens for i in o})
 
 
 def _somas_das_gavetas(servicos: list[dict]) -> tuple[dict, dict]:
@@ -1232,7 +1279,7 @@ def metadados() -> dict:
                     "fatos_do_objeto", "furos", "eixo", "regra_de", "entrada", "chave_servico", "calcular",
                     "calcular_incremental", "paridade", "para_eap", "setor_de", "setor_dos_servicos",
                     "para_eap_por_setor", "codigo_eap", "unidade_sistema", "anotar_codigo_eap", "anotar_origem", "origem_do_servico",
-                    "comparar_origens", "documento_independente", "conciliar_eap"],
+                    "comparar_origens", "documento_independente", "conciliar_totais", "conciliar_eap"],
         "conceitos": ["gavetas.json", "de_para_extracao.json", "de_para_servicos.json", "de_para_eap.json",
                       "unidades_construtivas.json"],
         "formato": REGRAS["formato"]["atual"],

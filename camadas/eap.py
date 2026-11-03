@@ -180,18 +180,21 @@ def quantificar(construtivos: dict, epsg: int) -> pd.DataFrame:
 
 
 ETAPA_DA_FONTE = {"escavação calculada": "escavacao"}
-"""Começo do texto `fonte` do elemento construtivo → etapa do build que o produziu. É a mesma etapa que as gavetas
-declaram em `gavetas.ETAPA_DA_EVIDENCIA`: as duas trilhas de uma escavação se reconhecem por ela."""
+"""Reserva: começo do texto `fonte` do elemento construtivo → etapa do build que o produziu, para elementos sem o
+campo `origem_etapa`. É a mesma etapa que as gavetas declaram: as duas trilhas de uma escavação se reconhecem por ela."""
 
 
 def origem_do_elemento(props: dict) -> set[str] | None:
-    """Insumos de um elemento construtivo: `arquivo:<nome>` do documento (`doc`) e `etapa:<nome>` pela `fonte`
-    (`ETAPA_DA_FONTE`). None (indeterminada) se não houver nenhum dos dois."""
+    """Insumos de um elemento construtivo: `arquivo:<nome>` do documento (`doc`, o stem do PDF) e `etapa:<nome>` do
+    campo estruturado `origem_etapa` que o `construtivos` grava; só de reserva, para elementos antigos, o começo do
+    texto `fonte` (`ETAPA_DA_FONTE`). None (indeterminada) se não houver nenhum dos dois."""
     from . import gavetas
     insumos = {f"arquivo:{gavetas.nome_de_arquivo(props['doc'])}"} if props.get("doc") else set()
-    fonte = str(props.get("fonte") or "")
-    insumos |= {f"etapa:{etapa}" for inicio, etapa in ETAPA_DA_FONTE.items() if fonte.startswith(inicio)}
-    return insumos or None
+    etapa = props.get("origem_etapa")
+    if not etapa:
+        fonte = str(props.get("fonte") or "")
+        etapa = next((e for inicio, e in ETAPA_DA_FONTE.items() if fonte.startswith(inicio)), None)
+    return insumos | ({f"etapa:{etapa}"} if etapa else set()) or None
 
 
 def origem_das_quantidades(quantidades: list[dict], construtivos: dict | None) -> dict[tuple, list[str] | None]:

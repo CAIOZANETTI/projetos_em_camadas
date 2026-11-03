@@ -139,33 +139,57 @@ def _situacao_documento_txt(linha: dict, texto) -> str:
         f" · {br(pct, 1)} %)" if pct is not None else ")")
 
 
-def _linha_conciliada(l: dict, texto) -> dict:
-    """Uma linha da conciliação em texto pronto: três colunas de medida, situação, origem e documento."""
-    mesma = l.get("origem") == "mesma" and l["situacao"] in (gavetas.SITUACAO_MESMA_ORIGEM, "difere")
-    insumos = set(l.get("origem_gavetas") or []) | set(l.get("origem_codificada") or [])
-    return {"codigo": l["codigo"], "unidade": l["unidade"], "gavetas_txt": texto(l["gavetas"], l["unidade"]),
-            "codificada_txt": texto(l["codificada"], l["unidade"]), "diferenca_txt": texto(l["diferenca"], l["unidade"]),
-            "situacao": l["situacao"], "mesma_origem": mesma,
-            "origem_txt": ORIGEM_TXT.get(l.get("origem") or "indeterminada", "indeterminada"),
-            "origem_insumos_txt": "; ".join(sorted(insumos)), "motivo": l.get("motivo") or "",
-            "documento_txt": texto(l.get("documento"), l["unidade"]),
-            "documentos_txt": "; ".join(l.get("documentos") or []) or "—",
+def _origem_insumos_txt(l: dict) -> str:
+    """Insumos de cada lado, para o `title` da coluna Origem: "gavetas: …; codificada: …"."""
+    lado = lambda nome, insumos: f"{nome}: {', '.join(insumos) if insumos else 'indeterminada'}"
+    return "; ".join([lado("gavetas", l.get("origem_gavetas")), lado("codificada", l.get("origem_codificada"))])
+
+
+def _decisao_txt(l: dict, texto) -> str:
+    """Decisão do engenheiro, à parte do documento: "decisão de ana: 1.000,00 m³"; sem decisão, '—'."""
+    return "; ".join(f"decisão de {d['autor']}: {texto(d['valor'], l['unidade'])}" for d in l.get("decisoes") or []) or "—"
+
+
+def _colunas_do_documento(l: dict, texto) -> dict:
+    """Terceira coluna (documento independente) em texto pronto."""
+    return {"documento_txt": texto(l.get("documento"), l["unidade"]),
+            "documentos_txt": "; ".join(l.get("documentos") or []) or "—", "decisao_txt": _decisao_txt(l, texto),
             "situacao_documento": l.get("situacao_documento") or gavetas.SEM_DOCUMENTO,
             "situacao_documento_txt": _situacao_documento_txt(l, texto)}
 
 
-def conciliacao(linhas: list[dict]) -> dict:
+def _linha_conciliada(l: dict, texto) -> dict:
+    """Uma linha da conciliação em texto pronto: três colunas de medida, situação, origem e documento."""
+    mesma = l.get("origem") == "mesma" and l["situacao"] in (gavetas.SITUACAO_MESMA_ORIGEM, "difere")
+    return {"codigo": l["codigo"], "unidade": l["unidade"], "gavetas_txt": texto(l["gavetas"], l["unidade"]),
+            "codificada_txt": texto(l["codificada"], l["unidade"]), "diferenca_txt": texto(l["diferenca"], l["unidade"]),
+            "situacao": l["situacao"], "mesma_origem": mesma,
+            "origem_txt": ORIGEM_TXT.get(l.get("origem") or "indeterminada", "indeterminada"),
+            "origem_insumos_txt": _origem_insumos_txt(l), "motivo": l.get("motivo") or "",
+            **_colunas_do_documento(l, texto)}
+
+
+def _total_conciliado(t: dict, texto) -> dict:
+    """Total por unidade e item (fato com `*`): soma das linhas e terceira coluna, em texto pronto."""
+    return {"codigo": t["codigo"], "unidade": t["unidade"], "n_linhas": t["n_linhas"],
+            "gavetas_txt": texto(t["gavetas"], t["unidade"]), "codificada_txt": texto(t["codificada"], t["unidade"]),
+            "origem_insumos_txt": _origem_insumos_txt(t), **_colunas_do_documento(t, texto)}
+
+
+def conciliacao(linhas: list[dict], totais: list[dict] | None = None) -> dict:
     """`dados["eap_gavetas"]["conciliacao"]`: as linhas de `gavetas.conciliar_eap` já formatadas e a contagem por
     situação (`resumo`) e por situação frente ao documento (`resumo_documento`). Quantidade e diferença com a unidade
     do código; o que uma das EAP não mede fica '—'. `mesma_origem` marca o que o selo da aba destaca (confere sem
-    independência e difere com a mesma origem)."""
+    independência e difere com a mesma origem). `totais` (`gavetas.conciliar_totais`): o fato `U1.*.ITEM` contra a
+    soma dos sistemas, no bloco `totais`."""
     texto = lambda v, un: "—" if v is None else f"{br(v, 0 if un == 'un' else 2)} {un}"
     exibidas = [l for l in linhas if l["situacao"] != "fora das gavetas"]      # fora: só a contagem no resumo
     sem = gavetas.SEM_DOCUMENTO
     return {"resumo": {s: sum(1 for l in linhas if l["situacao"] == s) for s in SITUACOES_CONCILIACAO},
             "resumo_documento": {s: sum(1 for l in exibidas if (l.get("situacao_documento") or sem) == s)
                                  for s in SITUACOES_DOCUMENTO},
-            "linhas": [_linha_conciliada(l, texto) for l in exibidas]}
+            "linhas": [_linha_conciliada(l, texto) for l in exibidas],
+            "totais": [_total_conciliado(t, texto) for t in totais or []]}
 
 
 def montar(base: dict, servicos: list[dict], pendencias: list[dict], resumo: dict | None = None,

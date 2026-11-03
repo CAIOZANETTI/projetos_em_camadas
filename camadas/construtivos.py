@@ -42,9 +42,11 @@ def _doc_id(arquivo: str | None) -> str | None:
 
 
 def _adicionar(ctx: dict, codigo: str, classe: str, rotulo: str, geometria: dict, atributos: list, fonte: str,
-               etapa: str | None = None, chave: str | None = None, doc: str | None = None) -> None:
+               etapa: str | None = None, chave: str | None = None, doc: str | None = None,
+               origem_etapa: str | None = None) -> None:
     """Acrescenta uma feature no contrato; id = sistema-classe-chave, com sufixo se repetir. Valor nulo não entra.
-    `doc` = id do documento (prancha, forma) de onde o elemento veio."""
+    `doc` = id do documento (prancha, forma) de onde o elemento veio; `origem_etapa` = etapa do build que calculou a
+    medida (ex.: "escavacao"), que a conciliação das duas EAP usa para reconhecer insumo compartilhado."""
     unidade = _sistema(codigo)["unidade"]
     nome = re.sub(r"\s+", "_", chave or rotulo)
     base = f"{unidade}-{codigo}-{classe}-{nome}"
@@ -58,7 +60,8 @@ def _adicionar(ctx: dict, codigo: str, classe: str, rotulo: str, geometria: dict
                             "properties": {"id": ident, "rotulo": rotulo, "classe": classe, "unidade": unidade,
                                            "sistema": f"{unidade}-{codigo}", "etapa": etapa,
                                            "atributos": [[k, v] for k, v in atributos if v is not None],
-                                           "fonte": fonte, "doc": doc}})
+                                           "fonte": fonte, "doc": doc,
+                                           **({"origem_etapa": origem_etapa} if origem_etapa else {})}})
 
 
 def _por_sistema(indices: list, estacas: list) -> str:
@@ -156,7 +159,7 @@ def _cavas(ctx: dict, dados: dict, cavas: list, estacas: list, dentro: list) -> 
                     ["Na borda do levantamento", None if "na_borda_do_levantamento" not in p
                      else "sim" if p["na_borda_do_levantamento"] else "não"],
                     ["Estacas dentro", _por_sistema(idx, estacas) or None], ["Sistema pelo critério", criterio]],
-                   fonte, etapa=p.get("etapa"), doc=_doc_da_cava(dados, f["geometry"]))
+                   fonte, etapa=p.get("etapa"), doc=_doc_da_cava(dados, f["geometry"]), origem_etapa="escavacao")
 
 
 def _estruturas(ctx: dict, dados: dict) -> None:
