@@ -38,6 +38,9 @@ AREA_MINIMA_M2 = 1.0  # corte com menos de 1 m² de área no projeto é "sem cor
 FRACAO_MINIMA_NO_MDS = (
     0.8  # a linha precisa ter ≥ 80 % do comprimento dentro da grade válida do MDS
 )
+FRACAO_MINIMA_LINHA = 0.8  # a linha da planta precisa ter ≥ 80 % da largura do quadro do corte (senão é trecho da seção)
+FRACAO_MAXIMA_EDIFICACAO = 0.20  # mais que 20 % das amostras da linha sobre edificação: a linha não mede terreno natural
+DESVIO_MAXIMO_TERRENO_M = 0.30  # desvio-padrão (modelo − projeto) do terreno acima disto: MDS irregular na linha
 ANGULO_PARALELO_GRAUS = 5.0  # duas linhas de seção são "quase paralelas" abaixo disso
 DIVERGENCIA_LINHA_M = (
     0.5  # a mesma seção em duas plantas: as linhas não podem divergir mais que isto
@@ -45,6 +48,7 @@ DIVERGENCIA_LINHA_M = (
 
 # --- leitura das linhas na planta --------------------------------------------------------------------------------
 LAYER_CORTES = "CORTES"
+VERSAO_LEITURA_LINHAS = 2  # sobe quando muda a leitura das linhas (OCR das letras): invalida o cache em disco
 TRACO_MIN_PT, TRACO_MAX_PT, ESPESSURA_MAX_PT = (
     4.0,
     10.0,
@@ -58,10 +62,25 @@ TRACOS_MINIMOS = (
 )
 RAIO_LETRA_PT = 45.0  # a letra fica a até isto da ponta da linha
 OCR_DPI = 400
+MODOS_OCR = (
+    10,
+    8,
+)  # modos de segmentação do tesseract tentados por rotação: um caractere / uma palavra
+DOMINIO_VERDE = 70  # verde − max(vermelho, azul) mínimo do pixel da letra (0, 114, 0); a hachura clara fica abaixo
 TRACO_FINO_RAZAO = 3.5  # letra mais alta que 3,5 × a largura é a barra do "I"
 SEGMENTO_MINIMO_M = 5.0  # segmento de seção não colinear com menos que isto é resto de traço, não outra parte da linha
 COLINEAR_GRAUS = 2.0  # segmentos da mesma seção em plantas diferentes: mesma reta se o ângulo for menor que isto
 LETRAS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+ROTACOES_GRAUS = (
+    0,
+    90,
+    180,
+    270,
+)  # a letra da seção acompanha a linha: nas linhas E-W em UTM aparece deitada na folha
+CONFIANCA_PARECIDA = 5.0  # duas rotações com letras diferentes e pontuação a ≤ isto uma da outra: leitura ambígua
+VANTAGEM_ESPERADA = 20.0  # pontos a mais para a leitura na rotação esperada pela geometria (A lido como V ao girar)
+SITUACAO_SEQUENCIA = "compatível por valor"  # a nota não diz onde: só o valor da cota é compatível com o fundo da cava
+SITUACOES_SECAO = ("confere", "difere", "não conferível")
 
 
 def _eixo_do_quadro(q: np.ndarray) -> tuple[np.ndarray, float, float]:
@@ -185,11 +204,85 @@ def _caixa_da_letra(ponta: np.ndarray, letras: list[np.ndarray]) -> tuple | None
     return (*(todos.min(0) - 1.0), *(todos.max(0) + 1.0))
 
 
-def ler_letra(pagina, caixa_pt: tuple) -> str | None:
-    """OCR de uma letra (recorte de `caixa_pt`, sem rotação: a letra da seção fica de pé na planta)."""
-    import pymupdf
+def rotacao_esperada(
+    ponta_pt: np.ndarray, centro_letra_pt: np.ndarray, eixo: np.ndarray
+) -> int:
+    """Rotação (graus anti-horários, múltiplo de 90) que deixa a letra de pé, pela geometria da marca de seção: o
+    "alto" da letra aponta da linha para a letra, perpendicular à linha (a letra fica no lado da seta). Coordenadas
+    da folha (y para baixo)."""
+    v = np.asarray(centro_letra_pt, float) - np.asarray(ponta_pt, float)
+    normal = np.array([-eixo[1], eixo[0]])
+    alto = (v @ normal) * normal
+    angulo = np.degrees(
+        np.arctan2(-alto[1], alto[0])
+    )  # y da folha desce: inverte para o plano usual
+    return round((90.0 - angulo) / 90.0) % 4 * 90
+
+
+def escolher_letra(
+    leituras: list[tuple[str, float, int]], esperada: int = 0
+) -> tuple[str | None, str | None, bool]:
+    """(letra, alerta, na_esperada): a letra de maior pontuação entre as leituras por rotação [(letra, confiança,
+    graus)], o alerta, se houver, e se a letra escolhida foi lida na rotação esperada.
+
+    Só vale letra A–Z. A leitura na rotação `esperada` pela geometria ganha `VANTAGEM_ESPERADA` pontos: o OCR lê a
+    letra girada como outra (A como V, C como O). Se outra rotação deu letra diferente a ≤ `CONFIANCA_PARECIDA` pontos
+    da melhor, a leitura é ambígua: sem letra e com alerta."""
+    validas = [
+        (c + (VANTAGEM_ESPERADA if graus == esperada else 0.0), t)
+        for t, c, graus in leituras
+        if len(t) == 1 and t in LETRAS
+    ]
+    if not validas:
+        return None, None, False
+    melhor_pontos, melhor = max(validas)
+    rivais = {
+        t
+        for pontos, t in validas
+        if t != melhor and melhor_pontos - pontos <= CONFIANCA_PARECIDA
+    }
+    if rivais:
+        return None, f"letra ambígua entre rotações: {sorted({melhor, *rivais})}", False
+    return melhor, None, any(t == melhor and g == esperada for t, _, g in leituras)
+
+
+def _leituras_por_rotacao(img: np.ndarray) -> list[tuple[str, float, int]]:
+    """OCR da letra (imagem 0/255, letra preta) em cada rotação de `ROTACOES_GRAUS`: [(letra, confiança, graus)].
+    Em cada rotação vale o melhor dos modos de segmentação `MODOS_OCR` (o modo 10 às vezes não lê um P que o 8 lê)."""
     import pytesseract
     from PIL import Image
+
+    leituras = []
+    for graus in ROTACOES_GRAUS:
+        giro = Image.fromarray(np.ascontiguousarray(np.rot90(img, graus // 90)))
+        melhor = None
+        for modo in MODOS_OCR:
+            d = pytesseract.image_to_data(
+                giro,
+                config=f"--psm {modo} -c tessedit_char_whitelist={LETRAS}",
+                output_type=pytesseract.Output.DICT,
+            )
+            for texto, conf in zip(d["text"], d["conf"]):
+                achados = re.findall(r"[A-Z]", str(texto).upper())
+                if (
+                    achados
+                    and float(conf) >= 0
+                    and (melhor is None or float(conf) > melhor[1])
+                ):
+                    melhor = (achados[0], float(conf), graus)
+        if melhor:
+            leituras.append(melhor)
+    return leituras
+
+
+def ler_letra(
+    pagina, caixa_pt: tuple, esperada: int = 0
+) -> tuple[str | None, str | None, bool]:
+    """OCR de uma letra (recorte de `caixa_pt`) nas quatro rotações: (letra, alerta, lida na rotação esperada).
+
+    A letra acompanha a linha da seção e nas linhas E-W em UTM aparece deitada: vale a rotação de maior confiança
+    (`escolher_letra`). Barra fina, em pé ou deitada, é o "I" (o OCR não lê um I isolado)."""
+    import pymupdf
 
     px = pagina.get_pixmap(dpi=OCR_DPI, clip=pymupdf.Rect(*caixa_pt))
     rgb = (
@@ -197,18 +290,45 @@ def ler_letra(pagina, caixa_pt: tuple) -> str | None:
         .reshape(px.h, px.w, px.n)[..., :3]
         .astype(int)
     )
-    verde = (rgb[..., 1] - np.maximum(rgb[..., 0], rgb[..., 2]) > 40) | (
-        rgb.max(2) < 110
-    )
+    verde = (
+        (rgb[..., 1] - np.maximum(rgb[..., 0], rgb[..., 2]) > DOMINIO_VERDE)
+        & (rgb[..., [0, 2]].max(2) < 110)
+    )  # só o verde escuro da letra: sem a hachura clara nem as linhas pretas de outros layers atrás dela
     linhas, colunas = np.nonzero(verde)
-    if linhas.size and np.ptp(linhas) + 1 > TRACO_FINO_RAZAO * (np.ptp(colunas) + 1):
-        return "I"  # barra vertical fina: o OCR não lê uma letra I isolada
+    if linhas.size:
+        alto, largo = np.ptp(linhas) + 1, np.ptp(colunas) + 1
+        if max(alto, largo) > TRACO_FINO_RAZAO * min(alto, largo):
+            return "I", None, True
     img = np.pad(np.where(verde, 0, 255).astype(np.uint8), 25, constant_values=255)
-    texto = pytesseract.image_to_string(
-        Image.fromarray(img), config=f"--psm 10 -c tessedit_char_whitelist={LETRAS}"
-    )
-    achados = re.findall(r"[A-Z]", texto.upper())
-    return achados[0] if achados else None
+    return escolher_letra(_leituras_por_rotacao(img), esperada)
+
+
+def _conciliar_pontas(lidas: list[tuple]) -> list[tuple[str | None, str | None]]:
+    """(letra, alerta) das duas pontas. As duas pontas trazem a mesma letra: se discordam e só uma foi lida na rotação
+    esperada pela geometria, vale essa e a outra (leitura de fundo sujo) é descartada com alerta."""
+    letras = {t for t, _, _ in lidas if t}
+    fortes = [i for i, (t, _, na_esperada) in enumerate(lidas) if t and na_esperada]
+    if len(letras) > 1 and len(fortes) == 1:
+        return [
+            (t, a)
+            if i == fortes[0]
+            else (None, f"ponta com a letra {t}, fora da rotação esperada, descartada")
+            for i, (t, a, _) in enumerate(lidas)
+        ]
+    return [(t, a) for t, a, _ in lidas]
+
+
+def _ler_pontas(pagina, pontas: np.ndarray, caixas: list) -> list[tuple]:
+    """Letra (e alerta) de cada ponta da linha, lida na rotação esperada pela geometria da marca."""
+    eixo = (pontas[1] - pontas[0]) / np.linalg.norm(pontas[1] - pontas[0])
+    lidas = []
+    for ponta, cx in zip(pontas, caixas):
+        if cx is None:
+            lidas.append((None, None, False))
+            continue
+        centro = np.array([(cx[0] + cx[2]) / 2, (cx[1] + cx[3]) / 2])
+        lidas.append(ler_letra(pagina, cx, rotacao_esperada(ponta, centro, eixo)))
+    return _conciliar_pontas(lidas)
 
 
 def linhas_da_planta(
@@ -237,16 +357,30 @@ def linhas_da_planta(
             caixas = [_caixa_da_letra(p, letras) for p in pontas]
             if not any(caixas):
                 continue  # tracejado sem letra perto das pontas (eixo, quadra): não é seção
-            lidas = [ler_letra(pagina, cx) if cx else None for cx in caixas]
-            saida.append(_linha(pontas, lidas, M, prancha))
+            lidas = _ler_pontas(pagina, pontas, caixas)
+            saida.append(
+                _linha(
+                    pontas,
+                    [t for t, _ in lidas],
+                    M,
+                    prancha,
+                    [a for _, a in lidas if a],
+                )
+            )
     return saida
 
 
-def _linha(pontas_pt: np.ndarray, lidas: list, M: np.ndarray, prancha: str) -> dict:
-    """Linha em UTM com o nome da seção a partir das letras lidas nas duas pontas."""
+def _linha(
+    pontas_pt: np.ndarray,
+    lidas: list,
+    M: np.ndarray,
+    prancha: str,
+    alertas_ocr: list[str] | None = None,
+) -> dict:
+    """Linha em UTM com o nome da seção a partir das letras lidas nas duas pontas (`alertas_ocr`: ambiguidades)."""
     utm = geo.aplicar(np.asarray(M), pontas_pt)
     distintas = {v for v in lidas if v}
-    alertas = []
+    alertas = list(alertas_ocr or [])
     if len(distintas) == 1:
         secao = distintas.pop() * 2
         if None in lidas:
@@ -296,12 +430,14 @@ def _amostrar_linha(linha: dict, g: dict) -> tuple:
 
 def perfil_do_modelo(linha: dict, g: dict, corte: np.ndarray) -> dict:
     """Seção do modelo ao longo da linha: área de corte (∫ corte ds), fundo mínimo (terreno − corte onde há corte),
-    largura do corte e terreno [[s_m, z_m]]; `fracao_no_mds` é a parte da linha dentro da grade válida e
-    `corte_na_ponta` diz se o corte vai até uma das pontas (a cava continua além da linha)."""
+    largura do corte e terreno [[s_m, z_m]]; `fracao_no_mds` é a parte da linha dentro da grade válida,
+    `fracao_edificacao` a parte das amostras sobre edificação existente e `corte_na_ponta` diz se o corte vai até uma
+    das pontas (a cava continua além da linha)."""
     s, _, passo, lin, col, dentro = _amostrar_linha(linha, g)
     valido = dentro & g["valido"][lin, col]
     c = np.where(valido, corte[lin, col], 0.0).astype(float)
     z = np.where(valido, g["terreno"][lin, col], np.nan).astype(float)
+    edificacao = g.get("edificacao", np.zeros(g["forma"], bool))
     com_corte = c > 0.01
     fundo = float(np.min(z[com_corte] - c[com_corte])) if com_corte.any() else None
     return {
@@ -310,6 +446,7 @@ def perfil_do_modelo(linha: dict, g: dict, corte: np.ndarray) -> dict:
         "largura_corte_m": float(com_corte.sum() * passo),
         "terreno": np.c_[s, z][valido].round(3).tolist(),
         "fracao_no_mds": float(valido.mean()),
+        "fracao_edificacao": float((valido & edificacao[lin, col]).mean()),
         "corte_na_ponta": bool(com_corte[0] or com_corte[-1]),
         "passo_m": float(passo),
     }
@@ -367,8 +504,37 @@ def talude_do_projeto(escavacao_xz: list) -> float | None:
 
 
 # --- conferência por seção -----------------------------------------------------------------------------------------
-def _motivo_nao_conferivel(sec: dict, mod: dict | None) -> str | None:
-    """Motivo de a seção não ser conferível (ou None): sem linha, sem corte, área parcial, fora do MDS, cava continua."""
+def marca_proxima_da_linha(linha: dict, marcas: list[dict]) -> dict | None:
+    """Marca de cota (com valor, sem 'TOPO') mais próxima da linha: {cota_m, distancia_m}; só registro, não entra no
+    cálculo do fundo. None sem marca."""
+    uteis = [m for m in marcas if m.get("cota") is not None and not m.get("topo")]
+    if not uteis:
+        return None
+    reta = shapely.LineString([linha["inicio_utm"], linha["fim_utm"]])
+    d = shapely.distance(
+        reta, shapely.points(np.array([m["utm"] for m in uteis], float))
+    )
+    k = int(np.argmin(d))
+    return {"cota_m": float(uteis[k]["cota"]), "distancia_m": float(d[k])}
+
+
+def _motivo_terreno(mod: dict, terr: dict | None) -> str | None:
+    """Motivo de a linha não medir terreno natural: edificação existente ou MDS irregular (ou None)."""
+    if mod.get("fracao_edificacao", 0.0) > FRACAO_MAXIMA_EDIFICACAO:
+        return f"edificação existente na linha ({_txt(100 * mod['fracao_edificacao'], 0)} % das amostras)"
+    if terr and terr["desvio_m"] > DESVIO_MAXIMO_TERRENO_M:
+        return (
+            f"terreno do MDS irregular na linha (desvio {_txt(terr['desvio_m'])} m, "
+            f"diferença média {_txt(terr['dif_media_m'], 2, True)} m)"
+        )
+    return None
+
+
+def _motivo_nao_conferivel(
+    sec: dict, mod: dict | None, terr: dict | None = None
+) -> str | None:
+    """Motivo de a seção não ser conferível (ou None): sem linha, sem corte, área parcial, fora do MDS, linha incompleta,
+    edificação ou terreno irregular na linha, cava continua."""
     if mod is None:
         return "sem linha de seção na planta de escavação"
     if mod.get("quebrada"):
@@ -384,9 +550,75 @@ def _motivo_nao_conferivel(sec: dict, mod: dict | None) -> str | None:
         return "área parcial no projeto (" + parcial[0] + ")"
     if mod["fracao_no_mds"] < FRACAO_MINIMA_NO_MDS:
         return f"linha fora do MDS ({mod['fracao_no_mds']:.0%} dentro da grade válida)"
-    if mod["corte_na_ponta"]:
-        return "o corte do modelo vai até a ponta da linha (a cava continua além dela)"
-    return None
+    return _motivo_da_linha(sec, mod, terr)
+
+
+def _motivo_da_linha(sec: dict, mod: dict, terr: dict | None) -> str | None:
+    """Motivos ligados à linha amostrada (juntos, com "; "): linha incompleta, edificação ou terreno irregular, cava
+    até a ponta. Com a linha incompleta o corte "ir até a ponta" não é motivo (a cava continua além da linha porque
+    a linha é curta)."""
+    largura_m = (
+        sec["terreno"][-1][0] - sec["terreno"][0][0]
+    )  # eixo x do quadro do corte
+    comprimento_m = mod.get("comprimento_linha_m")
+    motivos = []
+    incompleta = (
+        comprimento_m is not None and comprimento_m < FRACAO_MINIMA_LINHA * largura_m
+    )
+    if incompleta:
+        motivos.append(
+            f"linha incompleta na planta ({_txt(comprimento_m, 1)} m de {_txt(largura_m, 1)} m)"
+        )
+    motivo_terreno = _motivo_terreno(mod, terr)
+    if motivo_terreno:
+        motivos.append(motivo_terreno)
+    if mod["corte_na_ponta"] and not incompleta:
+        motivos.append(
+            "o corte do modelo vai até a ponta da linha (a cava continua além dela)"
+        )
+    return "; ".join(motivos) or None
+
+
+def _area_corrigida(sec: dict, mod: dict, terr: dict | None) -> dict:
+    """Área do modelo corrigida pelo terreno: A − (terreno modelo − projeto) × largura do corte do modelo. Informação para
+    o humano separar o efeito do terreno; não muda a situação."""
+    if terr is None:
+        return {}
+    corrigida = mod["area_corte_m2"] - terr["dif_media_m"] * mod["largura_corte_m"]
+    return {
+        "area_modelo_corrigida_terreno_m2": corrigida,
+        "dif_area_corrigida_rel": (corrigida - sec["area_corte_m2"])
+        / max(sec["area_corte_m2"], 1e-9),
+    }
+
+
+def _falhas(
+    sec: dict, mod: dict, terr: dict | None, dif_area: float, tol_area: float
+) -> list[str]:
+    """Falhas de tolerância (área, fundo, terreno) de uma seção conferível."""
+    falhas = []
+    if abs(dif_area) > tol_area:
+        falhas.append(
+            f"área {_txt(dif_area, 1, True)} m² (tolerância ±{_txt(tol_area, 1)})"
+        )
+    if mod["cota_fundo_min_m"] is None:
+        falhas.append("o modelo não tem cava na linha")
+        return falhas
+    dif_fundo = mod["cota_fundo_min_m"] - sec["cota_fundo_min_m"]
+    if abs(dif_fundo) > TOL_FUNDO_M:
+        texto = f"fundo {_txt(dif_fundo, 2, True)} m (tolerância ±{_txt(TOL_FUNDO_M)})"
+        marca = mod.get("marca_proxima")
+        if marca:
+            texto += (
+                f"; marca de cota mais próxima da linha: {_txt(marca['cota_m'])} m "
+                f"a {_txt(marca['distancia_m'], 1)} m"
+            )
+        falhas.append(texto)
+    if terr and abs(terr["dif_media_m"]) > TOL_TERRENO_M:
+        falhas.append(
+            f"terreno {_txt(terr['dif_media_m'], 2, True)} m (tolerância ±{_txt(TOL_TERRENO_M)})"
+        )
+    return falhas
 
 
 def conferir_secao(sec: dict, mod: dict | None) -> dict:
@@ -400,44 +632,34 @@ def conferir_secao(sec: dict, mod: dict | None) -> dict:
         "talude_projeto_h_v": talude_do_projeto(sec["escavacao"]),
         "alertas_projeto": sec.get("alertas", []),
     }
+    terr = None
     if mod is not None:
+        terr = comparar_terreno(sec["terreno"], mod["terreno"], mod["passo_m"])
         linha.update(
             area_modelo_m2=mod["area_corte_m2"],
             fundo_modelo_m=mod["cota_fundo_min_m"],
             largura_modelo_m=mod["largura_corte_m"],
             linha_prancha=mod.get("linha_prancha"),
             comprimento_linha_m=mod.get("comprimento_linha_m"),
+            dif_terreno_m=terr and terr["dif_media_m"],
+            **_area_corrigida(sec, mod, terr),
         )
-    motivo = _motivo_nao_conferivel(sec, mod)
+    motivo = _motivo_nao_conferivel(sec, mod, terr)
     if motivo:
         return {**linha, "situacao": "não conferível", "motivo": motivo}
-    terr = comparar_terreno(sec["terreno"], mod["terreno"], mod["passo_m"])
     dif_area = mod["area_corte_m2"] - sec["area_corte_m2"]
     tol_area = max(
         TOL_AREA_REL * sec["area_corte_m2"], TOL_TERRENO_M * sec["largura_corte_m"]
     )
-    dif_fundo = (
-        None
-        if mod["cota_fundo_min_m"] is None
-        else mod["cota_fundo_min_m"] - sec["cota_fundo_min_m"]
-    )
-    falhas = []
-    if abs(dif_area) > tol_area:
-        falhas.append(f"área {dif_area:+.1f} m² (tolerância ±{tol_area:.1f})")
-    if dif_fundo is None:
-        falhas.append("o modelo não tem cava na linha")
-    elif abs(dif_fundo) > TOL_FUNDO_M:
-        falhas.append(f"fundo {dif_fundo:+.2f} m (tolerância ±{TOL_FUNDO_M:.2f})")
-    if terr and abs(terr["dif_media_m"]) > TOL_TERRENO_M:
-        falhas.append(
-            f"terreno {terr['dif_media_m']:+.2f} m (tolerância ±{TOL_TERRENO_M:.2f})"
-        )
+    falhas = _falhas(sec, mod, terr, dif_area, tol_area)
     return {
         **linha,
         "dif_area_m2": dif_area,
         "dif_area_rel": dif_area / sec["area_corte_m2"],
         "tol_area_m2": tol_area,
-        "dif_fundo_m": dif_fundo,
+        "dif_fundo_m": None
+        if mod["cota_fundo_min_m"] is None
+        else mod["cota_fundo_min_m"] - sec["cota_fundo_min_m"],
         "terreno": terr,
         "situacao": "difere" if falhas else "confere",
         "motivo": "; ".join(falhas),
@@ -583,8 +805,10 @@ def _media_do_par(
     """Linha das seções médias para o par (la, lb) de uma cava."""
     a, b = por_secao.get(la["secao"]), por_secao.get(lb["secao"])
     base = {"cava": cid, "secoes": [la["secao"], lb["secao"]]}
-    ruins = [
-        x["secao"] for x in (a, b) if x is None or x["situacao"] == "não conferível"
+    ruins = [  # seção da linha sem corte no projeto (a letra lida não existe nas pranchas de corte) também entra
+        l["secao"]
+        for l, x in ((la, a), (lb, b))
+        if x is None or x["situacao"] == "não conferível"
     ]
     if ruins:
         return {
@@ -742,8 +966,9 @@ def sequencia_executiva(pdf: str | Path) -> list[dict]:
 
 
 def ligar_sequencia(notas: list[dict], cavas: list[dict]) -> list[dict]:
-    """Confere cada cota de escavação contra o fundo do modelo só onde a ligação é objetiva: exatamente uma cava com
-    fundo mínimo a ±`TOL_FUNDO_M` da cota (ligação por valor; a nota não diz onde). O resto é "não conferível" com o
+    """Compara cada cota de escavação com o fundo do modelo só onde a ligação é objetiva: exatamente uma cava com
+    fundo mínimo a ±`TOL_FUNDO_M` da cota. A situação é "compatível por valor" (não "confere"): a nota não diz onde, então
+    só o valor casa. O resto é "não conferível" com o
     motivo: reaterro (o modelo não tem cota de reaterro), cota final sem valor, nenhuma cava ou várias com esse fundo."""
     saida = []
     for n in notas:
@@ -758,7 +983,7 @@ def ligar_sequencia(notas: list[dict], cavas: list[dict]) -> list[dict]:
             ]
             if len(perto) == 1:
                 r.update(
-                    situacao="confere",
+                    situacao=SITUACAO_SEQUENCIA,
                     cava=perto[0]["id"],
                     motivo=(
                         f"fundo do modelo na cava {perto[0]['id']}: {perto[0]['fundo_m'][0]:.2f} m "
@@ -793,19 +1018,24 @@ def _sem_ligacao_repetida(linhas: list[dict]) -> list[dict]:
 
 # --- apresentação (texto pronto para o HTML) -----------------------------------------------------------------------
 def _txt(valor, casas: int = 2, sinal: bool = False) -> str:
-    """Número com vírgula decimal; '—' onde não há valor."""
+    """Número com vírgula decimal; '—' onde não há valor. Formata só o número (nunca uma frase inteira)."""
     if valor is None:
         return "—"
-    return (
-        f"{valor:+.{casas}f}".replace(".", ",")
-        if sinal
-        else f"{valor:.{casas}f}".replace(".", ",")
-    )
+    return f"{valor:{'+' if sinal else ''}.{casas}f}".replace(".", ",")
+
+
+def _numero(valor: float) -> str:
+    """Número sem zeros à direita, com vírgula decimal."""
+    return f"{valor:g}".replace(".", ",")
+
+
+def _pct(valor) -> str:
+    """Fração em porcentagem com sinal e vírgula decimal; '—' onde não há valor."""
+    return "—" if valor is None else f"{valor:+.0%}".replace(".", ",")
 
 
 def formatar_secao(r: dict) -> dict:
     """Linha de seção da conferência com os números já em texto (o HTML só mostra)."""
-    terr = r.get("terreno")
     return {
         "secao": r["secao"],
         "prancha": r["prancha"],
@@ -814,13 +1044,13 @@ def formatar_secao(r: dict) -> dict:
         "area_projeto_txt": _txt(r["area_projeto_m2"], 1),
         "area_modelo_txt": _txt(r.get("area_modelo_m2"), 1),
         "dif_area_txt": _txt(r.get("dif_area_m2"), 1, True),
-        "dif_area_rel_txt": "—"
-        if r.get("dif_area_rel") is None
-        else f"{r['dif_area_rel']:+.0%}".replace(".", ","),
+        "dif_area_rel_txt": _pct(r.get("dif_area_rel")),
+        "area_corrigida_txt": _txt(r.get("area_modelo_corrigida_terreno_m2"), 1),
+        "dif_area_corrigida_rel_txt": _pct(r.get("dif_area_corrigida_rel")),
         "fundo_projeto_txt": _txt(r["fundo_projeto_m"]),
         "fundo_modelo_txt": _txt(r.get("fundo_modelo_m")),
         "dif_fundo_txt": _txt(r.get("dif_fundo_m"), 2, True),
-        "dif_terreno_txt": _txt(terr and terr["dif_media_m"], 2, True),
+        "dif_terreno_txt": _txt(r.get("dif_terreno_m"), 2, True),
         "talude_projeto_txt": _txt(r.get("talude_projeto_h_v"), 2),
     }
 
@@ -835,9 +1065,7 @@ def formatar_media(r: dict) -> dict:
         "distancia_txt": _txt(r.get("distancia_m"), 1),
         "volume_projeto_txt": _txt(r.get("volume_projeto_m3"), 0),
         "volume_modelo_txt": _txt(r.get("volume_modelo_m3"), 0),
-        "dif_rel_txt": "—"
-        if r.get("dif_rel") is None
-        else f"{r['dif_rel']:+.0%}".replace(".", ","),
+        "dif_rel_txt": _pct(r.get("dif_rel")),
     }
 
 
@@ -854,25 +1082,30 @@ def formatar_nota(n: dict) -> dict:
     }
 
 
-def placar(linhas: list[dict]) -> dict[str, int]:
-    """Contagem por situação (confere / difere / não conferível)."""
-    return {
-        s: sum(l["situacao"] == s for l in linhas)
-        for s in ("confere", "difere", "não conferível")
-    }
+def placar(
+    linhas: list[dict], situacoes: tuple[str, ...] = SITUACOES_SECAO
+) -> dict[str, int]:
+    """Contagem por situação (seções: confere / difere / não conferível)."""
+    return {s: sum(l["situacao"] == s for l in linhas) for s in situacoes}
+
+
+def placar_sequencia(notas: list[dict]) -> dict[str, int]:
+    """Placar da sequência executiva: 'compatível por valor' (a nota não diz onde) × não conferível."""
+    return placar(notas, (SITUACAO_SEQUENCIA, "não conferível"))
 
 
 def _tolerancias_txt() -> list[str]:
     return [
-        f"fundo ±{TOL_FUNDO_M:.2f} m (absoluta)".replace(".", ","),
-        f"terreno médio MDS × TERRENO ORIGINAL ±{TOL_TERRENO_M:.2f} m (absoluta)".replace(
-            ".", ","
-        ),
-        f"área: o maior entre {TOL_AREA_REL:.0%} da área do projeto e {TOL_TERRENO_M:.2f} m × largura do corte".replace(
-            ".", ","
-        ),
+        f"fundo ±{_txt(TOL_FUNDO_M)} m (absoluta)",
+        f"terreno médio MDS × TERRENO ORIGINAL ±{_txt(TOL_TERRENO_M)} m (absoluta)",
+        f"área: o maior entre {TOL_AREA_REL:.0%} da área do projeto e {_txt(TOL_TERRENO_M)} m × largura do corte",
         f"seções médias: volume ±{TOL_VOLUME_REL:.0%}",
         f"corte com área < {AREA_MINIMA_M2:g} m²: sem corte no projeto",
+        f"linha com menos de {FRACAO_MINIMA_LINHA:.0%} da largura do quadro do corte: linha incompleta",
+        (
+            f"mais de {FRACAO_MAXIMA_EDIFICACAO:.0%} da linha sobre edificação, ou desvio do terreno acima de "
+            f"{_txt(DESVIO_MAXIMO_TERRENO_M)} m: não conferível"
+        ),
     ]
 
 
@@ -916,7 +1149,7 @@ def _ler_pdfs(
         linhas += _com_cache(
             cache,
             f"linhas:{pid}",
-            _assinatura(p["pdf"], M.round(6).tolist()),
+            _assinatura(p["pdf"], f"v{VERSAO_LEITURA_LINHAS}:{M.round(6).tolist()}"),
             lambda p=p, M=M: linhas_da_planta(p["pdf"], M, p.get("clip"), p["id"]),
         )
         notas += _com_cache(
@@ -939,6 +1172,7 @@ def conferir(projeto: list, linhas: list, notas: list, saida: dict) -> dict:
             "linha_prancha": l["prancha"],
             "comprimento_linha_m": l["comprimento_m"],
             "quebrada": bool(l.get("quebrada")),
+            "marca_proxima": marca_proxima_da_linha(l, saida.get("marcas", [])),
         }
         for l in unicas
     }
@@ -984,7 +1218,8 @@ def etapa(
     p = placar(r["secoes"])
     log(
         f"Conferência das cavas: {len(r['secoes'])} seções — {p['confere']} confere, {p['difere']} difere, "
-        f"{p['não conferível']} não conferível; seções médias {placar(r['medias'])}; {len(r['alertas'])} alerta(s)"
+        f"{p['não conferível']} não conferível; seções médias {placar(r['medias'])}; sequência "
+        f"{placar_sequencia(r['sequencia'])}; {len(r['alertas'])} alerta(s)"
     )
     return para_html(r)
 
@@ -993,11 +1228,12 @@ def para_html(r: dict) -> dict:
     """Pacote do HTML: linhas já formatadas em Python (o front só apresenta)."""
     return {
         "placar": placar(r["secoes"]),
+        "placar_sequencia": placar_sequencia(r["sequencia"]),
         "secoes": [formatar_secao(s) for s in r["secoes"]],
         "medias": [formatar_media(m) for m in r["medias"]],
         "sequencia": [formatar_nota(n) for n in r["sequencia"]],
         "alertas": r["alertas"],
         "tolerancias": _tolerancias_txt(),
-        "nota": f"O modelo usa talude {escavacao.VALOR['talude_h_v']:g}H:1V; onde o projeto tem contenção por "
-        "estacas (talude ~0) a área do modelo tende a ser maior.".replace(".", ","),
+        "nota": f"O modelo usa talude {_numero(escavacao.VALOR['talude_h_v'])}H:1V; onde o projeto tem "
+        "contenção por estacas (talude ~0) a área do modelo tende a ser maior.",
     }
