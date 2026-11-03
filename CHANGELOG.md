@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.48.0 — 2026-11-03 · EAP padrão por tipo de obra (esqueleto a preencher)
+- **`conceitos/eap_padrao.json`**: dois modelos nas etapas de execução — `obra_localizada` (OP: preliminares,
+  movimento de terra, fundações, estrutura de concreto, impermeabilização, arquitetura, instalações hidráulicas,
+  equipamentos, elétrica e automação, urbanização, ensaios e comissionamento, serviços finais) e `obra_linear` (OL:
+  preliminares, remoção de pavimento, vala, assentamento, reaterro, travessias/MND, poços de visita e peças
+  especiais, recomposição de pavimento, testes, ligações, cadastro e desmobilização). 73 folhas, 51 apontando para
+  itens/serviços da EAP codificada; todos os 21 itens de `eap_geral` estão no padrão. Estado premissa: a prática de
+  orçamento de saneamento e a organização do MOS Sanepar (o MOS não está no repositório; etapas a conferir).
+- **`camadas/eap_padrao.py`**: `validar`, `tipo_da_obra` (do obra.json ou deduzido), `preencher` — preenchida, só
+  menção, a preencher (obrigatória em destaque), não se aplica (declarada em `obra.json → eap_padrao.nao_se_aplica`
+  com justificativa) e sem item codificado — e % preenchido por etapa. É uma vista da EAP codificada: não cria
+  quantidade. Seção "EAP padrão (a preencher)" na aba EAP; `eap_padrao.json` no build.
+- Lição L044.
+
 ## 0.47.0 — 2026-11-03 · "Sem preço" também no texto da planilha lida pela IA
 - **`evidencias.paginas_planilha`**: colunas de preço (rótulo PREÇO*, VALOR*, CUSTO*, R$, TOTAL, SUBTOTAL, BDI, PU,
   P. UNIT) saem do texto da linha e do mapa de células, da linha de cabeçalho até o próximo cabeçalho; célula com

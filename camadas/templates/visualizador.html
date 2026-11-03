@@ -205,6 +205,13 @@ aside.larga{width:min(560px,46vw)}
 .eap-fato[hidden]{display:none}
 .st{display:inline-block;padding:1px 6px;border-radius:9px;border:1px solid currentColor;font:500 10.5px/16px var(--f-dado);white-space:nowrap}
 .st-sem-evidencia{color:var(--mut);border-style:dashed}.eap-c .eap-n>summary .st{flex:none;align-self:center}
+.st-preenchida{color:var(--ok)}.st-a-preencher{color:var(--aberta)}.st-nao-se-aplica{color:var(--mut);border-style:dashed}.st-sem-item-codificado{color:var(--mut)}
+.eap-pad-res{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:12px var(--f-dado);color:var(--mut)}
+.eap-pad-bar{display:inline-block;width:80px;height:6px;border-radius:3px;background:var(--linha);overflow:hidden;flex:none}.eap-pad-bar>i{display:block;height:100%;background:var(--ok)}
+.eap-pad-folha{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;margin:0 0 4px 22px;padding:4px 8px;border-left:2px solid var(--linha);font-size:12px;overflow-wrap:anywhere}
+.eap-pad-folha.destaque{border-left:3px solid var(--aberta);background:color-mix(in srgb,var(--aberta) 8%,transparent)}
+.eap-pad-folha .cod{font:500 11px var(--f-dado)}.eap-pad-folha .nota-l{flex-basis:100%}
+.eap-pad-tipo{margin:6px 0 2px;font-weight:600}
 .eap-vista{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:0 0 8px;padding:6px 8px;border:1px solid var(--linha);border-radius:6px;font-size:12px;overflow-wrap:anywhere}.eap-vista[hidden]{display:none}
 .st-conflito{color:#b91c1c}.st-so-mencao{color:var(--aberta)}.st-fonte-unica{color:var(--mut)}.st-convergente,.st-decidido{color:var(--ok)}
 .eap-aff{margin:0 0 6px 28px;padding:4px 8px;border-left:2px solid var(--linha);font-size:12px;overflow-wrap:anywhere}
@@ -2357,6 +2364,18 @@ function htmlEapAssociados(P) {
   return `<h2>Serviços associados × edital</h2><p class="nota-l" style="margin-left:0">Não citados no edital: <b data-k="nao_citados">${esc(R.nao_citados)}</b> de <b data-k="associados">${esc(R.associados)}</b></p>
     ${A.length ? `<table class="eap-assoc" id="eapAssoc"><thead><tr><th>Item</th><th>Serviço</th><th>Quantidade</th><th>Situação</th></tr></thead><tbody>${A.map(linha).join("")}</tbody></table>` : '<p class="aviso" style="margin-left:0">Nenhum serviço associado.</p>'}`;
 }
+function htmlEapPadrao(Q) {
+  const barra = r => `<span class="eap-pad-bar" title="${esc(r.pct_txt)}"><i style="width:${esc(r.pct === null ? 0 : r.pct)}%"></i></span>`;
+  const resumo = r => `<span class="eap-pad-res">${barra(r)}<b data-k="pct">${esc(r.pct_txt)}</b> preenchido (${esc(r.n_preenchidas)} de ${esc(r.n_aplicaveis)})${r.obrigatorias_a_preencher ? ` · <b class="st st-a-preencher" data-k="obrigatorias">${esc(r.obrigatorias_a_preencher)} obrigatória(s) a preencher</b>` : ""}</span>`;
+  const folha = f => `<div class="eap-pad-folha${f.destaque ? " destaque" : ""}" data-id="${esc(f.id)}" data-situacao="${esc(f.situacao)}"><span class="st st-${esc(slugStatus(f.situacao))}">${esc(f.situacao)}</span><span class="cod">${esc(f.id)}</span><span>${esc(f.nome)}</span>${f.obrigatoria ? '<span class="badge">obrigatória</span>' : ""}${f.escopo !== "ambos" ? `<span class="badge">${esc(f.escopo)}</span>` : ""}
+    ${f.quantidades_txt.length ? `<span class="eap-v">${f.quantidades_txt.map(esc).join(" · ")}</span>` : ""}
+    <span class="nota-l">${f.codigos.length ? esc(f.codigos.join(" · ")) + (f.n_evidencias ? ` · ${esc(f.n_evidencias)} evidência(s)` : "") : esc(f.aponta_txt.join(" · "))}${f.observacao ? " · " + esc(f.observacao) : ""}${f.justificativa ? ` · não se aplica: ${esc(f.justificativa)}${f.autor ? " (" + esc(f.autor) + ")" : ""}` : ""}</span></div>`;
+  const etapa = e => `<details class="eap-n eap-pad-etapa" data-etapa="${esc(e.id)}"><summary><span class="cod">${esc(e.id)}</span><span>${esc(e.nome)}</span>${resumo(e.resumo)}</summary>${e.folhas.map(folha).join("")}</details>`;
+  const tipo = t => `<div class="eap-pad-tipo" data-tipo="${esc(t.tipo)}">${esc(t.nome)} ${resumo(t.resumo)}</div><div class="eap-c">${t.etapas.map(etapa).join("")}</div>`;
+  const fora = (Q.fora_do_padrao || []).map(i => `${i.codigo} (${i.nome})`).join("; ");
+  return `<h2>EAP padrão (a preencher)</h2><p class="nota-l" style="margin-left:0" id="eapPadAviso">${esc(Q.aviso)}</p><p class="nota-l" style="margin-left:0">${esc(Q.regra_tipo)}</p>
+    <div id="eapPadrao">${(Q.tipos || []).map(tipo).join("")}</div>${fora ? `<p class="nota-l" style="margin-left:0">Itens da EAP fora do padrão: ${esc(fora)}</p>` : ""}`;
+}
 /* "ver no mapa" de um nó: liga a camada dos elementos construtivos (aba Obra), enquadra e destaca a lista pronta de ids e esmaece
    os demais elementos (OBRA.filtroEap, lido por estiloObra: sobrevive a aplicarEscopoMapa) até "limpar filtro EAP".
    Item: abre a ficha do primeiro elemento e, com vários, enquadra e destaca todos. */
@@ -2433,7 +2452,7 @@ function filtrarFatosEap(status) {
 }
 function montarEap() {
   const P = D.eap_painel, aba = $("#aba-eap");
-  aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "");
+  aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "") + (D.eap_padrao ? htmlEapPadrao(D.eap_padrao) : "");
   if (!P) return;
   document.addEventListener("click", e => { if (e.target.closest("[data-eap-limpar]")) limparFiltroEap(); });   // botões da aba EAP e da aba Obra
   aba.addEventListener("change", e => {
@@ -2452,7 +2471,7 @@ function montarEap() {
    ==================================================================== */
 window.__viz = {PR, D, FV, ESTACAS, INTERV, map, camadasMapa, marcaSnd, get anot() { return anot; }, get ARV() { return ARV; }, indexar, consultaPrancha, abrirFolha, ligarPranchaMapa, definirEtapa, abrir3D, abrirFoto, htmlSondagem, pt2ll, snapMapa, identificarPranchas};   // ganchos para scripts/testar_visualizador.py
 function iniciarV2() {
-  if (D.eap_gavetas || D.eap_painel) { $("#t-eap").hidden = false; montarEap(); }
+  if (D.eap_gavetas || D.eap_painel || D.eap_padrao) { $("#t-eap").hidden = false; montarEap(); }
   if (PR.length) { $("#t-pranchas").hidden = false; montarSelecaoPranchas(); }
   if (PR.length || ESC.length || ETAPAS.length) { $("#t-escopo").hidden = !(ESC.length || ETAPAS.length); montarEscopo(); }
   new ResizeObserver(() => { map.invalidateSize(); document.documentElement.style.setProperty("--mapa-h", map.getSize().y + "px"); }).observe($("#mapa"));   // a aba Escopo alarga o painel
