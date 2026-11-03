@@ -212,8 +212,10 @@ def medir(base: str, alvo: str) -> dict:
 CSS = """
 :root{--fundo:#f7f7f5;--papel:#fff;--texto:#1d1d1b;--suave:#6b6b66;--linha:#e3e2dd;--ok:#1f7a4d;--at:#a86200;--dv:#b42318;
 --ok-f:#e6f4ec;--at-f:#fdf1dc;--dv-f:#fde8e6}
-@media (prefers-color-scheme:dark){:root{--fundo:#141413;--papel:#1e1e1c;--texto:#ecebe6;--suave:#a3a29b;--linha:#33322f;
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fundo:#141413;--papel:#1e1e1c;--texto:#ecebe6;--suave:#a3a29b;--linha:#33322f;
 --ok:#5fc48f;--at:#f0b153;--dv:#f2837a;--ok-f:#173225;--at-f:#3a2a10;--dv-f:#3d1a17}}
+:root[data-theme="dark"]{--fundo:#141413;--papel:#1e1e1c;--texto:#ecebe6;--suave:#a3a29b;--linha:#33322f;
+--ok:#5fc48f;--at:#f0b153;--dv:#f2837a;--ok-f:#173225;--at-f:#3a2a10;--dv-f:#3d1a17}
 *{box-sizing:border-box}body{margin:0;background:var(--fundo);color:var(--texto);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
 main{max-width:1080px;margin:0 auto;padding:24px 16px 64px}h1{font-size:24px;margin:0 0 4px}h2{font-size:17px;margin:32px 0 10px}
 .sub{color:var(--suave);font-size:13px}.veredito{border-radius:10px;padding:16px 18px;margin:18px 0;border:1px solid var(--linha)}

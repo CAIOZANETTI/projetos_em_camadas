@@ -1,0 +1,177 @@
+{
+ "janela": "94db65b (0.31.0, fim da rodada 25) → origin/main 9538d49 (0.45.0); 15 merges first-parent, 132 commits, 111 arquivos, +19 957/−146 linhas; 24 arquivos de teste (+8 593/−3)",
+ "verdes": "uv run pytest -q: 689 passed, 63 skipped (27 s); python -m camadas.referencia: hash 0602c637… (igual ao de 0.31.0); VERSAO 0.45.0 = topo do CHANGELOG",
+ "itens": [
+  {
+   "grupo": "Regras",
+   "item": "Python em português nos módulos novos",
+   "estado": "OK",
+   "evidencia": "Todas as funções dos 8 módulos novos (camadas/evidencias.py, eap.py, eap_painel.py, calibracao.py, dimensoes.py, associados.py, formulas.py, vocabulario.py) têm nome em português (ex.: conferir_citacao, premissa_implicita, sondagem_proxima, status_do_no); a busca por identificadores ingleses só devolveu APIs de biblioteca (read_text, load_workbook, value_counts). Docstrings, mensagens de recusa e de log em português (evidencias.py:1418 \"método e documento.tipo têm de ser 'ia'\")."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Python calcula; HTML/JS só apresentam (aba EAP, filtro, recorte de pranchas)",
+   "estado": "OK",
+   "evidencia": "camadas/templates/visualizador.html (+183 linhas): o JS novo monta DOM, abre/fecha e filtra por status; cabeçalho do bloco diz \"tudo já somado, ordenado e formatado pelo Python (camadas/eap_painel.py)\"; contagens vêm prontas (n_elementos, n_fatos, n_conflitos, selo_title, rotulo_vista de eap_painel.status_do_no/arvore); o recorte 'só pranchas desta disciplina' só testa pertencer a subgrupos_mapa (lista do Python, PR #40). Único uso aritmético: lays.length > 1 para decidir enquadrar. Testes no Chromium: tests/test_visualizador_eap.py (+515) e test_eap_html.py. A exceção documentada (medir/ll2utm) não foi ampliada."
+  },
+  {
+   "grupo": "Regras",
+   "item": "SI com unidade como sufixo do nome",
+   "estado": "ATENÇÃO",
+   "evidencia": "Unidades sempre SI (m, m², m³, kg; t → kg em vocabulario.py). Mas as 'dimensões padronizadas' do ramo EAP não levam sufixo: camadas/dimensoes.py:263-270 monta dims com chaves L, d, h, b, V_solo, V_reat, V_bota, A_escoramento, A_demol, e_pav (conceitos/dimensoes.json: \"V\": \"A * h\", \"A_forma\": \"P * h\"), contra docs/estilo.md §3. O furo continua com E, N, cota_boca sem sufixo (geotecnia.py:5 e :369), pendência 'furo com sufixo SI' deixada pela rodada 25 (plano, Fechamento) e não cumprida; conceitos/de_para_extracao.json:69-71 ainda diz cota_boca_m e 'módulo geotecnia a fazer'."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Nenhuma IA no caminho do resultado de engenharia (Leitura por IA 0.39–0.44)",
+   "estado": "OK",
+   "evidencia": "A IA só propõe; o código confere deterministicamente: evidencias.py:854 e :871 só consolidam metodo == 'ia' com citacao == 'conferida'; conferir_citacao exige trecho literal no documento (fronteira de palavra e de número), par (valor, unidade) na mesma linha/bloco, item e serviço na EAP geral, localizador conferido (docs/EAP.md §5); o build reconfere e descarta o selo do arquivo (CHANGELOG 0.39.0); IA não aumenta a 'forca'. Quantidades de obra não leem IA: dados['eap'] vem dos elementos construtivos (obra.py:838 eap.montar), gavetas recusam furo só de IA (tests/test_gavetas.py::test_furo_criado_so_pela_ia_nao_e_insumo_da_regra), obras lineares e cavas vêm de planilha/MDS. 0.44.0 corrigiu o regex (sem IA) com a mesma regra (vocabulario.NAO_E_NUMERO, tests/test_vocabulario_colado.py). Testes adversariais: tests/test_evidencias_ia*.py (1 130 linhas)."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Fato de IA conferida com status 'fonte única' pode virar elemento e gerar serviços associados",
+   "estado": "ATENÇÃO",
+   "evidencia": "camadas/dimensoes.py:375-392 (de_fatos) aceita fatos 'convergente', 'fonte única' ou 'decidido' sem olhar o método: uma única evidência ia conferida (ex.: laje 120 m²) vira elemento e gera escoramento, forma etc. em associados.csv e evidências metodo:associado; calibracao._observado (calibracao.py:188-202) também aceita IA conferida como observado. Não entra nas quantidades de obra nem altera premissa (CHANGELOG 0.42.0 'nunca altera premissa'), e o número foi conferido contra o texto literal, mas é um número de origem IA na trilha de serviços associados. Vale declarar em docs/EAP.md §7 ou filtrar o método em de_fatos."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Sem nomes de modelo fixos no código",
+   "estado": "OK",
+   "evidencia": "grep em camadas/*.py: nenhum id claude-*; 'Haiku'/'Sonnet' aparecem só como degraus da escada (escada.py:1,25; extracao.py:6) e na docstring gavetas.py:411 ('o executor não serve de critério'). Nomes de modelo só em dados (results/agentes/execucoes.csv, coluna modelo) e na configuração dos agentes. Observação: a regra 'repertorio/modelos.yaml' é do CLAUDE.md do vibe_code_metrics, não do deste repositório."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Reprodutibilidade e tolerâncias",
+   "estado": "OK",
+   "evidencia": "Hash do conjunto de referência rodado agora: 0602c637… (o mesmo de 0.31.0; CHANGELOG 0.44.0 e PR #18 declaram 'inalterado'); 689 testes passam. Tolerâncias declaradas: paridade das cavas 0,1 m³/0,1 m² (plano rodada 5), conciliação das EAP com tolerância absoluta, fatos agrupados a 0,5 % (docs/EAP.md §5), calibração 5 % e 1e-9 na linearidade (0.42.0). Superfície .npz com sha256 conferido (0.34.0)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Um único dimensionador de vala e um único modelo geotécnico (ARQUITETURA §5, G2/L3 da rodada 25)",
+   "estado": "DESVIO",
+   "evidencia": "O build tem um só: lineares.dimensionar_vala (valas.py:191, obras_lineares.py:10, evidencias.py:294 delegam; 0.33.0 só acrescentou a regra escoramento_vala_total e a planilha como fonte, sem novo dimensionador). Mas o PR #18 (ramo nifty-meitner, 0.32.0) trouxe camadas/dimensoes.py:288 dimensionar_vala com interpretador geotécnico próprio: classe_solo (:115), sondagem_proxima com raio 300 m (:122-129; conceitos/dimensoes.json:507-511), solo_na_vala com margem do NA 0,5 m (:132-148; dimensoes.json:514-518) e empolamento 1,25 (dimensoes.json:580-586), contra a D1 (60 m, 0 m, 1,30 em conceitos/geotecnia.json) e contra G2 ('nada de regra própria'). O método mos_sanepar delega ao único (dimensoes.py:261), mas o nbr12266 usa a regra própria. docs/EAP.md §7.1-7.2 documenta como 'cada método é uma evidência; o build continua usando o MOS (D2)'. Não há decisão registrada do Caio sobre manter dois interpretadores de sondagem na main."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "docs/ARQUITETURA.md atualizada com o entregue",
+   "estado": "DESVIO",
+   "evidencia": "Último commit em docs/ARQUITETURA.md: 89235e5 (0.31.0, 01/11). Catorze versões depois, o §5 ainda diz 'dimensoes.dimensionar_vala (ramo EAP)' e 'o dimensionador do ramo da EAP não foi integrado', quando ele está na main desde 0.32.0; não cita camadas/eap.py, evidencias.py, calibracao.py, eap_painel.py, dimensoes.py nem docs/EAP.md; o §9 (índice de determinismo) parou em 0.21.0 embora pdca/determinismo.json tenha mudado 'sondagens' para código (0.45.0). O próprio §10 exige 'F: arquitetura com o entregue'. Já docs/MEMORIA_ESPACIAL.md e README.md foram atualizados (+25 e +9)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Geotecnia separada da civil",
+   "estado": "OK",
+   "evidencia": "camadas/geotecnia.py é o módulo da disciplina (validar_furos, perfil_em, categoria_escavacao, conferir, ler_laudo com o layout Geoazimute em 0.45.0; +150 linhas e tests/test_geotecnia.py +149); obras_lineares.classe_solo delega a geotecnia (obras_lineares.py:88-90); a EAP codificada tem GEO como disciplina própria (conceitos/eap.json, GEO.FUN/GEO.MOV; CHANGELOG 0.32.0). Ressalva: a duplicação em dimensoes.py (item anterior)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Obra linear × localizada como tipo de obra",
+   "estado": "OK",
+   "evidencia": "conceitos/unidades_construtivas.json e eap.json declaram o tipo; 'o item vale só para o tipo de obra declarado' (0.32.0); gavetas.anotar_codigo_eap recusa cava (localizada) em unidade linear (tests/test_gavetas_eap.py::test_codigo_fora_da_estrutura_vira_pendencia_e_nao_e_gravado, 1º aceite do Fable da rodada 6); redes com local → u2/AAT06 (0.45.0). lineares.py (eixo, trechos, perfil) intacto. Pendência da rodada 25 'unificar gavetas.eixo com lineares.eixo' segue aberta (gavetas.py:516 def eixo, sem usar lineares)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Todo fato diz de onde veio; EAP como linha mestra; decisões sem apagar evidência",
+   "estado": "OK",
+   "evidencia": "conceitos/evidencia.schema.json: classe, documento, localizador (página/linha, aba/linha, ids), trecho literal, metodo, regra; status convergente/fonte única/conflito/só menção/decidido (docs/EAP.md §5); 'decisao' com autor e justificativa, prioritária na calibração (calibracao.py:192-197) sem apagar afirmações. De-para 3 das gavetas para a EAP codificada (conceitos/de_para_eap.json, 0.36.0) e conciliação em conciliacao_eap.json; caximbos e área de cava ficam 'sem código', à vista, nunca inventado."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Pendência em vez de texto solto; build não cai por insumo ausente",
+   "estado": "OK",
+   "evidencia": "0.45.0: obras_lineares.tem_aba (obras_lineares.py:424-429) e etapa pulada 'NÃO CALCULADAS … (pendência; o build segue)'; ficha sem estacas.csv pulada (tests/test_prancha.py::test_ficha_de_estrutura_sem_ancoras_e_pulada_com_motivo); etapas puladas vão a dados['pendentes'] no HTML (revisão do Fable, achado 2); serviço PACOTE.* não vira evidência em vez de afrouxar o schema (achado 4, decisão da main mantida)."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Memória espacial rodadas 5 e 6: itens 'verificado' existem no código com testes",
+   "estado": "OK",
+   "evidencia": "Rodada 5 (0.34.0): gaveta superficies/.npz com sha256, escavacao.quantificar_gavetas, setor_de/setor_dos_servicos — tests/test_cavas_gavetas.py (+203; test_paridade_zero_e_conferencias_vazias, test_cada_cava_cai_no_seu_setor_pelo_ponto_do_servico), tests/test_gavetas.py (+69, setores), tests/test_eap_html.py::test_servico_contado_em_dobro_num_no_grande_e_erro (2º aceite). Rodada 6 (0.36.0): codigo_eap, unidade_sistema, conciliar_eap — tests/test_gavetas_eap.py (+184; test_conciliar_eap_as_situacoes_e_so_a_medida_do_item), tests/test_obra_eap_gavetas.py. Planos com emendas, 3 e 2 aceites do Fable registrados, balanço MANTER (results/iteracoes/6a844f7_b749d2c, 82eb01e_13cb847)."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Build real de Foz (0.45.0): prometido × entregue",
+   "estado": "OK",
+   "evidencia": "docs/plano/2026-11-02_foz_build_real.md: E1–E4 feitos, 5 achados do dado real cada um com teste (test_geotecnia +149, test_obras_lineares, test_prancha, test_extrair_gavetas), revisão do Fable REVISAR → ACEITA com 6 achados corrigidos; 'confere' circular das cavas declarado honestamente; rumo.yaml registra o desvio aceito ('9 módulos de camadas/ e os testes alterados fora dos entregáveis'). Haiku na ingestão (454 k tokens) registrado em execucoes.csv."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Frente EAP do ramo nifty-meitner (0.32, 0.33, 0.35, 0.37–0.44) sem plano em docs/plano/ e sem aceite do Fable",
+   "estado": "ATENÇÃO",
+   "evidencia": "ARQUITETURA §10: 'toda implementação segue um plano em docs/plano/<data>_rodada<N>.md' e 'uma entrega só vai para a main com … o aceite do Fable'. Os 11 PRs do ramo (#18, #34, #36, #38, #40–#45, #47) não têm plano em docs/plano/ (só os checkboxes de docs/EAP.md §10 e o corpo dos PRs); o 'revisor independente' dessa frente é Sonnet (results/agentes/execucoes.csv linhas 47, 55, 117, 120, 122-126, 129, 133: papel revisor, modelo claude-sonnet-5-5); os corpos dos PRs #34 e #36 não citam o Fable. O processo foi seguido no resto: registro de agentes, lição por versão, balanço a partir de 0.38.0."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Pendências 'para a próxima rodada' do fechamento da rodada 25",
+   "estado": "ATENÇÃO",
+   "evidencia": "Nenhuma das seis foi feita na janela: furo com sufixo SI (geotecnia.py:5), de_para_extracao.json ainda aponta obras_lineares.ler_furos e 'módulo geotecnia a fazer' (:69-71) embora o build real já use geotecnia.ler_laudo; gavetas.eixo × lineares.eixo (gavetas.py:516); CI sem --extra pdf (.github/workflows/vcm.yml); valas.quantificar no fallback; classe_solo pelo substantivo (depende do Caio). Nenhum plano novo as retomou."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Etapa 'sondagens' de IA para código no índice de determinismo",
+   "estado": "ATENÇÃO",
+   "evidencia": "O plano da rodada 25 (entrega F) dizia: 'o leitor de laudo vira etapa de código só depois da verificação em Foz pelo Caio; até lá fica IA'. Em 0.45.0 o Opus mudou pdca/determinismo.json (sondagens: executor codigo, 23 itens) e exemplos/foz/obra.json (executor_sondagens: 'código') com aceite do Fable, sem verificação registrada do Caio; o relatório admite que 'NSPT deste layout não é lido' e que os nao_lidos não chegam ao HTML. A conferência dos 23 furos (E/N, NA, camadas) pelo Caio fica pendente."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "tests/test_obras_lineares.py (gabarito da planilha da Giselle) e tests/test_valas.py::test_quadro_da_vala",
+   "estado": "OK",
+   "evidencia": "git diff --numstat: test_obras_lineares.py +12/−0 (só o teste novo test_etapa_sem_a_aba_obras_lineares_e_pulada_com_motivo); test_valas.py e test_escavacao.py não aparecem no diff (D2 já aplicada em 0.31.0, fora da janela). Nenhum valor de engenharia alterado; hash de referência igual."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "tests/test_gavetas.py, test_prancha.py, test_geotecnia.py, test_extrair_gavetas.py, test_visualizador_eap.py",
+   "estado": "OK",
+   "evidencia": "test_gavetas.py +69/−0 (setores), test_prancha.py +11/−0, test_geotecnia.py +149/−0: só adições. test_extrair_gavetas.py +113/−1: a linha trocada só acrescenta 'local': 'projetado' ao dicionário esperado (rede de vala ganha o fato local, 0.45.0). test_visualizador_eap.py +515/−2: docstring e chave dados['eap'] → dados['eap_gavetas'], decisão registrada no plano da rodada 5 (1º aceite do Fable, colisão de chave). Nenhum número de engenharia alterado."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "Premissas e conceitos novos com estado e fonte; sem calibração sem dado real",
+   "estado": "OK",
+   "evidencia": "conceitos/dimensoes.json: cada premissa com estado ('premissa'/'calibrar') e fonte; servicos_associados.jsonl ganhou 'unidade' 'sem mudar valores' (0.42.0); calibracao.py 'nunca altera premissa' e 'sem dados reais no repositório, nenhum valor de premissa foi mudado' (CHANGELOG 0.42.0; lição L038). Golden novos (tests/golden_obra/*.json, #37) são caracterização do pipeline, não gabarito de engenharia."
+  },
+  {
+   "grupo": "Processo",
+   "item": "D3 (ramo nifty-meitner 'não é integrado') × 11 PRs do ramo na main",
+   "estado": "DESVIO",
+   "evidencia": "docs/plano/2026-11-01_rodada25.md:121 registra D3: 'o ramo nifty-meitner não é integrado'. Na janela, 11 PRs com head claude/nifty-meitner-uqs554 entraram na main (#18 em 02/11 13:11 UTC, depois #34, #36, #38, #40, #41, #42, #43, #44, #45, #47), todos com merged_by CAIOZANETTI. A decisão do Caio existe de fato (ele mesmo fez os merges), mas não há registro escrito revertendo a D3: nem no plano da rodada 25, nem em ARQUITETURA.md (§5 ainda diz 'não foi integrado'), nem no CHANGELOG; o plano da rodada 5 só menciona 'Merge da main: o PR #18' como fato. O PR #18 se apresenta como 'o ramo da EAP que a ARQUITETURA.md já referencia' e adaptou o método MOS ao dimensionador único (D2), mas manteve o nbr12266 com as premissas que a D1 rejeitou."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Colisões de versão entre sessões paralelas",
+   "estado": "ATENÇÃO",
+   "evidencia": "Três colisões, todas resolvidas antes do merge: cd2403d anunciava '0.37.0' para a leitura por IA quando a main já tinha 0.37.0 (aba EAP, #38) → saiu como 0.39.0 (82a3d00); PR #38 tem '(0.36.0)' no título e entrou como 0.37.0 (a452ee2) porque #39 (rodada 6) levou o 0.36.0; 7d117d0 e 27908f9 anunciavam ambos '0.43.0' (build real de Foz × planilha) → o build passou a 0.45.0 (4e96a9c). CHANGELOG final sem duplicata e teste VERSAO = topo do CHANGELOG (camadas/__init__.py:3). Numeração de rodadas também bifurcada de propósito ('memória espacial, rodada 5/6' × 'rodada 25'), documentada nos dois planos."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Lição por versão",
+   "estado": "OK",
+   "evidencia": "pdca/licoes.jsonl: L028 (0.32.0) a L041 (0.45.0), exatamente uma por versão, todas 'formalizada' com teste existente (conferido por grep: test_ia_so_entra_com_citacao_conferida, test_escoramento_total_compara_metodos…, test_paridade_zero…, test_aba_projeto_mantem_eap…, test_conciliar_eap…, test_ver_no_mapa…, test_recorte_so_pranchas…, test_conferir_arquivo…, test_evidencias_ia_blocos.py, test_evidencias_ia_adversarial.py, test_calibracao.py, test_evidencias_planilha.py, test_vocabulario_colado.py, test_perfil_em_bloco_com_coordenada_na_folha); tests/test_determinismo.py passa."
+  },
+  {
+   "grupo": "Processo",
+   "item": "results/agentes/execucoes.csv com bloco duplicado (base da tese T003)",
+   "estado": "DESVIO",
+   "evidencia": "As linhas 2–56 (rodadas 21 a 25 e a caracterização) aparecem de novo nas linhas 58–112, com formatação diferente ('128.0' × '128', aspas), por isso sort|uniq não acusa: 'rodada 23' passa de 6 para 12 ocorrências e 'rodada 25,G1' de 1 para 2 a partir do merge c36ed5e (PR #39, rodada 6); 82eb01e (#37) ainda tinha 6. Duas sessões regravaram o CSV (uma por pandas, outra por append) e o merge manteve os dois blocos. Tokens e durações por rodada ficam contados em dobro."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Balanço vcm por PR e portão REVERTER no CI",
+   "estado": "ATENÇÃO",
+   "evidencia": "Cartões em results/iteracoes para 0.34.0, 0.36.0, #37, 0.38+0.39, 0.40, 0.41, 0.42, 0.43, 0.44 e 0.45.0 (com .decisao.md quando houve troca de métricas); faltam cartões de 0.32.0 (#18), 0.33.0 (#34), 0.35.0 (#36) e 0.37.0 (#38). O passo 'vcm balanco --falhar-se-reverter' do CI (.github/workflows/vcm.yml:21) falha em todos os PRs por não clonar o vibe_code_metrics privado (comentários dos PRs #18, #38, #40, #41, #42, #43: 'could not read Username'), então o portão 'REVERTER bloqueia o merge' não está efetivo no CI; os merges foram feitos com o balanço rodado à mão."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Registro das execuções de agentes e do rumo",
+   "estado": "OK",
+   "evidencia": "results/agentes/execucoes.csv ganhou 97 linhas na janela (executor, revisor e correção por versão; aceites do Fable nas rodadas 5, 6 e no build real; Haiku na ingestão) e pdca/agentes.jsonl +11; rumo.yaml (skill vcm-rumo, #37) com E1–E4, histórico de mudanças de base e 'desvio aceito'; results/rumo.md/html. pdca/afericao.jsonl: 12 rodadas, 0 órfãs, 6 funções longas estáveis; pdca/tese.jsonl com as rodadas 5 e 6."
+  }
+ ],
+ "decisoes_do_caio": [
+  "01/11 (plano rodada 25, Emendas): D1–D3 delegadas ao gerente ('pode passar o 1, 2 e o 3 e depois passar pelo crivo do Fable'); D3 registrada como 'o ramo nifty-meitner não é integrado'.",
+  "02/11 (fato, não registro): o próprio Caio fez o merge dos 11 PRs do ramo claude/nifty-meitner-uqs554 (#18 às 13:11 UTC; #34, #36, #38, #40–#45, #47) e dos PRs das outras sessões (#35, #37, #39, #46) — decisão implícita que reverte a D3 sem texto em docs/plano, ARQUITETURA.md ou CHANGELOG.",
+  "02/11 (docs/plano/2026-11-02_memoria_espacial_rodada5.md): 'seguir com as cavas e os setores da ETA, que ficaram fora da rodada 24'.",
+  "02/11 (docs/plano/2026-11-02_memoria_espacial_rodada6.md): 'casar os códigos provisórios das gavetas (OL, RD e CV) com a EAP codificada do PR #18, e mostrar o avanço de forma visual no chat'.",
+  "02/11 (docs/plano/2026-11-02_foz_build_real.md): 'pode seguir com o build real de Foz' e depois 'pode seguir até o PR'.",
+  "Pendentes para o Caio (registradas em docs/plano/2026-11-02_foz_build_real.md e docs/MEMORIA_ESPACIAL.md §8): conferir a aba EAP de Foz; conferência independente do volume das cavas contra o CUSTO CIVIL; planilha do protótipo com a aba Obras Lineares; origem do estacas.csv; setores reais da ETA; NSPT do layout Geoazimute; calibrar premissas com dados reais (docs/EAP.md §10); classe_solo pelo substantivo do laudo (rodada 25)."
+ ],
+ "resumo": "Entre 0.31.0 e 0.45.0 as quatro regras do mantenedor foram respeitadas no essencial: código em português, JS da aba EAP só apresenta, IA só entra com citação conferida pelo código e fora das quantidades de obra, hash de referência inalterado (0602c637…) e 689 testes verdes; a ressalva é o sufixo de unidade, ausente nas dimensões padronizadas do ramo EAP e no furo. O desvio principal é de arquitetura e de registro: a D3 dizia que o ramo nifty-meitner não seria integrado, mas o Caio mesmo fez o merge de 11 PRs dele sem nenhuma decisão escrita, e com isso a main tem um segundo interpretador geotécnico (dimensoes.dimensionar_vala, raio 300 m, NA −0,5 m, empolamento 1,25) ao lado do modelo único da D1, enquanto docs/ARQUITETURA.md parou em 0.31.0 e ainda diz que esse ramo não foi integrado. Os planos da memória espacial (rodadas 5 e 6) e do build real de Foz estão verificados com testes e aceites do Fable; a frente EAP, em contraste, andou sem plano em docs/plano e com revisão por Sonnet, não Fable. Os gabaritos de engenharia (test_obras_lineares, test_valas, test_gavetas) não tiveram valores alterados. No processo, as colisões de versão entre sessões foram resolvidas antes do merge e há uma lição por versão, mas o CSV de execuções de agentes ficou com o bloco das rodadas 21–25 duplicado (c36ed5e) e o portão REVERTER do CI não está efetivo porque o balanço falha por infraestrutura em todos os PRs."
+}
