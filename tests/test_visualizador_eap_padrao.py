@@ -3,7 +3,7 @@
 import pytest
 
 pytest.importorskip("playwright")
-from test_eap_padrao import _fato, _q
+from test_eap_padrao import ANTIGAS_SEM_ITEM, _fato, _q, sem_item
 from test_visualizador_eap import (  # noqa: F401  (fixture)
     _abrir,
     dados_minimos,
@@ -41,7 +41,8 @@ def _padrao() -> dict:
     return eap_padrao.montar({"eap": codificada, "evidencias": {"fatos": fatos}}, cfg)
 
 
-def test_aba_eap_mostra_a_eap_padrao(navegador, tmp_path):  # noqa: F811
+def test_aba_eap_mostra_a_eap_padrao(navegador, tmp_path, monkeypatch):  # noqa: F811
+    sem_item(monkeypatch, *ANTIGAS_SEM_ITEM)
     padrao = _padrao()
     pagina, erros = _abrir(
         navegador, tmp_path, {**dados_minimos(), "eap_padrao": padrao}
@@ -91,7 +92,10 @@ def test_aba_eap_mostra_a_eap_padrao(navegador, tmp_path):  # noqa: F811
         == "fora do escopo"
     )
     assert bloco["resumo"]["teto_txt"] in secao.locator(".eap-pad-tipo").inner_text()
-    assert "sem justificativa" in pagina.locator(".eap-pad-aviso").first.inner_text()
+    avisos = " ".join(
+        pagina.locator(".eap-pad-aviso").all_inner_texts()
+    )  # há também os de item órfão
+    assert "sem justificativa" in avisos
     assert (
         secao.locator('[data-id="OP.08.01"]').get_attribute("data-situacao")
         == "só menção"
