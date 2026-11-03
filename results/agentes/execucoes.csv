@@ -89,3 +89,6 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-03,EAP 0.46.0,revisão independente do commit 62c4bc2,revisor,claude-sonnet-5-5,149797,36,283,True,nenhum,"sem bloqueantes; 4 importantes (fato * comparado com linha de um sistema; concreto × * virando conflito; tolerância diferente do consolidar; origem dependente de texto livre da fonte) e 6 menores"
 2026-11-03,EAP 0.46.0,correção dos achados da revisão (commits 730be17 e 78d40a2),executor,claude-sonnet-5-5,220422,15,459,True,nenhum,"741 testes; cenários A/B/C/F da revisão corrigidos (conferido pelo gerente); aceite sem asserção alterada"
 2026-11-03,EAP 0.47.0,sem preço no texto da planilha lida pela IA (commit 6c389ba),executor,claude-sonnet-5-5,95136,15,222,True,nenhum,"722 testes na worktree; 4 novos; métodos determinísticos conferidos sem preço; hash inalterado"
+2026-11-03,D4,dimensoes vira adaptador do lineares (0.48.0),implementador,claude-sonnet-5-5,199476,58,570,True,correção do gerente (camada sem profundidade; xfail de classe_solo),ressalvas do Fable atendidas no merge
+2026-11-03,D4,aceite do adaptador D4,revisor (aceite),claude-fable-5-1,138935,23,294,True,nenhum,ACEITO COM RESSALVAS
+2026-11-03,verificação,leitura qualitativa da verificação de 03/11,revisor,claude-fable-5-1,220772,56,557,True,nenhum,COM DESVIOS (4)

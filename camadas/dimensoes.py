@@ -140,9 +140,12 @@ def _furo_na_cota_do_trecho(furo: dict, cota_terreno_m: float | None) -> dict:
     if desloc_m == 0:
         return furo
     novo = dict(furo)
+    # camada ou leitura sem profundidade numérica fica de fora (o mesmo critério de geotecnia._numero)
     novo["camadas"] = [{**c, "de": max(0.0, c["de"] + desloc_m), "ate": c["ate"] + desloc_m}
-                       for c in furo.get("camadas") or [] if c["ate"] + desloc_m > 0]
-    novo["nspt"] = [[prof_m + desloc_m, golpes] for prof_m, golpes in furo.get("nspt") or [] if prof_m + desloc_m >= 0]
+                       for c in furo.get("camadas") or []
+                       if geotecnia._numero(c.get("de")) and geotecnia._numero(c.get("ate")) and c["ate"] + desloc_m > 0]
+    novo["nspt"] = [[prof_m + desloc_m, golpes] for prof_m, golpes in furo.get("nspt") or []
+                    if geotecnia._numero(prof_m) and prof_m + desloc_m >= 0]
     for chave in ("na_m", "profundidade_m"):
         if furo.get(chave) is not None:
             novo[chave] = float(furo[chave]) + desloc_m

@@ -212,10 +212,22 @@ def test_tubo_flexivel_tem_envoltoria():
 
 def test_classe_do_solo_pela_palavra_principal():
     assert dimensoes.classe_solo("argila arenosa vermelha") == "argila"
-    # "areia argilosa": antes "areia" (regra própria do dimensoes), agora "argila" (a 1ª regex que casa em geotecnia.json,
-    # ARGIL antes de AREI); decisão do Caio 03/11/2026: dimensionador único (lineares)
-    assert dimensoes.classe_solo("areia argilosa") == "argila"
     assert dimensoes.classe_solo("basalto são") == "rocha"
+
+
+@pytest.mark.xfail(strict=True, reason="pendência do Caio (plano da rodada 25): geotecnia.classe_solo pega a 1ª regex que "
+                   "casa (ARGIL antes de AREI), não o substantivo; 'areia argilosa' sai argila. Dimensionador único: D4, 03/11/2026")
+def test_areia_argilosa_e_areia():
+    assert dimensoes.classe_solo("areia argilosa") == "areia"
+
+
+def test_furo_com_camada_sem_profundidade_nao_quebra_o_deslocamento():
+    """Ressalva do Fable (D4): camada com `de` nulo e o trecho em outra cota não dá TypeError; a camada fica de fora."""
+    furo = {"id": "SP-X", "E": 0.0, "N": 0.0, "cota_boca": 240.0, "na_m": None,
+            "camadas": [{"de": None, "ate": 4.0, "descricao": "argila"}, {"de": 4.0, "ate": 8.0, "descricao": "areia"}],
+            "nspt": [[None, 5], [1.0, 6]]}
+    novo = dimensoes._furo_na_cota_do_trecho(furo, 242.0)
+    assert [c["de"] for c in novo["camadas"]] == [6.0] and novo["nspt"] == [[3.0, 6]]
 
 
 def test_tabela_de_dimensoes_e_de_servicos():

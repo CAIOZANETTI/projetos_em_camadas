@@ -203,7 +203,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
 
 <div class="folha">
   <header>
-    <div class="eyebrow">projetos_em_camadas · arquitetura R10 · estado em 0.45.0 · 03/11/2026</div>
+    <div class="eyebrow">projetos_em_camadas · arquitetura R10.1 · estado em 0.48.0 · 03/11/2026</div>
     <h1>Do projeto à EAP com quantidades</h1>
     <p class="sub">Só escopo: serviços e atividades numa EAP com quantidades, sem preço e sem prazo. A entrega é um único HTML com todos os dados dentro. O código faz o que já é certeza, a IA trabalha só nas dúvidas e a decisão do engenheiro prevalece sobre a evidência. Fonte: <code>docs/ARQUITETURA.md</code>, <code>docs/MEMORIA_ESPACIAL.md</code> e <code>docs/EAP.md</code> na <code>main</code>, conferidos contra o código.</p>
   </header>
@@ -340,7 +340,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
           <div class="trilha">
             <div class="passos">
               <div class="passo"><b>serviço</b>escavação · 412,0 m³</div><span class="seta-t">→</span>
-              <div class="passo"><b>regra</b>lineares.dimensionar_vala v0.46</div><span class="seta-t">→</span>
+              <div class="passo"><b>regra</b>lineares.dimensionar_vala v0.48</div><span class="seta-t">→</span>
               <div class="passo"><b>fatos</b>DN 300 · prof. 1,40 m · solo SP-07</div><span class="seta-t">→</span>
               <div class="passo"><b>evidência</b>perfil AAT06 folha 09</div>
             </div>
@@ -437,7 +437,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
   </section>
 
   <section>
-    <h2>Estado de cada peça na 0.45.0</h2>
+    <h2>Estado de cada peça na 0.48.0</h2>
     <div class="legenda">
       <span><span class="st feito">feito</span> com teste</span>
       <span><span class="st piloto">piloto</span> testado em dado sintético</span>
@@ -466,7 +466,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
         <tr><td>Conferências projeto × sondagem no build</td><td><code>geotecnia.conferir</code> → <code>pendencias.json</code></td><td><span class="st feito">feito</span></td><td class="v">0.31.0</td></tr>
         <tr><td>Eixo, estaqueamento e trechos</td><td><code>lineares.py</code></td><td><span class="st feito">feito</span></td><td class="v">0.27–0.31</td></tr>
         <tr><td>Leitor do perfil longitudinal</td><td><code>lineares.ler_perfil</code></td><td><span class="st piloto">piloto</span></td><td class="v">0.29.0</td></tr>
-        <tr><td>Um único dimensionador de vala</td><td><code>lineares.dimensionar_vala</code>; <code>dimensoes</code> virando adaptador (D4)</td><td><span class="st conferir">em correção</span></td><td class="v">0.31 → 0.46</td></tr>
+        <tr><td>Um único dimensionador de vala</td><td><code>lineares.dimensionar_vala</code>; <code>dimensoes</code> é adaptador (D4)</td><td><span class="st feito">feito</span></td><td class="v">0.31 / 0.48</td></tr>
         <tr><td>Interferências, travessias e MND</td><td>—</td><td><span class="st fazer">a fazer</span></td><td class="v">—</td></tr>
         <tr class="grupo"><td colspan="4">Processo</td></tr>
         <tr><td>Lição por versão com teste</td><td><code>pdca/licoes.jsonl</code>, <code>tests/test_determinismo.py</code> · 41 lições, 39 com teste</td><td><span class="st feito">feito</span></td><td class="v">0.21.0</td></tr>
