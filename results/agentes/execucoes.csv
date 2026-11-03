@@ -98,3 +98,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-03,D5-D8,D5 e D6 (geotecnia: classe pelo substantivo e impenetrável como rocha),implementador,claude-sonnet-5-5,82893,9,181,True,nenhum,gabaritos intactos; hash igual
 2026-11-03,D5-D8,D7 e D8 (vala: fallback no lineares e reaterro sem dupla contagem),implementador,claude-sonnet-5-5,121455,27,256,True,nenhum,gabaritos intactos; hash igual
 2026-11-03,D5-D8,aceite das decisões D5 a D8,revisor (aceite),claude-fable-5-1,99959,10,174,True,correção do gerente (corte do D6 no fundo do impenetrável),ACEITO COM RESSALVAS
+2026-11-03,D9,D9 (DE no fallback, MND sem vala, bota-fora com berço e envoltória),implementador,claude-sonnet-5-5,112137,15,209,True,nenhum,gabaritos intactos; hash igual
