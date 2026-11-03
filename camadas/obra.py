@@ -153,6 +153,14 @@ def etapa_controle_vertical(cfg: dict, out: Path, desloc: np.ndarray, epsg: int)
 
 
 # 2 ---------------------------------------------------------------------------
+def _pdf_ausente(p: dict) -> bool:
+    """Prancha do obra.json cujo PDF não está no disco: pendência no log (vai ao HTML), sem derrubar o build."""
+    if Path(p["pdf"]).exists():
+        return False
+    _log(f"Prancha {p['id']}: NÃO LIDA — PDF ausente no disco: {p['pdf']} (pendência; o build segue)")
+    return True
+
+
 def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
     """Georreferencia cada prancha (cache em pranchas/<id>.json)."""
     orto = out / "sfm" / "ortofoto.jpg"
@@ -161,6 +169,8 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
     feitas: dict[str, dict] = {}
     for p in cfg.get("pranchas", []):
         cache = pasta / f"{p['id']}.json"
+        if not cache.exists() and _pdf_ausente(p):
+            continue
         if cache.exists() and not refazer:
             r = json.loads(cache.read_text())
             r["M"] = np.array(r["M"]) if r.get("M") else None

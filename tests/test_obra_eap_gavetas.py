@@ -88,3 +88,14 @@ def test_etapa_pulada_com_pendencia_vai_aos_pendentes_do_html(capsys):
         "Ficha f1: NÃO LIDA — falta o arquivo de âncoras estacas.csv (pendência; o build segue)"]
     assert dados["pendentes"]["Estrutura"] == ["formas"]
     obra.AVISOS_DO_BUILD.clear()
+
+
+def test_prancha_com_pdf_ausente_e_pulada_com_pendencia(tmp_path):
+    """Build real de Foz (conferência das cavas): uma prancha citada e não baixada derrubava etapa_pranchas."""
+    from camadas import obra
+
+    obra.AVISOS_DO_BUILD.clear()
+    cfg = {"pranchas": [{"id": "el_im", "pdf": str(tmp_path / "nao_existe.pdf")}]}
+    assert obra.etapa_pranchas(cfg, tmp_path, refazer=False) == []
+    assert any("el_im" in a and "PDF ausente" in a for a in obra.AVISOS_DO_BUILD)
+    obra.AVISOS_DO_BUILD.clear()
