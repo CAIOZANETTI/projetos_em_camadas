@@ -189,8 +189,8 @@ def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: s
     rec = VALAS["recobrimento_m"][VALAS["classes"].get(sup, {}).get("recobrimento", "outros")]
     h = profundidade if profundidade is not None else rec + d + c["berco"]
     pav_mos = VP["metodos"]["mos_sanepar"]["pavimentos"]["valor"].get(sup, "terra")
-    trecho = {"local": sup, "dn_mm": de_mm, "material": material, "prof_m": h, "comp_m": L, "metodo": "VCA",
-              "pavimentos": {pav_mos: L}}
+    trecho = {"local": sup, "dn_mm": de_mm, "de_mm": de_mm, "material": material, "prof_m": h, "comp_m": L,
+              "metodo": "VCA", "pavimentos": {pav_mos: L}}
     r = lineares.dimensionar_vala(trecho, furos or [], pts=pts)
     if not r.get("largura_m"):
         return None, [f"MOS: {material} DN {de_mm:g} fora da Tabela I"]
@@ -207,8 +207,10 @@ def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: s
             "tipo_escoramento": tipo, "flexivel": 1.0 if material_do_tubo(material_texto) == "flexivel" else 0.0,
             "item_pavimento": pav["item"] or "", "pavimento": pav["nome"], "h_agua": float(r.get("altura_agua_m") or 0.0),
             "metodo_agua": metodo_agua, "horas_agua": horas, "reap": c["reap_solo"],
+            "importado": 1.0 if VP["volumes"]["berco_envoltoria_importado"]["valor"] else 0.0,
+            "empolamento_bota": (1 - fracao_rocha) * geotecnia.EMPOLAMENTO_SOLO + fracao_rocha * geotecnia.EMPOLAMENTO_ROCHA,
             "V_solo": float(r["escavacao_m3"]) - v_rocha, "V_rocha": v_rocha, "V_reat_mos": float(r["reaterro_m3"]),
-            "V_bota": float(r["bota_fora_m3"]), "A_escoramento": float(r.get("escoramento_m2") or 0.0),
+            "V_bota_mos": float(r["bota_fora_m3"]), "A_escoramento": float(r.get("escoramento_m2") or 0.0),
             "A_demol": float(sum((r.get("pavimento_m2") or {}).values())) if pav["item"] else 0.0}
     memoria = [(f"MOS (lineares.dimensionar_vala): h = {h:.2f} m ({r.get('fonte_profundidade')}), "
                 f"L = {b:.2f} m ({material} DN {de_mm:g}; fonte: {r.get('fonte_largura')})"),
@@ -219,6 +221,12 @@ def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: s
                 f"bota-fora {r['bota_fora_m3']:g} m³ · pavimento {r.get('pavimento_m2')}"),
                f"água: {dims['h_agua']:.2f} m na vala → {metodo_agua}", *r.get("alertas", [])]
     return dims, memoria
+
+
+def fracao_rocha_de(dims: dict) -> float:
+    """Fração de rocha da escavação do segmento (V_rocha ÷ escavação total)."""
+    total_m3 = dims["V_solo"] + dims["V_rocha"]
+    return dims["V_rocha"] / total_m3 if total_m3 else 0.0
 
 
 def dimensionar_vala(trecho: dict, sondagens: list | None = None,
@@ -257,6 +265,14 @@ def dimensionar_vala(trecho: dict, sondagens: list | None = None,
                            f"envoltória {d['V_env']:.4g} = {liquido_m3:.4g} m³ → {d['V_reat']:.4g} m³")
                 if liquido_m3 < 0:
                     alertas = [*alertas, f"{sup}: berço + envoltória superam o reaterro do MOS ({liquido_m3:.4g} m³): reaterro 0"]
+            if d["importado"]:                            # decisão do Caio 03/11/2026 (D9): o solo que o berço sai também
+                # o solo deslocado não passa do que havia para reaterrar (vala rasa: V_reat cortado a 0)
+                extra_m3 = min(d["V_berco"] + d["V_env"], dims["V_reat_mos"]) * d["empolamento_bota"]
+                mem.append(f"bota-fora = {dims['V_bota_mos']:.4g} (MOS: tubo × empolamento) + (berço {d['V_berco']:.4g} + "
+                           f"envoltória {d['V_env']:.4g}) × empolamento {d['empolamento_bota']:.4g} "
+                           f"({1 - fracao_rocha_de(dims):.0%} solo × {geotecnia.EMPOLAMENTO_SOLO:g} + "
+                           f"{fracao_rocha_de(dims):.0%} rocha × {geotecnia.EMPOLAMENTO_ROCHA:g}) = {extra_m3:.4g} m³ extra "
+                           f"→ {d['V_bota']:.4g} m³")
             alerta_agua = [f"{sup}: vala atinge o NA ({dims['h_agua']:.2f} m de água): {dims['metodo_agua']}"] \
                 if dims["metodo_agua"] != "nenhum" else []
             saida.append((sup, metodo, (d, faltando, memoria + mem), alertas + alerta_agua))
