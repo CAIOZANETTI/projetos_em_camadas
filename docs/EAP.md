@@ -612,46 +612,75 @@ Cada folha tem `id` (`OL.03.02`: tipo, etapa, folha), `nome`, `aponta`, `escopo`
 **Relação com a EAP codificada.** A EAP por disciplina (GEO, CIV, HID, ELE → pacote → item) continua sendo a linha
 mestra técnica. O padrão é uma **vista**: `aponta` é uma lista de `{item: "DISC.PAC.ITEM", servico}` de `eap_geral.jsonl`
 (o `servico` de `servicos.jsonl` é opcional e tem de ser admitido pelo item) ou fica vazia quando ainda não há item
-codificado (folha a preencher à mão). **Não cria quantificação nova**: lê `dados["eap"]["quantidades"]` e os fatos de
-`dados["evidencias"]`. A mesma pergunta vale para obra mista (os dois tipos aparecem). Item compartilhado pelos dois
-tipos (`GEO.MOV.VAL`, `HID.TUB.RED`…) é lido sem separar unidade linear de localizada.
+codificado. **Não cria quantificação nova**: lê `dados["eap"]["quantidades"]` e os fatos de `dados["evidencias"]`.
 
-**Situações da folha** (`eap_padrao.preencher`), nesta ordem de decisão:
+- **Unidade × tipo de obra.** Cada vista só lê códigos cuja unidade (`unidades_construtivas.json`) é do tipo dela: a
+  `obra_localizada` soma `U1.…` e a `obra_linear` soma `U2.…`, então uma obra mista não conta a mesma quantidade nas
+  duas. Código com `*` na unidade (ou unidade desconhecida) não é atribuível a nenhum tipo e não soma: a folha fica
+  "só menção", com o motivo "unidade não atribuível".
+- **Item sem serviço × com serviço.** Folha que aponta o item sem `servico` lê a quantidade do item e os fatos de
+  **qualquer serviço** dele (cada fato é uma linha, com o serviço e o código: "Fornecimento 12 un · convergente
+  [U1.*.HID.EQP.EQU]"; fatos distintos nunca se fundem nem se somam). Folha que aponta (item, serviço) lê só aquele
+  serviço. A EAP codificada só mede o item (soma por grandeza e unidade, nunca entre unidades).
+
+**Situações da folha** (`eap_padrao.preencher`):
 
 | Situação | Quando |
 |---|---|
-| `não se aplica` | declarada no `obra.json` (abaixo), com justificativa |
-| `sem item codificado` | folha sem `aponta`; preenchida à mão |
-| `preenchida` | quantidade da EAP codificada com elemento medido, ou fato com valor, nos códigos apontados |
-| `só menção` | só fato sem valor (menção, conflito) ou quantidade sem elemento medido |
+| `preenchida` | medição da EAP codificada com elemento medido, ou fato com afirmação de projeto (geometria), documento (planilha, edital, memorial, IA conferida) ou decisão. Se faltar valor em alguns elementos: "preenchida (parcial: n sem valor)" |
+| `preenchida (manual)` | folha sem item codificado, preenchida pelo `obra.json` com o documento de origem |
+| `calculada` | só serviço associado (fórmula sobre outro número): não é documento nem medição |
+| `só menção` | só fato sem valor (menção ou conflito), quantidade sem elemento medido ou unidade não atribuível; o `motivo` diz qual |
 | `a preencher` | nada nos códigos apontados; se `obrigatoria`, vem em destaque |
+| `sem item codificado` | folha sem `aponta` e sem preenchimento manual |
+| `não se aplica` | declarada no `obra.json`, com justificativa |
+| `fora do escopo` | folha de esgoto em obra só de água (ou o contrário): escopo das unidades do tipo em `unidades_construtivas.json` ou `eap_padrao.escopo` |
+| `conflito: declarada não se aplica, mas há quantidade` | declarada não se aplica e há dado real; fica no denominador, em destaque |
 
-Folha com `servico` só olha fatos daquele serviço (a EAP codificada mede o item, não o serviço); folha sem `servico`
-olha a quantidade do item e os fatos do próprio item. Fato derivado de serviço associado (fórmula) conta como fato.
-Quantidades vêm por (grandeza, unidade) e nunca se somam entre unidades diferentes; cada linha mostra os códigos
-codificados e o nº de evidências. A agregação por etapa e total é em Python: contagem por situação e
-**% preenchido = preenchidas / (folhas − não se aplica)**. Folha sem item codificado entra no denominador.
+Fato derivado de serviço associado não preenche: a decisão segue `calibracao._observado`, que também ignora a
+afirmação `tipo: "associado"`. Se algum documento ou decisão afirma o mesmo fato, ele é `preenchida`.
 
-**Como declarar "não se aplica"** (`obra.json`):
+**Percentuais** (tudo em Python, `eap_padrao.resumir`). Denominador = folhas − não se aplica − fora do escopo; calculada,
+só menção, a preencher, sem item e conflito ficam nele.
+- **% preenchido** = (preenchidas + manuais) / denominador;
+- **% calculada** à parte (fórmula não é preenchimento), exibida só se houver folha calculada;
+- **teto sem preenchimento manual** = (denominador − folhas sem item) / denominador, exibido só se houver folha sem
+  item: o máximo que o preenchimento automático alcança.
+
+**Como declarar** (`obra.json`):
 
 ```json
 "eap_padrao": {
   "tipo": ["obra_localizada", "obra_linear"],
-  "nao_se_aplica": [{"id": "OP.02.03", "justificativa": "lençol abaixo do fundo da cava (SP-04)", "autor": "Caio"}]
+  "escopo": ["agua"],
+  "nao_se_aplica": [{"id": "OP.02.03", "justificativa": "lençol abaixo do fundo da cava (SP-04)", "autor": "Caio"}],
+  "preenchimento_manual": [{"id": "OP.12.02", "quantidade": 1, "unidade": "vb", "documento": "As built rev. 2", "autor": "Ana"}]
 }
 ```
 
-A justificativa é obrigatória: sem ela, ou com `id` que não existe, o build registra a etapa como pulada com a mensagem
-clara. `tipo` é opcional. Sem ele, `tipo_da_obra` deduz: `obras_lineares` ou `valas` sem sinal de unidade localizada
-(`estacas`, `elementos_declarados`, `escavacao` ou prancha de obra localizada) → linear; os dois sinais → os dois tipos;
-senão → localizada.
+- `nao_se_aplica`: justificativa obrigatória; declaração duplicada, de id inexistente ou sem justificativa é inválida.
+- `preenchimento_manual`: só para folha **sem item codificado**, com quantidade maior que zero, unidade e **documento**
+  obrigatórios; vira "preenchida (manual)" e mostra a fonte.
+- Registro inválido (lista de textos, objeto no lugar de lista, campo faltando, duplicado) **não derruba a seção**:
+  vira item de `avisos` (mostrado na aba) e o resto é preenchido. Registro de folha de tipo que a obra não tem também
+  vira aviso. Chamado direto, `preencher` levanta `ValueError` com a mensagem clara.
+- `tipo` é opcional; vazio ou desconhecido vira aviso e a dedução abaixo.
 
-**Validação** (`eap_padrao.validar`): erros para item inexistente ou de outro tipo de obra, serviço desconhecido ou não
-admitido, id repetido e folha sem item e sem observação. Aviso (não erro) para item de `eap_geral` do tipo de obra que
-nenhuma folha cita ("item fora do padrão").
+**Tipo da obra** (`tipo_da_obra`, pelas unidades de `unidades_construtivas.json`): linear = prancha de unidade linear
+(nome do PDF casa com `linear` de `tipos_prancha.json`, ou `eap` declarado na prancha) ou `valas`; localizada =
+`estacas`, `elementos_declarados`, `escavacao` ou prancha de unidade localizada; os dois sinais → os dois tipos. A aba
+`obras_lineares` de uma unidade localizada (os tubos dentro da ETA, `eap: U1.LINEARES`) **não** é sinal de obra linear.
+A Foz continua mista porque tem pranchas das adutoras (AAT00, AAT01, AAT02, AAT06, da unidade linear U2) ao lado das da
+ETA (U1); sem elas seria só localizada.
+
+**Validação** (`eap_padrao.validar`): erros para item inexistente ou de outro tipo de obra, escopo da folha fora do escopo
+do item, serviço desconhecido ou não admitido, id repetido, `obrigatoria` ausente e folha sem item e sem observação.
+Avisos (não erro): item de `eap_geral` do tipo de obra que nenhuma folha cita ("item fora do padrão") e par (item,
+serviço) admitido que nenhuma folha cobre ("serviço fora do padrão"), exceto se alguma folha aponta o item sem serviço
+(esse já cobre todos).
 
 **Saídas**: `dados["eap_padrao"]` (tudo já em pt-BR; `aba EAP`, seção "EAP padrão (a preencher)": etapas em
-`<details>`, barra e percentual por etapa, selo da situação por folha, destaque da obrigatória a preencher) e
+`<details>`, barra e percentual por etapa, selo da situação por folha, destaque da obrigatória a preencher e do conflito, avisos) e
 `eap_padrao.json` em `saida/<obra>/`. O JS só apresenta.
 
 **É premissa.** O MOS Sanepar (Manual de Obras de Saneamento) **não está no repositório** (só

@@ -1,10 +1,14 @@
-"""EAP padrão por tipo de obra: validação do JSON real, situações das folhas, % por etapa, unidades e tipo da obra."""
+"""EAP padrão por tipo de obra: validação do JSON real, situações das folhas, unidade × tipo de obra, calculada ×
+preenchida, manual, escopo, % por etapa, unidades e tipo da obra."""
 
 import json
+from pathlib import Path
 
 import pytest
 
 from camadas import eap_padrao
+
+FOZ = Path(__file__).resolve().parent.parent / "exemplos" / "foz" / "obra.json"
 
 
 def _q(codigo, grandeza, unidade, quantidade, ids, sem_valor=0):
@@ -19,14 +23,14 @@ def _q(codigo, grandeza, unidade, quantidade, ids, sem_valor=0):
     }
 
 
-def _fato(codigo, servico, unidade, valor, status="fonte única", n=1):
+def _fato(codigo, servico, unidade, valor, status="fonte única", n=1, tipo="edital"):
     return {
         "codigo": codigo,
         "servico": servico,
         "unidade": unidade,
         "valor": valor,
         "status": status,
-        "afirmacoes": [{"documento": f"d{k}"} for k in range(n)],
+        "afirmacoes": [{"documento": f"d{k}", "tipo": tipo} for k in range(n)],
     }
 
 
@@ -34,10 +38,17 @@ def _folhas(bloco):
     return {f["id"]: f for e in bloco["etapas"] for f in e["folhas"]}
 
 
-def test_json_real_sem_erros_e_sem_item_fora_do_padrao():
+def _mutar(monkeypatch, funcao):
+    """Troca TIPOS por uma cópia alterada por `funcao(tipos)`."""
+    copia = json.loads(json.dumps(eap_padrao.PADRAO["tipos"]))
+    funcao(copia)
+    monkeypatch.setattr(eap_padrao, "TIPOS", copia)
+
+
+def test_json_real_sem_erros_e_sem_aviso():
     erros, avisos = eap_padrao.validar()
-    assert erros == []
-    assert avisos == [] and eap_padrao.itens_fora_do_padrao() == []
+    assert erros == [] and avisos == []
+    assert eap_padrao.itens_fora_do_padrao() == []
 
 
 def test_ids_unicos_e_etapas_ordenadas():
@@ -49,39 +60,77 @@ def test_ids_unicos_e_etapas_ordenadas():
         )
 
 
-def test_validar_reprova_item_servico_e_id_invalidos(monkeypatch):
-    ruim = json.loads(json.dumps(eap_padrao.PADRAO["tipos"]))
-    folhas = ruim["obra_linear"]["etapas"][0]["folhas"]
-    folhas[0]["aponta"] = [{"item": "XXX.YYY.ZZZ"}]
-    folhas[1]["aponta"] = [{"item": "GEO.MOV.SUP", "servico": "concreto"}]
-    folhas[2]["id"] = folhas[1]["id"]
-    monkeypatch.setattr(eap_padrao, "TIPOS", ruim)
-    erros, _ = eap_padrao.validar()
-    texto = " | ".join(erros)
+def test_validar_reprova_item_servico_id_obrigatoria_e_escopo(monkeypatch):
+    def ruim(tipos):
+        folhas = tipos["obra_linear"]["etapas"][0]["folhas"]
+        folhas[0]["aponta"] = [{"item": "XXX.YYY.ZZZ"}]
+        folhas[1]["aponta"] = [{"item": "GEO.MOV.SUP", "servico": "concreto"}]
+        folhas[2]["id"] = folhas[1]["id"]
+        folhas[3]["obrigatoria"] = "sim"
+        del folhas[3]["obrigatoria"]
+        tipos["obra_linear"]["etapas"][1]["folhas"][0]["escopo"] = "esgoto"
+        tipos["obra_linear"]["etapas"][1]["folhas"][0]["aponta"] = [
+            {"item": "HID.TUB.LIG"}
+        ]
+        tipos["obra_linear"]["etapas"][1]["folhas"][0]["aponta"][0]["item"] = (
+            "HID.TUB.PVS"
+        )
+        tipos["obra_linear"]["etapas"][1]["folhas"][1]["escopo"] = "agua"
+        tipos["obra_linear"]["etapas"][1]["folhas"][1]["aponta"] = [
+            {"item": "HID.TUB.PVS"}
+        ]
+
+    _mutar(monkeypatch, ruim)
+    texto = " | ".join(eap_padrao.validar()[0])
     assert (
         "fora de eap_geral" in texto
         and "não é admitido" in texto
         and "id repetido" in texto
     )
+    assert "`obrigatoria` ausente" in texto and "fora do escopo do item" in texto
 
 
-def test_validar_avisa_item_fora_do_padrao(monkeypatch):
-    mudo = json.loads(json.dumps(eap_padrao.PADRAO["tipos"]))
-    for etapa in mudo["obra_linear"]["etapas"]:
-        for folha in etapa["folhas"]:
-            folha["aponta"] = [a for a in folha["aponta"] if a["item"] != "HID.TUB.LIG"]
-            folha["observacao"] = "a preencher manualmente"
-    monkeypatch.setattr(eap_padrao, "TIPOS", mudo)
+def test_validar_avisa_item_e_servico_fora_do_padrao(monkeypatch):
+    def sem_ligacao_e_sem_berco(tipos):
+        for etapa in tipos["obra_linear"]["etapas"]:
+            for folha in etapa["folhas"]:
+                folha["aponta"] = [
+                    a
+                    for a in folha["aponta"]
+                    if a["item"] != "HID.TUB.LIG" and a.get("servico") != "berco"
+                ]
+                folha["observacao"] = "a preencher manualmente"
+
+    _mutar(monkeypatch, sem_ligacao_e_sem_berco)
     erros, avisos = eap_padrao.validar()
     assert erros == []
     assert "obra_linear: item fora do padrão: HID.TUB.LIG" in avisos
+    assert "obra_linear: serviço fora do padrão: GEO.MOV.VAL · berco" in avisos
+
+
+def test_servico_fora_do_padrao_nao_avisa_se_algum_folha_aponta_o_item_sem_servico(
+    monkeypatch,
+):
+    def item_inteiro(tipos):
+        for etapa in tipos["obra_linear"]["etapas"]:
+            for folha in etapa["folhas"]:
+                folha["aponta"] = [
+                    a for a in folha["aponta"] if a.get("servico") != "berco"
+                ]
+                folha["observacao"] = "x"
+        tipos["obra_linear"]["etapas"][2]["folhas"][0]["aponta"].append(
+            {"item": "GEO.MOV.VAL"}
+        )
+
+    _mutar(monkeypatch, item_inteiro)
+    assert not [a for a in eap_padrao.validar()[1] if "GEO.MOV.VAL · berco" in a]
 
 
 def test_situacoes_das_folhas():
     codificada = {
         "quantidades": [
             _q("U1.ACT600.CIV.EST.PIL", "quantidade", "un", 12.0, ["p1", "p2"]),
-            _q("U1.ACT600.GEO.FUN.BLO", "quantidade", "un", 3.0, ["b1"], sem_valor=0),
+            _q("U1.ACT600.GEO.FUN.BLO", "quantidade", "un", 3.0, ["b1"]),
             _q("U1.ACT600.GEO.FUN.EST", "comprimento", "m", 0.0, ["e1"], sem_valor=1),
         ]
     }
@@ -96,8 +145,14 @@ def test_situacoes_das_folhas():
         and f["OP.04.03"]["n_evidencias"] == 2
     )
     assert f["OP.03.04"]["situacao"] == "preenchida"
-    assert f["OP.03.01"]["situacao"] == "só menção"  # elemento sem valor: só evidência
-    assert f["OP.08.01"]["situacao"] == "só menção"  # fato sem valor
+    assert (
+        f["OP.03.01"]["situacao"] == "só menção"
+        and f["OP.03.01"]["motivo"] == "elemento medido sem valor"
+    )
+    assert (
+        f["OP.08.01"]["situacao"] == "só menção"
+        and f["OP.08.01"]["motivo"] == "citado sem valor"
+    )
     assert (
         f["OP.02.01"]["situacao"] == "a preencher" and f["OP.02.01"]["destaque"] is True
     )
@@ -109,17 +164,125 @@ def test_situacoes_das_folhas():
         f["OP.01.01"]["situacao"] == "sem item codificado"
         and f["OP.01.01"]["destaque"] is False
     )
-
-
-def test_fato_com_valor_por_servico_preenche_a_folha_do_servico():
-    fatos = [_fato("U1.*.GEO.MOV.ESC", "bota_fora", "m³", 1234.5, "convergente", 2)]
-    f = _folhas(eap_padrao.preencher("obra_localizada", None, fatos))
-    assert f["OP.02.05"]["situacao"] == "preenchida"
     assert (
-        f["OP.02.05"]["quantidades_txt"] == ["1.234,50 m³ · convergente"]
-        and f["OP.02.05"]["n_evidencias"] == 2
+        f["OP.04.03"]["classe"] == "preenchida"
+        and f["OP.01.01"]["classe"] == "sem-item"
     )
-    assert f["OP.02.01"]["situacao"] == "a preencher"  # o serviço não preenche o item
+
+
+def test_obra_mista_nao_conta_a_mesma_quantidade_nas_duas_vistas():
+    codificada = {
+        "quantidades": [
+            _q("U1.AB_ENTRADA.HID.TUB.RED", "extensão", "m", 150.0, ["t1"]),
+            _q("U2.AAT06.HID.TUB.RED", "extensão", "m", 5000.0, ["t2"]),
+        ]
+    }
+    loc = _folhas(eap_padrao.preencher("obra_localizada", codificada))["OP.07.01"]
+    lin = _folhas(eap_padrao.preencher("obra_linear", codificada))["OL.04.02"]
+    assert loc["quantidades_txt"] == ["150,00 m (extensão)"] and loc["codigos"] == [
+        "U1.AB_ENTRADA.HID.TUB.RED"
+    ]
+    assert lin["quantidades_txt"] == ["5.000,00 m (extensão)"] and lin["codigos"] == [
+        "U2.AAT06.HID.TUB.RED"
+    ]
+
+
+def test_fato_de_unidade_do_outro_tipo_nao_conta_e_asterisco_nao_soma():
+    fatos = [
+        _fato("U2.*.GEO.MOV.SUP", "", "m²", 8000.0),
+        _fato("*.*.HID.TUB.RED", "", "m", 9000.0),
+    ]
+    f = _folhas(eap_padrao.preencher("obra_localizada", None, fatos))
+    assert (
+        f["OP.01.04"]["situacao"] == "a preencher"
+    )  # U2 é linear: não vale para a obra localizada
+    assert (
+        f["OP.07.01"]["situacao"] == "só menção"
+        and f["OP.07.01"]["motivo"] == "unidade não atribuível"
+    )
+    assert f["OP.07.01"]["quantidades_txt"] == []
+    lin = _folhas(eap_padrao.preencher("obra_linear", None, fatos))
+    assert lin["OL.01.04"]["situacao"] == "preenchida"
+
+
+def test_servico_associado_e_calculada_nao_preenchida():
+    fatos = [
+        _fato("U1.ACT600.CIV.EST.PIS", "forma", "m²", 420.0, tipo="associado"),
+        _fato("U1.ACT600.CIV.EST.PIS", "concreto", "m³", 80.0, tipo="associado"),
+        _fato("U1.ACT600.CIV.EST.PIS", "concreto", "m³", 80.0, tipo="planilha"),
+        _fato("U1.ACT600.CIV.EST.PIS", "armadura", "kg", 5000.0, tipo="associado"),
+    ]
+    fatos[3]["decisoes"] = [{"valor": 5000.0, "autor": "Caio", "justificativa": "x"}]
+    bloco = eap_padrao.preencher("obra_localizada", None, fatos)
+    f = _folhas(bloco)
+    assert (
+        f["OP.04.05"]["situacao"] == "calculada"
+        and "calculada (fórmula)" in f["OP.04.05"]["quantidades_txt"][0]
+    )
+    assert f["OP.04.07"]["situacao"] == "preenchida"  # a planilha também afirma
+    assert f["OP.04.06"]["situacao"] == "preenchida"  # decisão do engenheiro
+    assert f["OP.04.05"]["destaque"] is False
+    r = bloco["resumo"]
+    assert (
+        r["n_calculadas"] == 1
+        and r["pct_calculada_txt"] == "2,4 % calculada"
+        and r["pct_txt"] == "7,1 %"
+    )
+    assert (
+        r["n_preenchidas"] == 3 and r["n_aplicaveis"] == 42
+    )  # calculada fica no denominador
+
+
+def test_item_sem_servico_aceita_fato_de_qualquer_servico_e_com_servico_so_o_dele():
+    fatos = [
+        _fato("U1.*.HID.EQP.EQU", "fornecimento", "un", 12.0, "convergente"),
+        _fato("U1.*.GEO.MOV.VAL", "escavacao", "m³", 300.0),
+        _fato("U1.*.GEO.MOV.ESC", "escavacao_rocha", "m³", 80.0),
+    ]
+    f = _folhas(eap_padrao.preencher("obra_localizada", None, fatos))
+    assert f["OP.08.01"]["situacao"] == "preenchida"
+    assert f["OP.08.01"]["quantidades_txt"] == [
+        "Fornecimento 12 un · convergente [U1.*.HID.EQP.EQU]"
+    ]
+    assert f["OP.02.06"]["situacao"] == "preenchida"  # valas internas: item sem serviço
+    assert (
+        f["OP.02.01"]["situacao"] == "preenchida"
+    )  # item ESC sem serviço aceita escavacao_rocha
+    assert (
+        f["OP.02.02"]["situacao"] == "a preencher"
+    )  # escoramento só olha o serviço escoramento
+
+
+def test_fatos_distintos_nao_se_fundem_e_mostram_o_codigo():
+    fatos = [
+        _fato("U1.ACT600.GEO.FUN.EST", "", "un", 250.0),
+        _fato("U1.*.GEO.FUN.EST", "", "un", 250.0),
+    ]
+    f = _folhas(eap_padrao.preencher("obra_localizada", None, fatos))["OP.03.01"]
+    assert len(f["quantidades_txt"]) == 2 and f["codigos"] == [
+        "U1.*.GEO.FUN.EST",
+        "U1.ACT600.GEO.FUN.EST",
+    ]
+
+
+def test_quantidade_parcial_mostra_quantos_elementos_sem_valor():
+    codificada = {
+        "quantidades": [
+            _q(
+                "U1.A.CIV.EST.PIL",
+                "quantidade",
+                "un",
+                5.0,
+                ["a", "b", "c"],
+                sem_valor=2,
+            )
+        ]
+    }
+    f = _folhas(eap_padrao.preencher("obra_localizada", codificada))["OP.04.03"]
+    assert (
+        f["situacao"] == "preenchida"
+        and f["situacao_txt"] == "preenchida (parcial: 2 sem valor)"
+    )
 
 
 def test_nao_se_aplica_com_justificativa_e_sem():
@@ -146,6 +309,28 @@ def test_nao_se_aplica_com_justificativa_e_sem():
         eap_padrao.preencher(
             "obra_localizada", None, None, [{"id": "OP.99.99", "justificativa": "x"}]
         )
+    duplicada = [
+        {"id": "OP.02.01", "justificativa": "a"},
+        {"id": "OP.02.01", "justificativa": "b"},
+    ]
+    with pytest.raises(ValueError, match="duplicada"):
+        eap_padrao.preencher("obra_localizada", None, None, duplicada)
+
+
+def test_nao_se_aplica_com_quantidade_real_vira_conflito_no_denominador():
+    codificada = {
+        "quantidades": [_q("U1.A.CIV.EST.PIL", "quantidade", "un", 12.0, ["p1"])]
+    }
+    declaracoes = [{"id": "OP.04.03", "justificativa": "sem pilares"}]
+    bloco = eap_padrao.preencher("obra_localizada", codificada, None, declaracoes)
+    f = _folhas(bloco)["OP.04.03"]
+    assert (
+        f["situacao"].startswith("conflito: declarada não se aplica")
+        and f["destaque"] is True
+    )
+    assert f["classe"] == "conflito" and f["quantidades_txt"] == ["12 un"]
+    assert bloco["resumo"]["n_aplicaveis"] == 42 and bloco["resumo"]["conflitos"] == 1
+    assert bloco["resumo"]["n_preenchidas"] == 0
 
 
 def test_percentual_por_etapa_e_total_excluem_nao_se_aplica():
@@ -160,8 +345,7 @@ def test_percentual_por_etapa_e_total_excluem_nao_se_aplica():
         {"id": "OP.04.03", "justificativa": "sem pilares"},
     ]
     bloco = eap_padrao.preencher("obra_localizada", codificada, None, declaracoes)
-    estrutura = next(e for e in bloco["etapas"] if e["id"] == "OP.04")
-    r = estrutura["resumo"]
+    r = next(e for e in bloco["etapas"] if e["id"] == "OP.04")["resumo"]
     assert (r["n_folhas"], r["n_aplicaveis"], r["n_preenchidas"]) == (8, 6, 2)
     assert r["pct"] == pytest.approx(33.3, abs=0.05) and r["pct_txt"] == "33,3 %"
     total = bloco["resumo"]
@@ -172,14 +356,89 @@ def test_percentual_por_etapa_e_total_excluem_nao_se_aplica():
     )
     assert total["pct_txt"] == "5,0 %"
     assert sum(s["n"] for s in total["por_situacao"]) == 42
-    assert total["obrigatorias_a_preencher"] == sum(
-        f["destaque"] for e in bloco["etapas"] for f in e["folhas"]
+
+
+def test_etapa_toda_fora_do_denominador_nao_divide_por_zero():
+    r = eap_padrao.resumir([{"situacao": "não se aplica", "destaque": False}])
+    assert (
+        r["n_aplicaveis"] == 0
+        and r["pct"] is None
+        and r["pct_txt"] == "—"
+        and r["teto_txt"] == ""
     )
 
 
-def test_etapa_toda_nao_se_aplica_nao_divide_por_zero():
-    r = eap_padrao.resumir([{"situacao": "não se aplica", "destaque": False}])
-    assert r["n_aplicaveis"] == 0 and r["pct"] is None and r["pct_txt"] == "—"
+def test_preenchimento_manual_de_folha_sem_item_com_documento():
+    manual = [
+        {
+            "id": "OP.12.02",
+            "quantidade": 1,
+            "unidade": "vb",
+            "documento": "As built 01",
+            "autor": "Ana",
+        }
+    ]
+    bloco = eap_padrao.preencher("obra_localizada", None, None, None, None, manual)
+    f = _folhas(bloco)["OP.12.02"]
+    assert f["situacao"] == "preenchida (manual)" and f["classe"] == "manual"
+    assert f["quantidades_txt"] == ["1,00 vb · manual: As built 01 (Ana)"]
+    r = bloco["resumo"]
+    assert (
+        r["n_preenchidas"] == 1
+        and r["n_sem_item"] == 8
+        and r["teto_pct"] == pytest.approx(81.0, abs=0.05)
+    )
+    assert r["teto_txt"] == "teto sem preenchimento manual: 81,0 %"
+    problemas = {
+        "documento": {"id": "OP.12.02", "quantidade": 1, "unidade": "vb"},
+        "com item": {
+            "id": "OP.07.01",
+            "quantidade": 1,
+            "unidade": "vb",
+            "documento": "x",
+        },
+        "quantidade": {
+            "id": "OP.12.02",
+            "quantidade": 0,
+            "unidade": "vb",
+            "documento": "x",
+        },
+    }
+    for trecho, ruim in problemas.items():
+        with pytest.raises(
+            ValueError,
+            match={
+                "documento": "sem `documento`",
+                "com item": "tem item codificado",
+                "quantidade": "`quantidade`",
+            }[trecho],
+        ):
+            eap_padrao.preencher("obra_localizada", None, None, None, None, [ruim])
+
+
+def test_escopo_da_folha_fora_do_escopo_da_obra_sai_do_denominador():
+    bloco = eap_padrao.preencher("obra_localizada", None, escopos={"agua"})
+    f = _folhas(bloco)
+    assert (
+        f["OP.07.03"]["situacao"] == "fora do escopo"
+        and f["OP.07.03"]["destaque"] is False
+    )
+    assert bloco["resumo"]["n_aplicaveis"] == 41
+    com_esgoto = eap_padrao.preencher(
+        "obra_localizada", None, escopos={"agua", "esgoto"}
+    )
+    assert _folhas(com_esgoto)["OP.07.03"]["situacao"] == "a preencher"
+    com_dado = [_fato("U1.*.HID.TUB.PVS", "", "un", 4.0)]
+    assert (
+        _folhas(
+            eap_padrao.preencher("obra_localizada", None, com_dado, escopos={"agua"})
+        )["OP.07.03"]["situacao"]
+        == "preenchida"
+    )
+    assert eap_padrao.escopos_do_tipo("obra_localizada", {}) == {"agua"}
+    assert eap_padrao.escopos_do_tipo(
+        "obra_linear", {"eap_padrao": {"escopo": ["esgoto"]}}
+    ) == {"esgoto"}
 
 
 def test_unidades_diferentes_nao_se_somam():
@@ -219,6 +478,53 @@ def test_tipo_da_obra():
         eap_padrao.tipo_da_obra({"eap_padrao": {"tipo": "ponte"}})
 
 
+def test_obras_lineares_em_unidade_localizada_nao_e_sinal_de_obra_linear():
+    dentro_da_eta = {
+        "obras_lineares": {"unidade": "UNIDADE 1", "eap": "U1.LINEARES"},
+        "estacas": "e.csv",
+    }
+    assert eap_padrao.tipo_da_obra(dentro_da_eta) == ["obra_localizada"]
+    adutora = {"obras_lineares": {"unidade": "UNIDADE 2"}, "estacas": "e.csv"}
+    assert eap_padrao.tipo_da_obra(adutora) == ["obra_localizada", "obra_linear"]
+    prancha_linear = {
+        "pranchas": [
+            {"id": "a", "pdf": "x-AAT06-PLANTA.pdf"},
+            {"id": "b", "pdf": "ETA01FUNDACAO.pdf"},
+        ]
+    }
+    assert eap_padrao.tipo_da_obra(prancha_linear) == ["obra_localizada", "obra_linear"]
+    so_linear = {"pranchas": [{"id": "a", "pdf": "x-AAT06-PLANTA.pdf"}]}
+    assert eap_padrao.tipo_da_obra(so_linear) == ["obra_linear"]
+    declarada = {"pranchas": [{"id": "a", "pdf": "qualquer.pdf", "eap": "U2.AAT06"}]}
+    assert eap_padrao.tipo_da_obra(declarada) == ["obra_linear"]
+
+
+def test_foz_continua_mista_pelas_pranchas_das_adutoras():
+    cfg = json.loads(FOZ.read_text(encoding="utf-8"))
+    assert eap_padrao.tipo_da_obra(cfg) == ["obra_localizada", "obra_linear"]
+    sem_adutoras = {
+        **cfg,
+        "pranchas": [p for p in cfg["pranchas"] if not p["id"].startswith("aat")],
+        "valas": None,
+    }
+    assert eap_padrao.tipo_da_obra(sem_adutoras) == [
+        "obra_localizada"
+    ]  # obras_lineares da Foz é da U1 (ETA)
+
+
+def test_tipo_vazio_ou_desconhecido_vira_aviso_e_deduz():
+    avisos = []
+    assert eap_padrao.tipo_da_obra(
+        {"eap_padrao": {"tipo": []}, "valas": [{}]}, avisos
+    ) == ["obra_linear"]
+    assert eap_padrao.tipo_da_obra({"eap_padrao": {"tipo": "ponte"}}, avisos) == [
+        "obra_localizada"
+    ]
+    assert any("vazio" in a for a in avisos) and any(
+        "desconhecido" in a for a in avisos
+    )
+
+
 def test_montar_grava_json_e_formata(tmp_path):
     dados = {
         "eap": {
@@ -226,7 +532,7 @@ def test_montar_grava_json_e_formata(tmp_path):
         }
     }
     cfg = {
-        "obras_lineares": {"x": 1},
+        "valas": [{}],
         "eap_padrao": {
             "nao_se_aplica": [{"id": "OL.06.01", "justificativa": "sem travessia"}]
         },
@@ -239,6 +545,9 @@ def test_montar_grava_json_e_formata(tmp_path):
     ] == ["1.500,50 m (extensão)"]
     assert f["OL.06.01"]["situacao"] == "não se aplica"
     assert (
+        f["OL.07.01"]["situacao"] == "fora do escopo"
+    )  # PVS é esgoto; a unidade U2 é de água
+    assert (
         resultado["estado"] == "premissa"
         and "MOS" in resultado["aviso"]
         and resultado["fora_do_padrao"] == []
@@ -249,8 +558,37 @@ def test_montar_grava_json_e_formata(tmp_path):
     )
 
 
-def test_metadados():
-    assert eap_padrao.metadados()["modulo"] == "eap_padrao"
+def test_montar_declaracao_invalida_vira_aviso_e_o_resto_e_preenchido(tmp_path):
+    cfg = {
+        "eap_padrao": {
+            "nao_se_aplica": [
+                {"id": "OP.02.01"},
+                "OP.02.02",
+                {"id": "OP.02.03", "justificativa": "sem lençol"},
+                {"id": "OP.02.03", "justificativa": "de novo"},
+                {"id": "OL.06.01", "justificativa": "linear não está na obra"},
+            ],
+            "preenchimento_manual": {"id": "OP.12.02"},
+        }
+    }
+    resultado = eap_padrao.montar({}, cfg, tmp_path)
+    f = _folhas(resultado["tipos"][0])
+    assert (
+        f["OP.02.03"]["situacao"] == "não se aplica"
+        and f["OP.02.01"]["situacao"] == "a preencher"
+    )
+    texto = " | ".join(resultado["avisos"])
+    for esperado in (
+        "sem justificativa",
+        "deve ser um objeto",
+        "duplicada",
+        "ignorada, a obra não tem o tipo",
+        "preenchimento_manual deve ser uma lista",
+    ):
+        assert esperado in texto
+    assert eap_padrao.montar({}, {"eap_padrao": ["x"]})["avisos"][0].startswith(
+        "eap_padrao do obra.json deve ser um objeto"
+    )
 
 
 def test_build_nao_cai_com_declaracao_sem_justificativa(tmp_path):
@@ -259,10 +597,12 @@ def test_build_nao_cai_com_declaracao_sem_justificativa(tmp_path):
     dados = {}
     cfg = {"eap_padrao": {"nao_se_aplica": [{"id": "OP.02.01"}]}}
     obra._eap_padrao_no_build(dados, cfg, tmp_path)
-    assert "eap_padrao" not in dados
-    assert any("sem justificativa" in a for a in obra.AVISOS_DO_BUILD)
-    obra._eap_padrao_no_build(dados, {}, tmp_path)
+    assert any("sem justificativa" in a for a in dados["eap_padrao"]["avisos"])
     assert (
         dados["eap_padrao"]["tipos"][0]["tipo"] == "obra_localizada"
         and (tmp_path / "eap_padrao.json").exists()
     )
+
+
+def test_metadados():
+    assert eap_padrao.metadados()["modulo"] == "eap_padrao"

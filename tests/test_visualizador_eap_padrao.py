@@ -17,12 +17,25 @@ def _padrao() -> dict:
     codificada = {
         "quantidades": [_q("U1.A.CIV.EST.PIL", "quantidade", "un", 12.0, ["p1"])]
     }
-    fatos = [_fato("U1.*.HID.EQP.EQU", "", "un", None, "só menção", 0)]
+    fatos = [
+        _fato("U1.*.HID.EQP.EQU", "", "un", None, "só menção", 0),
+        _fato("U1.A.CIV.EST.PIS", "forma", "m²", 420.0, tipo="associado"),
+    ]
     cfg = {
         "eap_padrao": {
             "nao_se_aplica": [
-                {"id": "OP.02.03", "justificativa": "sem lençol", "autor": "Caio"}
-            ]
+                {"id": "OP.02.03", "justificativa": "sem lençol", "autor": "Caio"},
+                {"id": "OP.04.03", "justificativa": "sem pilares"},
+                {"id": "OP.02.01"},
+            ],
+            "preenchimento_manual": [
+                {
+                    "id": "OP.12.02",
+                    "quantidade": 1,
+                    "unidade": "vb",
+                    "documento": "As built",
+                }
+            ],
         }
     }
     return eap_padrao.montar({"eap": codificada, "evidencias": {"fatos": fatos}}, cfg)
@@ -57,10 +70,28 @@ def test_aba_eap_mostra_a_eap_padrao(navegador, tmp_path):  # noqa: F811
         .startswith("width:")
     )
     pilares = secao.locator('[data-id="OP.04.03"]')
-    assert pilares.get_attribute("data-situacao") == "preenchida"
+    assert pilares.get_attribute("data-situacao").startswith(
+        "conflito"
+    )  # declarada não se aplica, mas mede 12 un
     assert (
         "12 un" in pilares.inner_text() and "U1.A.CIV.EST.PIL" in pilares.inner_text()
     )
+    assert "st-conflito" in pilares.locator(".st").get_attribute("class")
+    forma = secao.locator('[data-id="OP.04.05"]')
+    assert (
+        forma.get_attribute("data-situacao") == "calculada"
+        and "calculada (fórmula)" in forma.inner_text()
+    )
+    assert (
+        secao.locator('[data-id="OP.12.02"]').get_attribute("data-situacao")
+        == "preenchida (manual)"
+    )
+    assert (
+        secao.locator('[data-id="OP.07.03"]').get_attribute("data-situacao")
+        == "fora do escopo"
+    )
+    assert bloco["resumo"]["teto_txt"] in secao.locator(".eap-pad-tipo").inner_text()
+    assert "sem justificativa" in pagina.locator(".eap-pad-aviso").first.inner_text()
     assert (
         secao.locator('[data-id="OP.08.01"]').get_attribute("data-situacao")
         == "só menção"
@@ -75,7 +106,10 @@ def test_aba_eap_mostra_a_eap_padrao(navegador, tmp_path):  # noqa: F811
         == "sem item codificado"
     )
     destaque = secao.locator(".eap-pad-folha.destaque")
-    assert destaque.count() == bloco["resumo"]["obrigatorias_a_preencher"] > 0
-    assert destaque.first.get_attribute("data-situacao") == "a preencher"
-    assert "obrigatória" in destaque.first.inner_text()
+    esperado = (
+        bloco["resumo"]["obrigatorias_a_preencher"] + bloco["resumo"]["conflitos"]
+    )
+    assert destaque.count() == esperado > 1
+    assert destaque.nth(1).get_attribute("data-situacao") == "a preencher"
+    assert "obrigatória" in destaque.nth(1).inner_text()
     assert not erros

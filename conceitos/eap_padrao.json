@@ -93,8 +93,7 @@
     {"id": "OL.04.01", "nome": "Berço do tubo", "aponta": [{"item": "GEO.MOV.VAL", "servico": "berco"}], "obrigatoria": false},
     {"id": "OL.04.02", "nome": "Assentamento do tubo", "aponta": [{"item": "HID.TUB.RED"}, {"item": "HID.TUB.RED", "servico": "assentamento"}], "obrigatoria": true},
     {"id": "OL.04.03", "nome": "Envoltória do tubo", "aponta": [{"item": "GEO.MOV.VAL", "servico": "envoltoria"}], "obrigatoria": false},
-    {"id": "OL.04.04", "nome": "Conexões", "aponta": [], "obrigatoria": false, "observacao": "As conexões estão no item HID.TUB.VAL, apontado em 07 (peças especiais): preencher lá."},
-    {"id": "OL.04.05", "nome": "Ancoragens e blocos de ancoragem", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."}
+    {"id": "OL.04.04", "nome": "Ancoragens e blocos de ancoragem", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."}
    ]},
    {"id": "OL.05", "nome": "Reaterro e compactação", "folhas": [
     {"id": "OL.05.01", "nome": "Reaterro de vala", "aponta": [{"item": "GEO.MOV.VAL", "servico": "reaterro"}], "obrigatoria": true},
@@ -108,7 +107,7 @@
    {"id": "OL.07", "nome": "Poços de visita, caixas e peças especiais", "folhas": [
     {"id": "OL.07.01", "nome": "Poços de visita e de inspeção", "aponta": [{"item": "HID.TUB.PVS"}], "escopo": "esgoto", "obrigatoria": false},
     {"id": "OL.07.02", "nome": "Caixas e câmaras (descarga, ventosa, registro)", "aponta": [], "obrigatoria": false, "observacao": "Sem item codificado na EAP: preencher manualmente."},
-    {"id": "OL.07.03", "nome": "Peças especiais, válvulas e registros", "aponta": [{"item": "HID.TUB.VAL"}], "obrigatoria": true}
+    {"id": "OL.07.03", "nome": "Conexões, peças especiais, válvulas e registros", "aponta": [{"item": "HID.TUB.VAL"}], "obrigatoria": true, "observacao": "O item HID.TUB.VAL junta válvulas e conexões; as conexões da etapa 04 (assentamento) são lidas aqui."}
    ]},
    {"id": "OL.08", "nome": "Recomposição de pavimento", "folhas": [
     {"id": "OL.08.01", "nome": "Recomposição de pavimento de pista", "aponta": [{"item": "CIV.PAV.REC"}, {"item": "CIV.PAV.REC", "servico": "recomposicao"}], "obrigatoria": false},
