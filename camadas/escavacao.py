@@ -247,7 +247,7 @@ def calcular(bs: list[dict], ms: list[dict], cristas: list, g: dict) -> dict:
     cavas.sort(key=lambda c: -c["escavacao_m3"])
     for i, c in enumerate(cavas, 1):
         c["id"] = f"C{i:02d}"
-    return {"cavas": cavas, "modelo": unary_union(supressao.poligonos(modelo, e0, n1, res, 1.0, 0.2)),
+    return {"cavas": cavas, "corte": corte, "modelo": unary_union(supressao.poligonos(modelo, e0, n1, res, 1.0, 0.2)),
             "modelo_m3": round(float(np.where(modelo, terreno - np.nan_to_num(sup), 0).sum() * res * res), 1),
             "bases_sem_marca": len(bs) - len(usadas),
             "marcas": {**_resumo_marcas(ms), "fora_da_faixa": fora_da_faixa, "usadas": len(validas)},
@@ -354,7 +354,9 @@ def _entregar_as_gavetas(saida: dict, ms: list, bs: list, cristas: list, g: dict
     """Preenche o dict `saida_gavetas` com o que a memória espacial grava: marcas, bases, cristas, a grade e o resultado
     direto de `calcular` (só id e volumes de cada cava), para a paridade; `pranchas` são as efetivamente lidas."""
     campos = ("id", *SAIDAS_CAVA.values())
-    saida.update(marcas=ms, bases=bs, cristas=cristas, g=g, pranchas=lidas,
+    saida.update(marcas=ms, bases=bs, cristas=cristas, g=g, pranchas=lidas, corte=r["corte"],
+                 contornos={cv["id"]: cv["contorno"] for cv in r["cavas"]},
+                 cavas_info=[{"id": cv["id"], "fundo_m": cv["fundo_m"]} for cv in r["cavas"]],
                  resultado={"cavas": [{k: cv[k] for k in campos} for cv in r["cavas"]]})
 
 
@@ -363,6 +365,8 @@ def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print
     """Etapa da obra: lê as plantas de escavação (OCR com cache), calcula as cavas e devolve o pacote do HTML.
     `saida_gavetas`, se passado, recebe as entradas e o resultado do cálculo para as gavetas (sem mudar o retorno)."""
     c = cfg.get("escavacao")
+    if c and not vertical:     # sem sondagens não há controle vertical: as cavas não saem, e isso tem de aparecer
+        log("Escavação: NÃO CALCULADA — sem controle vertical, faltam as sondagens (pendência; o build segue)")
     if not c or not vertical:
         return None
     por_id = {p["id"]: p for p in pranchas}

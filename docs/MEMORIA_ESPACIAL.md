@@ -1,7 +1,7 @@
 # Memória espacial: de-para do documento à EAP (v0.4, 01/11/2026)
 
-Status: implementado e testado em dados sintéticos nas rodadas 21 a 24 (0.25.0 a 0.30.0). Ligado ao build. Falta o build
-real de Foz (§8).
+Status: implementado nas rodadas 21 a 24 (0.25.0 a 0.30.0), ligado ao build, rodado com os dados reais de Foz (0.45.0)
+e com as cavas conferidas por seções de corte independentes (0.53.0); estado em §8.
 Complementa `docs/ARQUITETURA.md` sem substituí-lo.
 
 ## 1. A ideia em uma frase
@@ -217,6 +217,14 @@ e rastreável, sem perder o resultado.
 O dado real mostrou cinco falhas que o sintético escondia, todas corrigidas com teste: o layout do laudo, dois insumos
 opcionais que derrubavam o build, o serviço sem item e a falta de unidade e sistema nas redes. Relatório em
 `docs/plano/2026-11-02_foz_build_real.md`.
+
+**Conferência das cavas (0.53.0, 03/11/2026).** As seções das pranchas de corte, independentes do cálculo pelo MDS,
+mostram duas coisas:
+- o fundo do modelo bate com o projeto em 5 de 7 seções; nas outras 2, o modelo usou a marca de cota vizinha;
+- a área de corte difere principalmente pelo terreno: o MDS fica até 0,6 m abaixo da topografia do projeto no trecho do corte; tirado o terreno, as áreas ficam de −14 % a +10 %, sem sinal único.
+
+Qual terreno está certo decide se o volume está sub ou superestimado, e é a próxima pergunta da tese. Relatório em
+`docs/plano/2026-11-03_conferencia_cavas.md`.
 
 **O que falta para fechar a tese:**
 1. ~~o build real de Foz~~ (0.45.0); falta a aba EAP conferida pelo Caio e, para as obras lineares, a planilha do

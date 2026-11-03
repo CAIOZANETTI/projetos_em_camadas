@@ -279,6 +279,25 @@ def _leitura(memo: dict, p: Path, ocr: bool, reler: set) -> dict:
     return {k: v for k, v in memo[str(p)].items() if k != "assinatura"}
 
 
+COLUNAS_BAIXADOS = {"id", "ok"}
+
+
+def disponivel(cfg: dict, log=print) -> bool:
+    """A listagem do Drive existe e o `_baixados.csv`, se houver, tem as colunas `id` e `ok`. Senão, pendência no log
+    (vai ao HTML) e o inventário fica de fora, sem derrubar o build (contêiner novo, ingestão parcial)."""
+    import pandas as pd
+    c = cfg["inventario"]
+    if not Path(c["listagem"]).exists():
+        log(f"Inventário: NÃO FEITO — falta a listagem do Drive {c['listagem']} (pendência; o build segue)")
+        return False
+    if c.get("baixados") and Path(c["baixados"]).exists():
+        colunas = set(pd.read_csv(c["baixados"], sep=";", dtype=str, nrows=0).columns)
+        if not COLUNAS_BAIXADOS <= colunas:
+            log(f"Inventário: NÃO FEITO — {c['baixados']} sem as colunas {sorted(COLUNAS_BAIXADOS)} (pendência; o build segue)")
+            return False
+    return True
+
+
 def inventario(cfg: dict, cache: Path | None = None, ocr: bool = True, log=print, reler: set | None = None) -> dict:
     """Loop determinístico sobre a listagem do Drive (`inventario.listagem` no obra.json) × arquivos em disco.
 

@@ -1,69 +1,82 @@
-objetivo: 'Rodar o build real de Foz (ETA Vila C) e conferir a memória espacial com
-  dados verdadeiros: paridade das gavetas, cavas, conciliação com a EAP codificada
-  e aba EAP no HTML'
+objetivo: 'Conferir as cavas da memória espacial de Foz por testemunhas independentes do cálculo pelo MDS: área e fundo de cada seção das pranchas de corte e cotas da sequência executiva'
 criterio_de_pronto:
-- dados de Foz baixados do Drive conforme a listagem, com as falhas listadas e o motivo
-- build completo roda até o HTML; etapas que falharem ficam registradas com o motivo,
-  sem esconder
-- paridade.json, conciliacao_eap.json e resumo.json de Foz lidos e explicados no relatório
-- relatório em docs/plano com o que bateu, o que diferiu e o que falta; achados viram
-  pendências, não correções sem teste
-base: 666554b
+- "seções das pranchas de corte (009 e 010) lidas em código: área de corte (m²) e cota de fundo por seção, com método e tolerância declarados"
+- "as mesmas seções medidas no modelo (terreno do MDS × fundo da cava) pela linha de seção da planta"
+- "cotas de fundo e de reaterro da sequência executiva (planta 02) conferidas contra o modelo, com tolerância absoluta"
+- "volume por seções médias só onde duas ou mais seções paralelas cortam a mesma cava; o resto fica declarado como não conferível"
+- "build real de Foz refeito; relatório em docs/plano com o que bateu e o que diferiu"
+base: 7f7ab41
 etapas:
 - id: E1
-  nome: 'Ingestão do Drive: inventário, PDFs, fotos do drone e planilha'
+  nome: Reingestão do Drive de Foz (o contêiner novo não tem dados/)
   entregaveis:
-  - dados/foz/projeto/_listagem_drive.csv
   - dados/foz/projeto/_baixados.csv
   depende_de: []
   agente: haiku
-  estimativa_min: 60
-  estimativa_tokens: 200000
-  status: feito
-  inicio: '2026-11-02T22:54:39Z'
-  fim: '2026-11-02T23:14:03Z'
-- id: E2
-  nome: 'Insumos derivados: sondagens pelo leitor de laudo, escopo pela planilha'
-  entregaveis:
-  - dados/foz/geotec/sondagens.json
-  - dados/foz/orcamento/escopo_itens.csv
-  - dados/foz/orcamento/relacao_materiais_etapas.csv
-  depende_de:
-  - E1
-  agente: opus
   estimativa_min: 30
-  estimativa_tokens: 120000
+  estimativa_tokens: 500000
   status: feito
-  inicio: '2026-11-02T23:14:04Z'
-  fim: '2026-11-02T23:21:30Z'
-- id: E3
-  nome: Build real de Foz (SfM, pranchas, gavetas, EAP, HTML)
+  inicio: '2026-11-03T18:32:00Z'
+  fim: '2026-11-03T18:41:00Z'
+- id: E2
+  nome: Leitor das seções de corte (área de corte e cota de fundo por seção)
   entregaveis:
-  - saida/foz/*
+  - camadas/secoes_corte.py
+  - tests/test_secoes_corte.py
+  depende_de: []
+  agente: sonnet
+  estimativa_min: 60
+  estimativa_tokens: 250000
+  status: feito
+  inicio: '2026-11-03T18:36:00Z'
+  fim: '2026-11-03T19:05:14Z'
+- id: E3
+  nome: Seções no modelo e conferência (área, fundo, cotas da sequência executiva, seções médias)
+  entregaveis:
+  - camadas/conferencia_cavas.py
+  - tests/test_conferencia_cavas.py
   depende_de:
   - E2
-  agente: opus
+  agente: sonnet
   estimativa_min: 60
-  estimativa_tokens: 80000
+  estimativa_tokens: 250000
   status: feito
-  inicio: '2026-11-02T23:21:31Z'
-  fim: '2026-11-03T00:46:54Z'
+  inicio: '2026-11-03T19:05:14Z'
+  fim: '2026-11-03T19:46:57Z'
 - id: E4
-  nome: Conferência dos resultados, relatório e PR
+  nome: Build real, relatório, balanço, aceite do Fable e PR
   entregaveis:
-  - docs/plano/2026-11-02_foz_build_real.md
+  - docs/plano/2026-11-03_conferencia_cavas.md
   - rumo.yaml
   - results/iteracoes/*
   - results/agentes/execucoes.csv
   depende_de:
+  - E1
   - E3
   agente: opus
-  estimativa_min: 45
+  estimativa_min: 60
   estimativa_tokens: 200000
   status: feito
-  inicio: '2026-11-03T00:46:54Z'
-  fim: '2026-11-03T01:07:36Z'
+  inicio: '2026-11-03T19:46:57Z'
+  fim: '2026-11-03T20:59:38Z'
+- id: E5
+  nome: Talude por cava a partir das seções do projeto (decisão do Caio, 03/11)
+  entregaveis:
+  - camadas/escavacao.py
+  - camadas/conferencia_cavas.py
+  - tests/test_conferencia_cavas.py
+  depende_de:
+  - E3
+  agente: sonnet
+  estimativa_min: 60
+  estimativa_tokens: 250000
+  status: cancelado
+  inicio: null
+  fim: null
 historico:
+- data: '2026-11-03'
+  mudanca: 'objetivo anterior concluído: build real de Foz (PR #46, 0.45.0)'
+  motivo: 'Caio pediu a conferência das cavas; a planilha do contrato e as pranchas não declaram volume de cava, e ele escolheu a conferência por cortes e cotas'
 - data: '2026-11-02'
   mudanca: 'objetivo anterior (de outra sessão): Travar o comportamento atual do pipeline
     (camadas/obra.py) com testes de caracterização antes de novas mudanças — concluído
@@ -101,3 +114,22 @@ historico:
   mudanca: 'desvio aceito: 9 módulos de camadas/ e os testes alterados fora dos entregáveis'
   motivo: o plano previa só rodar o build; o dado real de Foz exigiu 5 correções (relatório, seção Achados) e as 5 da
     revisão do Fable, todas com teste
+- data: '2026-11-03'
+  mudanca: 'E1 parcial aceita: 36 de 37 PDFs do obra.json e as 13 fotos; falta 002-...PLANTIM-R2 (elétrica, sem relação com as cavas) e a listagem completa do Drive'
+  motivo: o necessário para o build e para as cavas está no disco; o resto fica como pendência registrada
+- data: '2026-11-03'
+  mudanca: 'E4 começou depois de mais 3 achados do contêiner novo (prancha ausente, inventário sem listagem, escavação sem controle vertical silenciosa), corrigidos com teste'
+  motivo: o build real no contêiner novo dependia de insumos que só existiam no anterior
+
+- data: '2026-11-03'
+  mudanca: 'decisão do Caio: usar o talude de cada seção do projeto no modelo das cavas (etapa E5)'
+  motivo: 'a conferência mostrou área de corte do modelo 12 a 31 % menor; o modelo usava talude único de 1,5:1 e o projeto tem 1,0 a 5,7:1 por seção'
+- data: '2026-11-03'
+  mudanca: 'E5 (talude por seção) cancelada pelo Caio depois do aceite do Fable'
+  motivo: 'corrigida pelo terreno, a área do modelo fica de +1 % (AA) a −20 % (OO) e +17 % (RR); a diferença vem do terreno do MDS (0,1 a 0,4 m abaixo da topografia) e das marcas de cota vizinhas, não do talude; terreno e talude vão para a próxima rodada'
+- data: '2026-11-03'
+  mudanca: 'E4 concluída depois de 3 aceites do Fable (REVISAR, REVISAR, ACEITA); placar final 1 confere, 4 difere, 13 não conferível'
+  motivo: 'os aceites acharam motivos falsos (letras deitadas, linha incompleta, edificação, segmento espúrio) e uma conclusão não sustentada (subestimado), todos corrigidos com teste'
+- data: '2026-11-03'
+  mudanca: horários de E2, E3 e E4 corrigidos pelas horas dos commits
+  motivo: os horários escritos à mão estavam adiantados em relação ao relógio da máquina (a E4 saía com −6 min)

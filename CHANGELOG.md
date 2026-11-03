@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.53.0 — 2026-11-03 · Conferência das cavas por seções de corte e cotas da sequência executiva
+- **`camadas/secoes_corte.py`** lê as pranchas de corte (Civil 3D, vetoriais). Cada quadro é calibrado pelas marcas
+  de 1 m e pelos rótulos de 5 m lidos por OCR (resíduo de 2 mm). Por seção saem a área de corte e a cota de fundo:
+  terreno original × contorno da escavação, área por integral exata. Foz tem 18 seções.
+- **`camadas/conferencia_cavas.py`** confere o modelo contra essas seções:
+  - lê as linhas de seção da planta (tracejado do layer `CORTES` + letra por OCR);
+  - mede o perfil do modelo na grade de corte de `escavacao.calcular`, que agora devolve `corte`, sem mudar volumes;
+  - compara área, fundo e terreno por seção: confere / difere / não conferível, sempre com motivo;
+  - faz seções médias onde há par paralelo na mesma cava;
+  - liga as cotas da sequência executiva só quando a ligação é única.
+
+  É uma etapa do build: grava `conferencia_cavas.json` e uma tabela na aba EAP.
+- **Foz (depois do aceite do Fable):**
+  - o fundo do modelo bate em 5 de 7 seções (0 a 0,06 m);
+  - em HH e FF o fundo vem da marca de cota vizinha;
+  - a área de corte difere principalmente pelo **terreno**: o MDS fica até 0,6 m abaixo da topografia do projeto no
+    trecho do corte; corrigida por isso, a área vai de −14 % (OO) a +10 % (RR), com AA em +1 % e LL em +5 %;
+  - placar final, depois de dois aceites do Fable: 1 confere (LL), 4 difere, 13 não conferível;
+  - não dá para dizer se o volume está sub ou superestimado.
+
+  O talude por seção foi cancelado pelo Caio, e nenhuma premissa mudou. Relatório em
+  `docs/plano/2026-11-03_conferencia_cavas.md`.
+- **Build no contêiner novo:** vira pendência visível, em vez de erro ou silêncio:
+  - prancha com PDF ausente;
+  - inventário sem listagem do Drive (ou com `_baixados.csv` de outro formato);
+  - escavação sem controle vertical, que antes sumia **sem aviso**.
+- Lição L049.
+
 ## 0.52.0 — 2026-11-03 · Itens codificados para as folhas vazias da EAP padrão
 - **17 itens novos na EAP codificada** (`conceitos/eap_geral.jsonl`), disciplina nova `GER` "Serviços gerais"
   (`PRE` mobilização, topografia, sinalização; `CTL` ensaios, comissionamento, desinfecção, CFTV; `FIN` limpeza,
