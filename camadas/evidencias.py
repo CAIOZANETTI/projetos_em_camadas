@@ -129,7 +129,7 @@ def buscar_texto(documento: dict, paginas: list[str]) -> list[dict]:
         for nl, bruta in enumerate(str(pagina).splitlines(), 1):
             medir, linha = preparar(bruta)
             item, servico, regra = classificar(linha, documento.get("obra"), documento.get("escopo"))
-            if item is None:
+            if item is None or item.endswith(".*"):     # serviço sem item: '*' só vale em unidade e sistema
                 continue
             valor, un = quantidade(medir, [it["termos"] for it in eap.itens().values()])
             saida.append(evidencia(codigo=_codigo(unidade, sistema, item), servico=servico, unidade=un, valor=valor,
@@ -189,7 +189,7 @@ def de_planilha(itens: pd.DataFrame, documento: dict, catalogo: dict | None = No
         item, servico, regra = classificar(linha, obra)
         if espec and (pelo_cadastro := item_do_material(espec)):
             item, regra = pelo_cadastro, f"cadastro Sanepar {r.codigo} ({espec.get('subcategoria')}) → {pelo_cadastro}"
-        if item is None:
+        if item is None or item.endswith(".*"):     # serviço sem item: '*' só vale em unidade e sistema
             continue
         valor, un = (None, None) if pd.isna(r.quantidade) or not unidade_medida(r.unidade) else \
             vocabulario.converter(float(r.quantidade), unidade_medida(r.unidade))

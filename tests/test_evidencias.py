@@ -321,12 +321,12 @@ def test_planilha_sem_a_aba_obras_lineares_nao_gera_evidencia_nem_erro(tmp_path)
     assert any("sem a aba" in m for m in mensagens)
 
 
-def test_item_so_com_pacote_vira_evidencia_valida():
-    """Achado do build real de Foz: classificar devolve 'CIV.EST.*' (serviço sem item), e o schema recusava o '*'."""
+def test_servico_sem_item_nao_vira_evidencia_de_planilha_nem_de_texto():
+    """Achado do build real de Foz: classificar devolve 'CIV.EST.*' (serviço sem item) e o schema recusa o '*' no item
+    ('*' só vale em unidade e sistema), o que derrubava o build. A linha fica fora das evidências."""
     import pandas as pd
 
     itens = pd.DataFrame([{"descricao": "Forma plana em compensado plastificado", "codigo": "", "unidade_obra": "UNIDADE 2",
                            "quantidade": 3.0, "unidade": "UN", "aba": "MATS E EQUIP", "linha_origem": 808}])
-    evs = evidencias.de_planilha(itens, {"id": "escopo_itens.csv", "tipo": "planilha", "nome": "contrato"})
-    assert [e["codigo"] for e in evs] == ["U2.*.CIV.EST.*"]
-    assert evidencias.validar_evidencia(evs[0]) == []
+    assert evidencias.de_planilha(itens, {"id": "escopo_itens.csv", "tipo": "planilha", "nome": "contrato"}) == []
+    assert evidencias.buscar_texto(PROJETO, ["Forma plana em compensado plastificado."]) == []

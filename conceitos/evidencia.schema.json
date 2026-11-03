@@ -7,7 +7,7 @@
  "required": ["id", "codigo", "servico", "unidade", "valor", "parcela", "documento", "localizador", "trecho", "metodo", "regra"],
  "properties": {
   "id": {"type": "string", "description": "hash de documento + localizador + método + código + serviço + trecho: rodar o loop de novo não duplica"},
-  "codigo": {"type": "string", "pattern": "^(U\\d+|\\*)\\.[A-Z0-9_*]+\\.([A-Z*]{3,}|\\*)(\\.([A-Z*]{3,}|\\*)){0,2}$", "description": "código EAP; '*' no segmento que o documento não diz (ex.: U1.*.GEO.FUN.EST = estacas da U1, sistema não dito)"},
+  "codigo": {"type": "string", "pattern": "^(U\\d+|\\*)\\.[A-Z0-9_*]+\\.[A-Z*]{3,}(\\.[A-Z*]{3,}){0,2}$", "description": "código EAP; '*' no segmento que o documento não diz (ex.: U1.*.GEO.FUN.EST = estacas da U1, sistema não dito)"},
   "servico": {"type": "string", "description": "id de conceitos/servicos.jsonl (forma, concreto, armadura…) ou '' para o próprio item"},
   "unidade": {"type": ["string", "null"], "description": "unidade de medida normalizada (un, m, m², m³, kg, t, vb, cj); null quando é só menção"},
   "valor": {"type": ["number", "null"], "description": "quantidade afirmada; null = só menção (o documento cita o item, sem número)"},
