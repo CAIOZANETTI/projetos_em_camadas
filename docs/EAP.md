@@ -201,6 +201,12 @@ linha vazia entre elas, com o par na última), mas **a quantidade não vem do " 
   (`Qtd`, `Qtde`, `Quant`, `Quantidade`) é o cabeçalho das linhas abaixo dela (o último cabeçalho acima vence). O valor
   proposto tem de ser o número da coluna Qtd e a unidade a da coluna Un (normalizada pelo vocabulário), as duas células
   dentro do trecho. Preço, código e outras colunas nunca viram quantidade; Qtd vazia não vira quantidade.
+- **Sem preço no texto.** O repositório trabalha só com quantidades: as colunas de preço não entram na página nem no
+  mapa de células, como se não existissem. Coluna de preço = rótulo (normalizado, sem pontuação) que começa por
+  `PREÇO`/`VALOR`/`CUSTO` ou é `R$`, `TOTAL`, `SUBTOTAL`, `BDI`, `PU`, `P. UNIT`, nunca a coluna reconhecida como Un ou
+  Qtd. Vale da linha de cabeçalho (rótulo incluído) até o próximo cabeçalho. Em qualquer linha, célula com "R$" também
+  fica fora; linha que sobra vazia some (o número da linha da planilha é preservado). Trecho que copia o preço é
+  recusado ("trecho não encontrado no documento").
 - **Sem cabeçalho** reconhecido: só valem pares dentro de uma mesma célula ("250 un").
 - **Célula que não vale como dado**: fórmula sem valor guardado ("[fórmula sem valor]") e número fora de 1e-6 a 1e15
   (ou NaN/infinito) recusam a linha ("célula sem valor calculado na planilha").

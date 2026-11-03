@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.47.0 — 2026-11-03 · "Sem preço" também no texto da planilha lida pela IA
+- **`evidencias.paginas_planilha`**: colunas de preço (rótulo PREÇO*, VALOR*, CUSTO*, R$, TOTAL, SUBTOTAL, BDI, PU,
+  P. UNIT) saem do texto da linha e do mapa de células, da linha de cabeçalho até o próximo cabeçalho; célula com
+  "R$" sai em qualquer linha. As colunas Un e Qtd nunca contam como preço. A citação que inclui o preço é recusada
+  ("trecho não encontrado no documento"); a SKILL orienta a não copiar o preço.
+- Conferido (só leitura): `de_planilha` e `obras_lineares.ler_custo_civil` já ignoravam as colunas de preço (F e G
+  da aba CUSTO CIVIL, que é só o nome da aba da planilha do contrato).
+- Limite: número solto sem cabeçalho e sem "R$" continua no texto (a planilha não diz que é preço).
+- Lição L043.
+
 ## 0.46.0 — 2026-11-03 · Conciliação das duas EAP sem "confere" circular, com o documento independente
 - **Origem de cada trilha** (`gavetas.origem_do_servico`, `eap.origem_das_quantidades`): conjunto de insumos
   (`arquivo:`, `etapa:`) de onde veio o número. Insumo em comum → **"confere (mesma origem)"**, com o motivo de que

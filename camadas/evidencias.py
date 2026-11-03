@@ -937,6 +937,8 @@ _MARCA_SEM_VALOR, _MARCA_FORA_DA_FAIXA = "[fórmula sem valor]", "[número fora 
 _MARCAS = (normalizar(_MARCA_SEM_VALOR), normalizar(_MARCA_FORA_DA_FAIXA))
 _ROTULOS_DE_UNIDADE = {"UN", "UND", "UNID", "UNIDADE"}
 _ROTULOS_DE_QUANTIDADE = {"QTD", "QTDE", "QUANT", "QUANTIDADE"}
+_PREFIXOS_DE_PRECO = ("PRECO", "VALOR", "CUSTO")
+_ROTULOS_DE_PRECO = {"R$", "TOTAL", "SUBTOTAL", "BDI", "PU", "PUNIT", "PUNITARIO"}
 _NUMERO_DE_TEXTO = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?")
 _LIMITE_DE_LEITURA_CSV = 0.6      # fração mínima das linhas do csv com o número de campos mais comum
 
@@ -960,6 +962,31 @@ def _cabecalho_da_linha(celulas: list[Celula]) -> tuple[int, int] | None:
     return (unidade, quantidade_) if unidade is not None and quantidade_ is not None else None
 
 
+def _rotulo_de_preco(texto: str) -> bool:
+    """Rótulo de coluna de preço: PREÇO*, VALOR*, CUSTO*, 'R$', TOTAL, SUBTOTAL, BDI, PU, 'P. UNIT'."""
+    rotulo = re.sub(r"[^A-Z0-9$]", "", normalizar(texto))
+    return rotulo.startswith(_PREFIXOS_DE_PRECO) or rotulo in _ROTULOS_DE_PRECO
+
+
+def _colunas_de_preco(celulas: list[Celula], colunas_un_qtd: tuple[int, int]) -> frozenset[int]:
+    """Colunas de preço da linha de cabeçalho; nunca a coluna reconhecida como Un ou Qtd."""
+    return frozenset(c.coluna for c in celulas
+                     if c.coluna not in colunas_un_qtd and _rotulo_de_preco(c.texto))
+
+
+def _sem_preco(linhas: list[tuple[int, list[Celula]]]) -> list[tuple[int, list[Celula]]]:
+    """Linhas sem preço: as células das colunas de preço (do cabeçalho, rótulo incluído, até o próximo cabeçalho) e
+    toda célula com 'R$' saem do texto, como se não existissem; a linha que fica vazia some."""
+    preco: frozenset[int] = frozenset()
+    saida = []
+    for numero, celulas in linhas:
+        if colunas := _cabecalho_da_linha(celulas):
+            preco = _colunas_de_preco(celulas, colunas)
+        if restantes := [c for c in celulas if c.coluna not in preco and "R$" not in c.texto]:
+            saida.append((numero, restantes))
+    return saida
+
+
 def _cabecalhos(celulas_por_linha) -> tuple[tuple[int, int] | None, ...]:
     """Para cada linha, as colunas (Un, Qtd) do último cabeçalho acima dela; a própria linha de cabeçalho e as de antes
     dele ficam sem colunas."""
@@ -974,13 +1001,14 @@ def _cabecalhos(celulas_por_linha) -> tuple[tuple[int, int] | None, ...]:
 class PaginaPlanilha(str):
     """Texto de uma aba (ou do csv): uma linha de texto por linha não vazia da planilha, as células não vazias unidas
     por ' | '. Guarda o nome da aba, a linha da planilha de cada linha de texto (1 = primeira linha da aba, contando as
-    vazias, como no Excel), as células e, por linha, as colunas (Un, Qtd) do cabeçalho que vale para ela."""
+    vazias, como no Excel), as células (sem preço: ver `_sem_preco`) e, por linha, as colunas (Un, Qtd) do cabeçalho que vale para ela."""
     aba: str
     linhas: tuple[int, ...]
     celulas: tuple[tuple[Celula, ...], ...]
     cabecalhos: tuple[tuple[int, int] | None, ...]
 
     def __new__(cls, aba: str, linhas: list[tuple[int, list[Celula]]]):
+        linhas = _sem_preco(linhas)
         pagina = super().__new__(cls, "\n".join(" | ".join(c.texto for c in cs) for _, cs in linhas))
         pagina.aba = aba
         pagina.linhas = tuple(n for n, _ in linhas)

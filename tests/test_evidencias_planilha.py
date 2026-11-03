@@ -166,7 +166,7 @@ def _preco(tmp_path, cabecalho, linha):
 def test_preco_nunca_vira_quantidade_qtd_un_preco(tmp_path):
     caminho = _preco(tmp_path, ["Item", "Descrição", "Qtd", "Un", "Preço"],
                      ["3.2.1", "Estaca hélice contínua Ø40", 250, "m", 1250.5])
-    trecho = "3.2.1 | Estaca hélice contínua Ø40 | 250 | m | 1.250,5"
+    trecho = "3.2.1 | Estaca hélice contínua Ø40 | 250 | m"
     base = {"localizador": {"aba": "S", "linha": 2}, "trecho": trecho, "unidade": "m"}
     assert _motivo(caminho, **base, valor=250.0) is None
     assert _motivo(caminho, **base, valor=1250.5) == "valor não está no trecho"
@@ -177,7 +177,7 @@ def test_preco_nunca_vira_quantidade_qtd_un_preco(tmp_path):
 def test_un_qtd_preco_continua_valendo(tmp_path):
     caminho = _preco(tmp_path, ["Item", "Descrição", "Un", "Qtd", "Preço"],
                      ["3.2.1", "Estaca hélice contínua Ø40", "m", 250, 1250.5])
-    trecho = "3.2.1 | Estaca hélice contínua Ø40 | m | 250 | 1.250,5"
+    trecho = "3.2.1 | Estaca hélice contínua Ø40 | m | 250"
     base = {"localizador": {"aba": "S", "linha": 2}, "trecho": trecho, "unidade": "m"}
     assert _motivo(caminho, **base, valor=250.0) is None
     assert _motivo(caminho, **base, valor=1250.5) == "valor não está no trecho"
@@ -188,7 +188,7 @@ def test_quantidade_vazia_com_preco_nao_vira_quantidade(tmp_path):
     caminho = _preco(tmp_path, ["Descrição", "Un", "Qtd", "Preço"], ["Estaca hélice contínua Ø40", "un", None, 87.3])
     for valor in (87.3, 250.0):
         assert _motivo(caminho, localizador={"aba": "S", "linha": 2}, valor=valor,
-                       trecho="Estaca hélice contínua Ø40 | un | 87,3") == "valor não está no trecho"
+                       trecho="Estaca hélice contínua Ø40 | un") == "valor não está no trecho"
 
 
 def test_formula_sem_valor_guardado_nao_confere(tmp_path):
@@ -200,8 +200,7 @@ def test_formula_sem_valor_guardado_nao_confere(tmp_path):
     livro.save(tmp_path / NOME)
     pagina = evidencias.paginas_planilha(tmp_path / NOME)[0]
     assert "[fórmula sem valor]" in str(pagina) and pagina.celulas[1][2].problema
-    for trecho in ("Estaca hélice contínua Ø40 | un | [fórmula sem valor] | 1.250,5",
-                   "Estaca hélice contínua Ø40 | un | 1.250,5", "Estaca hélice contínua Ø40 | un"):
+    for trecho in ("Estaca hélice contínua Ø40 | un | [fórmula sem valor]", "Estaca hélice contínua Ø40 | un"):
         for valor in (250.0, 1250.5):
             assert _motivo(tmp_path / NOME, localizador={"aba": "S", "linha": 2}, trecho=trecho, valor=valor) == \
                 "célula sem valor calculado na planilha"
@@ -285,9 +284,9 @@ def test_csv_ponto_e_virgula_com_virgulas_nas_descricoes(tmp_path):
     caminho.write_text("Item;Descrição;Un;Qtd;Preço\n3.2.1;Estaca, hélice contínua, Ø40;m;250;1.250,5\n"
                        "3.2.2;Bloco, tipo B, com armação;un;30;98,7\n", encoding="utf-8")
     pagina = evidencias.paginas_planilha(caminho)[0]
-    assert str(pagina).split("\n")[1] == "3.2.1 | Estaca, hélice contínua, Ø40 | m | 250 | 1.250,5"
+    assert str(pagina).split("\n")[1] == "3.2.1 | Estaca, hélice contínua, Ø40 | m | 250"
     ia = _linha(documento={"id": "q.csv", "tipo": "ia"}, localizador={"aba": "q", "linha": 2}, unidade="m",
-                trecho="3.2.1 | Estaca, hélice contínua, Ø40 | m | 250 | 1.250,5")
+                trecho="3.2.1 | Estaca, hélice contínua, Ø40 | m | 250")
     aceitas, recusadas = evidencias.conferir_arquivo([ia, {**ia, "valor": 40.0}, {**ia, "valor": 1250.5}], {"q.csv": [pagina]})
     assert len(aceitas) == 1 and [r["motivo"] for r in recusadas] == ["valor não está no trecho"] * 2
 
@@ -367,3 +366,47 @@ def test_etapa_le_planilha_em_documentos(planilha, tmp_path):
     conferidas = [e for e in evs if e.get("metodo") == "ia"]
     assert len(conferidas) == 1 and conferidas[0]["citacao"] == "conferida"
     assert conferidas[0]["documento"]["id"] == f"ia:{NOME}"
+
+
+# sem preço no texto ------------------------------------------------------------------------------------------------
+def _com_precos(tmp_path):
+    return _xlsx(tmp_path / NOME, {"S": [
+        (1, ["Item", "Descrição", "Un", "Qtd", "Preço unit.", "Preço total"]),
+        (2, ["3.2.1", "Estaca hélice contínua Ø40", "un", 250, 87.3, 21825]),
+        (3, ["Item", "Descrição", "Qtd", "Un", "Valor", "BDI", "Total"]),
+        (4, ["3.2.2", "Bloco tipo B", 30, "un", 98.7, 0.25, 2961])]})
+
+
+def test_texto_da_linha_sai_sem_as_colunas_de_preco(tmp_path):
+    pagina = evidencias.paginas_planilha(_com_precos(tmp_path))[0]
+    assert str(pagina).split("\n") == [
+        "Item | Descrição | Un | Qtd", "3.2.1 | Estaca hélice contínua Ø40 | un | 250",
+        "Item | Descrição | Qtd | Un", "3.2.2 | Bloco tipo B | 30 | un"]
+    assert [c.coluna for c in pagina.celulas[1]] == [1, 2, 3, 4]
+    assert pagina.cabecalhos[1] == (3, 4) and pagina.cabecalhos[3] == (4, 3)
+
+
+def test_citacao_sem_o_preco_e_aceita_e_com_o_preco_e_recusada(tmp_path):
+    caminho = _com_precos(tmp_path)
+    base = {"localizador": {"aba": "S", "linha": 2}, "valor": 250.0, "unidade": "un"}
+    assert _motivo(caminho, **base, trecho="3.2.1 | Estaca hélice contínua Ø40 | un | 250") is None
+    for trecho in ("3.2.1 | Estaca hélice contínua Ø40 | un | 250 | 87,3",
+                   "3.2.1 | Estaca hélice contínua Ø40 | un | 250 | 87,3 | 21.825"):
+        assert _motivo(caminho, **base, trecho=trecho) == "trecho não encontrado no documento"
+
+
+def test_coluna_total_que_e_a_de_quantidade_nao_e_preco(tmp_path):
+    caminho = _xlsx(tmp_path / NOME, {"S": [(1, ["Descrição", "Un", "Qtd", "Total"]), (2, ["Estaca", "un", 250, 9])]})
+    assert str(evidencias.paginas_planilha(caminho)[0]).split("\n")[1] == "Estaca | un | 250"
+    caminho = _xlsx(tmp_path / "b.xlsx", {"S": [(1, ["Descrição", "Un", "Total"]), (2, ["Estaca", "un", 9])]})
+    assert str(evidencias.paginas_planilha(caminho)[0]).split("\n") == ["Descrição | Un | Total", "Estaca | un | 9"]
+
+
+def test_celula_com_real_sem_cabecalho_fica_fora(tmp_path):
+    caminho = _xlsx(tmp_path / NOME, {"S": [(1, ["Estaca hélice", "250 un", "R$ 1.250,00"]), (2, ["R$ 80,00"])]})
+    pagina = evidencias.paginas_planilha(caminho)[0]
+    assert str(pagina) == "Estaca hélice | 250 un" and pagina.linhas == (1,)
+    ev = _linha(localizador={"aba": "S", "linha": 1}, trecho="Estaca hélice | 250 un")
+    assert evidencias.conferir_arquivo([ev], {NOME: [pagina]})[0]
+    assert _motivo(caminho, localizador={"aba": "S", "linha": 1}, trecho="Estaca hélice | 250 un | R$ 1.250,00") == \
+        "trecho não encontrado no documento"

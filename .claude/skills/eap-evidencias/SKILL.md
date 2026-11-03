@@ -87,8 +87,10 @@ linha existe no documento e que o número está nela (`conferir_citacao`). Só o
   `{"aba": "Fundações", "linha": 2}`, com `linha` a linha da planilha (1 = primeira da aba, contando as vazias, como no
   Excel); o trecho tem de estar nessa linha. `"p. N"` vale como índice da aba. **A quantidade vem das colunas Un/Qtd**:
   a linha de cabeçalho da aba (rótulos `Un`/`Unid`/`Unidade` e `Qtd`/`Qtde`/`Quant`/`Quantidade`) vale para as linhas
-  abaixo; `valor` é o número da coluna Qtd e `unidade` a da coluna Un, e o trecho tem de incluir as duas células. Preço
-  e código nunca são quantidade (em "Estaca | m | 250 | 1.250,5" o valor é 250 m, não 1250,5). Sem cabeçalho, só vale o
+  abaixo; `valor` é o número da coluna Qtd e `unidade` a da coluna Un, e o trecho tem de incluir as duas células. Código
+  nunca é quantidade. **As colunas de preço não fazem parte do texto da linha; não as copie** (rótulos `Preço*`,
+  `Valor*`, `Custo*`, `R$`, `Total`, `Subtotal`, `BDI`, `PU`, `P. unit`, fora as colunas Un/Qtd; da linha de cabeçalho,
+  rótulo incluído, até o próximo cabeçalho; sem cabeçalho, a célula com "R$"). Trecho com o preço é recusado. Sem cabeçalho, só vale o
   par dentro de uma célula ("250 un"). Célula de fórmula sem valor guardado ("[fórmula sem valor]") recusa a linha:
   peça à pessoa para salvar a planilha com os valores calculados. Cole o trecho como o `paginas_planilha` mostra. O
   resto das regras é o do texto (item mais próximo do número; bloco de 2 a 3 linhas seguidas).
