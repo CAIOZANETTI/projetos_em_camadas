@@ -186,8 +186,9 @@ def _dimensionar(classe: str, de_m: float, material: str, dn_mm: float) -> dict:
     """Vala de 1 m de tubo da classe pelo dimensionador único (`lineares.dimensionar_vala`): largura pelo MOS
     (L = D + SL + X + Y). Profundidade de premissa = recobrimento da classe + DE + berço (sem perfil)."""
     prof_m = REGRAS["recobrimento_m"][REGRAS["classes"][classe]["recobrimento"]] + de_m + VALOR["berco_m"]
-    trecho = {"local": classe, "dn_mm": dn_mm, "material": material, "prof_m": round(prof_m, 3), "comp_m": 1.0,
-              "metodo": "VCA"}
+    # decisão do Caio 03/11/2026 (D9): o DE do trecho vai ao dimensionador (fallback fora da Tabela I: DE + 0,60 m)
+    trecho = {"local": classe, "dn_mm": dn_mm, "de_mm": round(de_m * 1000, 3), "material": material,
+              "prof_m": round(prof_m, 3), "comp_m": 1.0, "metodo": "VCA"}
     return lineares.dimensionar_vala(trecho)
 
 

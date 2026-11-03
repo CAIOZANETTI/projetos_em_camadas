@@ -272,6 +272,7 @@
     "V_tubo": "pi * d ** 2 / 4 * L",
     "V_env": "(b * (d + acima) * L - V_tubo) if flexivel == 1 else 0",
     "V_reat": "max(V_reat_mos - V_berco - V_env, 0)",
+    "V_bota": "V_bota_mos + (V_berco + V_env) * empolamento_bota * importado",
     "proprio": "min(V_reat, V_solo * reap)"
    },
    "derivados": []
@@ -441,6 +442,11 @@
    }
   },
   "volumes": {
+   "berco_envoltoria_importado": {
+    "valor": true,
+    "estado": "premissa",
+    "fonte": "decisão do Caio 03/11/2026 (D9): berço (areia/solo selecionado) e envoltória são material importado que ocupa o lugar de solo escavado; esse solo também vai a bota-fora: V_bota = V_bota do lineares + (V_berco + V_env) × empolamento, com o empolamento do solo (1,30) e da rocha (1,50) ponderado pela fração de rocha da escavação do segmento (geotecnia.json). Com false (berço e envoltória do próprio solo) nada se acrescenta"
+   },
    "reaproveitamento": {
     "valor": {
      "solo": 1.0,

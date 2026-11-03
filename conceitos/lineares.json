@@ -65,17 +65,32 @@
   },
   "escoramento": {
    "faixas": [
-    {"ate_m": 2.0, "tipo": "pontaleteamento"},
-    {"ate_m": 3.0, "tipo": "descontinuo"},
-    {"ate_m": 4.5, "tipo": "continuo"},
-    {"ate_m": null, "tipo": "especial"}
+    {
+     "ate_m": 2.0,
+     "tipo": "pontaleteamento"
+    },
+    {
+     "ate_m": 3.0,
+     "tipo": "descontinuo"
+    },
+    {
+     "ate_m": 4.5,
+     "tipo": "continuo"
+    },
+    {
+     "ate_m": null,
+     "tipo": "especial"
+    }
    ],
    "estado": "premissa",
    "fonte": "decisão D3 da rodada 25: faixas do `dimensionar_vala` do ramo claude/nifty-meitner-uqs554 (conceitos/dimensoes.json, vala.escoramento.profundidade_max_m), ali declaradas como prática de orçamento; abaixo do limite da NR-18 (1,25 m, conceitos/obras_lineares.json) o tipo é 'nenhum'. Conferir com o projetista da contenção"
   },
   "agravantes": {
    "nspt_min": 4,
-   "solos_nao_coesivos": ["areia", "aterro"],
+   "solos_nao_coesivos": [
+    "areia",
+    "aterro"
+   ],
    "regex_mole": "\\bMOLES?\\b|\\bFOFAS?\\b",
    "tipo_minimo": "continuo",
    "estado": "premissa",
@@ -89,7 +104,40 @@
   "largura_fora_da_tabela": {
    "folga_m": 0.6,
    "estado": "premissa",
-   "fonte": "decisão do Caio 03/11/2026 (D7): fora da Tabela I do MOS a largura da vala é DE + 0,60 m (ABNT NBR 12266), com alerta e fonte_largura 'NBR 12266 (fallback)'; regra única do dimensionador, antes duplicada em valas.py"
+   "fonte": "decisão do Caio 03/11/2026 (D7): fora da Tabela I do MOS a largura da vala é DE + 0,60 m (ABNT NBR 12266), com alerta e fonte_largura 'NBR 12266 (fallback)'; regra única do dimensionador, antes duplicada em valas.py; D9: DE do trecho ou convertido do DN (de_por_dn); MND não tem vala (fonte_largura 'não se aplica (MND)', sem fallback)",
+   "de_por_dn": {
+    "tabelas": [
+     {
+      "material": "FD|FOFO|PVC",
+      "rotulo": "ISO 2531 / NBR 7675 (ferro fundido dúctil; PVC DEFoFo)",
+      "de_mm": {
+       "80": 98,
+       "100": 118,
+       "150": 170,
+       "200": 222,
+       "250": 274,
+       "300": 326,
+       "350": 378,
+       "400": 429,
+       "450": 480,
+       "500": 532,
+       "600": 635,
+       "700": 738,
+       "800": 842,
+       "900": 945,
+       "1000": 1048,
+       "1200": 1255
+      }
+     },
+     {
+      "material": "PEAD|PE|PP",
+      "rotulo": "série em DE (PEAD, PE, PP)",
+      "de_igual_ao_dn": true
+     }
+    ],
+    "estado": "premissa",
+    "fonte": "decisão do Caio 03/11/2026 (D9): DN -> DE por material, ISO 2531 / ABNT NBR 7675 para ferro fundido dúctil e PVC DEFoFo; PEAD/PE/PP são série em DE (DE = DN). Material ou DN fora da tabela: DE = DN com alerta 'DE estimado igual ao DN'. O trecho que traz o DE (`de_mm`) dispensa a conversão. PVC é tratado como DEFoFo (PVC PBA, com outro DE, fica para conferir)"
+   }
   }
  }
 }
