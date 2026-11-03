@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.54.0 — 2026-11-03 · EAP padrão alinhada à planilha real da Sanepar (Foz)
+- **Primeira passada com dado real**: planilha do contrato Sanepar 211/26 (Foz do Iguaçu), baixada do Drive para
+  `dados/` (fora do git), sem nenhuma coluna de preço → 1.002 linhas de escopo → 651 evidências → 35 fatos →
+  EAP padrão. Relatório em `docs/plano/2026-11-03_foz_eap_padrao_real.md` (sem valores monetários).
+- **Administração local da obra (ALO)**: etapa real da Sanepar que faltava. Item `GER.PRE.ALO` (mês/vb) e etapa
+  00 obrigatória nos dois tipos; em Foz, 18 meses na ETA (U1) e 12 nas adutoras (U2).
+- **`titulos_sanepar`** em cada etapa do padrão: os títulos reais da aba CUSTO CIVIL (serviços preliminares,
+  recomposição de pavimento, blocos de ancoragem/apoio, materiais e equipamentos, urbanização, serviços finais…);
+  a estrutura UNIDADE → frente → etapa da Sanepar casa com obra/unidade/sistema da EAP codificada.
+- **Achados do dado real corrigidos**: poço de visita vale para água e esgoto (MOS módulo 09); hidrômetro
+  ultrassônico DN 200 (macromedidor) não é ligação predial (vai para instrumentação, folha nova OL.07.04); grade de
+  piso não é piso de concreto (29 linhas → acabamentos); composição de adutora não é cava (8 linhas → vala); talha
+  não é viga; válvula "3 vias" não é recomposição de "via"; `MEDIDOR(ES)` e `MARCADOR(ES)` corrigidos no regex.
+  Folhas preenchidas na localizada: 17 → 14 (as que saíram eram falsas). Roteiros de ataque da IA idênticos.
+- Lição L050.
+
 ## 0.53.0 — 2026-11-03 · Conferência das cavas por seções de corte e cotas da sequência executiva
 - **`camadas/secoes_corte.py`** lê as pranchas de corte (Civil 3D, vetoriais). Cada quadro é calibrado pelas marcas
   de 1 m e pelos rótulos de 5 m lidos por OCR (resíduo de 2 mm). Por seção saem a área de corte e a cota de fundo:

@@ -29,6 +29,7 @@
 {"id": "mobilizacao", "nome": "Mobilização de equipe e equipamentos", "unidades": ["vb", "un", "mês"], "pacote": null, "termos": "(?<!DES)MOBILIZACAO"}
 {"id": "canteiro", "nome": "Canteiro de obras e instalações provisórias", "unidades": ["vb", "mês", "m²", "un"], "pacote": null, "termos": "(?<!CENTRAL )\\bCANTEIROS?\\b(?! CENTRAL)|\\bTAPUMES?\\b|\\bBARRACOES?\\b|INSTALACOES? PROVISORIAS?|LIGACOES? PROVISORIAS?"}
 {"id": "placa_obra", "nome": "Placa de obra", "unidades": ["un", "m²"], "pacote": null, "termos": "PLACAS? DE OBRAS?"}
+{"id": "administracao_local", "nome": "Administração local da obra (equipe técnica e administrativa, por mês)", "unidades": ["mês", "vb"], "pacote": null, "termos": "ADMINISTRACAO LOCAL"}
 {"id": "locacao_topografia", "nome": "Locação e levantamento topográfico", "unidades": ["vb", "m", "m²", "un"], "pacote": null, "termos": "LOCACAO (TOPOGRAFICA|D[AOE]S? ?(OBRA|TRACADO|EIXOS?|REDES?|ADUTORAS?|PROJETO|ESTRUTURAS|CAVAS)?)|LOCACAO E NIVELAMENTO|TOPOGRAF"}
 {"id": "sinalizacao_obra", "nome": "Sinalização e segurança de tráfego", "unidades": ["vb", "m", "un", "mês", "dia"], "pacote": null, "termos": "SINALIZACAO|FITAS? ZEBRADAS?|SEGURANCA DE (TRAFEGO|TRANSITO)"}
 {"id": "ensaio_tecnologico", "nome": "Ensaios de materiais e controle tecnológico", "unidades": ["un", "vb", "m", "m²", "m³"], "pacote": null, "termos": "ENSAIO|CONTROLE (TECNOLOGICO|DE QUALIDADE)"}

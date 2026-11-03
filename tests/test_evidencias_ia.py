@@ -29,7 +29,10 @@ def _linha(**campos) -> str:
 def test_roteiro_filtra_por_escopo_e_traz_servicos_e_unidades():
     esgoto = {i["codigo"]: i for i in evidencias.roteiro("esgoto")}
     agua = {i["codigo"] for i in evidencias.roteiro("agua")}
-    assert "HID.TUB.PVS" in esgoto and "HID.TUB.PVS" not in agua
+    assert (
+        "GER.CTL.CFT" in esgoto and "GER.CTL.CFT" not in agua
+    )  # PVS vale para os dois escopos
+    assert "HID.TUB.PVS" in esgoto and "HID.TUB.PVS" in agua
     estaca = esgoto["GEO.FUN.EST"]
     assert "estaca" in estaca["termos"] and "helice continua" in estaca["termos"]
     assert {s["id"]: s["unidades"] for s in estaca["servicos"]}["concreto"] == ["m³"]
@@ -113,11 +116,13 @@ def test_cli_roteiro_gera_markdown_com_os_codigos(tmp_path, capsys):
     )
     md = arquivo.read_text(encoding="utf-8")
     assert (
-        "## HID.TUB.PVS" in md and "## GEO.FUN.EST" in md and "Unidades aceitas" in md
+        "## GER.CTL.CFT" in md and "## GEO.FUN.EST" in md and "Unidades aceitas" in md
     )
     capsys.readouterr()
     assert evidencias.main(["roteiro", "--escopo", "agua"]) == 0
-    assert "HID.TUB.PVS" not in capsys.readouterr().out
+    assert (
+        "GER.CTL.CFT" not in capsys.readouterr().out
+    )  # PVS agora vale para água também
 
 
 def test_ia_conferida_entra_na_consolidacao():

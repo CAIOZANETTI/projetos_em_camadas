@@ -608,8 +608,8 @@ escopo e **precisa ser preenchido** a cada obra. Dois tipos:
 
 | Tipo | Prefixo | Etapas |
 |---|---|---|
-| `obra_localizada` (ETA, reservatório, estação elevatória, unidade de tratamento) | `OP` | 01 Serviços preliminares · 02 Movimento de terra · 03 Fundações · 04 Estrutura de concreto · 05 Impermeabilização · 06 Arquitetura e acabamentos · 07 Instalações hidráulicas · 08 Equipamentos · 09 Elétrica e automação · 10 Urbanização e pavimentação · 11 Ensaios, testes e comissionamento · 12 Serviços finais |
-| `obra_linear` (adutora, rede, emissário, coletor) | `OL` | 01 Preliminares · 02 Remoção de pavimento · 03 Vala · 04 Assentamento · 05 Reaterro e compactação · 06 Travessias e método não destrutivo · 07 Poços de visita, caixas e peças especiais · 08 Recomposição de pavimento · 09 Testes · 10 Ligações · 11 Cadastro e desmobilização |
+| `obra_localizada` (ETA, reservatório, estação elevatória, unidade de tratamento) | `OP` | 00 Administração local da obra (ALO) · 01 Serviços preliminares · 02 Movimento de terra · 03 Fundações · 04 Estrutura de concreto · 05 Impermeabilização · 06 Arquitetura e acabamentos · 07 Instalações hidráulicas · 08 Equipamentos · 09 Elétrica e automação · 10 Urbanização e pavimentação · 11 Ensaios, testes e comissionamento · 12 Serviços finais |
+| `obra_linear` (adutora, rede, emissário, coletor) | `OL` | 00 Administração local da obra (ALO) · 01 Preliminares · 02 Remoção de pavimento · 03 Vala · 04 Assentamento · 05 Reaterro e compactação · 06 Travessias e método não destrutivo · 07 Poços de visita, caixas e peças especiais · 08 Recomposição de pavimento · 09 Testes · 10 Ligações · 11 Cadastro e desmobilização |
 
 Cada folha tem `id` (`OL.03.02`: tipo, etapa, folha), `nome`, `aponta`, `escopo` (água, esgoto ou ambos), `obrigatoria`
 (a obra desse tipo sempre tem; mobilização sim, método não destrutivo não) e, sem item codificado, `observacao`.
@@ -639,6 +639,26 @@ codificado" e de preenchimento manual continua valendo para folha futura (e é c
 | OL.07.02 Caixas e câmaras (descarga, ventosa, registro) | `HID.TUB.CAM` | linear |
 | OL.09.02 Desinfecção e limpeza da rede | `GER.CTL.DSF` | linear · só água |
 | OL.09.03 Inspeção por CFTV | `GER.CTL.CFT` | linear · só esgoto |
+
+**Primeira passada com dado real (planilha do contrato Sanepar 211/26, Foz do Iguaçu).** O padrão foi alinhado com a
+planilha de licitação (`dados/foz/orcamento/principal.xlsx`, aba CUSTO CIVIL e MATS E EQUIP; não vai para o git).
+Relatório com contagens antes × depois: `docs/plano/2026-11-03_foz_eap_padrao_real.md`. Sem nenhum valor monetário.
+
+- **Etapa 00, Administração local da obra (ALO).** A planilha abre cada unidade com a linha "ADMINISTRAÇÃO LOCAL DA OBRA"
+  em mês (U1 18 meses, U2 12 meses). Item novo `GER.PRE.ALO` (acessório, prioridade 5, serviço `administracao_local`
+  em mês/vb) e folhas obrigatórias `OP.00.01` e `OL.00.01`. "Ligação predial" e "ALO" dentro de outra descrição
+  ("estaca…, inclusive administração local") não contam: vale a cabeça da descrição.
+- **`titulos_sanepar`.** Cada etapa traz a lista dos títulos de nível 2 que a Sanepar usa para o mesmo trabalho
+  (SERVIÇOS PRELIMINARES, BLOCOS DE ANCORAGEM, URBANIZAÇÃO, SERVIÇOS FINAIS…). É só rótulo de conferência com a
+  planilha; `validar()` confere o formato (lista de textos não vazios, quando presente) e nada mais lê o campo.
+- **Escopo.** Poço de visita (`HID.TUB.PVS`) vale para água e esgoto (a ETA de água também os tem): as folhas
+  `OP.07.03` e `OL.07.01` deixaram de ser só de esgoto. `HID.TUB.LIG` ficou restrito a ligação predial, domiciliar,
+  ramal e hidrômetro pequeno; `ELE.FOR.INS` passou a existir também em obra linear e recebe macromedidor, medidor de
+  vazão e hidrômetro DN 50 ou mais (folha nova `OL.07.04`).
+- **Correções de classificação** pela leitura das linhas reais: grade de piso é acabamento (`CIV.ACA.ACB`, não laje de
+  piso); "monovia viga" da talha não é viga; "torneira parede" e "passa-muro" não são parede; "via" não casa "3 vias",
+  "5/2 vias" nem "via rebite"; "registro passeio" não é calçada; "revestimento com asfalto" é recomposição; "central de
+  preparação de ar" é equipamento; "escavação, escoramento, assentamento, reaterro…" é vala (`GEO.MOV.VAL`).
 
 **Item acessório e a cabeça da descrição** (`eap_geral.jsonl`: `"acessorio": true`, `evidencias._achados_da_cabeca`).
 Mobilização, desmobilização, topografia, sinalização, ensaios, comissionamento, desinfecção, CFTV, travessia, MND,
