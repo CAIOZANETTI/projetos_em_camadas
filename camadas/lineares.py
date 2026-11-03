@@ -448,6 +448,29 @@ def _profundidade(trecho: dict, perfil) -> tuple[float | None, str, list[str]]:
     return None, "ausente", alertas
 
 
+def _diametro_externo_m(t: dict) -> tuple[float | None, str]:
+    """(DE em m, fonte do DE) do trecho: `de_mm` quando o trecho traz o DE; senão a conversão DN -> DE por material
+    (conceitos/lineares.json, vala.largura_fora_da_tabela.de_por_dn); fora da tabela, DE = DN com a fonte
+    "DE estimado igual ao DN" (decisão do Caio 03/11/2026, D9)."""
+    from . import obras_lineares as ol
+
+    if t.get("de_mm"):
+        return round(float(t["de_mm"]) / 1000, 4), "DE do trecho"
+    if t.get("dn_mm") is None:
+        return None, "sem DN nem DE"
+    dn_mm = float(t["dn_mm"])
+    material = ol.norm(t.get("material"))
+    for linha in VALA["largura_fora_da_tabela"]["de_por_dn"]["tabelas"]:
+        if not re.search(rf"\b(?:{linha['material']})\b", material):
+            continue
+        if linha.get("de_igual_ao_dn"):
+            return round(dn_mm / 1000, 4), f"DE = DN ({linha['rotulo']})"
+        de_mm = linha["de_mm"].get(f"{dn_mm:g}")
+        if de_mm is not None:
+            return round(float(de_mm) / 1000, 4), f"DE pela tabela {linha['rotulo']}"
+    return round(dn_mm / 1000, 4), "DE estimado igual ao DN"
+
+
 def _quantidades(t: dict, furos: list[dict], pts) -> dict:
     """Escoramento (NR-18), largura (MOS), volumes do método (VCA ou MND), geotecnia e alertas: exatamente o que
     `obras_lineares.quantificar` devolve (mesmos nomes e valores, gabarito da planilha da Giselle)."""
@@ -460,15 +483,29 @@ def _quantidades(t: dict, furos: list[dict], pts) -> dict:
         alertas.append(
             "sem profundidade média: largura, escoramento e volumes não calculados"
         )
+    mnd = t["metodo"] == "MND"
     largura_m = (
         ol.largura(t["dn_mm"], t["material"], prof_m, t["escorado"], t.get("junta"))
-        if prof_m
+        if prof_m and not mnd
         else None
     )
-    if prof_m and largura_m is None:
+    fonte_largura = "MOS" if largura_m is not None else None
+    de_m, fonte_de = _diametro_externo_m(t)
+    if mnd:
+        # decisão do Caio 03/11/2026 (D9): método não destrutivo não tem vala, logo não há largura nem fallback da NBR
+        fonte_largura = "não se aplica (MND)"
+    elif prof_m and largura_m is None and de_m is not None:
+        # decisão do Caio 03/11/2026 (D7): fora da Tabela I do MOS, b = DE + folga (NBR 12266), com alerta
+        # decisão do Caio 03/11/2026 (D9): o DE vem do trecho (`de_mm`) ou da conversão DN -> DE por material
+        folga_m = float(VALA["largura_fora_da_tabela"]["folga_m"])
+        largura_m = round(de_m + folga_m, 3)
+        fonte_largura = "NBR 12266 (fallback)"
         alertas.append(
-            f"material {t['material']} DN {t['dn_mm']} fora da Tabela I do MOS"
+            f"material {t['material']} DN {t['dn_mm']} fora da Tabela I do MOS: largura pela NBR 12266, "
+            f"DE + {_virgula(folga_m)} m"
         )
+        if fonte_de.startswith("DE estimado"):
+            alertas.append(f"{fonte_de}: DE {_virgula(de_m * 1000)} mm para DN {t['dn_mm']} ({t['material']})")
     q = ol.mnd(t) if t["metodo"] == "MND" else ol.vca(t, largura_m) if largura_m else {}
     if geotec["esgotamento_frac"] > 0:
         alertas.append(
@@ -483,7 +520,15 @@ def _quantidades(t: dict, furos: list[dict], pts) -> dict:
         alertas.append(
             f"pavimentos somam {soma_pav_m:g} m e o trecho tem {t['comp_m']:g} m"
         )
-    return {**t, **q, "geotecnia": geotec, "alertas": alertas}
+    return {
+        **t,
+        **q,
+        "fonte_largura": fonte_largura,
+        "de_m": de_m,
+        "fonte_de": fonte_de,
+        "geotecnia": geotec,
+        "alertas": alertas,
+    }
 
 
 def _agravantes(
@@ -643,7 +688,10 @@ def vala_do_trecho(
         t["comp_m"] = round(float(p1_m) - float(p0_m), 3)
     base = _quantidades(t, furos or [], pts)
     cobertos = [f for f, _ in ol.furos_do_trecho(t, furos or [], pts) if f is not None]
+    fonte_largura = base.pop("fonte_largura")  # só do dimensionador: a saída de `quantificar` segue a mesma
     acrescimos = _acrescimos(t, base, cobertos, profundidade_m, fonte)
+    acrescimos["fonte_largura"] = fonte_largura
+    acrescimos["de_m"], acrescimos["fonte_de"] = base.pop("de_m"), base.pop("fonte_de")
     acrescimos["alertas"] = base["alertas"] + alertas_prof + acrescimos["alertas"]
     return base, acrescimos
 
@@ -655,7 +703,7 @@ def dimensionar_vala(
     pts: np.ndarray | None = None,
 ) -> dict:
     """Vala do trecho pela regra única: todas as chaves de `obras_lineares.quantificar` (mesmos nomes e valores) mais
-    largura_m, profundidade_m, fonte_profundidade, escorado, tipo_escoramento, agravantes_escoramento, escoramento_m2,
+    largura_m, fonte_largura ("MOS" | "NBR 12266 (fallback)" | "não se aplica (MND)"), de_m (diâmetro externo usado), fonte_de, profundidade_m, fonte_profundidade, escorado, tipo_escoramento, agravantes_escoramento, escoramento_m2,
     esgotamento_frac, altura_agua_m, tipo_esgotamento e alertas (os de `quantificar`, a profundidade de premissa e o
     `geotecnia.alerta_na`).
 

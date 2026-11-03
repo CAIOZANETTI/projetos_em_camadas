@@ -186,18 +186,17 @@ def _dimensionar(classe: str, de_m: float, material: str, dn_mm: float) -> dict:
     """Vala de 1 m de tubo da classe pelo dimensionador único (`lineares.dimensionar_vala`): largura pelo MOS
     (L = D + SL + X + Y). Profundidade de premissa = recobrimento da classe + DE + berço (sem perfil)."""
     prof_m = REGRAS["recobrimento_m"][REGRAS["classes"][classe]["recobrimento"]] + de_m + VALOR["berco_m"]
-    trecho = {"local": classe, "dn_mm": dn_mm, "material": material, "prof_m": round(prof_m, 3), "comp_m": 1.0,
-              "metodo": "VCA"}
+    # decisão do Caio 03/11/2026 (D9): o DE do trecho vai ao dimensionador (fallback fora da Tabela I: DE + 0,60 m)
+    trecho = {"local": classe, "dn_mm": dn_mm, "de_mm": round(de_m * 1000, 3), "material": material,
+              "prof_m": round(prof_m, 3), "comp_m": 1.0, "metodo": "VCA"}
     return lineares.dimensionar_vala(trecho)
 
 
 def secao(classe: str, de_m: float, material: str = MATERIAL_PADRAO, dn_mm: float | None = None) -> tuple[float, float]:
     """Largura e profundidade da vala (m) para a classe e o diâmetro externo, vindas do dimensionador único (MOS).
-    Se a Tabela I do MOS não cobre o material e o DN, a largura cai para DE + folga (NBR 12266) e `quantificar` avisa."""
+    Fora da Tabela I do MOS a largura é a do fallback do `lineares` (DE + 0,60 m, NBR 12266; decisão do Caio
+    03/11/2026, D7)."""
     d = _dimensionar(classe, de_m, material, dn_mm or round(de_m * 1000))
-    if d["largura_m"] is None:
-        lv = REGRAS["largura_vala"]
-        return max(de_m + lv["folga_m"], lv["minimo_m"]), d["profundidade_m"]
     return d["largura_m"], d["profundidade_m"]
 
 
@@ -220,11 +219,7 @@ def quantificar(classes: list[str], pesos: np.ndarray, de_m: float, finais: list
     for (c, final), ext in sorted(grupos.items(), key=lambda kv: -kv[1]):
         d = _dimensionar(c, de_m, material, dn_mm)
         alertas = [*alertas_rede, *d["alertas"]]
-        if d["largura_m"] is None:
-            b, h = secao(c, de_m, material, dn_mm)
-            alertas.append(f"largura pela NBR 12266 (DE + folga): {material} DN {dn_mm} fora da Tabela I do MOS")
-        else:
-            b, h = d["largura_m"], d["profundidade_m"]
+        b, h = d["largura_m"], d["profundidade_m"]
         faixa = b + 2 * VALOR["sobrelargura_recorte_m"]
         k = REGRAS["classes"][c]
         recomp = f"coberta pela urbanização ({final})" if final else k["recomposicao"]

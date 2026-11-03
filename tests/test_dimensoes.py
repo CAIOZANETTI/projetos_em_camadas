@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 import pandas as pd
 import pytest
 from shapely.geometry import LineString
@@ -123,7 +124,8 @@ def test_pista_asfalto_corte_demolicao_recomposicao_e_reaterro():
     # b = D 0,30 + SL 0,35 + X 0,10 (escorada) = 0,75 m
     # demolição: antes L × (b + 0,30), agora L × b (pavimento do MOS, sem sobrelargura de recorte);
     # escavação: antes b × (h − 0,35 de pavimento) × L, agora b × h × L (profundidade inteira);
-    # reaterro: antes escavação − berço − tubo, agora escavação − tubo (regra do lineares)
+    # reaterro: antes escavação − berço − tubo; na D4 escavação − tubo (regra do lineares, contava o berço duas vezes);
+    # agora (decisão do Caio 03/11/2026, D8) escavação − tubo − berço − envoltória: 97,93 − 7,50 = 90,43 m³
     h, b = 1.0 + 0.3 + 0.1, 0.75
     assert _q(evs, "corte_pavimento") == pytest.approx(200.0)
     assert _q(evs, "demolicao", "m²") == pytest.approx(100 * b, rel=1e-3)
@@ -131,7 +133,9 @@ def test_pista_asfalto_corte_demolicao_recomposicao_e_reaterro():
     v_esc = b * h * 100
     assert _q(evs, "escavacao") == pytest.approx(v_esc, rel=1e-3)
     assert _q(evs, "envoltoria") == 0                                                    # FD rígido
-    assert _q(evs, "reaterro") == pytest.approx(v_esc - math.pi * 0.3 ** 2 / 4 * 100, rel=1e-3)
+    berco_m3 = b * 0.1 * 100
+    assert _q(evs, "berco") == pytest.approx(berco_m3, rel=1e-3)
+    assert _q(evs, "reaterro") == pytest.approx(v_esc - math.pi * 0.3 ** 2 / 4 * 100 - berco_m3, rel=1e-3)
     assert _q(evs, "assentamento") == 100.0
     assert {e["codigo"] for e in evs if e["servico"] == "demolicao"} == {"U2.AAT06.CIV.PAV.REC"}
     assert any(d["regra"] == "volume_demolido" for d in detalhes)
@@ -215,8 +219,7 @@ def test_classe_do_solo_pela_palavra_principal():
     assert dimensoes.classe_solo("basalto são") == "rocha"
 
 
-@pytest.mark.xfail(strict=True, reason="pendência do Caio (plano da rodada 25): geotecnia.classe_solo pega a 1ª regex que "
-                   "casa (ARGIL antes de AREI), não o substantivo; 'areia argilosa' sai argila. Dimensionador único: D4, 03/11/2026")
+# decisão do Caio 03/11/2026 (D5): classe pelo substantivo
 def test_areia_argilosa_e_areia():
     assert dimensoes.classe_solo("areia argilosa") == "areia"
 
@@ -275,8 +278,12 @@ def test_metodo_mos_usa_o_dimensionador_unico_da_main():
                                    "metodo": "VCA", "pavimentos": {"asfalto": 120.0}}, [])
     q = {(e["servico"], e["unidade"]): e["valor"] for e in evs}
     assert q[("escavacao", "m³")] == pytest.approx(r["escavacao_m3"])          # o mesmo número do build
-    assert q[("reaterro", "m³")] == pytest.approx(r["reaterro_m3"])
-    assert q[("bota_fora", "m³")] == pytest.approx(r["bota_fora_m3"])
+    # reaterro: antes o do lineares (escavação − tubo), que contava o berço e a envoltória duas vezes; agora desconta os
+    # dois, lançados como serviços próprios (decisão do Caio 03/11/2026, D8)
+    assert q[("reaterro", "m³")] == pytest.approx(r["reaterro_m3"] - q[("berco", "m³")] - q[("envoltoria", "m³")])
+    # bota-fora: o do lineares + o solo que o berço e a envoltória importados substituem × empolamento (D9)
+    d = els[0]["dims"]
+    assert q[("bota_fora", "m³")] == pytest.approx(r["bota_fora_m3"] + (d["V_berco"] + d["V_env"]) * d["empolamento_bota"])
     assert q[(f"escoramento_{r['tipo_escoramento']}", "m²")] == pytest.approx(r["escoramento_m2"])
     assert q[("demolicao", "m²")] == pytest.approx(sum(r["pavimento_m2"].values()))
     assert q[("berco", "m³")] == pytest.approx(r["largura_m"] * 0.1 * 120.0)    # regra genérica, largura do MOS
@@ -320,7 +327,11 @@ def test_adaptador_e_lineares_dao_a_mesma_largura_profundidade_e_escavacao():
         assert dims["V_solo"] + dims["V_rocha"] == pytest.approx(direto["escavacao_m3"])
         assert dims["tipo_escoramento"] == direto["tipo_escoramento"]
         assert dims["A_escoramento"] == pytest.approx(direto["escoramento_m2"])
-        assert dims["V_reat"] == pytest.approx(direto["reaterro_m3"]) and dims["V_bota"] == pytest.approx(direto["bota_fora_m3"])
+        # D8 (decisão do Caio 03/11/2026): reaterro do adaptador = o do lineares − berço − envoltória
+        assert dims["V_reat"] == pytest.approx(max(direto["reaterro_m3"] - dims["V_berco"] - dims["V_env"], 0.0))
+        # D9 (decisão do Caio 03/11/2026): bota-fora do adaptador = o do lineares + (berço + envoltória) × empolamento
+        assert dims["V_bota"] == pytest.approx(
+            direto["bota_fora_m3"] + (dims["V_berco"] + dims["V_env"]) * dims["empolamento_bota"])
         assert dims["h_agua"] == pytest.approx(direto["altura_agua_m"]) and dims["metodo_agua"] == direto["tipo_esgotamento"]
 
 
@@ -339,3 +350,115 @@ def test_premissas_do_dimensionador_antigo_foram_removidas_do_conceito():
         assert chave not in dimensoes.VP
     assert "empolamento" not in dimensoes.VP["volumes"] and "margem_m" not in dimensoes.VP["lencol"]
     assert list(dimensoes.VP["metodos"]) == ["mos_sanepar"]
+
+
+# decisão do Caio 03/11/2026 (D7/D8) ------------------------------------------------------------------------------
+def test_fd_dn630_fora_da_tabela_do_mos_usa_o_fallback_da_nbr_12266():
+    # antes: largura_m None (faltando "b"); agora DE + 0,60 = 0,63 + 0,60 = 1,23 m, com alerta e fonte, e o mesmo número
+    # no lineares, em valas e no adaptador (decisão do Caio 03/11/2026, D7)
+    from camadas import lineares, valas
+    r = lineares.dimensionar_vala({"local": "pista", "dn_mm": 630, "material": "FD", "prof_m": 1.73, "comp_m": 100.0,
+                                   "metodo": "VCA", "pavimentos": {"asfalto": 100.0}}, [])
+    assert r["largura_m"] == pytest.approx(1.23) and r["fonte_largura"] == "NBR 12266 (fallback)"
+    assert any("fora da Tabela I do MOS: largura pela NBR 12266, DE + 0,60 m" in a for a in r["alertas"])
+    linhas = valas.quantificar(["pista"], np.array([100.0]), 0.63, material="FD", dn_mm=630)
+    assert linhas[0]["largura_m"] == pytest.approx(1.23)
+    assert any("fora da Tabela I do MOS" in a for a in linhas[0]["alertas"])
+    els, _, sem_valor, _ = _vala({"pista": 100.0}, de_mm=630, material="TUBO FD K7")
+    assert els[0]["dims"]["b"] == pytest.approx(1.23) and not any("b (falta" in f for f in els[0]["faltando"])
+    assert "escavacao_vala" not in sem_valor
+
+
+def test_tubo_dentro_da_tabela_do_mos_segue_com_a_fonte_mos():
+    from camadas import lineares
+    r = lineares.dimensionar_vala({"local": "pista", "dn_mm": 300, "material": "FD", "prof_m": 1.4, "comp_m": 10.0,
+                                   "metodo": "VCA"}, [])
+    assert r["largura_m"] == pytest.approx(0.75) and r["fonte_largura"] == "MOS"
+    assert not any("fora da Tabela I" in a for a in r["alertas"])
+
+
+def test_reaterro_do_adaptador_desconta_berco_e_envoltoria_e_mostra_a_conta():
+    # PEAD DN 630, pista 100 m: escavação b × h × L; reaterro do lineares = escavação − tubo;
+    # adaptador = reaterro do lineares − berço (b × 0,1 × L) − envoltória (b × (d + acima) × L − tubo) (flexível)
+    # (decisão do Caio 03/11/2026, D8)
+    from camadas import lineares
+    els, evs, _, _ = _vala({"pista": 100.0}, de_mm=630, material="TUBO PE DE 630", sondagens=[_furo()])
+    r = lineares.dimensionar_vala({"local": "pista", "dn_mm": 630, "material": "PEAD", "prof_m": els[0]["dims"]["h"],
+                                   "comp_m": 100.0, "metodo": "VCA", "pavimentos": {"asfalto": 100.0}}, [_furo()])
+    d = els[0]["dims"]
+    esperado = r["reaterro_m3"] - d["V_berco"] - d["V_env"]
+    assert d["V_berco"] > 0 and d["V_env"] > 0 and esperado > 0
+    assert d["V_reat"] == pytest.approx(esperado) and _q(evs, "reaterro") == pytest.approx(esperado, rel=1e-3)
+    assert any(m.startswith("reaterro = ") and "berço" in m and "envoltória" in m for m in els[0]["memoria"])
+
+
+def test_reaterro_negativo_vira_zero_com_alerta():
+    from camadas import dimensoes
+    dims, faltando, _ = dimensoes.dimensionar("vala", dados={"L": 10.0, "d": 0.3, "b": 1.0, "h": 0.5, "berco": 0.1,
+                                                              "acima": 0.2, "flexivel": 1.0, "V_reat_mos": 1.0})
+    assert dims["V_reat"] == 0 and not any("V_reat" in f for f in faltando)
+
+
+# decisão do Caio 03/11/2026 (D9) ----------------------------------------------------------------------------------
+def _vala_lineares(dn_mm, material, **kw):
+    from camadas import lineares
+    return lineares.dimensionar_vala({"local": "pista", "dn_mm": dn_mm, "material": material, "prof_m": 1.73,
+                                      "comp_m": 100.0, "metodo": "VCA", "pavimentos": {"asfalto": 100.0}, **kw}, [])
+
+
+def test_fallback_converte_dn_em_de_por_material():
+    # FD DN 630 fora da tabela de DE: DE = DN com alerta; FD DN 600 -> DE 635 mm; PEAD DN 630 -> DE = DN
+    r = _vala_lineares(630, "FD")
+    assert r["largura_m"] == pytest.approx(1.23) and r["de_m"] == pytest.approx(0.63)
+    assert any("DE estimado igual ao DN" in a for a in r["alertas"])
+    r = _vala_lineares(600, "FD", prof_m=2.0)          # DN 600 está na Tabela I do MOS: largura do MOS, DE só informado
+    assert r["de_m"] == pytest.approx(0.635) and r["fonte_largura"] == "MOS"
+    r = _vala_lineares(700, "PVC")                     # PVC DEFoFo DN 700 -> DE 738 mm (a largura segue a Tabela I)
+    assert r["de_m"] == pytest.approx(0.738)
+    r = _vala_lineares(630, "PEAD", junta="outra")
+    assert r["de_m"] == pytest.approx(0.63) and not any("DE estimado" in a for a in r["alertas"])
+
+
+def test_fallback_usa_o_de_do_trecho_quando_vem_explicito():
+    r = _vala_lineares(600, "CONCRETO", de_mm=720)      # DE explícito vence qualquer conversão
+    assert r["de_m"] == pytest.approx(0.72)
+    r = _vala_lineares(2000, "CONCRETO", de_mm=2200)
+    assert r["largura_m"] == pytest.approx(2.8) and r["fonte_de"] == "DE do trecho"
+    assert not any("DE estimado" in a for a in r["alertas"])
+    from camadas import valas
+    linhas = valas.quantificar(["pista"], np.array([100.0]), 0.63, material="FD", dn_mm=630)
+    assert linhas[0]["largura_m"] == pytest.approx(1.23)
+
+
+def test_conversao_dn_de_ferro_fundido_pela_tabela():
+    r = _vala_lineares(1000, "FD")
+    assert r["de_m"] == pytest.approx(1.048) and r["fonte_de"].startswith("DE pela tabela")
+
+
+def test_mnd_nao_tem_vala_nem_fallback_da_nbr():
+    r = _vala_lineares(630, "FD", metodo="MND")
+    assert r["largura_m"] is None and r["fonte_largura"] == "não se aplica (MND)"
+    assert not any("NBR 12266" in a or "fora da Tabela I" in a for a in r["alertas"])
+
+
+def test_bota_fora_do_adaptador_soma_o_solo_do_berco_e_da_envoltoria_com_numeros():
+    # PEAD DN 630, pista 100 m, sem sondagem (100% solo, empolamento 1,30): bota = tubo × 1,30 + (berço + envoltória) × 1,30
+    from camadas import lineares
+    els, _, _, _ = _vala({"pista": 100.0}, de_mm=630, material="TUBO PE DE 630")
+    d = els[0]["dims"]
+    r = lineares.dimensionar_vala({"local": "pista", "dn_mm": 630, "material": "PEAD", "prof_m": d["h"], "comp_m": 100.0,
+                                   "metodo": "VCA", "pavimentos": {"asfalto": 100.0}}, [])
+    tubo_m3 = math.pi * 0.63**2 / 4 * 100.0
+    assert r["bota_fora_m3"] == pytest.approx(tubo_m3 * 1.30, abs=1e-3)
+    berco_m3, env_m3 = d["b"] * 0.1 * 100.0, d["b"] * (0.63 + 0.3) * 100.0 - tubo_m3
+    assert d["V_berco"] == pytest.approx(berco_m3) and d["V_env"] == pytest.approx(env_m3)
+    assert d["empolamento_bota"] == pytest.approx(1.30)
+    assert d["V_bota"] == pytest.approx(tubo_m3 * 1.30 + (berco_m3 + env_m3) * 1.30, abs=1e-3)
+    assert any(m.startswith("bota-fora = ") and "empolamento" in m for m in els[0]["memoria"])
+
+
+def test_bota_fora_do_adaptador_nao_acrescenta_com_berco_do_proprio_solo(monkeypatch):
+    monkeypatch.setitem(dimensoes.VP["volumes"], "berco_envoltoria_importado", {"valor": False})
+    els, _, _, _ = _vala({"pista": 100.0}, de_mm=630, material="TUBO PE DE 630")
+    d = els[0]["dims"]
+    assert d["V_bota"] == pytest.approx(d["V_bota_mos"])

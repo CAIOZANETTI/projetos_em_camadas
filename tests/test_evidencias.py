@@ -242,7 +242,9 @@ def test_mos_recalcula_os_mesmos_fatos_com_o_escoramento_total():
     assert ("", "m²") not in q                                                  # supressão não é recalculada
     assert ("assentamento", "m") not in q                                       # o comprimento é só cópia da entrada
     assert not any("None" in e["trecho"] for e in mos)
-    assert evidencias.de_obras_lineares_mos([{**_trecho_linear(), "material": "AMIANTO"}], []) == []
+    # antes: material fora da Tabela I do MOS não dava evidência ([]); agora a largura cai para DE + 0,60 m (NBR 12266)
+    # com alerta (decisão do Caio 03/11/2026, D7)
+    assert evidencias.de_obras_lineares_mos([{**_trecho_linear(), "material": "AMIANTO"}], [])
 
 
 def test_planilha_x_mos_do_mesmo_trecho_converge_quando_o_digitado_bate():

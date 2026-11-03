@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.51.0 — 2026-11-03 · Decisão D9: DE no fallback, MND sem vala e bota-fora com berço e envoltória
+- **DE no fallback** (`lineares._diametro_externo_m`, `conceitos/lineares.json › de_por_dn`): fora da Tabela I do MOS a
+  largura usa o DE do tubo: o `de_mm` do trecho, ou DN → DE pela tabela do material (FD, FOFO e PVC DEFoFo pela
+  ISO 2531 / NBR 7675; PEAD, PE e PP com DE = DN); fora da tabela, DE = DN com alerta. Saída ganha `de_m` e `fonte_de`.
+- **MND**: trecho sem vala sai com `fonte_largura` "não se aplica (MND)", sem o alerta do fallback.
+- **Bota-fora do adaptador** (`dimensoes`): soma (berço + envoltória) × empolamento ponderado solo/rocha quando são
+  material importado (`berco_envoltoria_importado`). PEAD DN 630, pista 120 m: 48,6 → 173,5 m³. O bota-fora do
+  `lineares` (gabarito da planilha) não muda.
+- Antes × depois: `results/iteracoes/2026-11-03_D9_observacoes.md`. Gabaritos intocados; hash da referência igual.
+  Lição L047.
+
+## 0.50.0 — 2026-11-03 · Decisões D5 a D8: solo pelo substantivo, impenetrável como rocha, fallback e reaterro da vala
+- **D5, classe do solo pelo substantivo** (`geotecnia.classe_solo`): vence a regex que casa mais cedo na designação
+  (NBR 6484); "Areia fina argilosa" passa de argila a areia. `rocha_alterada` vence `rocha` em qualquer posição.
+- **D6, impenetrável é rocha** (`geotecnia.solo_na_faixa`): a parte da faixa abaixo do `topo_rocha_m` de um furo
+  impenetrável conta como rocha, não como indefinido (premissa `impenetravel_e_rocha`).
+- **D7, fallback numa regra só** (`lineares.dimensionar_vala`): fora da Tabela I do MOS, largura DE + 0,60 m (NBR 12266)
+  com alerta e `fonte_largura`; `valas.py` perdeu a regra própria e o adaptador `dimensoes` deixa de ficar em
+  "faltando". FD DN 630: 1,23 m nos três caminhos.
+- **D8, reaterro sem dupla contagem** (adaptador `dimensoes`): reaterro = reaterro do MOS − berço − envoltória, nunca
+  negativo. Pista 100 m, FD DN 300: 97,93 → 90,43 m³. O reaterro do `lineares` (gabarito da planilha) não muda.
+- Antes × depois: `results/iteracoes/2026-11-03_D5_D6_geotecnia.md` e `2026-11-03_D7_D8_vala.md`. Gabaritos
+  intocados; hash da referência igual. Dois Sonnet em paralelo; aceite do Fable. Lição L046.
+
 ## 0.49.0 — 2026-11-03 · Um dimensionador de vala só: `dimensoes.dimensionar_vala` virou adaptador do `lineares`
 - **Decisão do Caio (03/11/2026): dimensionador único (lineares)**, com o modelo geotécnico único (raio de influência de
   60 m, margem do NA 0 m, empolamento 1,30 solo / 1,50 rocha). `dimensoes.dimensionar_vala` mantém a interface

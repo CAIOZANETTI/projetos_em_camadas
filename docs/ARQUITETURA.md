@@ -254,6 +254,11 @@ Decisão do Caio vale como regra até ser superada por outra, sempre registrada 
 | D2 | 01/11 | a vala das adutoras segue o MOS Sanepar, não a NBR 12266 (0,90 → 0,75 m no caso DE 0,30 m) | vigente |
 | D3 | 01/11 | o ramo `nifty-meitner` não seria integrado; as faixas de escoramento dele entram como premissa | **revertida em 02–03/11**: o Caio fez o merge de 11 PRs do ramo (#18, #34, #36, #38, #40–#45, #47). A EAP codificada, a aba EAP, as evidências e a leitura por IA com citação conferida passam a fazer parte da arquitetura |
 | D4 | 03/11 | fica um só dimensionador de vala, o `lineares.dimensionar_vala`, com as premissas da D1; o `dimensoes.dimensionar_vala` vira adaptador | vigente |
+| D5 | 03/11 | classe do solo pelo substantivo da designação (NBR 6484): "Areia fina argilosa" é areia, não argila | vigente |
+| D6 | 03/11 | o furo impenetrável vale como rocha na faixa abaixo dele (escavação, escoramento, esgotamento) | vigente |
+| D7 | 03/11 | tubo fora da Tabela I do MOS: largura pela NBR 12266 (DE + 0,60 m), com alerta, numa regra só no `lineares` | vigente |
+| D8 | 03/11 | o reaterro desconta o berço e a envoltória, que já são lançados como serviços | vigente |
+| D9 | 03/11 | o fallback usa o DE do tubo (dado, ou pela tabela DN → DE do material); trecho em MND não tem largura de vala; o bota-fora inclui o solo deslocado pelo berço e pela envoltória | vigente |
 
 ## 7. Quem faz o quê
 

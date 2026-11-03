@@ -3,7 +3,7 @@
   "fonte": "pedido do Caio (30/10/2026): os elementos geram dimensões e as dimensões geram os serviços associados (lastro pela área do bloco, forma, escoramento, impermeabilização, escavação e reaterro, vala da rede)",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Cada tipo de elemento declara de onde vem cada dimensão (atributo do elemento construtivo, geometria em UTM, valor dado pelo obra.json/fato/elemento pai, ou padrão) e os cálculos que levam às dimensões PADRONIZADAS que as regras de serviço usam: V (concreto), A_forma, A_fundo (apoio no solo: lastro), A_escoramento, A_imperm, V_esc/V_reat (cava). Dimensão que falta não é suposta: o cálculo que depende dela não sai e o serviço fica 'sem valor', com a dimensão que faltou. `derivados` cria elementos que a execução exige (cava do bloco, vala do baldrame) com as dimensões do pai. O tipo `vala` é dimensionado por camadas.dimensoes.dimensionar_vala (profundidade, solo e NA da sondagem, escoramento, largura, pavimento) (adaptador de `lineares.dimensionar_vala`) com os parâmetros de `vala`. `de_fatos` transforma fatos consolidados em elementos (laje em m² → laje com A). Elemento declarado no obra.json (`elementos_declarados`) entra com as dimensões dadas. A vala é dimensionada pelo MOS Sanepar (`lineares.dimensionar_vala`), o único método (decisão do Caio 03/11/2026: dimensionador único em lineares); o método NBR 12266 deixou de ter regra própria."
+  "observacoes": "Cada tipo de elemento declara de onde vem cada dimensão (atributo do elemento construtivo, geometria em UTM, valor dado pelo obra.json/fato/elemento pai, ou padrão) e os cálculos que levam às dimensões PADRONIZADAS que as regras de serviço usam: V (concreto), A_forma, A_fundo (apoio no solo: lastro), A_escoramento, A_imperm, V_esc/V_reat (cava). Dimensão que falta não é suposta: o cálculo que depende dela não sai e o serviço fica 'sem valor', com a dimensão que faltou. `derivados` cria elementos que a execução exige (cava do bloco, vala do baldrame) com as dimensões do pai. O tipo `vala` é dimensionado por camadas.dimensoes.dimensionar_vala (profundidade, solo e NA da sondagem, escoramento, largura, pavimento) (adaptador de `lineares.dimensionar_vala`) com os parâmetros de `vala`. `de_fatos` transforma fatos consolidados em elementos (laje em m² → laje com A). Elemento declarado no obra.json (`elementos_declarados`) entra com as dimensões dadas. A vala é dimensionada pelo MOS Sanepar (`lineares.dimensionar_vala`), o único método (decisão do Caio 03/11/2026: dimensionador único em lineares); o método NBR 12266 deixou de ter regra própria. Reaterro da vala (decisão do Caio 03/11/2026, D8): V_reat = reaterro do lineares (escavação − tubo) − berço − envoltória, nunca negativo, porque o berço e a envoltória são lançados como serviços próprios (sem contar o volume duas vezes); o reaterro do lineares e de obras_lineares (gabarito da planilha) não muda. Largura fora da Tabela I do MOS: fallback DE + 0,60 m do lineares (D7)."
  },
  "tipos": {
   "estaca": {
@@ -271,6 +271,8 @@
     "V_berco": "b * berco * L",
     "V_tubo": "pi * d ** 2 / 4 * L",
     "V_env": "(b * (d + acima) * L - V_tubo) if flexivel == 1 else 0",
+    "V_reat": "max(V_reat_mos - V_berco - V_env, 0)",
+    "V_bota": "V_bota_mos + min(V_berco + V_env, V_reat_mos) * empolamento_bota * importado",
     "proprio": "min(V_reat, V_solo * reap)"
    },
    "derivados": []
@@ -440,6 +442,11 @@
    }
   },
   "volumes": {
+   "berco_envoltoria_importado": {
+    "valor": true,
+    "estado": "premissa",
+    "fonte": "decisão do Caio 03/11/2026 (D9): berço (areia/solo selecionado) e envoltória são material importado que ocupa o lugar de solo escavado; esse solo também vai a bota-fora: V_bota = V_bota do lineares + (V_berco + V_env) × empolamento, com o empolamento do solo (1,30) e da rocha (1,50) ponderado pela fração de rocha da escavação do segmento (geotecnia.json). Com false (berço e envoltória do próprio solo) nada se acrescenta"
+   },
    "reaproveitamento": {
     "valor": {
      "solo": 1.0,
