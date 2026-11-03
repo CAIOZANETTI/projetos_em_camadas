@@ -71,7 +71,7 @@ def _diferencas(esperado, atual, caminho="$"):
     return [] if esperado == atual else [f"{caminho}: {esperado!r} != {atual!r}"]
 
 
-DADOS_DE_OUTROS_MODULOS = ("construtivos", "eap", "eap_painel", "eap_gavetas", "evidencias", "gavetas")
+DADOS_DE_OUTROS_MODULOS = ("construtivos", "eap", "eap_padrao", "eap_painel", "eap_gavetas", "evidencias", "gavetas")
 
 
 def _conferir_golden(nome, resultado, tmp):
