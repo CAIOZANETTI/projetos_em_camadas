@@ -50,7 +50,7 @@ satélite (opcional, online) ─────────────────
 | `docs/EAP.md` | EAP como linha mestra: codificação, ligação com elementos, pranchas e contrato, quantificação determinística, IA verificada e próximos passos |
 | `docs/VISUALIZADOR_V2.md` | Contrato de dados do HTML v2 (pranchas vetoriais, etapas, escopo, 3D) |
 | `docs/PESQUISA_REPOSITORIOS.md` | Projetos semelhantes e lições aprendidas |
-| `.claude/skills/` | Skills para o Claude repetir o processo em novos projetos |
+| `.claude/skills/` | Skills para o Claude repetir o processo em novos projetos (inclui `eap-evidencias`: a IA lê edital, memorial e laudo e propõe evidências; `python -m camadas.evidencias conferir` só aceita a citação que está no documento) |
 
 ## Uso rápido — obra completa
 

@@ -307,3 +307,226 @@ def test_decisao_vira_texto_pronto():
 def test_metadados():
     meta = eap_painel.metadados()
     assert meta["modulo"] == "eap_painel" and "montar" in meta["funcoes"]
+
+
+def _fato_bruto(codigo: str, status: str, unidade: str = "un") -> dict:
+    return {"codigo": codigo, "status": status, "unidade": unidade}
+
+
+def _eap_de(codigos_itens: list[str]) -> dict:
+    """EAP mínima: um nó por prefixo de cada código de item e uma quantidade por item."""
+    nos: dict[str, dict] = {}
+    for codigo in codigos_itens:
+        partes = codigo.split(".")
+        for k in range(1, len(partes) + 1):
+            c = ".".join(partes[:k])
+            nos.setdefault(
+                c,
+                {
+                    "codigo": c,
+                    "numero": c,
+                    "nivel": "item" if k == len(partes) else "no",
+                    "nome": c,
+                    "pai": ".".join(partes[: k - 1]) or None,
+                },
+            )
+    return {
+        "nos": list(nos.values()),
+        "quantidades": [_q(c, "quantidade", "un", 1.0, [c]) for c in codigos_itens],
+    }
+
+
+def _status(fatos: list[dict], itens: list[str] | None = None) -> dict:
+    """Nós por código; por padrão há estacas em U1.A e U1.B."""
+    itens = itens or ["U1.A.GEO.FUN.EST", "U1.B.GEO.FUN.EST"]
+    return {n["codigo"]: n for n in eap_painel.arvore(_eap_de(itens), fatos)}
+
+
+def test_status_do_no_conflito_sobe_para_os_ancestrais():
+    nos = _status(
+        [
+            _fato_bruto("U1.A.GEO.FUN.EST", "conflito"),
+            _fato_bruto("U1.B.GEO.FUN.EST", "convergente"),
+        ]
+    )
+    assert nos["U1"]["status_no"] == "conflito"  # ancestral herda o conflito
+    assert nos["U1.A"]["status_no"] == "conflito"
+    assert nos["U1.B"]["status_no"] == "convergente"
+    assert (nos["U1"]["n_fatos"], nos["U1"]["n_conflitos"]) == (2, 1)
+    assert (nos["U1.A"]["n_fatos"], nos["U1.A"]["n_conflitos"]) == (1, 1)
+    assert (nos["U1.B"]["n_fatos"], nos["U1.B"]["n_conflitos"]) == (1, 0)
+    assert nos["U1"]["selo_title"] == "2 fatos · 1 em conflito"
+    assert nos["U1.B"]["selo_title"] == "1 fato · 0 em conflito"
+    assert nos["U1.A"]["rotulo_vista"] == "Vista: U1.A · U1.A (1 elemento)"
+
+
+def test_fato_com_asterisco_vale_para_os_sistemas_que_tem_o_item():
+    nos = _status([_fato_bruto("U1.*.GEO.FUN.EST", "fonte única")])
+    assert {nos[c]["status_no"] for c in ("U1", "U1.A", "U1.B")} == {"fonte única"}
+    assert all(nos[c]["n_fatos"] == 1 for c in ("U1", "U1.A", "U1.B"))
+    assert eap_painel._fato_cobre_no("U1.*.GEO.FUN.EST", "U1.A.GEO.FUN")
+    assert not eap_painel._fato_cobre_no("U1.*.GEO.FUN.EST", "U1.A.CIV")
+    assert not eap_painel._fato_cobre_no("U1.*.GEO.FUN.EST", "U2.A")
+    assert not eap_painel._fato_cobre_no("U1.A", "U1.A.GEO")
+
+
+def test_asterisco_nao_contamina_sistema_sem_o_item():
+    nos = _status(
+        [_fato_bruto("U1.*.GEO.FUN.EST", "conflito")],
+        itens=["U1.A.GEO.FUN.EST", "U1.B.CIV.EST.PIL"],  # U1.B não tem estaca
+    )
+    assert nos["U1.A"]["status_no"] == "conflito"
+    assert nos["U1"]["status_no"] == "conflito"
+    assert nos["U1.B"]["status_no"] == "sem evidência"
+    assert nos["U1.B"]["n_fatos"] == 0 and nos["U1.B"]["n_conflitos"] == 0
+    assert nos["U1.B.CIV"]["status_no"] == "sem evidência"
+    # fato sem `*` segue a regra de prefixo mesmo sem quantidade sob o nó
+    sem_curinga = _status(
+        [_fato_bruto("U1.B.GEO.FUN.EST", "conflito")], itens=["U1.B.CIV.EST.PIL"]
+    )
+    assert sem_curinga["U1.B"]["status_no"] == "conflito"
+
+
+def test_asterisco_no_meio_e_fato_de_nivel_pacote_em_no_intermediario():
+    itens = ["U1.A.GEO.FUN.EST", "U1.A.GEO.FUN.BLO", "U1.A.CIV.EST.PIL"]
+    nos = _status(
+        [
+            _fato_bruto("U1.A.*.FUN.EST", "convergente"),  # `*` no meio
+            _fato_bruto("U1.A.GEO", "conflito"),  # nível pacote: cobre o pacote e acima
+        ],
+        itens=itens,
+    )
+    assert nos["U1.A.GEO"]["status_no"] == "conflito"
+    assert (
+        nos["U1.A"]["status_no"] == "conflito" and nos["U1"]["status_no"] == "conflito"
+    )
+    assert (
+        nos["U1.A.GEO.FUN"]["status_no"] == "convergente"
+    )  # o fato de pacote não cobre o filho
+    assert nos["U1.A.GEO.FUN.EST"]["status_no"] == "convergente"
+    assert nos["U1.A.GEO.FUN.BLO"]["status_no"] == "sem evidência"
+    assert nos["U1.A.CIV"]["status_no"] == "sem evidência"
+    assert nos["U1.A.GEO.FUN"]["n_fatos"] == 1
+    assert nos["U1.A"]["n_fatos"] == 2
+
+
+def test_mesmo_codigo_com_unidades_diferentes_conta_dois_fatos():
+    nos = _status(
+        [
+            _fato_bruto("U1.A.GEO.FUN.EST", "convergente", "un"),
+            _fato_bruto("U1.A.GEO.FUN.EST", "conflito", "m"),
+        ]
+    )
+    assert nos["U1.A"]["n_fatos"] == 2 and nos["U1.A"]["n_conflitos"] == 1
+    assert nos["U1.A"]["status_no"] == "conflito"
+    assert nos["U1.B"]["status_no"] == "sem evidência"
+
+
+def test_no_sem_fato_e_sem_evidencia_e_so_convergentes_e_convergente():
+    nos = _status(
+        [
+            _fato_bruto("U1.A.GEO.FUN.EST", "convergente"),
+            _fato_bruto("U1.A.CIV.EST.PIL", "decidido"),
+        ],
+        itens=["U1.A.GEO.FUN.EST", "U1.A.CIV.EST.PIL", "U1.B.GEO.FUN.EST"],
+    )
+    assert nos["U1.B"]["status_no"] == "sem evidência"
+    assert (nos["U1.B"]["n_fatos"], nos["U1.B"]["n_conflitos"]) == (0, 0)
+    assert nos["U1.A"]["status_no"] == "convergente" and nos["U1.A"]["n_fatos"] == 2
+    assert nos["U1"]["status_no"] == "convergente"
+    assert _status([])["U1"]["status_no"] == "sem evidência"
+
+
+def test_fonte_unica_so_mencao_e_status_desconhecido_rebaixam_convergente():
+    base = _fato_bruto("U1.A.GEO.FUN.EST", "convergente")
+    for status in (
+        "fonte única",
+        "só menção",
+        "inventado",
+    ):  # desconhecido cai em "fonte única", por cautela
+        nos = _status([base, _fato_bruto("U1.A.GEO.FUN.EST", status)])
+        assert nos["U1.A"]["status_no"] == "fonte única", status
+        assert nos["U1.B"]["status_no"] == "sem evidência"
+    assert (
+        _status([_fato_bruto("U1.A.X.Y.Z", "fonte única")], itens=["U1.A.X.Y.Z"])["U1"][
+            "status_no"
+        ]
+        == "fonte única"
+    )
+    nos = _status(
+        [_fato_bruto("U1.A.X.Y.Z", "só menção"), _fato_bruto("U1.A.X.Y.W", "conflito")],
+        itens=["U1.A.X.Y.Z", "U1.A.X.Y.W"],
+    )
+    assert nos["U1.A"]["status_no"] == "conflito"
+
+
+def test_montar_passa_os_fatos_a_arvore():
+    """Status exatos nos dados sintéticos: o `*` em conflito (U1.*.GEO.FUN.EST) só atinge quem tem estaca (ACT600)."""
+    codificada, evid = sinteticos(com_conflito=True)
+    painel = eap_painel.montar(codificada, evid)
+    nos = {n["codigo"]: n for n in painel["arvore"]}
+    esperado = {
+        "U1": ("conflito", 17, 1),
+        "U1.ACT600": ("conflito", 7, 1),
+        "U1.ACT600.GEO.FUN.EST": ("conflito", 6, 1),
+        "U1.ACT600.GEO.MOV": ("fonte única", 1, 0),
+        "U1.ACT600.GEO.MOV.REA": ("sem evidência", 0, 0),
+        "U1.FILTROS": ("fonte única", 9, 0),  # sem estacas: o conflito do `*` não chega
+        "U1.ETA": ("fonte única", 1, 0),
+        "U2": ("conflito", 12, 7),
+        "U2.AAT06.HID": ("fonte única", 2, 0),
+    }
+    for codigo, (status, n_fatos, n_conflitos) in esperado.items():
+        no = nos[codigo]
+        assert (no["status_no"], no["n_fatos"], no["n_conflitos"]) == (
+            status,
+            n_fatos,
+            n_conflitos,
+        ), codigo
+    assert nos["U1"]["selo_title"] == "17 fatos · 1 em conflito"
+    sem_fatos = eap_painel.montar(codificada, None)
+    assert {n["status_no"] for n in sem_fatos["arvore"]} == {"sem evidência"}
+
+
+def test_subgrupos_do_codigo_por_disciplina_pacote_e_item():
+    # disciplina: todo subgrupo com algum pacote GEO.*, em ordem alfabética
+    geo = ["Adutoras", "Geotecnia e fundação", "Terraplenagem"]
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO") == geo
+    # pacote e item: só quem contém o pacote exato
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO.FUN") == ["Geotecnia e fundação"]
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO.FUN.EST") == [
+        "Geotecnia e fundação"
+    ]
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO.MOV") == geo
+    assert eap_painel.subgrupos_do_codigo("U1.A.HID.TUB") == [
+        "Adutoras",
+        "Drenagem",
+        "Processo",
+        "Tubulações e conexões",
+    ]
+
+
+def test_subgrupos_do_codigo_acima_da_disciplina_e_vazio():
+    assert eap_painel.subgrupos_do_codigo("U1") == []
+    assert eap_painel.subgrupos_do_codigo("U1.A") == []
+
+
+def test_subgrupos_do_codigo_pacote_sem_prancha(monkeypatch):
+    sem_geo_mov = {
+        k: [p for p in v if p != "GEO.MOV"] for k, v in eap.REGRAS["pranchas"].items()
+    }
+    monkeypatch.setitem(eap.REGRAS, "pranchas", sem_geo_mov)
+    assert eap_painel.subgrupos_do_codigo("U1.A.GEO.MOV.REA") == []
+
+
+def test_montar_traz_subgrupos_mapa_e_texto_das_pranchas():
+    codificada, evid = sinteticos()
+    nos = {n["codigo"]: n for n in eap_painel.montar(codificada, evid)["arvore"]}
+    assert nos["U1"]["subgrupos_mapa"] == [] and nos["U1"]["pranchas_txt"] == ""
+    fun = nos["U1.FILTROS.GEO.FUN.BLO"]
+    assert fun["subgrupos_mapa"] == ["Geotecnia e fundação"]
+    assert fun["pranchas_txt"] == "Pranchas: Geotecnia e fundação"
+    assert (
+        nos["U1.ACT600.GEO.MOV"]["pranchas_txt"]
+        == "Pranchas: Adutoras, Geotecnia e fundação, Terraplenagem"
+    )

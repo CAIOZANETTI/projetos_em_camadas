@@ -1,5 +1,113 @@
 # Changelog
 
+## 0.42.0 — 2026-11-02 · Calibração de premissas pela evidência (premissa × observado)
+- **`camadas/calibracao.py`**: para cada serviço associado com fato observado fora do próprio cálculo (edital,
+  planilha, IA conferida ou decisão), calcula a **premissa implícita** `p × observado / calculado` quando a fórmula é
+  linear numa única premissa (testado avaliando em 0, p/2, p e 2p, tolerância 1e-9): taxa de armadura, espessura de
+  lastro e afins. Situação `confere` (até 5 %), `diverge` ou `não calibrável` com motivo (fórmula com patamar, `max`
+  ou `if`; várias premissas proporcionais; fato em conflito; regra fora de `servicos_associados.jsonl`).
+- **Nunca altera premissa**: só informa; trocar o valor é decisão humana. O observado exclui o próprio documento
+  "associado" (senão o fato seria circular e tudo conferiria).
+- `evidencias.etapa` grava `calibracao.csv` e `dados["evidencias"]["calibracao"]`; `docs/EAP.md` §7.4.
+- Revisão: elementos casados por id e pela base do código (V1 em U1 e V1 em U2 não somam); o recálculo inclui os
+  elementos vindos de fatos (`dimensoes.de_fatos`) e tem de bater com a soma das evidências do grupo, senão "não
+  calibrável" com motivo; fato com `*` soma os associados de todos os códigos que cobre; t → kg antes de casar; a
+  fórmula é reavaliada com a premissa implícita e tem de reproduzir o observado (pega `min`/limiar fora de
+  [p/2, 2p]); condição que usa a premissa, divisão por zero e observado ≤ 0 → não calibrável; coluna
+  `unidade_premissa` (`unidade` acrescentada às premissas de `servicos_associados.jsonl`, sem mudar valores); linhas
+  não calibráveis mostram o calculado real.
+- Sem dados reais no repositório (as planilhas estão no Drive), nenhum valor de premissa foi mudado.
+- Lição L038.
+
+## 0.41.0 — 2026-11-02 · Conferência de citação simplificada (sem mudança de comportamento)
+- **`camadas/evidencias.py` refatorado** (apontado pelo `vcm balanco`): `_problemas_ia` 43 → 14, `conferir_citacao`
+  37 → 7, `_situacao_do_item` 22 → 7, `_afirmacoes` 22 → 11, `consolidar` 21 → 12 (complexidade ciclomática, radon);
+  nenhuma função do arquivo acima de 15. Funções novas por responsabilidade: validação de forma, de código/serviço e
+  de valor/unidade; localização do trecho; conferência de linha × bloco; situação do item pelo número; consolidação
+  por documento e por chave.
+- **Comportamento idêntico, provado**: 10.532 casos gerados (trecho × valor × unidade × código × serviço ×
+  localizador, mais linhas malformadas) e os 7 roteiros de ataque das revisões dão saída byte a byte igual antes e
+  depois; nenhum teste alterado; hash de referência igual; desempenho igual (500 páginas × 200 evidências ≈ 0,5 s).
+- Lição L037.
+
+## 0.40.0 — 2026-11-02 · Leitura por IA: conferência por bloco de linha de tabela
+- **Bloco de 2–3 linhas** (`evidencias.conferir_citacao`): descrição de planilha quebrada em várias linhas com a
+  quantidade na última ("Estaca hélice contínua, diâmetro 40 cm, inclusive⏎mobilização e desmobilização un 250") e
+  "Quantidade: 250 un" em linha própria passam a ser aceitas. O bloco é o trecho citado inteiro, na mesma página, sem
+  linha em branco; o par (valor, unidade) começa na última linha; as anteriores não afirmam quantidade (dimensões com
+  Ø, DN ou "diâmetro" são ignoradas); o termo do item pode estar em qualquer linha do bloco e valem item mais próximo,
+  item/serviço/unidade da EAP geral, página e dedupe.
+- Continuam recusados: duas linhas de tabela de itens diferentes, bloco de 4+ linhas, com linha em branco ou
+  atravessando página, e "Bloco de coroamento⏎un 30" proposto como estaca.
+- Revisão: o bloco é conferido sobre as linhas inteiras do documento (o recorte do trecho não esconde quantidade nem
+  item rival); cada linha depois da primeira tem de continuar a anterior (só o par e rótulo de quantidade, ou a
+  anterior sem "."/":" e esta em minúscula ou com conectivo), então título de seção e cabeçalho não viram item;
+  "Total" não é rótulo; Ø/DN/diâmetro não engolem a unidade do par seguinte ("DN 150 m 350"); `\f` dentro de uma
+  página vira linha em branco.
+- Fecha a pendência "conferência por bloco de linha de tabela" de `docs/EAP.md` §10.
+- Balanço vcm das iterações 0.38.0 e 0.39.0 em `results/iteracoes/8eb6034_a3dc7a8.*` (decisão humana: complexidade
+  média +1,1%; RAM −8,6% e cobertura +0,9%).
+- Lição L036.
+
+## 0.39.0 — 2026-11-02 · Leitura por IA com citação conferida
+- **Roteiro de leitura** (`evidencias.roteiro`, `roteiro_md`): por item da EAP geral (filtrado por escopo e tipo de obra),
+  código, nome, termos de busca legíveis (termos do item e sinônimos de `sinonimos.json`), serviços admitidos com
+  unidades e unidades aceitas.
+- **CLI** `python -m camadas.evidencias`: `roteiro [--escopo] [--obra] [--saida]` e `conferir IA.jsonl --pdf … --texto …
+  [--saida]`. `conferir_arquivo` valida o schema, localiza o documento por `documento.id`, aplica `conferir_citacao` e
+  recusa com motivo (JSON ou schema inválido, documento não fornecido, trecho não encontrado, valor fora do trecho). Só
+  as aceitas são gravadas; saída 0 mesmo com recusas, 2 sem o arquivo de entrada. `id` e `regra` ausentes são completados.
+- **Conferência endurecida** (vale para todo o caminho, inclusive `loop`/`etapa`): o trecho precisa ter 3 palavras ou
+  15 caracteres e estar no documento com fronteira de palavra; o par (valor, unidade) tem de ser um dos que o trecho
+  afirma (`vocabulario.QTD_DEPOIS`/`quantidade`; o 2 de M2 e o 50 de CA-50 não contam); unidade só do vocabulário; valor
+  não negativo. Campos do código (`citacao`, `derivada`, `id`, `autor`, `justificativa`) vindos da IA são descartados e o
+  `id` recalculado; o build reconfere as evidências `ia` e não confia no selo do arquivo. A leitura da IA é afirmação
+  própria (`ia:<arquivo>`): não soma com o regex e não aumenta a `forca`. `id` normaliza `250` e `250.0`.
+- **Skill `eap-evidencias`**: o passo a passo "a IA propõe, o código confere".
+- **Conferência por linha** (3ª rodada de revisão): o par (valor, unidade) e o termo do item (ou sinônimo) têm de estar
+  na mesma linha do documento, a até 8 palavras; o trecho não atravessa página. Recusados: pedaço de número ("250" de
+  "1.250", "5 m³" de "12,5 m³"); item inexistente na EAP geral, serviço não admitido pelo item ou unidade fora das do
+  serviço; `escopo` fora do enum; página do localizador que não contém o trecho. Aceitos: unidade antes do número
+  ("Escavação m³ 1.250,50"), número com parênteses por extenso, vários pares na mesma linha. Toneladas viram kg.
+  Linha malformada no JSONL (inclusive valor fora de ±1e12) vira recusa com motivo, sem derrubar `etapa` nem `conferir`.
+- **4ª rodada**: parcelas da IA no mesmo documento só colapsam com o mesmo trecho normalizado (B1 e B2 com 12 estacas
+  cada somam 24; a mesma frase em outra página conta uma vez); dedupe por `id` só para `ia` (as outras fontes somam
+  como antes); "3.000 metros de estacas" não vira unidade; o número pertence ao termo de item mais próximo na linha
+  (senão "número pertence a outro item"); número colado a letra ("DN150", "CA-50") não é quantidade para a IA;
+  milhar com espaço ("1 250") barrado; páginas normalizadas uma vez por documento (500 páginas × 200 evidências em
+  0,6 s, antes ~100 s).
+- Limites declarados: descrição de planilha em várias linhas e "Quantidade: 250 un" em linha própria são recusados;
+  ponto decimal ("1250.50") é recusado; "Escavação manual para blocos de estacas m³ 45" ainda pode virar estaca; o
+  serviço não precisa aparecer no trecho.
+- Lição L035.
+
+## 0.38.0 — 2026-11-02 · Aba EAP: só pranchas desta disciplina
+- **Recorte dos layers CAD pelo nó da EAP** (`eap_painel.subgrupos_do_codigo`): cada nó da árvore codificada traz
+  `subgrupos_mapa` e `pranchas_txt`, calculados em Python pelo mapa subgrupo → pacote de `conceitos/eap.json`
+  (`pranchas`). Nó de disciplina: subgrupos com algum pacote da disciplina; pacote ou item: subgrupos com o pacote
+  exato; unidade e sistema: sem recorte.
+- **Checkbox "só pranchas desta disciplina"** na linha "Vista" da aba EAP (só com pranchas georreferenciadas): guarda
+  um instantâneo de `P.vis` e `P.mapa.on` de cada prancha, deixa ligados só os layers dos subgrupos do nó e restaura
+  o instantâneo ao desmarcar, ao limpar o filtro EAP ou ao trocar de nó. O JS só testa pertencer à lista.
+- Fecha o pendente da 0.37.0 (`docs/EAP.md` §9, item 7).
+- Revisão: ligar pelo recorte não tira o mapa do enquadramento do nó (`ligarPranchaMapa` com `semVoo`); limites
+  conhecidos registrados em `docs/EAP.md` §9.
+- Lição L034.
+
+## 0.37.0 — 2026-11-02 · Aba EAP: selo por nó, filtro por prefixo e vista particular
+- **Selo de status por nó** (`eap_painel.status_do_no`, `arvore`): `status_no`, `n_fatos` e `n_conflitos` calculados em
+  Python a partir dos fatos sob o nó. Fato com `*` no código vale para todo nó que casa segmento a segmento; fato de
+  item vale para o item e os ancestrais. Conflito > fonte única (inclui só menção) > convergente (inclui decidido);
+  sem fato, "sem evidência". `montar(eap_codificada, evidencias)` segue como interface pública.
+- **Filtro por prefixo no mapa**: "ver no mapa" esmaece os demais elementos construtivos (sem removê-los) até
+  "limpar filtro EAP". O esmaecimento está em `estiloObra`, então sobrevive a `aplicarEscopoMapa` e à troca de escopo.
+- **Vista particular**: o item abre a ficha do primeiro elemento (e enquadra todos, se forem vários); linha
+  "Vista: código · nome (n elementos)" no topo da aba EAP, com o botão de limpar.
+- Revisão: o `*` só cobre sistemas que têm o item (quantidade sob o nó); `selo_title` e `rotulo_vista` vêm do Python;
+  aviso "Filtro EAP: código" com botão de limpar também na aba Obra; limpar o filtro preserva a seleção feita depois;
+  item com vários elementos não abre popup com autoPan (o enquadramento manda); nó não-item com um elemento volta a
+  selecionar e abrir popup sem trocar de aba (como antes); fatos e quantidades divididos uma vez, indexados por unidade.
+- Pendente: esmaecer layers CAD de outras disciplinas (ver `docs/EAP.md` §9).
 ## 0.36.0 — 2026-11-02 · Memória espacial, rodada 6: as gavetas falam a EAP codificada
 - **De-para 3 com o código real** (`conceitos/de_para_eap.json`, `codigo_eap`): cada saída das gavetas aponta o
   item (`eap_geral.jsonl`) e os serviços (`servicos.jsonl`) da EAP codificada. Vala vai para `GEO.MOV.VAL`,

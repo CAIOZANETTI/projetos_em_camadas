@@ -101,7 +101,8 @@ construtivos e da EAP e grava estes arquivos em `saida/<obra>/`:
 - `evidencias.jsonl`: o registro;
 - `fatos.csv`;
 - `cobertura.csv`;
-- `associados.csv`.
+- `associados.csv`;
+- `calibracao.csv` (premissa × observado, §7.4).
 
 No `obra.json`:
 
@@ -149,6 +150,44 @@ A IA lendo o mesmo documento não é fonte independente. Ela reforça a leitura,
 **IA com citação conferida** (`conferir_citacao`): o trecho tem de estar no documento e o número tem de estar no
 trecho. Senão, a evidência fica registrada com `citacao: "trecho não encontrado no documento"` ou `"valor não está
 no trecho"` e não entra na consolidação.
+
+**Caminho seguro para a IA** (`roteiro` e `conferir`): `python -m camadas.evidencias roteiro [--escopo] [--obra]` gera o
+que procurar por item (termos e sinônimos, serviços e unidades aceitas); a IA escreve uma linha JSON por afirmação com
+o trecho copiado literalmente; `python -m camadas.evidencias conferir IA.jsonl --pdf DOC.pdf [--texto DOC.txt]
+--saida aceitas.jsonl` valida o schema, localiza o documento por `documento.id` e aplica `conferir_citacao`. O relatório
+diz quantas foram aceitas e o motivo de cada recusa (schema, documento não fornecido, trecho não encontrado, valor
+fora do trecho); só as aceitas são gravadas. A skill `eap-evidencias` descreve o passo a passo.
+
+A conferência exige trecho com 3 palavras ou 15 caracteres, achado numa página do documento (nunca atravessando páginas)
+com fronteira de palavra e de número ("250 estacas" não está em "1.250 estacas" nem "5 m³" em "12,5 m³"). O par (valor,
+unidade) tem de ser um dos que o trecho afirma ("250 estacas" → 250 un; "20 m²" → 20 m²; "m³ 1.250,50"; nunca o 2 de M2)
+e vir da **mesma linha** em que o termo do item do código aparece, a no máximo 8 palavras do número; o item e o serviço
+do código têm de existir na EAP geral (`*` só em unidade e sistema) e a unidade tem de ser a do serviço ou do item. O
+localizador "p. N", se houver, tem de ser a página do trecho; aspas curvas, travessões e hífen de fim de linha são
+unificados; toneladas viram kg, como no regex. O item citado tem de ser o termo de item mais próximo do número na linha
+("Bloco de coroamento para 2 estacas un 12" é do bloco, não das estacas; empate = recusa "número pertence a outro item");
+"12 m de estaca" e "3.000 metros de estacas" não são contagem de estacas; valor acima de 1e12 é recusado.
+**Bloco de linha de tabela:** descrição de planilha em várias linhas, com a quantidade na última, também vale. O
+trecho é expandido até as **linhas inteiras** da página (o recorte não esconde o que a linha tem antes ou depois); um
+bloco são 2 ou 3 dessas linhas seguidas, da mesma página, sem linha em branco (nem quebra de página `\f`). O par (valor,
+unidade) tem de começar na **última** linha, e as anteriores não podem afirmar nenhuma quantidade (número com unidade de
+quantidade, "un 12", "12 estacas"). Dimensão de especificação (Ø, DN, "diâmetro" ou "diam." seguido de número e, se
+houver, unidade de comprimento mm/cm/m/pol sem outro número depois) e medida em unidade fora do vocabulário ("40 cm") não
+contam. **Continuação:** toda linha depois da primeira tem de continuar a descrição da anterior: ou só traz o par, rótulo
+de quantidade (Quantidade, Quant., Qtde, Qtd, Qt; "Total" não é rótulo) e separadores, ou a linha de cima não termina em
+"." nem ":" e ela começa em minúscula ou com conectivo (e, ou, com, sem, para, de, do, da, em, inclusive, incluso,
+incluindo, conforme). Título, cabeçalho de seção ou de tabela e linha de outro item (maiúscula sem conectivo) não formam
+bloco com a linha de baixo. Cumprido isso, o termo do item pode estar em qualquer linha, sem o limite de 8 palavras
+para as anteriores; valem todas as outras regras (item mais próximo do número, item e serviço da EAP, unidade, página,
+dedupe). Recusados: duas linhas de tabela de itens diferentes, 4 ou mais linhas, linha em branco, quebra de página.
+Exemplos aceitos: "Estaca hélice contínua, diâmetro 40 cm, inclusive⏎mobilização e desmobilização un 250" e
+"Estacas hélice contínua Ø40 cm⏎Quantidade: 250 un" (250 un de GEO.FUN.EST). Propostas da IA
+no mesmo documento só colapsam se o trecho normalizado for o mesmo (a mesma frase em outra página é total repetido);
+parcelas reais de valor igual ("Bloco B1 com 12 estacas", "Bloco B2 com 12 estacas") somam, e a mesma proposta (mesmo `id`,
+que inclui `parcela`) conta uma vez. Só a IA é deduplicada por `id`: as demais fontes mantêm a soma de parcelas iguais. O build não confia no
+selo `citacao` do arquivo: reconfere as evidências `ia` contra os documentos do `obra.json`. A leitura da IA vale como
+afirmação própria (`documento.id` = `ia:<arquivo>`), para nunca somar com o regex do mesmo documento; mas conta como a
+mesma fonte (L025/L029: fonte independente = documento diferente), então não aumenta a `forca`.
 
 **Cobertura**: para cada unidade e item, mostra se há evidência no projeto (pranchas, geometria) e no edital
 (edital, memorial, planilha):
@@ -372,6 +411,34 @@ conta como edital (`TIPOS_EDITAL` inclui `planilha`): em `cobertura` o item apar
 `associados_x_edital` o serviço citado na aba sai como "citado no edital". A base do código é `U1.LINEARES` e se muda em `obras_lineares.eap` no
 obra.json; `evidencias.etapa` soma as duas fontes quando `obras_lineares.planilha` existe no disco.
 
+### 7.4 Calibração de premissas (`camadas/calibracao.py`)
+
+Premissa × observado: quando um serviço associado tem um fato de fora (edital, planilha, memorial, IA conferida ou
+decisão), a tabela mostra o valor que a premissa teria de ter para reproduzir o observado. Só informa: **nunca
+sobrescreve** a premissa, que continua em `servicos_associados.jsonl` com `estado` e `fonte`; quem muda é o humano.
+
+- **Regra**: `premissa implícita = p × observado / calculado`, só para fórmula **linear numa única premissa**
+  (armadura = taxa × V; lastro = A_fundo × e). A linearidade é testada em cada elemento, avaliando a fórmula com a
+  premissa em 0, p/2, p e 2p (tolerância relativa de 1e-9). Fórmula com `max`, `if`, patamar ou termo constante, regra
+  sem premissa, mais de uma premissa proporcional ou mais de uma regra no mesmo serviço: `não calibrável`, com o
+  motivo e sem número. Premissa por tipo de elemento (taxa de armadura): `valor_premissa` é a média ponderada pelo
+  calculado.
+- **Observado**: o fato de fora (sem contar os próprios serviços associados, que seria circular). Convergente ou
+  fonte única vale; decisão vale; conflito não calibra (`fato em conflito`); observado ≤ 0 não calibra.
+- **Casamento**: a tabela parte dos fatos. Fato com `*` (`U1.*.CIV.EST.VIG`) soma os associados de todos os códigos
+  que ele cobre; as unidades são levadas à de comparação (`vocabulario.converter`: t → kg). Associado sem fato com
+  valor não entra.
+- **Calculado**: soma das evidências associadas do grupo (o que a EAP mostra), também nas linhas não calibráveis. O
+  recálculo por elemento (elementos casados por id **e** base, mais os de `dimensoes.de_fatos`) só serve para achar a
+  premissa e a linearidade e tem de bater com essa soma; se não bate, `não calibrável`. Depois, a fórmula com a
+  premissa implícita tem de reproduzir o observado (pega teto como `min(taxa × V, 300)`); falha de avaliação,
+  condição que depende da premissa e fórmula não proporcional também não calibram. `unidade_premissa` vem do campo
+  `unidade` da premissa (vazio se não declarado).
+- **Tolerância**: `confere` se observado/calculado difere de 1 em até 5 % (`TOLERANCIA_CONFERE`); acima, `diverge`.
+- **Saída**: `calibracao.csv` em `saida/<obra>/` e `dados["evidencias"]["calibracao"]`. Colunas: código, serviço,
+  unidade, regra, premissa, unidade_premissa, valor_premissa, calculado, observado, razao, premissa_implicita, diferenca_pct, situacao,
+  motivo, documentos.
+
 ## 8. Quantificação das pranchas e verificação de proposta (`camadas/eap.py`)
 
 - `eap.quantificar`: item EAP e grandeza → quantidade, com os ids dos elementos e as fontes. Elemento sem o
@@ -413,5 +480,53 @@ O Python soma, ordena, conta e formata; o JS só desenha e alterna visibilidade.
 4. **Serviços associados × edital**: tabela com a quantidade formatada; "não citado no edital" fica em destaque
    (`destaque` vem calculado do Python).
 
-Fica para depois: selo de status por nó da árvore, clique no nó como filtro por prefixo que esmaece as outras
-disciplinas e a vista particular já enquadrada para o item.
+5. **Selo de status por nó** (`eap_painel.status_do_no`): cada nó da árvore traz `status_no`, `n_fatos` e `n_conflitos`,
+   agregados em Python. Um fato cobre o nó quando o código dele tem o mesmo número de segmentos ou mais e casa
+   segmento a segmento com o do nó; `*` casa qualquer segmento, e um fato de item cobre o item e os ancestrais, não
+   os filhos. Fato com `*` é mais restrito: só cobre o nó se houver, sob ele, alguma quantidade da EAP codificada
+   cujo código case com o fato (`U1.*.GEO.FUN.EST` cobre `U1`, `U1.A` e `U1.A.GEO.FUN` apenas nos sistemas que têm
+   estaca; um sistema sem o item fica sem evidência, não em conflito). Fato sem `*` segue só a regra de prefixo.
+   Os textos do selo (`selo_title`, com o plural certo) e da vista (`rotulo_vista`, com `n_elementos` do nó) vêm
+   prontos do Python; `n_elementos` pode incluir ids sem geometria na camada do mapa. Regra: algum conflito →
+   "conflito"; senão algum só menção ou fonte única → "fonte única"; senão todos convergentes ou decididos →
+   "convergente"; sem fato → "sem evidência". O JS só mostra o selo (`st st-<slug>`) no `summary` do nó.
+6. **Filtro por prefixo e vista particular**: "ver no mapa" guarda os ids do nó em `OBRA.filtroEap` e `estiloObra`
+   esmaece (sem remover) os elementos fora da lista; como `aplicarEscopoMapa` e `resetStyle` passam por
+   `estiloObra`, o esmaecimento sobrevive à troca de escopo e à seleção de elementos. `limparSelecaoObra` não o
+   desfaz; só o botão "limpar filtro EAP" da linha "Vista: código · nome (n elementos)", no topo da aba EAP, que
+   também limpa a seleção e o anel (se o usuário escolheu outro elemento depois do filtro, a escolha fica). Com o
+   filtro ativo, a aba Obra mostra "Filtro EAP: código" com o mesmo botão de limpar. Item: abre a ficha do primeiro elemento (aba Obra) e, com vários, enquadra e
+   destaca todos.
+
+7. **Só pranchas desta disciplina** (`eap_painel.subgrupos_do_codigo`): cada nó da árvore traz `subgrupos_mapa`
+   (subgrupos de `conceitos/disciplinas.json`, em ordem alfabética) e `pranchas_txt` ("Pranchas: Adutoras, Geotecnia e
+   fundação, Terraplenagem"; vazio sem subgrupos), tirados da chave `pranchas` de `conceitos/eap.json` (subgrupo → pacotes
+   `DISC.PAC`). A disciplina e o pacote são os segmentos `disciplina` e `pacote` de `eap.NIVEIS` (em `U1.A.GEO.FUN.EST`,
+   `GEO` e `FUN`). Nó de disciplina (`U1.A.GEO`): subgrupos com algum pacote `GEO.*`; nó de pacote ou item
+   (`U1.A.GEO.FUN`, `U1.A.GEO.FUN.EST`): subgrupos que contêm `GEO.FUN`; unidade e sistema: lista vazia, sem recorte. Com
+   "ver no mapa" ativo, o nó com `subgrupos_mapa` e ao menos uma prancha georreferenciada mostra, na linha "Vista", o
+   checkbox "só pranchas desta disciplina" (desmarcado). Ao marcar, o JS guarda `P.vis` e `P.mapa.on` de cada prancha
+   georreferenciada e deixa ligados só os layers cujo subgrupo (`layer.subgrupo` ou o da prancha) pertence à lista
+   (pertencer ou não, sem conta); a prancha sem nenhum layer da lista é desligada. Desmarcar, "limpar filtro EAP" ou
+   "ver no mapa" de outro nó restauram o instantâneo exato, e trocar de nó desmarca o checkbox.
+   Ligar ou desligar uma prancha pelo recorte não move o mapa (`ligarPranchaMapa(P, on, semVoo)`): o enquadramento
+   continua o do nó. Limites conhecidos (revisão da 0.38.0): o que o usuário mudar nas pranchas com o recorte ativo é
+   desfeito pela restauração (o instantâneo manda); o recorte é por disciplina, não por unidade (`U2.X.GEO` também liga
+   as pranchas de GEO de U1); no nó de disciplina a lista vem de todos os pacotes da disciplina em `eap.json`, não só
+   dos pacotes-filho do nó; o checkbox aparece mesmo se nenhuma prancha tiver layer da lista (marcar desliga todas).
+
+## 10. Próximos passos
+
+- [x] **Skill de leitura por IA** (`.claude/skills/eap-evidencias`, `evidencias.roteiro`, `evidencias.conferir_arquivo`):
+  a IA lê edital, TR, memorial e laudo seguindo o roteiro e só entra com citação conferida pelo código (§5).
+- [x] Conferir também o localizador (a página citada contém o trecho).
+- [ ] Aceitar planilha como documento de leitura.
+- [x] **Conferência por bloco de linha de tabela** (IA): bloco de 2 a 3 linhas seguidas do trecho, sem linha em branco,
+  com o par (valor, unidade) na última linha e nenhuma quantidade nas anteriores (§5; `_confere_bloco`).
+- [ ] **Número colado a letra ou hífen em outro campo da linha** ("DN150 m 320", "C30 m³ 45", "CA-50 kg 1.200"): o
+  número com letra colada não é lido como quantidade, e o regex que não é IA lê igual. Pendência comum aos dois métodos.
+- [x] **Calibração de premissas pela evidência** (`camadas/calibracao.py`, §7.4): premissa implícita e situação
+  (`confere`/`diverge`/`não calibrável`) por serviço associado com fato de fora; nunca sobrescreve a premissa.
+- [ ] Calibrar com dados reais de obra (lista de ferros, planilhas): decidir, premissa a premissa, quais valores mudam.
+- [ ] Calibração de premissas não lineares (patamares da vala): exige método próprio, não a proporção.
+- [x] Selo de status por nó da árvore, filtro por prefixo e só pranchas desta disciplina (§9).

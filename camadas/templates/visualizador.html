@@ -203,6 +203,8 @@ aside.larga{width:min(560px,46vw)}
 .eap-filtro .btn{font:500 11px/1 var(--f-dado);padding:5px 7px}
 .eap-fato[hidden]{display:none}
 .st{display:inline-block;padding:1px 6px;border-radius:9px;border:1px solid currentColor;font:500 10.5px/16px var(--f-dado);white-space:nowrap}
+.st-sem-evidencia{color:var(--mut);border-style:dashed}.eap-c .eap-n>summary .st{flex:none;align-self:center}
+.eap-vista{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:0 0 8px;padding:6px 8px;border:1px solid var(--linha);border-radius:6px;font-size:12px;overflow-wrap:anywhere}.eap-vista[hidden]{display:none}
 .st-conflito{color:#b91c1c}.st-so-mencao{color:var(--aberta)}.st-fonte-unica{color:var(--mut)}.st-convergente,.st-decidido{color:var(--ok)}
 .eap-aff{margin:0 0 6px 28px;padding:4px 8px;border-left:2px solid var(--linha);font-size:12px;overflow-wrap:anywhere}
 .eap-aff .nota-l{display:block}
@@ -494,6 +496,7 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
           </div>
           <div class="acoes"><button class="btn mini" data-ob-acao="exportar" id="obExp">Exportar escolhas de escopo</button><button class="btn mini" data-ob-acao="restaurar" id="obRest">Restaurar do projeto</button></div>
         </div>
+        <div class="eap-vista" id="obFiltroEap" hidden></div>
         <div id="obFicha" aria-live="polite" tabindex="-1"></div>
         <div id="obRes" aria-live="polite" hidden></div>
         <div id="obArvore"></div>
@@ -1118,7 +1121,7 @@ function limitesMapa(P) {
   return L.latLngBounds([[c[0], c[1]], [c[2], c[1]], [c[2], c[3]], [c[0], c[3]]].map(([x, y]) => pt2ll(P, x, y)));
 }
 /* liga/desliga a prancha no mapa (carrega o vetor na primeira vez) */
-async function ligarPranchaMapa(P, on) {
+async function ligarPranchaMapa(P, on, semVoo = false) {   // semVoo: o recorte da EAP liga sem tirar o mapa do nó
   P.mapa.on = on; sincDisc();
   const nota = porId("pn-" + P.id);
   if (!on) { if (P.mapa.lay) map.removeLayer(P.mapa.lay); if (nota) nota.textContent = ""; v3Sujo(); return; }
@@ -1129,7 +1132,7 @@ async function ligarPranchaMapa(P, on) {
   P.mapa.lay ||= new PranchaMapa(P);
   P.mapa.lay.addTo(map);
   const lb = limitesMapa(P);
-  if (!map.getBounds().intersects(lb)) map.flyToBounds(lb, {padding: [30, 30], duration: .6});
+  if (!semVoo && !map.getBounds().intersects(lb)) map.flyToBounds(lb, {padding: [30, 30], duration: .6});
   v3Sujo();
 }
 function redesenharMapa(P) { if (P.mapa.on && P.mapa.lay) P.mapa.lay.pedir(); }
@@ -2332,7 +2335,7 @@ function htmlEapArvore(P) {
     const sub = (filhos.get(n.codigo) || []).map(no).join(""), q = (n.quantidades_txt || []).map(esc).join(" · ");
     const ids = OB ? (n.elementos || []).filter(id => OBRA.camada.has(id)) : [];   // só os que existem na camada do mapa
     const ver = ids.length ? `<button class="btn mini" data-eap-ids="${esc(ids.join("\n"))}" title="${esc(n.n_elementos)} elementos">ver no mapa</button>` : "";
-    return `<details class="eap-n" data-codigo="${esc(n.codigo)}"><summary><span class="cod">${esc(n.codigo)}</span><span class="nota-l">${esc(n.numero)}</span><span>${esc(n.nome)}</span></summary>
+    return `<details class="eap-n" data-codigo="${esc(n.codigo)}"><summary><span class="st st-${esc(slugStatus(n.status_no))}" title="${esc(n.selo_title)}">${esc(n.status_no)}</span><span class="cod">${esc(n.codigo)}</span><span class="nota-l">${esc(n.numero)}</span><span>${esc(n.nome)}</span></summary>
       ${q || ver ? `<div class="eap-q">${q}${ver ? " " + ver : ""}</div>` : ""}${sub}</details>`;
   };
   if (!(P.arvore || []).length) return "";
@@ -2353,18 +2356,75 @@ function htmlEapAssociados(P) {
   return `<h2>Serviços associados × edital</h2><p class="nota-l" style="margin-left:0">Não citados no edital: <b data-k="nao_citados">${esc(R.nao_citados)}</b> de <b data-k="associados">${esc(R.associados)}</b></p>
     ${A.length ? `<table class="eap-assoc" id="eapAssoc"><thead><tr><th>Item</th><th>Serviço</th><th>Quantidade</th><th>Situação</th></tr></thead><tbody>${A.map(linha).join("")}</tbody></table>` : '<p class="aviso" style="margin-left:0">Nenhum serviço associado.</p>'}`;
 }
-/* "ver no mapa" de um nó: liga a camada dos elementos construtivos (aba Obra) e enquadra/destaca só a lista pronta de ids */
-function verNoMapaEap(ids) {
+/* "ver no mapa" de um nó: liga a camada dos elementos construtivos (aba Obra), enquadra e destaca a lista pronta de ids e esmaece
+   os demais elementos (OBRA.filtroEap, lido por estiloObra: sobrevive a aplicarEscopoMapa) até "limpar filtro EAP".
+   Item: abre a ficha do primeiro elemento e, com vários, enquadra e destaca todos. */
+function verNoMapaEap(ids, no) {
   const lays = ids.map(id => OBRA.camada.get(id)).filter(Boolean);
   if (!lays.length) return;
-  if (lays.length === 1) { selecionarObra(ids.find(id => OBRA.camada.has(id)), {abrir: false}); return; }
+  restaurarRecortePranchas();   // o recorte do nó anterior não vale para este
+  OBRA.filtroEap = new Set(ids);
   garantirVisivel(ids.map(id => OBRA.porId.get(id)).filter(Boolean));
   ligarObraMapa(true);
   if (vista !== "mapa") mostrarVista("mapa");
+  mostrarVistaEap(no);
   limparSelecaoObra();   // fecha popup e ficha do elemento anterior e zera o destaque
-  OBRA.multi = lays;
-  lays.forEach(haloObra);
-  map.fitBounds(L.featureGroup(lays).getBounds(), {padding: [70, 70], maxZoom: 21});
+  OBRA.selEap = null;
+  const item = no.nivel === "item";
+  if (item || lays.length === 1) {
+    aplicarEscopoMapa();   // refaz os estilos com o filtro
+    const primeiro = ids.find(id => OBRA.camada.has(id));
+    OBRA.selEap = primeiro;
+    selecionarObra(primeiro, {enquadrar: lays.length === 1, abrir: item, semAutoPan: lays.length > 1});   // vários: o enquadramento abaixo manda, sem popup puxando o mapa
+    if (lays.length > 1) { OBRA.multi = lays; OBRA.halo.clearLayers(); lays.forEach(haloObra); }
+  } else { OBRA.multi = lays; aplicarEscopoMapa(); }   // estilos com o filtro e o anel dos elementos do nó
+  if (lays.length > 1) map.fitBounds(L.featureGroup(lays).getBounds(), {padding: [70, 70], maxZoom: 21});
+}
+/* linha de vista no topo da aba EAP e aviso na aba Obra, ambos com o botão que desfaz o filtro; os textos vêm prontos do Python
+   (`rotulo_vista` usa o `n_elementos` do nó, que pode incluir ids sem geometria na camada) */
+function mostrarVistaEap(no) {
+  const botao = `<button class="btn mini" data-eap-limpar>limpar filtro EAP</button>`;
+  const recorte = (no.subgrupos_mapa || []).length && PR.some(P => P.M)   // lista e texto prontos do Python
+    ? `<label class="eap-recorte"><input type="checkbox" data-eap-recorte> só pranchas desta disciplina <span class="nota-l">${esc(no.pranchas_txt)}</span></label>` : "";
+  for (const [el, txt] of [[$("#eapVista"), no.rotulo_vista], [$("#obFiltroEap"), "Filtro EAP: " + no.codigo]]) {
+    if (!el) continue;
+    el.innerHTML = `<span>${esc(txt)}</span>${el.id === "eapVista" ? recorte : ""}${botao}`; el.hidden = false;
+  }
+  RECORTE_PR.no = no;
+}
+/* "só pranchas desta disciplina": só pertencer ou não a `subgrupos_mapa` (lista do Python). Guarda P.vis e P.mapa.on de cada prancha
+   georreferenciada antes de mexer e restaura exatamente ao desmarcar, limpar o filtro ou trocar de nó. */
+const RECORTE_PR = {snap: null, no: null};
+function aplicarRecortePranchas(subgrupos) {
+  restaurarRecortePranchas();
+  const lista = new Set(subgrupos);
+  RECORTE_PR.snap = new Map();
+  for (const P of PR) {
+    if (!P.M) continue;
+    RECORTE_PR.snap.set(P, {vis: P.vis.slice(), on: P.mapa.on});
+    let algum = false;
+    P.d.layers.forEach((l, i) => { const dentro = lista.has(l.subgrupo || P.d.subgrupo); P.vis[i] = dentro ? 1 : 0; algum ||= dentro; });
+    prMudou(P);
+    if (P.mapa.on !== algum) ligarPranchaMapa(P, algum, true);
+  }
+  sincDisc();
+}
+function restaurarRecortePranchas() {
+  const snap = RECORTE_PR.snap; RECORTE_PR.snap = null;
+  if (!snap) return;
+  for (const [P, antes] of snap) {
+    P.vis.set(antes.vis); prMudou(P);
+    if (P.mapa.on !== antes.on) ligarPranchaMapa(P, antes.on, true);
+  }
+  sincDisc();
+}
+/* desfaz o filtro; a seleção que o usuário fez depois dele fica (só o anel e o destaque do próprio filtro saem) */
+function limparFiltroEap() {
+  if (!OBRA.sel || OBRA.sel === OBRA.selEap) limparSelecaoObra(); else OBRA.multi = [];
+  OBRA.filtroEap = null; OBRA.selEap = null;
+  restaurarRecortePranchas();
+  aplicarEscopoMapa();   // volta aos estilos do escopo (e refaz o anel da seleção que ficou)
+  for (const el of [$("#eapVista"), $("#obFiltroEap")]) if (el) { el.hidden = true; el.innerHTML = ""; }
 }
 function filtrarFatosEap(status) {
   document.querySelectorAll("#eapFatos .eap-fato").forEach(d => { d.hidden = status !== "" && d.dataset.status !== status; });
@@ -2372,11 +2432,16 @@ function filtrarFatosEap(status) {
 }
 function montarEap() {
   const P = D.eap_painel, aba = $("#aba-eap");
-  aba.innerHTML = (D.eap_gavetas ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "");
+  aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "");
   if (!P) return;
+  document.addEventListener("click", e => { if (e.target.closest("[data-eap-limpar]")) limparFiltroEap(); });   // botões da aba EAP e da aba Obra
+  aba.addEventListener("change", e => {
+    if (!e.target.matches("[data-eap-recorte]")) return;
+    if (e.target.checked) aplicarRecortePranchas(RECORTE_PR.no.subgrupos_mapa); else restaurarRecortePranchas();
+  });
   aba.addEventListener("click", e => {
     const ver = e.target.closest("[data-eap-ids]"), fl = e.target.closest("[data-eap-status]");
-    if (ver) verNoMapaEap(ver.dataset.eapIds.split("\n"));
+    if (ver) verNoMapaEap(ver.dataset.eapIds.split("\n"), P.arvore.find(n => n.codigo === ver.closest("details").dataset.codigo));
     else if (fl) filtrarFatosEap(fl.dataset.eapStatus);
   });
 }
@@ -2399,7 +2464,7 @@ function iniciarV2() {
 const OB = D.construtivos && D.construtivos.geojson ? D.construtivos : null;
 const ES = OB && OB.escopo && OB.escopo.sistemas ? OB.escopo : null;   // escopo por sistema (opcional): sem ele a aba funciona como antes, sem os controles
 const OBRA = {sel: null, itens: [], porId: new Map(), camada: new Map(), un: new Map(), sis: new Map(), geo: null, halo: L.layerGroup(), popup: null,
-  manual: {}, soEscopo: true, ordem: [], aviso: "", multi: []};
+  manual: {}, soEscopo: true, ordem: [], aviso: "", multi: [], filtroEap: null, selEap: null};   // filtroEap: Set de ids da aba EAP (os demais ficam esmaecidos) ou null
 const OB_MAX = 50, OB_MAX_CLASSE = 300, OB_COR_PADRAO = "#64748b";
 const ESTADOS_ESC = ["dentro", "fora", "a definir"];
 const CHAVE_OBRA = "camadas:obra-escopo:" + D.id;
@@ -2449,7 +2514,7 @@ function htmlDoc(id, pagina = null) {
 const htmlEvidencia = ev => `<li>${htmlDoc(ev.doc, ev.pagina)}${ev.trecho ? `<span class="ob-trecho">“${esc(ev.trecho)}”</span>` : ""}</li>`;
 
 function estiloObra(f) {
-  const cor = corObra(f.properties.classe), t = f.geometry.type, it = OBRA.porId.get(String(f.properties.id)), fora = !!it && foraDoEscopo(it);   // fora do escopo: esmaecido
+  const cor = corObra(f.properties.classe), t = f.geometry.type, it = OBRA.porId.get(String(f.properties.id)), fora = (!!it && foraDoEscopo(it)) || (!!OBRA.filtroEap && !OBRA.filtroEap.has(String(f.properties.id)));   // fora do escopo ou fora do filtro da aba EAP: esmaecido
   if (/Point/.test(t)) return {radius: 5, color: "#ffffff", weight: 1, opacity: fora ? .35 : 1, fillColor: cor, fillOpacity: fora ? .22 : .95};
   if (/Line/.test(t)) return {color: cor, weight: 4.5, opacity: fora ? .3 : .95, lineCap: "round", lineJoin: "round"};
   return {color: cor, weight: fora ? 1 : 1.5, opacity: fora ? .35 : 1, fillColor: cor, fillOpacity: fora ? .08 : .4};
@@ -2743,7 +2808,7 @@ function garantirVisivel(its) {
   return "Filtro “Só o escopo” desligado: este sistema está fora do escopo e ficaria oculto no mapa.";
 }
 /* abrir: false = clique no mapa (não troca de aba; o popup leva à ficha); a ficha é atualizada de qualquer jeito */
-function selecionarObra(id, {enquadrar = true, ll = null, abrir = true} = {}) {
+function selecionarObra(id, {enquadrar = true, ll = null, abrir = true, semAutoPan = false} = {}) {
   const it = OBRA.porId.get(id), lay = OBRA.camada.get(id);
   if (!it || !lay) return;
   const aviso = garantirVisivel([it]);
@@ -2757,7 +2822,7 @@ function selecionarObra(id, {enquadrar = true, ll = null, abrir = true} = {}) {
   renderFichaObra();
   document.querySelectorAll("#aba-obra [data-ob-id]").forEach(b => b.setAttribute("aria-current", b.dataset.obId === id));
   if (abaAtual === "obra") { if (window.innerWidth <= 760) $("#aba-obra").scrollTop = 0; else $("#obFicha").scrollIntoView({block: "nearest"}); }   // no celular a ficha fica no painel, sob o mapa
-  OBRA.popup = L.popup({autoPan: !enquadrar, autoPanPaddingTopLeft: OPCOES_POPUP.autoPanPaddingTopLeft, autoPanPaddingBottomRight: OPCOES_POPUP.autoPanPaddingBottomRight,
+  OBRA.popup = L.popup({autoPan: !enquadrar && !semAutoPan, autoPanPaddingTopLeft: OPCOES_POPUP.autoPanPaddingTopLeft, autoPanPaddingBottomRight: OPCOES_POPUP.autoPanPaddingBottomRight,
     maxWidth: 260, minWidth: 160, className: "obra-pop", offset: [0, -4]})
     .setLatLng(ll || ancoraObra(lay)).setContent(nodoPopupObra(it)).openOn(map);   // com enquadramento o mapa não se mexe: o elemento fica no centro
 }
@@ -2824,7 +2889,8 @@ function montarObra() {
   OBRA.halo.addTo(map);
   window.__viz.obra = {OB, ES, itens: OBRA.itens, camada: OBRA.camada, halo: OBRA.halo, buscar: buscarObra, selecionar: selecionarObra, limpar: limparSelecaoObra,
     estado: estadoSis, estadoProjeto, definirEscopo, restaurar: restaurarEscopoObra, resumo: resumoEscopo, escolhas: escolhasEscopo, visivel: visivelObra,
-    definirSoEscopo, definirSoPend, elementosDaParte, chave: CHAVE_OBRA,
+    definirSoEscopo, definirSoPend, elementosDaParte, limparFiltroEap,
+    get filtroEap() { return OBRA.filtroEap; }, chave: CHAVE_OBRA,
     get sel() { return OBRA.sel; }, get popup() { return OBRA.popup; }, get soEscopo() { return OBRA.soEscopo; }, get manual() { return OBRA.manual; }};   // ganchos para scripts/testar_visualizador.py
   abrirAba("obra");   // a aba mais importante abre primeiro; Camadas, Pranchas etc. seguem como itens secundários
 }
