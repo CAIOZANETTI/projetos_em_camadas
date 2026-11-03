@@ -43,6 +43,30 @@ def test_aba_projeto_concilia_as_duas_eap_e_grava_o_json(tmp_path, monkeypatch):
     assert "servicos_eap" not in dados["gavetas"] and "eap_html" not in dados["gavetas"]
 
 
+def test_aba_projeto_concilia_com_origem_e_documento(tmp_path, monkeypatch):
+    """Caso de Foz: as duas trilhas partem da mesma etapa de escavação; a planilha do contrato é a conferência independente."""
+    servicos = [{"servico_id": "s1", "objeto_id": "o", "saida": "escavacao_cava_m3", "unidade": "m³", "valor": 10.0,
+                 "codigo_eap": "U1.ETA.GEO.MOV.ESC", "origem": ["arquivo:ortofoto_mds", "etapa:escavacao"]}]
+    quantidades = [{"codigo": "U1.ETA.GEO.MOV.ESC", "grandeza": "volume", "unidade": "m³", "quantidade": 10.0,
+                    "evidencias": ["c1"]}]
+    _preparar(monkeypatch, servicos, quantidades)
+    fatos = [{"codigo": "U1.ETA.GEO.MOV.ESC", "servico": "", "unidade": "m³", "decisoes": [],
+              "afirmacoes": [{"documento": "CUSTO CIVIL.xlsx", "tipo": "planilha", "valor": 9.0}]}]
+    monkeypatch.setattr(obra.evidencias, "etapa", lambda *a, **k: {"fatos": fatos})
+    construtivos = {"geojson": {"features": [{"properties": {
+        "id": "c1", "doc": "pbge_esc", "fonte": "escavação calculada (camadas.escavacao) · levantamento"}}]}}
+    monkeypatch.setattr(obra.construtivos, "montar", lambda *a, **k: construtivos)
+    monkeypatch.setattr(obra.escopo_obra, "montar", lambda *a, **k: None)
+    dados = {"sondagens": []}
+    obra._aba_projeto(dados, {}, tmp_path, None, None, {})
+    linhas = json.loads((tmp_path / "conciliacao_eap.json").read_text(encoding="utf-8"))
+    assert [(l["situacao"], l["origem"], l["situacao_documento"]) for l in linhas] == [
+        ("confere (mesma origem)", "mesma", "difere do documento")]
+    linha = dados["eap_gavetas"]["conciliacao"]["linhas"][0]
+    assert linha["mesma_origem"] and linha["documento_txt"] == "9,00 m³"
+    assert linha["situacao_documento_txt"] == "difere do documento (Δ 1,00 m³ · 11,1 %)"
+
+
 def test_aba_projeto_conciliacao_com_defeito_nao_derruba_o_build(tmp_path, monkeypatch):
     _preparar(monkeypatch, [{"codigo_eap": "X", "unidade": "m³", "valor": 1.0}], [{"codigo": "X"}])   # falta a quantidade
     dados = {"sondagens": []}
