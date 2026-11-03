@@ -22,6 +22,9 @@ Escolher um valor é uma evidência `decisao`, com autor e justificativa, que n�
 from __future__ import annotations
 
 import argparse
+import csv
+import datetime
+import decimal
 import hashlib
 import itertools
 import json
@@ -331,9 +334,18 @@ def _unidades_do_item(item: dict, servico: str = "") -> list[str]:
     return list(dict.fromkeys(unidades)) or list(vocabulario.REGRAS["unidades"])
 
 
+def _pagina_normalizada(pagina: str) -> str:
+    """Página normalizada. A de planilha mantém uma linha para cada linha de texto (sem desfazer hífen de fim de linha),
+    para o mapa linha de texto → linha da planilha continuar valendo."""
+    if not isinstance(pagina, PaginaPlanilha):
+        return "\n".join(_linhas_normalizadas(pagina, marcar_brancos=True))
+    return "\n".join((_MINUSCULA if linha.lstrip()[:1].islower() else "") + normalizar(linha.translate(_ASPAS_E_TRACOS))
+                      for linha in pagina.split("\n"))
+
+
 def _paginas_normalizadas(paginas: list[str]) -> list[str]:
     """Texto de cada página normalizado, uma linha por linha do documento: feito uma vez por documento."""
-    return ["\n".join(_linhas_normalizadas(p, marcar_brancos=True)) for p in paginas]
+    return [_pagina_normalizada(p) for p in paginas]
 
 
 def _termos_da_linha(linha: str) -> list[tuple[int, int, str]]:
@@ -540,6 +552,30 @@ def _status_da_conferencia(achados: dict[int, list], normalizadas: list[str], va
             else "item não citado no trecho")
 
 
+def _localizacao_citada(localizador, paginas: list[str]) -> tuple[int | None, int | None, str | None]:
+    """(página, linha da planilha, motivo da recusa) do localizador: 'p. N' é o índice da página (ou da aba); o objeto
+    {"aba", "linha"} só vale em planilha, pela aba de mesmo nome."""
+    if isinstance(localizador, dict):
+        abas = [getattr(p, "aba", None) for p in paginas]
+        if localizador.get("aba") not in abas:
+            return None, None, "aba citada não existe no documento"
+        return abas.index(localizador["aba"]) + 1, localizador["linha"], None
+    cita = re.search(r"\b(?:PAG|P)\.?\s*(\d+)", normalizar(localizador or ""))
+    return (int(cita[1]) if cita else None), None, None
+
+
+def _achados_na_linha(achados: dict[int, list], pagina: int, original: str, normalizada: str,
+                      linha: int) -> tuple[dict[int, list], str | None]:
+    """Só os casamentos da aba que cobrem a linha da planilha citada; sem nenhum, o motivo da recusa."""
+    mapa = getattr(original, "linhas", ())
+
+    def cobre(casamento: re.Match) -> bool:
+        primeira, ultima = (normalizada.count("\n", 0, i) for i in (casamento.start(), casamento.end()))
+        return linha in mapa[primeira:ultima + 1]
+    cobertos = [m for m in achados[pagina] if cobre(m)]
+    return ({pagina: cobertos}, None) if cobertos else (achados, "linha citada não contém o trecho")
+
+
 def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | None = None) -> dict:
     """Evidência de IA conferida contra as páginas do documento (`normalizadas`: o `_paginas_normalizadas` delas, se já
     feito). O trecho (3 palavras ou 15 caracteres e uma letra) tem de estar numa página, com fronteira de palavra e de
@@ -552,13 +588,16 @@ def conferir_citacao(ev: dict, paginas: list[str], normalizadas: list[str] | Non
     normalizadas = _paginas_normalizadas(paginas) if normalizadas is None else normalizadas
     trecho = " ".join(_linhas_normalizadas(ev.get("trecho", "")))
     valor, unidade, item = ev.get("valor"), ev.get("unidade"), _item_do_codigo(ev.get("codigo"))
-    cita = re.search(r"\b(?:PAG|P)\.?\s*(\d+)", normalizar(ev.get("localizador", "")))
-    pagina = int(cita[1]) if cita else None
+    pagina, linha, erro = _localizacao_citada(ev.get("localizador"), paginas)
+    if erro:
+        return {**ev, "citacao": erro}
     tokens = trecho.split()
     curto = not (re.search("[A-Z]", trecho) and (len(tokens) >= 3 or len(trecho) >= 15))
     achados = {} if curto else _achar(_padrao_do_trecho(trecho, tokens), tokens, normalizadas, pagina)
-    status = (_recusa_antes_da_conferencia(curto, achados, pagina, item, valor)
-              or _status_da_conferencia(achados, normalizadas, valor, unidade, item))
+    status = _recusa_antes_da_conferencia(curto, achados, pagina, item, valor)
+    if status is None and linha is not None:
+        achados, status = _achados_na_linha(achados, pagina, paginas[pagina - 1], normalizadas[pagina - 1], linha)
+    status = status or _status_da_conferencia(achados, normalizadas, valor, unidade, item)
     return {**ev, "citacao": status}
 
 
@@ -748,6 +787,98 @@ def paginas_pdf(caminho: str | Path) -> list[str]:
         return [pg.get_text("text") for pg in doc]
 
 
+class PaginaPlanilha(str):
+    """Texto de uma aba (ou do csv): uma linha de texto por linha não vazia da planilha. Guarda o nome da aba e, para cada
+    linha de texto, a linha da planilha (1 = primeira linha da aba, contando as vazias, como no Excel)."""
+    aba: str
+    linhas: tuple[int, ...]
+
+    def __new__(cls, aba: str, linhas: list[tuple[int, str]]):
+        pagina = super().__new__(cls, "\n".join(texto for _, texto in linhas))
+        pagina.aba = aba
+        pagina.linhas = tuple(n for n, _ in linhas)
+        return pagina
+
+
+def _numero_ptbr(valor: float) -> str:
+    """Número como lê quem abre a planilha em pt-BR, sem arredondar: 250.0 → '250'; 1250.5 → '1.250,5'."""
+    texto = format(decimal.Decimal(repr(valor)) if isinstance(valor, float) else decimal.Decimal(valor), "f")
+    inteira, _, fracao = texto.partition(".")
+    fracao = fracao.rstrip("0")
+    sinal, inteira = ("-", inteira[1:]) if inteira.startswith("-") else ("", inteira)
+    inteira = f"{int(inteira):,}".replace(",", ".")
+    return sinal + inteira + ("," + fracao if fracao else "")
+
+
+def _texto_da_celula(valor) -> str:
+    """Texto de uma célula: número em pt-BR, data dd/mm/aaaa, texto com os espaços e quebras reduzidos a um espaço."""
+    if valor is None or (isinstance(valor, float) and math.isnan(valor)):
+        return ""
+    if isinstance(valor, bool):
+        return "VERDADEIRO" if valor else "FALSO"
+    if isinstance(valor, (datetime.datetime, datetime.date)):
+        return valor.strftime("%d/%m/%Y")
+    if hasattr(valor, "item"):                                                          # escalar do NumPy
+        valor = valor.item()
+    if isinstance(valor, (int, float)):
+        return _numero_ptbr(valor) if math.isfinite(valor) else str(valor)
+    return " ".join(str(valor).split())
+
+
+def _linhas_da_planilha(linhas_brutas) -> list[tuple[int, str]]:
+    """[(linha da planilha, texto)] das linhas com alguma célula; `linhas_brutas`: [(linha da planilha, células)]."""
+    saida = []
+    for numero, celulas in linhas_brutas:
+        textos = [t for c in celulas if (t := _texto_da_celula(c))]
+        if textos:
+            saida.append((numero, " | ".join(textos)))
+    return saida
+
+
+def _linhas_do_csv(caminho: Path) -> list[tuple[int, list[str]]]:
+    """Linhas do csv (utf-8, senão latin-1) com o separador mais usado entre ';', tabulação e ','; a vazia conta."""
+    bruto = caminho.read_bytes()
+    try:
+        texto = bruto.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        texto = bruto.decode("latin-1")
+    amostra = texto[:4096]
+    separador = max(";\t,", key=lambda c: (amostra.count(c), c == ";"))
+    return list(enumerate(csv.reader(texto.splitlines(), delimiter=separador), 1))
+
+
+def paginas_planilha(caminho: str | Path) -> list[PaginaPlanilha]:
+    """Páginas de uma planilha (.xlsx, .xlsm, .xls, .csv) para a IA citar: uma por aba, na ordem do arquivo (csv = uma
+    página), com uma linha de texto por linha não vazia (células não vazias unidas por ' | ', números em pt-BR sem
+    arredondar). Determinístico; o `.xls` pede o `xlrd` do pandas."""
+    arquivo = Path(caminho)
+    sufixo = arquivo.suffix.lower()
+    if sufixo == ".csv":
+        return [PaginaPlanilha(arquivo.stem, _linhas_da_planilha(_linhas_do_csv(arquivo)))]
+    if sufixo == ".xls":
+        abas = pd.read_excel(arquivo, sheet_name=None, header=None, dtype=object)
+        return [PaginaPlanilha(nome, _linhas_da_planilha((i, linha) for i, linha in enumerate(df.itertuples(index=False), 1)))
+                for nome, df in abas.items()]
+    from openpyxl import load_workbook
+    livro = load_workbook(arquivo, data_only=True)
+    try:
+        return [PaginaPlanilha(aba.title, _linhas_da_planilha((linha[0].row, [c.value for c in linha])
+                                                            for linha in aba.iter_rows() if linha))
+                for aba in livro.worksheets]
+    finally:
+        livro.close()
+
+
+_EXTENSOES_DE_PLANILHA = {".xlsx", ".xlsm", ".xls", ".csv"}
+
+
+def paginas_do_arquivo(caminho: str | Path) -> list[str]:
+    """Páginas de um documento de leitura pela extensão: planilha (.xlsx/.xls/.csv) ou PDF."""
+    if Path(caminho).suffix.lower() in _EXTENSOES_DE_PLANILHA:
+        return paginas_planilha(caminho)
+    return paginas_pdf(caminho)
+
+
 def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: dict | None = None,
          epsg: int | None = None, ia: list[dict] | None = None, decisoes: list[dict] | None = None,
          sondagens: list | None = None, declarados: list[dict] | None = None,
@@ -777,13 +908,14 @@ def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: di
 
 
 def _documentos(cfg: dict, log=print) -> list[dict]:
-    """Documentos de texto do obra.json (`evidencias.documentos`: pdf, tipo, unidade?, sistema?), com as páginas."""
+    """Documentos de leitura do obra.json (`evidencias.documentos`: pdf (PDF ou planilha .xlsx/.xls/.csv), tipo, unidade?,
+    sistema?), com as páginas."""
     saida = []
     for d in (cfg.get("evidencias") or {}).get("documentos", []):
         if not Path(d["pdf"]).exists():
             log(f"  evidências: {d['pdf']} não está no disco")
             continue
-        saida.append({"id": Path(d["pdf"]).name, "nome": Path(d["pdf"]).name, **d, "paginas": paginas_pdf(d["pdf"])})
+        saida.append({"id": Path(d["pdf"]).name, "nome": Path(d["pdf"]).name, **d, "paginas": paginas_do_arquivo(d["pdf"])})
     return saida
 
 
@@ -997,8 +1129,20 @@ def _problemas_de_forma(ev: dict) -> list[str]:
     """Problemas que impedem até a leitura do resto: documento que não é objeto com id, ou campo de texto de outro tipo."""
     if not isinstance(ev.get("documento"), dict) or not ev["documento"].get("id"):
         return ["documento tem de ser um objeto com id (nome do arquivo) e tipo"]
-    return [f"'{k}' tem de ser texto" for k in ("codigo", "servico", "localizador", "trecho", "regra")
-            if k in ev and not isinstance(ev[k], str)]
+    problemas = [f"'{k}' tem de ser texto" for k in ("codigo", "servico", "trecho", "regra")
+                 if k in ev and not isinstance(ev[k], str)]
+    return problemas + _problemas_do_localizador(ev["localizador"]) if "localizador" in ev else problemas
+
+
+def _problemas_do_localizador(localizador) -> list[str]:
+    """O localizador é texto ('p. 4') ou, em planilha, {"aba": texto, "linha": inteiro a partir de 1}."""
+    if isinstance(localizador, str):
+        return []
+    if (isinstance(localizador, dict) and set(localizador) == {"aba", "linha"} and isinstance(localizador["aba"], str)
+            and isinstance(localizador["linha"], int) and not isinstance(localizador["linha"], bool)
+            and localizador["linha"] >= 1):
+        return []
+    return ["'localizador' tem de ser texto ou {aba, linha} (linha inteira a partir de 1)"]
 
 
 def _problemas_ia(ev: dict) -> list[str]:
@@ -1045,15 +1189,18 @@ def conferir_arquivo(linhas: list, documentos: dict[str, list[str]]) -> tuple[li
     return aceitas, recusadas
 
 
-def _documentos_da_linha_de_comando(pdfs: list[str], textos: list[str], log=print) -> dict[str, list[str]]:
-    """Nome do arquivo → páginas: PDF por página; texto puro por página separada por quebra de página (\\f)."""
-    documentos = {}
-    for caminho in pdfs + textos:
+def _documentos_da_linha_de_comando(pdfs: list[str], textos: list[str], log=print,
+                                    planilhas: list[str] | None = None) -> dict[str, list[str]]:
+    """Nome do arquivo → páginas: PDF por página; planilha por aba; texto puro por página separada por quebra de página (\\f)."""
+    documentos, planilhas = {}, planilhas or []
+    for caminho in pdfs + planilhas + textos:
         arquivo = Path(caminho)
         if not arquivo.exists():
             log(f"  aviso: {caminho} não existe e será ignorado")
         elif caminho in pdfs:
             documentos[arquivo.name] = paginas_pdf(arquivo)
+        elif caminho in planilhas:
+            documentos[arquivo.name] = paginas_planilha(arquivo)
         else:
             documentos[arquivo.name] = arquivo.read_text(encoding="utf-8").split("\f")
     return documentos
@@ -1065,7 +1212,7 @@ def _comando_conferir(args, log=print) -> int:
     if not entrada.exists():
         log(f"erro: o arquivo {entrada} não existe")
         return 2
-    documentos = _documentos_da_linha_de_comando(args.pdf, args.texto, log)
+    documentos = _documentos_da_linha_de_comando(args.pdf, args.texto, log, args.planilha)
     aceitas, recusadas = conferir_arquivo(entrada.read_text(encoding="utf-8").splitlines(), documentos)
     log(f"Conferência de {entrada.name}: {len(aceitas)} aceitas, {len(recusadas)} recusadas "
         f"({len(documentos)} documentos fornecidos)")
@@ -1101,6 +1248,7 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("conferir", help="confere as evidências propostas pela IA contra os documentos")
     c.add_argument("ia", help="JSONL com as evidências propostas (uma por linha)")
     c.add_argument("--pdf", action="append", default=[], help="PDF do documento (repetível)")
+    c.add_argument("--planilha", action="append", default=[], help="planilha .xlsx/.xls/.csv do documento (repetível)")
     c.add_argument("--texto", action="append", default=[], help="texto puro do documento (repetível)")
     c.add_argument("--saida", help="grava só as aceitas neste JSONL")
     c.set_defaults(funcao=_comando_conferir)
