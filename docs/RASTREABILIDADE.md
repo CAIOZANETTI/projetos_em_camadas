@@ -19,11 +19,11 @@ visualizador.html` → `saida/<obra>/<id>_camadas_v<versão>_<data>.html`.
 | Branch (sessão) | PRs | Versões | Frente |
 |---|---|---|---|
 | `claude/gracious-maxwell-6zyd9c` | #1 | (antes do CHANGELOG) | base: mosaico de drone, camadas de projeto e visualizador HTML (Irati) |
-| `claude/intelligent-dijkstra-l3v3wh` | #2–16, #19, #21 | 0.1–0.16, 0.18, 0.20 | Foz inteira até a aba Obra: 3D e ortofoto, pranchas vetoriais por layer, georreferência, escopo sem preço, sondagens, inventário, escavação e valas, fichas de prancha, área da obra, pacote SIG, nome com versão, aba Obra, escopo por unidade, formas dos Actiflo, unidades da Relação de Desenhos |
+| `claude/intelligent-dijkstra-l3v3wh` | #2–16, #19, #21, #66 | 0.1–0.16, 0.18, 0.20, 0.58 | Foz inteira até a aba Obra: 3D e ortofoto, pranchas vetoriais por layer, georreferência, escopo sem preço, sondagens, inventário, escavação e valas, fichas de prancha, área da obra, pacote SIG, nome com versão, aba Obra, escopo por unidade, formas dos Actiflo, unidades da Relação de Desenhos; esta rastreabilidade e o build com o terreno da 0.56 |
 | `claude/hopeful-archimedes-1kaoom` | #17 | 0.17 | obras lineares dentro da ETA (vala pelo MOS, sondagem, pavimento) |
-| `claude/focused-dijkstra-m2k7pj` | #20, #22–24, #28, #30–31, #33, #48, #52–54, #58, #60–62 | 0.19, 0.21–0.23, 0.27, 0.29, 0.31, 0.49–0.51 | arquitetura ("só escopo", sem cronograma/4D; ciclo de extração), geotecnia e obras lineares, decisões D4–D11, verificação noturna da arquitetura |
+| `claude/focused-dijkstra-m2k7pj` | #20, #22–24, #28, #30–31, #33, #48, #52–54, #58, #60–62, #64 | 0.19, 0.21–0.23, 0.27, 0.29, 0.31, 0.49–0.51 | arquitetura ("só escopo", sem cronograma/4D; ciclo de extração), geotecnia e obras lineares, decisões D4–D11, verificação noturna da arquitetura |
 | `ccr-2f8fb1ac-7urfse` | #26–27, #29, #32, #35, #39, #46, #56, #63 | 0.24–0.26, 0.28, 0.30, 0.34, 0.36, 0.45, 0.53, 0.56 | memória espacial (gavetas, de-para), build real de Foz, conferência das cavas, terreno das cavas pela topografia do projeto |
-| `claude/nifty-meitner-uqs554` | #18, #34, #36, #38, #40–45, #47, #49–51, #55, #57, #59 | 0.32–0.33, 0.35, 0.37–0.44, 0.46–0.48, 0.52, 0.54–0.55 | EAP codificada (aba EAP), leitura por IA com citação conferida, EAP padrão alinhada à planilha Sanepar |
+| `claude/nifty-meitner-uqs554` | #18, #34, #36, #38, #40–45, #47, #49–51, #55, #57, #59, #65 | 0.32–0.33, 0.35, 0.37–0.44, 0.46–0.48, 0.52, 0.54–0.55, 0.57 | EAP codificada (aba EAP), leitura por IA com citação conferida, EAP padrão alinhada à planilha Sanepar |
 | `ccr-a74a1d05-p8rjle` | #25, #37 | — | Vibe Code Metrics (higiene, `uv`, conjunto de referência) e testes de caracterização de `obra.py` |
 
 ## 3. Versão × PR × branch
@@ -31,6 +31,7 @@ visualizador.html` → `saida/<obra>/<id>_camadas_v<versão>_<data>.html`.
 <!-- versoes:inicio -->
 | Versão | Data | PR | Branch (sessão) | Tema |
 |---|---|---|---|---|
+| 0.57.0 | 2026-11-04 | #65 | `claude/nifty-meitner-uqs554` | D10, D11, D12 e D13 na EAP padrão (frente WBS) |
 | 0.56.0 | 2026-11-04 | #63 | `ccr-2f8fb1ac-7urfse` | Terreno das cavas: topografia do projeto no casco das curvas, MDS corrigido fora |
 | 0.55.0 | 2026-11-03 | #59 | `claude/nifty-meitner-uqs554` | A etapa pelo título da planilha Sanepar |
 | 0.54.0 | 2026-11-03 | #57 | `claude/nifty-meitner-uqs554` | EAP padrão alinhada à planilha real da Sanepar (Foz) |
@@ -91,9 +92,9 @@ visualizador.html` → `saida/<obra>/<id>_camadas_v<versão>_<data>.html`.
 
 ## 4. O que o Caio pediu na sessão `intelligent-dijkstra` e onde está no HTML
 
-Situação conferida na `main` 0.55.0 (template e build), 04/11/2026.
+Situação conferida na `main` 0.58.0 (template e build), 04/11/2026.
 
-| Pedido (data) | Entregue em | Onde aparece | Na 0.55.0 |
+| Pedido (data) | Entregue em | Onde aparece | Na 0.58.0 |
 |---|---|---|---|
 | Obra de Foz em camadas: 3D, ortofoto, pranchas por layer, etapas, escopo, sondagens (27/10) | 0.2–0.3 | abas Camadas, Pranchas, Etapas & escopo; 3D | mantido |
 | "Só o escopo, sem preço" (28/10) | 0.5–0.6 | Etapas & escopo; escopo × desenho das adutoras | mantido (e reforçado: sem prazo, 0.19) |
@@ -130,10 +131,16 @@ Situação conferida na `main` 0.55.0 (template e build), 04/11/2026.
 5. **58 desenhos citados na Relação não estão no Drive**.
 6. **8 estacas** do `estacas.csv` com a unidade trocada (marcadas "Conferir").
 
-## 7. O HTML da main de 04/11/2026 (0.55.0), parte por parte
+## 7. O HTML da main de 04/11/2026 (0.58.0), parte por parte
 
-`saida/foz/foz-vilac_camadas_v0.55.0_2026-11-04.html` (24,2 MB), gerado com a `main` em `4c06913` e a planilha do
-contrato (`211 - SAA Foz do Iguaçú.xlsx`, fora do git). Teste de interface: 264 verificações, 0 falha.
+`saida/foz/foz-vilac_camadas_v0.58.0_2026-11-04.html` (24,2 MB), gerado com o código da 0.58.0 (a `main` 0.57.0 mais este PR), com o
+extra `topografia` (scipy) e com a planilha do contrato (`211 - SAA Foz do Iguaçú.xlsx`, fora do git). Teste de
+interface: 264 verificações, 0 falha.
+
+O que o build precisa para sair igual: os extras `pdf`, `ocr`, `sig` e `topografia`. Sem o scipy, o build não quebra,
+mas o terreno das cavas fica no MDS e o log avisa "topografia NÃO aplicada". Foi assim no primeiro build desta
+rodada, com 8 cavas e 8 769 m³ de escavação. Com o scipy, a 0.56.0 quebrava nos furos com coordenada `null`; a
+correção entrou na 0.58.0.
 
 | Aba | Criada em (sessão) | Mexida depois em |
 |---|---|---|
@@ -141,7 +148,7 @@ contrato (`211 - SAA Foz do Iguaçú.xlsx`, fora do git). Teste de interface: 26
 | Camadas | 0.2 (`intelligent-dijkstra`) | 0.11, 0.13–0.14 (área da obra, peso) |
 | Pranchas | 0.2 (`intelligent-dijkstra`) | 0.13 (simplificação e medição exata) |
 | Etapas & escopo | 0.3–0.6 (`intelligent-dijkstra`) | 0.19 (`focused-dijkstra`: sem cronograma/4D) |
-| EAP | 0.35 (`nifty-meitner`) | 0.37–0.38, 0.46–0.48, 0.52, 0.54–0.55 (`nifty-meitner`); gavetas 0.36 (`ccr-2f8fb1ac`) |
+| EAP | 0.35 (`nifty-meitner`) | 0.37–0.38, 0.46–0.48, 0.52, 0.54–0.55, 0.57 (`nifty-meitner`); gavetas 0.36 (`ccr-2f8fb1ac`) |
 | Anotações | 0.1 (`gracious-maxwell` / Irati) | — |
 | Projeto | 0.7 (`intelligent-dijkstra`) | 0.8–0.10 (fichas), 0.19 (inventário de todos os arquivos) |
 
@@ -156,10 +163,11 @@ contrato (`211 - SAA Foz do Iguaçú.xlsx`, fora do git). Teste de interface: 26
 | `escavacao`, `valas` | `escavacao`, `valas` | 0.7, 0.15 (`intelligent-dijkstra`) |
 | `construtivos` (+ `escopo`): 464 elementos, 104 desenhos citados / 46 entregues | `construtivos`, `escopo_obra` | 0.15–0.16, 0.18, 0.20 (`intelligent-dijkstra`) |
 | `geotecnia` | `geotecnia`, `lineares` | 0.21, 0.27–0.31, 0.49–0.51 (`focused-dijkstra`) |
-| `gavetas`, `eap_gavetas`: 73 objetos, 132 fatos, 80 serviços | `gavetas`, `extrair_gavetas` | 0.24–0.26, 0.28, 0.30, 0.34, 0.36 (`ccr-2f8fb1ac`) |
-| `eap`, `eap_padrao`, `eap_painel` | `eap`, `eap_padrao`, `eap_painel`, `eap_html` | 0.32, 0.35–0.38, 0.46–0.48, 0.52, 0.54–0.55 (`nifty-meitner`) |
-| `evidencias`: 2 514 evidências, 167 fatos, 6 conflitos | `evidencias`, `vocabulario` | 0.39–0.44, 0.47 (`nifty-meitner`) |
+| `gavetas`, `eap_gavetas`: 73 objetos, 132 fatos, 77 serviços | `gavetas`, `extrair_gavetas` | 0.24–0.26, 0.28, 0.30, 0.34, 0.36 (`ccr-2f8fb1ac`) |
+| `eap`, `eap_padrao`, `eap_painel` | `eap`, `eap_padrao`, `eap_painel`, `eap_html` | 0.32, 0.35–0.38, 0.46–0.48, 0.52, 0.54–0.55, 0.57 (`nifty-meitner`) |
+| `evidencias`: 2 512 evidências, 165 fatos, 6 conflitos | `evidencias`, `vocabulario` | 0.39–0.44, 0.47 (`nifty-meitner`) |
 | `conferencia_cavas` | `conferencia_cavas`, `secoes_corte` | 0.53 (`ccr-2f8fb1ac`) |
+| `escavacao` com terreno composto. As cavas usam a topografia da GEOPLANTA dentro do casco das curvas e o MDS corrigido fora (15 265 m² de topografia, 6 192 m² de MDS corrigido, 1 387 m² de costura). Resultado: 7 cavas, 7 922 m³ de escavação e 4 951 m³ de reaterro. Dois alertas: o furo SP-16 (provável copa) e 4 288 m² extrapolados a mais de 30 m do casco | `topografia`, `escavacao` | 0.56 (`ccr-2f8fb1ac`), 0.58 (`intelligent-dijkstra`: furos `null` fora da validação) |
 
 **Fica de fora neste build:** as obras lineares dentro da ETA (0.17, `hopeful-archimedes`) e os trechos das gavetas
 que vêm delas. O código espera a aba "Obras Lineares" do protótipo da Giselle (30/10), que não está no Drive — a
