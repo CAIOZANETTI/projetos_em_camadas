@@ -1,116 +1,35 @@
-objetivo: 'Reconstrução F0–F2 (docs/RECONSTRUCAO.md): decisões registradas, gavetas
-  v2 e golden das quantidades (F0); inventário com destino por arquivo (F1); todo
-  o escopo de Foz extraído para as gavetas com documento, página e geometria (F2)'
+objetivo: 'Reconstrução F3 (docs/RECONSTRUCAO.md): a EAP preenchida só pelas gavetas
+  — laço sobre o modelo da EAP (localizada e linear), código da EAP única, cada quantidade
+  citando objetos, fatos e evidências'
 criterio_de_pronto:
-- 'F0: decisões da §5 registradas; documentos superados marcados; esquema das gavetas
-  v2 (documentos, paginas, evidencias com localizador, pendencias com chave) em conceitos/gavetas.json
-  com validação; golden das quantidades atuais de Foz gravado e testado; prazo fora
-  da quantificação'
-- 'F1: todo arquivo do inventário tem destino (leitor → gavetas) ou motivo de não
-  ter'
-- 'F2: documentos e páginas de todos os PDFs, os elementos construtivos, as linhas
-  do contrato e os itens de material entram nas gavetas, cada fato com evidência que
-  cita documento e página (ou aba e linha)'
-- build real de Foz sem regressão contra o golden, interface 0 falha, balanço sem
-  REVERTER; um PR por fase
-base: 91ec281
+- 'camadas/eap_preencher.py: itens técnicos e folhas da EAP padrão preenchidos só
+  das gavetas; código da EAP única <folha>/<item técnico>'
+- 'paridade com o golden: as 37 quantidades da EAP codificada saem iguais lendo só
+  das gavetas (0 diferença, tolerância 1e-3)'
+- cada quantidade cita objetos, fatos e evidências (documento e página ou aba e linha);
+  completude por tipo de obra registrada
+- ligado ao build (saida/<obra>/eap_unica.json), build real sem regressão contra o
+  golden, interface 0 falha, balanço sem REVERTER, PR e merge
+base: ce73c5e
 etapas:
 - id: E1
-  nome: 'F0: decisões, documentos superados, esquema das gavetas v2 e validação'
+  nome: 'F3: eap_preencher (itens técnicos e folhas pelas gavetas, paridade com o
+    golden; fecha lacunas de extração se houver)'
   entregaveis:
-  - docs/RECONSTRUCAO.md
-  - docs/ARQUITETURA.md
-  - docs/PLANO.md
-  - docs/PLANO_FOZ.md
-  - docs/VISUALIZADOR_V2.md
+  - camadas/eap_preencher.py
+  - tests/test_eap_preencher.py
+  - camadas/gavetas_construtivos.py
   - conceitos/gavetas.json
-  - camadas/gavetas.py
-  - tests/test_gavetas_v2.py
   depende_de: []
-  agente: opus
-  estimativa_min: 40
-  estimativa_tokens: 150000
-  status: feito
-  inicio: '2026-11-04T19:42:43Z'
-  fim: '2026-11-04T19:45:31Z'
+  agente: sonnet
+  estimativa_min: 45
+  estimativa_tokens: 250000
+  status: fazendo
+  inicio: '2026-11-04T20:24:50Z'
+  fim: null
   forcado: null
 - id: E2
-  nome: 'F0: golden das quantidades atuais de Foz (script + teste)'
-  entregaveis:
-  - scripts/golden_quantidades.py
-  - tests/golden_foz/quantidades_foz.json
-  - tests/test_golden_quantidades.py
-  depende_de: []
-  agente: haiku
-  estimativa_min: 20
-  estimativa_tokens: 100000
-  status: feito
-  inicio: '2026-11-04T19:42:44Z'
-  fim: '2026-11-04T19:49:19Z'
-  forcado: null
-- id: E3
-  nome: 'F0: prazo fora da quantificação (escoramento un/mês, produtividade, dias
-    úteis)'
-  entregaveis:
-  - camadas/contrato_211.py
-  - conceitos/composicoes_sanepar.json
-  - tests/test_contrato_211.py
-  depende_de: []
-  agente: sonnet
-  estimativa_min: 15
-  estimativa_tokens: 100000
-  status: feito
-  inicio: '2026-11-04T19:42:46Z'
-  fim: '2026-11-04T19:45:32Z'
-  forcado: null
-- id: E4
-  nome: 'F1+F2: documentos e páginas de todos os arquivos do inventário nas gavetas,
-    com destino por arquivo'
-  entregaveis:
-  - camadas/gavetas_documentos.py
-  - tests/test_gavetas_documentos.py
-  depende_de:
-  - E1
-  agente: sonnet
-  estimativa_min: 40
-  estimativa_tokens: 200000
-  status: feito
-  inicio: '2026-11-04T19:45:34Z'
-  fim: '2026-11-04T19:52:34Z'
-  forcado: null
-- id: E5
-  nome: 'F2: elementos construtivos (estacas, blocos, pilares, trechos) nas gavetas
-    com página e geometria'
-  entregaveis:
-  - camadas/gavetas_construtivos.py
-  - tests/test_gavetas_construtivos.py
-  depende_de:
-  - E1
-  agente: sonnet
-  estimativa_min: 40
-  estimativa_tokens: 200000
-  status: feito
-  inicio: '2026-11-04T19:45:35Z'
-  fim: '2026-11-04T20:00:30Z'
-  forcado: null
-- id: E6
-  nome: 'F2: linhas do contrato 211 e itens de material nas gavetas (aba e linha,
-    sem preço)'
-  entregaveis:
-  - camadas/gavetas_contrato.py
-  - tests/test_gavetas_contrato.py
-  depende_de:
-  - E1
-  agente: sonnet
-  estimativa_min: 30
-  estimativa_tokens: 150000
-  status: feito
-  inicio: '2026-11-04T19:45:36Z'
-  fim: '2026-11-04T19:49:53Z'
-  forcado: null
-- id: E7
-  nome: Integração na extração (extrair_gavetas.etapa), build real, paridade com o
-    golden, balanço, PRs
+  nome: 'F3: ligação no build, build real, paridade, balanço, PR e merge'
   entregaveis:
   - camadas/extrair_gavetas.py
   - camadas/obra.py
@@ -123,22 +42,22 @@ etapas:
   - results/agentes/execucoes.csv
   - results/rumo.md
   - results/rumo.html
+  - docs/RECONSTRUCAO.md
+  - tests/test_gavetas_v2.py
   depende_de:
-  - E2
-  - E3
-  - E4
-  - E5
-  - E6
+  - E1
   agente: opus
-  estimativa_min: 60
-  estimativa_tokens: 150000
-  status: feito
-  inicio: '2026-11-04T20:00:31Z'
-  fim: '2026-11-04T20:17:16Z'
-  forcado: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr,
-    que já falha na main (tesseract do ambiente); balanço DECISAO_HUMANA (sloc_por_funcao
-    +2,1 %), aceito pelo Caio no 'pode seguir com o PR, merge'
+  estimativa_min: 45
+  estimativa_tokens: 120000
+  status: a_fazer
+  inicio: null
+  fim: null
+  forcado: null
 historico:
+- data: '2026-11-04'
+  mudanca: 'objetivo anterior concluído: reconstrução F0–F2 (PR #79, 0.70.0)'
+  motivo: 'o Caio: ''pode seguir com o merge e continuar a F3''; a E1 da F3 já tinha
+    começado em paralelo ao CI do PR #79'
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: aba EAP legível (PR #78, 0.68.0); novo objetivo:
     reconstrução F0–F2 pelo fluxo do Caio (docs/RECONSTRUCAO.md)'
