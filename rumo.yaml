@@ -20,9 +20,9 @@ etapas:
   agente: sonnet
   estimativa_min: 45
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T16:16:06Z'
-  fim: null
+  fim: '2026-11-04T16:40:04Z'
   forcado: null
 - id: E2
   nome: Trechos das interligações em valas.redes (trecho_contrato) e saída de valas.fora
@@ -35,8 +35,8 @@ etapas:
   agente: sonnet
   estimativa_min: 30
   estimativa_tokens: 200000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T16:40:06Z'
   fim: null
   forcado: null
 - id: E3
