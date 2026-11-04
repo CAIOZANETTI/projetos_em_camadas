@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.63.0 — 2026-11-04 · Documento de leitura validado na entrada (frente WBS)
+- **Documento do `obra.json` conferido antes da leitura** (`evidencias._problemas_do_documento`): `unidade`/`sistema`
+  pelo padrão do `codigo` do schema (montado com o item de teste mais longo, para um ponto no sistema não escapar),
+  `tipo` e `escopo` pelos enums do schema, sem regex própria e sem normalizar. Fora do padrão: o documento fica de
+  fora com a recusa `documento inválido: …` (código = prefixo `unidade.sistema.*`) nas `recusadas` da etapa, uma linha
+  de log; antes, a etapa de evidências inteira caía em `evidencia()` com `ValueError`. `obra` desconhecida avisa no log.
+- **Aviso genérico na EAP padrão**: recusa que não é de sistema não declarado vira "Recusada na leitura: {código}
+  ({motivo})" (decisão e documento); o texto "Decisão recusada na leitura" da 0.62 sai.
+- `pares_declarados` e `sistema_linear_nao_declarado` em `eap_padrao.metadados()["funcoes"]`.
+- Foz idêntica (656 evidências, 38 fatos, 9/45 e 7/32, mesmo hash da cadeia real); Foz não tem `evidencias.documentos`.
+- Plano `docs/plano/2026-11-04_wbs_documento_validado.md` aprovado pelo Fable (três ajustes); entrega revisada uma vez
+  (sistema com ponto) e aceita.
+- Lição L059.
+
 ## 0.62.0 — 2026-11-04 · Recusa na leitura e decisões validadas (frente WBS)
 - **Recusa na leitura**: `evidencias.loop(trechos_lineares=...)` recebe de `etapa` os trechos declarados na obra e
   recusa, num filtro único antes de `_sem_ia_repetida`/`consolidar`/`gravar`, toda evidência (IA, decisão, regex,

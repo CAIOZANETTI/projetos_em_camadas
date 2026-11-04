@@ -987,8 +987,8 @@ def _avisos_nao_declarados(dados: dict, declarados: set[tuple[str, str]]) -> lis
         evidencias.get("recusadas") if isinstance(evidencias, dict) else None
     ) or []:
         if r.get("motivo") != MOTIVO_NAO_DECLARADO:
-            avisos.append(  # decisão fora do schema: aviso próprio, com o motivo, em qualquer obra
-                f"Decisão recusada na leitura: {r.get('codigo') or 'sem código'} ({r.get('motivo')})"
+            avisos.append(  # decisão ou documento fora do schema: aviso próprio, com o motivo, em qualquer obra
+                f"Recusada na leitura: {r.get('codigo') or 'sem código'} ({r.get('motivo')})"
             )
         elif sistema_linear_nao_declarado(r.get("codigo") or "", declarados):
             avisos.append(  # o mesmo texto de um fato não duplica: a lista final é única
@@ -1172,6 +1172,8 @@ def metadados() -> dict:
             "separar_manuais",
             "separar_trechos_lineares",
             "trechos_do_cfg",
+            "pares_declarados",
+            "sistema_linear_nao_declarado",
             "preencher",
             "resumir",
             "montar",
