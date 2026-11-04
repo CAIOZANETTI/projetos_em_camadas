@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.56.0 — 2026-11-04 · Terreno das cavas: topografia do projeto no casco das curvas, MDS corrigido fora
+- **`camadas/topografia.py`**: lê as curvas de nível da GEOPLANTA (`Curvas_Mestras` e `Curvas_Auxiliares`, equidistância
+  de 0,5 m):
+  - as cotas saem dos rótulos por OCR, com alfabeto aprendido dos próprios rótulos;
+  - a curva partida no PDF herda a cota da continuação;
+  - o TIN é montado na grade do MDS;
+  - compara a topografia com as sondagens, as seções de corte e o MDS (mapa do erro, por cobertura e por distância).
+- **Decisão do Caio (opção D)**: o terreno das cavas é composto (`escavacao.terreno` no obra.json; sem a chave, nada
+  muda e o hash da referência fica igual):
+  - topografia dentro do casco;
+  - fora dele, MDS corrigido pelo plano medido contra a topografia, sem edificação e sem vegetação alta;
+  - costura de 5 m para fora do casco;
+  - além de 30 m do casco, a origem é `mds_corrigido_extrapolado`, com alerta;
+  - `validacao_fora_do_casco` declara que, fora do casco, o erro é desconhecido.
+- **Foz:**
+  - escavação 8 612 → **7 905 m³** (−8,2 %); reaterro 5 467 → **4 952 m³** (−9,4 %);
+  - a C07, de 0,2 m de profundidade, some, porque a topografia fica abaixo do fundo projetado;
+  - topografia × sondagens: rms 0,17 m (14 furos); topografia × seções: rms 0,16 m;
+  - o MDS fica em média +0,54 m acima da topografia: copa e telhado (21 % da área com erro maior que 1 m) e um anel de
+    +0,6 a +1 m na borda do casco.
+
+  Relatório em `docs/plano/2026-11-03_decisao_terreno.md`.
+- O cache das curvas leva `VERSAO_LEITURA_CURVAS`: o build reaproveitava em silêncio a leitura anterior. O extra
+  `topografia` traz o scipy.
+- Lição L052.
+
 ## 0.55.0 — 2026-11-03 · A etapa pelo título da planilha Sanepar
 - **`orcamento_sanepar.extrair_custo_civil`**: colunas novas `titulo_etapa` e `titulo_trecho` no escopo (ao fim de
   `COLUNAS_ESCOPO`). Título de etapa é o que casa um `titulos_sanepar` de `conceitos/eap_padrao.json` (fonte única);
