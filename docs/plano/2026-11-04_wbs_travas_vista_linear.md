@@ -66,3 +66,10 @@ continua em `fatos.csv`.
    `unidades_construtivas.json`).
 
 Pendência registrada (sugestão): recusar já em `loop`/`_conferir_ia`, para o número nem chegar ao `consolidar`.
+
+## Aceite
+
+Fable aceitou 772b4db (04/11/2026): travas E1–E3 conformes ao plano, Foz idêntica à base (9/45, 7/32, hash
+c5c2d5cd), referência 0602c637, 1114 testes verdes; a reprovação da aferição (rasos) pré-existia na base e foi
+corrigida na main pelo PR #69. Pendências opcionais: normalização de caixa do item do código; linha de
+`titulos_etapa` com sistema vinda de cache antigo em obra sem declaração (documentar). Versão 0.61.0 no merge.

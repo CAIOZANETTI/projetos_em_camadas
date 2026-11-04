@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.61.0 — 2026-11-04 · Travas da vista linear da EAP padrão (frente WBS)
+- **Sistema linear só com declaração na obra**: código de sistema marcado `vista_eap_padrao` (ex.: `U1.AGUA_POTAVEL`)
+  sem a (unidade, sistema) declarada em `eap_padrao.trechos_lineares` sai das duas vistas da EAP padrão (não cai em
+  "unidade não atribuível") e `montar` avisa com código, serviço, valor e documento, varrendo os fatos e as
+  quantidades da EAP codificada. Fecha a porta de uma evidência de IA, decisão ou regex contar nas duas vistas.
+- **Declaração em obra sem tipo linear é recusada** (aviso único) e não aplicada: a linha fica na localizada com o
+  código original e a soma igual. `trechos_do_cfg` e `montar` usam a mesma fonte (`_trechos_da_obra`).
+- Foz inalterada (9/45 localizada, 7/32 linear, mesmo hash da cadeia real). Pendências registradas: recusar já em
+  `loop`/`_conferir_ia`; normalização de caixa do item; trecho declarado × futura aba Obras Lineares.
+- Plano `docs/plano/2026-11-04_wbs_travas_vista_linear.md` aprovado pelo Fable (com três ajustes) e entrega aceita.
+- Lição L057.
+
 ## 0.60.0 — 2026-11-04 · A5: NSPT do laudo Geoazimute lido em código
 - **`geotecnia.nspt_da_folha`** lê a tabela de golpes pela posição de cada número: colunas INI., FIN. e 3 segmentos;
   linhas pelos rótulos de profundidade.

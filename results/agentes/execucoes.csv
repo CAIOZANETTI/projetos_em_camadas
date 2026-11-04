@@ -134,3 +134,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-04,WBS travas,implementação das travas da vista linear (commit 772b4db),executor,claude-sonnet-5-5,143389,38,510,True,nenhum,"1114 testes; suíte vcm 0 falhas; Foz idêntica (9/45, 7/32); aferição reprova só por scripts/rastreabilidade.py, que já falha na main"
 2026-11-04,A5 NSPT,E1: leitor de NSPT Geoazimute (tabela pela posição),executor,claude-sonnet-5-5,150581,51,424,True,nenhum,"23 furos, 305 metros, 0 somas erradas; 4 furos conferidos à mão"
 2026-11-04,A5 NSPT,aceite da A5,gerente (aceite),claude-fable-5-1,143646,41,442,True,nenhum,"ACEITA: 6 furos conferidos à mão, 0 divergências; relato corrigido (SP11/SP12 interrompidos no meio do furo)"
+2026-11-04,WBS 0.61.0,aceite da entrega das travas,revisor (Fable),claude-fable-5-1,105641,20,454,True,nenhum,"ACEITA; Foz reproduzida na base e na entrega; aferição pré-existente na base"
