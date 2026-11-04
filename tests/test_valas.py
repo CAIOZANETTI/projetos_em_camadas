@@ -209,7 +209,53 @@ def test_obra_foz_declara_os_trechos_internos_da_eta():
     from camadas import pdf_cad
     obra = json.loads((pdf_cad.CONCEITOS.parent / "exemplos" / "foz" / "obra.json").read_text(encoding="utf-8"))
     trechos = [r for r in obra["valas"]["redes"] if r.get("trecho_contrato")]
-    assert {r["trecho_contrato"] for r in trechos} == {"ENTRADA DA ADUTORA DE ÁGUA BRUTA", "SAÍDA DO LODO DECANTADO",
-                                                      "RETORNO LODO EEE FLOTOFILTRO", "DRENAGEM ACTIFLO 600 L/S"}
+    assert {r["trecho_contrato"] for r in trechos} == {
+        "ENTRADA DA ADUTORA DE ÁGUA BRUTA", "SAÍDA DO LODO DECANTADO", "RETORNO LODO EEE FLOTOFILTRO",
+        "DRENAGEM ACTIFLO 600 L/S", "INTERLIGAÇÃO: ADUTORA DE ÁGUA BRUTA COM MÓD. TRATAMENTO COM MICRO AREIA 360L",
+        "INTERLIGAÇÃO: ADUTORA DE ÁGUA BRUTA COM MÓD. TRATAMENTO COM MICRO AREIA 600L",
+        "INTERLIGAÇÃO:MÓD. TRATAMENTO COM MICRO AREIA 360L COM FILTROS EXISTENTES (VELHOS)"}
     assert all(r["material"] == "FD" and r["de_mm"] and r["dn_mm"] and r["fonte_de"] and r["janelas_pt"] for r in trechos)
     assert all(r["par_mm"] / 1000 <= r["de_mm"] / 1000 + 1e-9 for r in trechos)
+
+
+def test_eixo_por_pares_recorta_o_contorno_que_atravessa_a_caixa_da_valvula():
+    """Contorno de uma linha só de 0 a 30 m que passa por uma caixa (10 a 14 m): sem `recortar` a janela exige os dois
+    extremos dentro dela e nada sobra; com `recortar` o contorno é cortado na parede e a caixa fica de fora."""
+    tracos = _tubo_de_dois_contornos(10, 1.048, 1, comp=30.0)
+    janelas = [[-1, 0, 10, 20], [14, 0, 31, 20]]
+    assert len(valas.eixos_por_pares(tracos, "G", M, 1.048, janelas)["pts"]) == 0
+    assert valas.eixos_por_pares(tracos, "G", M, 1.048, janelas, recortar=True)["peso"].sum() == pytest.approx(10 + 16, abs=0.001)
+    sem_janela = valas.eixos_por_pares(tracos, "G", M, 1.048)["peso"].sum()
+    assert sem_janela == pytest.approx(30.0, abs=0.001)                         # sem janela o recorte não muda nada
+    assert valas.eixos_por_pares(tracos, "G", M, 1.048, [[-1, 0, 31, 20]], recortar=True)["peso"].sum() == pytest.approx(30.0, abs=0.001)
+    # contorno que só toca a caixa por fora ou paralelo fora dela não entra
+    assert len(valas.eixos_por_pares(tracos, "G", M, 1.048, [[40, 0, 50, 20]], recortar=True)["pts"]) == 0
+
+
+def test_rede_com_janelas_recortadas_usa_o_parametro_da_rede(monkeypatch):
+    monkeypatch.setattr(valas.pdf_cad, "extrair", lambda pdf, clip=None: _tubo_de_dois_contornos(10, 1.048, 1, comp=30.0))
+    orto = {"img": np.full((40, 40, 3), (60, 140, 70), np.uint8), "e0": -5.0, "n1": 25.0, "res": 1.0}
+    prancha = {"P": {"id": "P", "pdf": "x.pdf", "M": np.eye(3), "clip": None, "clip_mapa": None}}
+    r = {"id": "T", "pranchas": ["P"], "layer": "G", "criterio": "ortofoto", "par_mm": 1048, "de_mm": 1048, "dn_mm": 1000,
+         "janelas_pt": [[-1, 0, 10, 20], [14, 0, 31, 20]]}
+    assert valas.rede(r, prancha, orto, None) is None                           # sem recorte: nenhum contorno cabe
+    assert valas.rede({**r, "recortar_janelas": True}, prancha, orto, None)["extensao_m"] == pytest.approx(26.0, abs=0.05)
+
+
+def test_obra_foz_leva_as_interligacoes_para_as_redes_e_tira_de_fora():
+    import json
+
+    from camadas import pdf_cad
+    obra = json.loads((pdf_cad.CONCEITOS.parent / "exemplos" / "foz" / "obra.json").read_text(encoding="utf-8"))
+    por_id = {p["id"]: p for p in obra["pranchas"]}
+    inter = [r for r in obra["valas"]["redes"] if r["pranchas"][0] in ("f009", "f009_600", "f010")]
+    assert sorted((r["pranchas"][0], r["dn_mm"]) for r in inter) == [("f009", 1000), ("f009_600", 1000), ("f010", 500), ("f010", 600)]
+    de_iso2531 = {500: 532, 600: 635, 1000: 1048}
+    for r in inter:
+        assert por_id[r["pranchas"][0]].get("M_absoluta")                       # a afim vem da E1, não do ICP
+        assert r["de_mm"] == r["par_mm"] == de_iso2531[r["dn_mm"]] and r["material"] == "FD" and r["criterio"] == "ortofoto"
+        assert r["layer"] == "CISM_11_LINHA_TUBULAÇÃO 01" and r["janelas_pt"] and r["obs"] and r["fonte_de"]
+    assert [r["recortar_janelas"] for r in inter if r["pranchas"] == ["f009_600"]] == [True]
+    fora = " ".join(obra["valas"]["fora"])
+    assert "módulo 360 L (folha 09" not in fora and "módulo 600 L (folha 09" not in fora   # saíram de `fora`
+    assert "planta 600" in fora and "sem afim" in fora                                      # o que ficou de fora tem motivo
