@@ -58,3 +58,13 @@ em `tmp_path`.
 | plano e integração | Opus (gerente) |
 | aprovação do plano e aceite | Fable |
 | implementação com testes | Sonnet, em worktree a partir da `main` |
+
+## Aceite
+
+1º parecer do Fable sobre a entrega 009e987: REVISAR — com item de teste de um segmento, `U1` + `AB.CDE` (e
+`U1.ABC` + `DEF`) passava na conferência e a etapa ainda caía em `evidencia()`. Corrigido pelo gerente em 5f89856
+(item de teste `TST.TST.TST`, dois casos no teste) junto com o opcional de `obra` desconhecida (uma linha de log).
+
+Aceite Fable 04/11/2026: ACEITA 5f89856 — "Documento de leitura validado na entrada pelo padrão do schema (item de
+teste mais longo); recusa com motivo e prefixo `unidade.sistema.*`, obra desconhecida só avisa; Foz idêntica
+(c5c2d5cd)."
