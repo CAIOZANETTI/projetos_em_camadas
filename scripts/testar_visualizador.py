@@ -20,6 +20,10 @@ Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema
     desenhos da Relação por sistema (entregue com link, não entregue com alerta), resumo geral e atalho "Só com desenho não entregue";
   * Contrato 211 (aba EAP, só com `D.contrato_211`): título, uma linha por linha do Python, sem "R$" e sem rolagem
     horizontal da página;
+  * aba EAP com vista (só com `D.eap_vista`): painel largo (>= 900 px no desktop, largura total no celular), uma sub-aba por
+    seção e uma seção visível por vez, WBS recolhida com menos de 3 000 px, busca e chips de situação (WBS e Contrato 211),
+    abrir linha do contrato mostra o detalhe, links folha <-> linha do contrato, "ver no mapa" e "abrir prancha" (quando a
+    linha traz redes/pranchas), sem "R$" e sem rolagem horizontal;
   * sem rolagem horizontal da página no celular.
 Sai com código 1 se algum passo falhar. Capturas em PNG na pasta indicada (padrão: <pasta do html>/capturas).
 Requer apenas `playwright` (já com o Chromium instalado); não instala nada.
@@ -1123,16 +1127,153 @@ def verificar_contrato_211(c: dict) -> None:
     passo(c, "Contrato 211: título 'Contrato 211' na aba EAP", js(c, "document.querySelector('#aba-eap').textContent.includes('Contrato 211')"))
     page.click("#t-eap")
     page.wait_for_timeout(300)
-    r = js(c, """() => ({tabela: document.querySelectorAll('#aba-eap table.ctr211 tbody tr').length,
+    # com `D.eap_vista` o contrato vira lista (`.ctr-l`, uma por linha); sem ela segue a tabela de sempre
+    r = js(c, """() => { const vista = !!__viz.D.eap_vista, raiz = document.querySelector(vista ? '#eap-s-contrato' : '#aba-eap');
+      return {tabela: document.querySelectorAll(vista ? '#eap-s-contrato .ctr-l' : '#aba-eap table.ctr211 tbody tr').length,
       esperado: __viz.D.contrato_211.linhas.length,
-      preco: [...document.querySelectorAll('#aba-eap table.ctr211')].some(t => t.textContent.includes('R$')
-        || [...t.querySelectorAll('[title]')].some(e => e.title.includes('R$')))})""")
+      preco: raiz.textContent.includes('R$') || [...raiz.querySelectorAll('[title]')].some(e => e.title.includes('R$'))}; }""")
     passo(c, "Contrato 211: uma linha na tabela por linha do Python", r["tabela"] == r["esperado"], str(r))
     passo(c, "Contrato 211: nenhum texto da tabela com preço (R$)", not r["preco"], str(r))
     passo(c, "Contrato 211: o bloco não aumenta a largura da página", js(c, "document.documentElement.scrollWidth <= window.innerWidth + 1"))
     foto(c, "17_contrato_211")
     page.click("#t-camadas")
     page.wait_for_timeout(300)
+
+
+def verificar_eap_vista(c: dict) -> None:
+    """Aba EAP com vista (`D.eap_vista`, montada em Python): aba larga, sub-abas (uma seção por vez), WBS recolhida curta, busca e
+    chips de situação, linha do Contrato 211 que abre o detalhe, links folha <-> contrato, "ver no mapa" e "abrir prancha"
+    (só se houver linha com rede/prancha) e sem rolagem horizontal. Sem `D.eap_vista` as verificações são puladas."""
+    if not js(c, "!!__viz.D.eap_vista"):
+        print("  [--]    aba EAP: sem D.eap_vista (verificações puladas)")
+        return
+    page, celular = c["page"], c["tag"] != "desktop"
+    page.click("#t-eap")
+    page.wait_for_timeout(300)
+    n_secoes = js(c, "__viz.D.eap_vista.secoes.length")
+    larg = js(c, "({aside: document.querySelector('aside').offsetWidth, janela: window.innerWidth})")
+    if celular:
+        passo(c, "aba EAP: no celular o painel ocupa a largura toda", larg["aside"] >= larg["janela"] - 1, str(larg))
+    else:
+        passo(c, "aba EAP: no desktop o painel tem ao menos 900 px", larg["aside"] >= 900, str(larg))
+    passo(c, "aba EAP: uma sub-aba por seção do Python", js(c, "document.querySelectorAll('#aba-eap [data-eap-sec]').length") == n_secoes, f"{n_secoes} seções")
+    visiveis = js(c, "[...document.querySelectorAll('#aba-eap .eap-sec')].filter(s => s.offsetParent !== null).length")
+    passo(c, "aba EAP: só uma seção visível por vez", visiveis == 1, f"{visiveis} visível(is)")
+    ids = js(c, "__viz.D.eap_vista.secoes.map(s => s.id)")
+    passo(c, "aba EAP: os rótulos e contagens das sub-abas vêm do Python",
+          js(c, "[...document.querySelectorAll('#aba-eap [data-eap-sec]')].every((b, i) => b.textContent.includes(__viz.D.eap_vista.secoes[i].rotulo) && b.textContent.includes(__viz.D.eap_vista.secoes[i].n_txt))"))
+    if "wbs" in ids:
+        page.click('#aba-eap [data-eap-sec="wbs"]')
+        page.wait_for_timeout(200)
+        altura = js(c, "document.querySelector('#aba-eap').scrollHeight")
+        if not celular:
+            passo(c, "aba EAP: WBS recolhida com menos de 3 000 px de rolagem", altura < 3000, f"{altura} px")
+        foto(c, "18_eap_wbs")
+        page.fill('#aba-eap [data-eap-q="wbs"]', "Rebaixamento")
+        page.wait_for_timeout(200)
+        r = js(c, """() => { const v = [...document.querySelectorAll('#eap-s-wbs .wbs-fo')].filter(e => !e.hidden);
+          return {n: v.length, todas: v.every(e => e.dataset.busca.includes('rebaixamento')),
+                  etapasVazias: [...document.querySelectorAll('#eap-s-wbs .wbs-et')].filter(e => !e.hidden && !e.querySelector('.wbs-fo:not([hidden])')).length,
+                  abertas: [...document.querySelectorAll('#eap-s-wbs .wbs-et')].filter(e => !e.hidden).every(e => e.open)}; }""")
+        passo(c, "WBS: a busca 'rebaixamento' deixa folhas e todas contêm o termo", r["n"] >= 1 and r["todas"], str(r))
+        passo(c, "WBS: etapa sem folha visível some e as com resultado abrem", r["etapasVazias"] == 0 and r["abertas"], str(r))
+        page.fill('#aba-eap [data-eap-q="wbs"]', "")
+        page.wait_for_timeout(200)
+        r = js(c, "({escondidas: [...document.querySelectorAll('#eap-s-wbs .wbs-fo')].filter(e => e.hidden).length, abertas: document.querySelectorAll('#eap-s-wbs .wbs-et[open]').length})")
+        passo(c, "WBS: limpar a busca devolve a árvore recolhida", r["escondidas"] == 0 and r["abertas"] == 0, str(r))
+        chip = js(c, "__viz.D.eap_vista.situacoes.wbs[0]")
+        page.click(f'#eap-s-wbs [data-eap-sit="{chip["rotulo"]}"]')
+        r = js(c, """(rot) => { const v = [...document.querySelectorAll('#eap-s-wbs .wbs-fo')].filter(e => !e.hidden);
+          return {n: v.length, so: v.every(e => e.dataset.sit === rot)}; }""", chip["rotulo"])
+        passo(c, f"WBS: chip '{chip['rotulo']}' mostra só folhas dessa situação, na quantidade do Python", r["so"] and r["n"] == chip["n"], f"{r} esperado {chip['n']}")
+        page.click('#eap-s-wbs [data-eap-sit=""]')
+        page.click("#eap-s-wbs [data-eap-exp='1']")
+        abertas = js(c, "[...document.querySelectorAll('#eap-s-wbs .wbs-et')].every(e => e.open)")
+        page.click("#eap-s-wbs [data-eap-exp='0']")
+        fechadas = js(c, "[...document.querySelectorAll('#eap-s-wbs details')].every(e => !e.open)")
+        passo(c, "WBS: expandir tudo e recolher tudo", abertas and fechadas)
+        folha = page.locator("#eap-s-wbs .wbs-fo:has(.wbs-q li):has([data-ir-linha])").first   # a primeira folha com quantidades e linhas
+        folha.locator("xpath=ancestor::details[1]/summary").click()   # abre a etapa
+        folha.locator("summary").click()   # e a folha
+        page.wait_for_timeout(200)
+        passo(c, "WBS: abrir etapa e folha mostra quantidades e linhas do contrato", folha.locator(".wbs-ct li").count() >= 1 and folha.locator(".wbs-q li").count() >= 1)
+        foto(c, "19_eap_wbs_aberta")
+    if "contrato" in ids:
+        page.click('#aba-eap [data-eap-sec="contrato"]')
+        page.wait_for_timeout(200)
+        esperado = js(c, "__viz.D.contrato_211.linhas.length")
+        n_dom = js(c, "document.querySelectorAll('#eap-s-contrato .ctr-l').length")
+        passo(c, "Contrato 211: uma linha por linha do Python na lista", n_dom == esperado, f"{n_dom} de {esperado}")
+        chip = next((s for s in js(c, "__viz.D.eap_vista.situacoes.contrato") if s["rotulo"] == "a preencher"), None)
+        if chip:
+            page.click('#eap-s-contrato [data-eap-sit="a preencher"]')
+            r = js(c, """() => { const v = [...document.querySelectorAll('#eap-s-contrato .ctr-l')].filter(e => !e.hidden);
+              return {n: v.length, so: v.every(e => e.dataset.sit === 'a preencher')}; }""")
+            passo(c, "Contrato 211: chip 'a preencher' mostra só essas linhas, na quantidade do Python", r["so"] and r["n"] == chip["n"], f"{r} esperado {chip['n']}")
+        page.fill('#aba-eap [data-eap-q="contrato"]', "adutora")
+        r = js(c, "[...document.querySelectorAll('#eap-s-contrato .ctr-l')].filter(e => !e.hidden).every(e => e.dataset.busca.includes('adutora'))")
+        passo(c, "Contrato 211: a busca filtra pelo índice normalizado do Python", r)
+        page.fill('#aba-eap [data-eap-q="contrato"]', "")
+        page.click('#eap-s-contrato [data-eap-sit=""]')
+        linha = page.locator("#eap-s-contrato .ctr-l:not([hidden])").first
+        linha.locator("summary").click()
+        page.wait_for_timeout(200)
+        det = linha.locator(".ctr-det")
+        passo(c, "Contrato 211: abrir uma linha mostra o detalhe", det.is_visible() and len(det.inner_text()) > 10, det.inner_text()[:60].replace("\n", " "))
+        passo(c, "Contrato 211: descrição, calculada e situação à vista na linha",
+              js(c, "(() => { const s = document.querySelector('#eap-s-contrato .ctr-l[open] > summary'); return !!s.querySelector('.rot').textContent && !!s.querySelector('.ctr-c').textContent && !!s.querySelector('.sel'); })()"))
+        foto(c, "20_eap_contrato_linha")
+        # link da linha de volta à folha da WBS, e da folha de novo à linha (com um filtro que esconde o destino)
+        if "wbs" in ids and js(c, "!!document.querySelector('#eap-s-contrato .ctr-l [data-ir-folha]')"):
+            page.locator("#eap-s-contrato .ctr-l [data-ir-folha]").first.click()
+            page.wait_for_timeout(200)
+            r = js(c, "(() => { const f = [...document.querySelectorAll('#eap-s-wbs .wbs-fo')].find(e => e.open); return {sec: [...document.querySelectorAll('.eap-sec')].find(s => s.offsetParent !== null).dataset.sec, aberta: !!f}; })()")
+            passo(c, "link linha -> folha leva à WBS e abre a folha", r["sec"] == "wbs" and r["aberta"], str(r))
+            if chip:   # um filtro do contrato que esconde o destino: o link tem de limpá-lo
+                page.click('#aba-eap [data-eap-sec="contrato"]')
+                page.click('#eap-s-contrato [data-eap-sit="a preencher"]')
+                page.click('#aba-eap [data-eap-sec="wbs"]')
+            alvo = js(c, "document.querySelector('#eap-s-wbs .wbs-fo[open] [data-ir-linha]').dataset.irLinha")
+            page.locator("#eap-s-wbs .wbs-fo[open] [data-ir-linha]").first.click()
+            page.wait_for_timeout(200)
+            r = js(c, """(id) => { const l = [...document.querySelectorAll('#eap-s-contrato .ctr-l')].find(e => e.dataset.id === id);
+              return {sec: [...document.querySelectorAll('.eap-sec')].find(s => s.offsetParent !== null).dataset.sec, aberta: !!l && l.open && l.offsetParent !== null}; }""", alvo)
+            passo(c, "link folha -> contrato muda para a sub-aba Contrato e abre a linha", r["sec"] == "contrato" and r["aberta"], str(r))
+        # botões "ver no mapa" e "abrir prancha": só existem em linhas com `redes`/`pranchas` (o build real as traz)
+        page.click("#eap-s-contrato [data-eap-exp='1']")   # os botões ficam nas linhas: abre UC e trechos
+        if js(c, "!!document.querySelector('#eap-s-contrato [data-ver-redes]')"):
+            page.locator("#eap-s-contrato [data-ver-redes]").first.click()
+            page.wait_for_timeout(500)
+            r = js(c, """() => { const c = __viz.camadasMapa.valas, conj = new Set(document.querySelector('#eap-s-contrato [data-ver-redes]').dataset.verRedes.split('\\n'));
+              let dest = 0, outros = 0; c.layer.eachLayer(l => { if (conj.has(l.feature.properties.rede)) dest += l.options.weight >= 6 ? 1 : 0; else outros += l.options.opacity < 0.5 ? 1 : 0; });
+              return {dest, outros, ligada: __viz.map.hasLayer(c.layer)}; }""")
+            passo(c, "ver no mapa: liga as valas e destaca os traços da rede", r["ligada"] and r["dest"] >= 1, str(r))
+            foto(c, "21_eap_ver_no_mapa")
+            page.click("#eapMapaAviso [data-redes-limpar]")
+            r = js(c, "(() => { let n = 0; __viz.camadasMapa.valas.layer.eachLayer(l => { if (l.options.weight >= 6) n++; }); return n; })()")
+            passo(c, "ver no mapa: 'limpar' desfaz o destaque", r == 0, f"{r} traços ainda destacados")
+        else:
+            print("  [--]    ver no mapa: nenhuma linha com redes neste HTML (verificação pulada)")
+        if js(c, "!!document.querySelector('#eap-s-contrato [data-abrir-prancha]')"):
+            pid = js(c, "document.querySelector('#eap-s-contrato [data-abrir-prancha]').dataset.abrirPrancha")
+            page.locator("#eap-s-contrato [data-abrir-prancha]").first.click()
+            page.wait_for_timeout(1500)
+            passo(c, "abrir prancha: liga a prancha da linha", js(c, "(id) => { const P = __viz.PR.find(p => p.id === id); return !!P && (P.mapa.on || !document.querySelector('#folha').hidden); }", pid), pid)
+        else:
+            print("  [--]    abrir prancha: nenhuma linha com pranchas neste HTML (verificação pulada)")
+    for sec in ids:   # nenhuma seção alarga a página, nem no celular
+        page.click(f'#aba-eap [data-eap-sec="{sec}"]')
+        page.wait_for_timeout(150)
+        r = js(c, "({pagina: document.documentElement.scrollWidth <= window.innerWidth + 1, aba: document.querySelector('#aba-eap').scrollWidth <= document.querySelector('#aba-eap').clientWidth + 1})")
+        passo(c, f"aba EAP ({sec}): sem rolagem horizontal da página", r["pagina"] and r["aba"], str(r))
+    lembrada = js(c, "localStorage.getItem('camadas:eap:secao:' + __viz.D.id)")
+    passo(c, "aba EAP: a última sub-aba fica lembrada no localStorage", lembrada == ids[-1], str(lembrada))
+    r = js(c, """() => { const a = document.querySelector('#aba-eap');
+      return [...a.querySelectorAll('[title]')].some(e => e.title.includes('R$')) || a.textContent.includes('R$'); }""")
+    passo(c, "aba EAP: nenhum texto ou dica com preço (R$)", not r)
+    page.click("#t-camadas")
+    page.wait_for_timeout(300)
+    passo(c, "aba EAP: ao sair, o painel volta à largura normal", js(c, "!document.querySelector('aside').classList.contains('ampla')"))
 
 
 def verificar_final(c: dict) -> None:
@@ -1147,7 +1288,7 @@ def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
     for secao in (verificar_obra_abertura, verificar_inicio, verificar_mapa, verificar_filtro_etapa, verificar_escopo_tabela, verificar_escopo_valores,
                   verificar_pranchas, verificar_sondagens_fotos, verificar_3d, verificar_v3_arvore, verificar_v3_intervencao,
                   verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_area_obra,
-                  verificar_obra, verificar_projeto, verificar_contrato_211):
+                  verificar_obra, verificar_projeto, verificar_contrato_211, verificar_eap_vista):
         secao(c)
     verificar_final(c)
 
