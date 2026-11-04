@@ -706,6 +706,20 @@ Relatório com contagens antes × depois: `docs/plano/2026-11-03_foz_eap_padrao_
   recebe (o número não pode sumir das duas vistas). Sem declaração nada muda. **Não muda:** as evidências da aba Obras
   Lineares (`U1.LINEARES.*`) e os sistemas `rede_eta` da U1 (AB_ENTRADA, LODO_*…) seguem na vista localizada; generalizar
   para "todo tubo interno da ETA" é decisão que o Caio não tomou. Plano: `docs/plano/2026-11-04_wbs_d10_d11.md`.
+  - **Travas da D11 (plano `docs/plano/2026-11-04_wbs_travas_vista_linear.md`).** (1) *Sistema linear só com declaração:*
+    o código de sistema marcado `vista_eap_padrao` só vale com a (unidade, sistema) declarada na obra. `montar` passa os
+    pares declarados a `preencher` (`trechos_declarados`); sem declaração, a evidência ou o fato com esse código (IA
+    conferida, decisão, regex) **sai das duas vistas** da EAP padrão, sem cair em `indefinidas` ("unidade não
+    atribuível"), e `montar` avisa "Sistema de trecho linear não declarado na obra: <código> (<serviço>, <valor>;
+    documento <doc>)", varrendo `dados["evidencias"]["fatos"]` e `dados["eap"]["quantidades"]` (a prancha pode ganhar o
+    sistema pelas `chaves`). O fato continua em `fatos.csv`; `vista_do_codigo` não muda (função só do código; recusar é
+    melhor que rebaixar para `U*.*`, que seria incoerente com `_derivadas`). `preencher` chamado direto, sem
+    `trechos_declarados`, não confere. (2) *Declaração só em obra com tipo linear:* se `tipo_da_obra` não inclui
+    `obra_linear`, `eap_padrao.trechos_lineares` é recusada (aviso "recusada") e **não é aplicada**, uma fonte só
+    (`eap_padrao._trechos_da_obra`, usada por `trechos_do_cfg` e por `montar`): a linha fica na vista localizada com o
+    código original e a soma não muda; sem aviso duplo. **Pendência (sugestão do Fable):** recusar já em
+    `evidencias.loop`/`_conferir_ia`, para o número nem chegar ao `consolidar`; hoje `_problemas_ia` não confere o sistema
+    contra `unidades_construtivas.json`.
 
 **Item acessório e a cabeça da descrição** (`eap_geral.jsonl`: `"acessorio": true`, `evidencias._achados_da_cabeca`).
 Mobilização, desmobilização, topografia, sinalização, ensaios, comissionamento, desinfecção, CFTV, travessia, MND,
