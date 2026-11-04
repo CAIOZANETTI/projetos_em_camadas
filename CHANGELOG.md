@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.59.0 — 2026-11-04 · A4: o fundo de cada cava pela marca de cota da própria estrutura
+- **`escavacao.ligar_marcas`**: cada base de escavação recebe o fundo nesta ordem: marca interna; cota escrita sem
+  símbolo (lida por OCR, com cache versionado); só então a marca vizinha a até 3 m, com alerta. A origem fica
+  registrada por base.
+- **Fundo na cava pela base mais próxima da mesma região**, a mesma regra da superfície do talude, no lugar da "marca
+  mais próxima". Era o mecanismo pelo qual a marca de uma estrutura rasa vizinha sujava a cava funda.
+- **Foz:** escavação 7 905 → **8 904 m³ (+12,6 %)**:
+  - +793 m³ na estrutura cortada por LL (238,07 → 235,57, a marca interna);
+  - +166 m³ na Câmara de Contato (→ 235,35, a cota escrita);
+  - HH passa a conferir; conferência 2/4/12 → 3/3/12.
+- **Não resolvido:**
+  - FF: 235,97 não está na planta 007, e o "TOPO" a 90° não é lido;
+  - a envoltória, que vai para uma rodada própria com hash novo declarado.
+
+  Relatório em `docs/plano/2026-11-04_a4_marcas_de_cota.md`.
+- Lição L055.
+
 ## 0.58.0 — 2026-11-04 · Rastreabilidade do HTML e o build de Foz com o terreno da 0.56
 - **`docs/RASTREABILIDADE.md`**: o que gerou cada parte do HTML. Traz:
   - as sessões (branches) e os PRs de cada uma;
