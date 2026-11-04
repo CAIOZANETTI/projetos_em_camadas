@@ -160,3 +160,8 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-04,WBS painel,reconfirmação do aceite (687e6e8),revisor (Fable),claude-fable-5-1,5089,4,51,True,nenhum,"ACEITA; tabelas byte a byte iguais; ac51cc5a; aviso do csv antigo"
 2026-11-04,Aba EAP legível,E1: vista da aba EAP em Python (camadas/eap_vista.py),executor,sonnet,117962,30,319,True,eap_vista na lista de blocos de outros módulos do golden do obra.py (os 2 golden falhavam no checkout; na worktree foram pulados),"5 seções, 77 folhas, contrato em 6 UCs/13 trechos/86 linhas, 146 kB"
 2026-11-04,Aba EAP legível,"E2: aba EAP no template (modo largo, sub-abas, árvore, busca, filtros, mapa e prancha)",executor,sonnet,221071,87,2178,True,nenhum,"painel 1036 px em 1400; WBS recolhida 1352 px (antes 37 151); 325 verificações, 0 falha"
+2026-11-04,Reconstrução F0–F2,E2: golden das quantidades de Foz,executor,haiku,109451,20,183,True,nenhum,"7 seções, 48 kB, 0 diferenças contra o build"
+2026-11-04,Reconstrução F0–F2,E3: prazo fora da quantificação,executor,sonnet,70480,7,46,True,nenhum,900506 'a preencher (depende de prazo)'; 3 premissas de prazo removidas
+2026-11-04,Reconstrução F0–F2,E4: documentos e páginas do inventário nas gavetas,executor,sonnet,135110,26,338,True,nenhum,"323 documentos, 1483 páginas (35 georreferenciadas), 0 sem destino"
+2026-11-04,Reconstrução F0–F2,E5: elementos construtivos nas gavetas,executor,sonnet,182536,43,813,True,nenhum,"464 objetos, 2648 fatos, 296 com página e 280 com retângulo; 168 das fôrmas ACT/MOD sem página"
+2026-11-04,Reconstrução F0–F2,E6: contrato e materiais nas gavetas (sem preço),executor,sonnet,110048,20,177,True,nenhum,"86 linhas do contrato e 882 itens de material, por aba e linha; sentinela de preço"

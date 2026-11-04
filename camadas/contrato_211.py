@@ -337,7 +337,9 @@ def supressao_por_uc(
         # faixa do trecho = buffer redondo das amostras (a cada 1 m); o buffer plano de `faixa_de_obra` em ponto é
         # vazio (área 0), por isso a faixa já vai pronta, como polígono, e sem folga
         geoms = [
-            shapely.MultiPoint(np.asarray(rede["pts"], dtype=np.float64)).buffer(faixa_m / 2)
+            shapely.MultiPoint(np.asarray(rede["pts"], dtype=np.float64)).buffer(
+                faixa_m / 2
+            )
             for rede in redes_vala
             if rede.get("trecho_contrato") in trechos and len(rede.get("pts", ())) > 0
         ]
@@ -540,23 +542,6 @@ def _regra_transporte(linha: dict, amb: _Ambiente) -> dict:
     )
 
 
-def _regra_escoramento(linha: dict, amb: _Ambiente) -> dict:
-    agregado, evidencias = _por_rede(linha, amb, "escorada_m", "m", "extensao_escorada")
-    if agregado is None:
-        return evidencias
-    nomes = (
-        "produtividade_vala_escorada_m_por_dia",
-        "dias_uteis_por_mes",
-        "jogos_de_escoramento",
-    )
-    produtividade, dias, jogos = (amb.valor(n) for n in nomes)
-    return _calculo(
-        agregado["escorada_m"] / (produtividade * dias) * jogos,
-        evidencias=evidencias,
-        premissas=[amb.premissa(n) for n in nomes],
-    )
-
-
 def _regra_recomposicao(linha: dict, amb: _Ambiente) -> dict:
     agregado, evidencias = _por_rede(
         linha, amb, "recomposicao_m2", "m2", "recomposicao"
@@ -703,20 +688,35 @@ def _regra_supressao(chave: str):
         dados = por_uc.get(linha.get("uc"))
         if dados is None or dados.get(chave) is None:
             return _calculo(motivo=f"UC sem supressão estimada: {linha.get('uc')!r}")
-        premissas = [
-            {"nome": "faixa_m", "valor": dados["faixa_m"], "unidade": "m", "estado": "calibrar"}
-        ] if dados.get("faixa_m") is not None else []   # a folga não se aplica: a faixa dos trechos vai pronta
+        premissas = (
+            [
+                {
+                    "nome": "faixa_m",
+                    "valor": dados["faixa_m"],
+                    "unidade": "m",
+                    "estado": "calibrar",
+                }
+            ]
+            if dados.get("faixa_m") is not None
+            else []
+        )  # a folga não se aplica: a faixa dos trechos vai pronta
         evidencia = {
             "tipo": "supressao_ortofoto",
             "id": linha.get("uc"),
             "valor": round(float(dados[chave]), _CASAS_DECIMAIS),
             "unidade": "m2",
         }
-        trechos = amb.trechos_da_uc.get((linha.get("unidade_obra"), linha.get("uc"))) or []
-        faltam = [t for t in trechos if not amb.redes(t)]     # a faixa só cobre os trechos medidos
+        trechos = (
+            amb.trechos_da_uc.get((linha.get("unidade_obra"), linha.get("uc"))) or []
+        )
+        faltam = [
+            t for t in trechos if not amb.redes(t)
+        ]  # a faixa só cobre os trechos medidos
         return _calculo(
             dados[chave],
-            motivo=("faixa só dos trechos medidos; sem rede: " + "; ".join(faltam)) if faltam else None,
+            motivo=("faixa só dos trechos medidos; sem rede: " + "; ".join(faltam))
+            if faltam
+            else None,
             parcial=bool(faltam),
             evidencias=[evidencia],
             premissas=premissas,
@@ -781,7 +781,6 @@ _REGRAS = {
     "bota_fora_trecho": _regra_volume("bota_fora_m3", "bota_fora"),
     "transporte_m3km": _regra_transporte,
     "rebaixamento_vb": _regra_rebaixamento,
-    "escoramento_meses": _regra_escoramento,
     "recomposicao_trecho": _regra_recomposicao,
     "soma_trechos": _regra_soma_trechos,
     "supressao_arvores": _regra_supressao("arvores_m2"),

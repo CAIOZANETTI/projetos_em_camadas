@@ -3,7 +3,7 @@
   "fonte": "pedido do Caio (31/10/2026): cada informação extraída tem um lugar certo para ser guardada, georreferenciada e com evidência; os serviços são calculados dessa base e a entrega é a EAP (docs/MEMORIA_ESPACIAL.md)",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Contrato LÓGICO das gavetas: nomes, campos obrigatórios e valores permitidos. O formato físico (JSONL, CSV, Parquet…) é experimento (G05): o mesmo contrato vale para qualquer formato, e `camadas.gavetas` grava e lê pelos formatos de `formato.implementados`. Um fato só entra se a propriedade estiver em `propriedades` e se apontar para uma evidência existente; o que não cabe vira pendência."
+  "observacoes": "Contrato LÓGICO das gavetas: nomes, campos obrigatórios e valores permitidos. O formato físico (JSONL, CSV, Parquet…) é experimento (G05): o mesmo contrato vale para qualquer formato, e `camadas.gavetas` grava e lê pelos formatos de `formato.implementados`. Um fato só entra se a propriedade estiver em `propriedades` e se apontar para uma evidência existente; o que não cabe vira pendência. v2 (04/11/2026, F0 da reconstrução): gavetas `documentos` e `paginas`; localizador da evidência com página (ou aba e linha); propriedades de elementos construtivos, contrato e materiais."
  },
  "formato": {
   "atual": "parquet",
@@ -63,6 +63,29 @@
   "você"
  ],
  "gavetas": {
+  "documentos": {
+   "chave": "documento_id",
+   "obrigatorios": [
+    "documento_id",
+    "arquivo",
+    "sha256",
+    "extensao",
+    "classe",
+    "paginas"
+   ],
+   "descricao": "v2 (F1, docs/RECONSTRUCAO.md §2.1): um arquivo do inventário — documento_id = sha256[:16]; classe pela fonte (conceitos/fontes.json); destino = leitor e gavetas que ele alimenta, ou o motivo de não alimentar"
+  },
+  "paginas": {
+   "chave": "pagina_id",
+   "obrigatorios": [
+    "pagina_id",
+    "documento_id",
+    "pagina",
+    "largura_pt",
+    "altura_pt"
+   ],
+   "descricao": "v2: uma página de documento — pagina_id = documento_id#p<n> (1..n); com a afim pt→UTM (M) quando a folha está georreferenciada, para a navegação abrir a página e marcar o retângulo da evidência"
+  },
   "objetos": {
    "chave": "objeto_id",
    "obrigatorios": [
@@ -104,7 +127,7 @@
     "metodo",
     "executor"
    ],
-   "descricao": "de onde o fato veio (ARQUITETURA.md §3): classe da fonte, documento, revisão, localizador, trecho, método, passe, executor"
+   "descricao": "de onde o fato veio (ARQUITETURA.md §3): classe da fonte, documento, revisão, localizador, trecho, método, passe, executor; v2: quando o documento está em `documentos`, o localizador cita a página ({\"pagina\": n, \"retangulo_pt\": [x0, y0, x1, y1]?, \"utm\": [E, N]?}) ou, em planilha, {\"aba\", \"linha\"} (conferir_base)"
   },
   "pendencias": {
    "chave": null,
@@ -126,7 +149,7 @@
     "unidade",
     "fatos"
    ],
-   "descricao": "quantidade calculada, com os fatos e a versão da regra de que depende (memória de cálculo)"
+   "descricao": "quantidade calculada, com os fatos e a versão da regra de que depende (memória de cálculo); v2 (F3): `codigo_eap` = código da EAP única (esqueleto OP/OL + item técnico)"
   },
   "superficies": {
    "chave": "superficie_id",
@@ -281,6 +304,104 @@
    "unidade": null,
    "tipo": "texto",
    "obs": "sistema (ACT600, AB_ENTRADA…) de conceitos/unidades_construtivas.json"
+  },
+  "rotulo": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "nome do elemento no desenho (ex. PC6, E12)"
+  },
+  "estacas_n": {
+   "unidade": "un",
+   "tipo": "numero"
+  },
+  "cota_topo_m": {
+   "unidade": "m",
+   "tipo": "numero",
+   "obs": "face superior (cota, m)"
+  },
+  "cota_arrasamento_m": {
+   "unidade": "m",
+   "tipo": "numero"
+  },
+  "cota_fundo_m": {
+   "unidade": "m",
+   "tipo": "numero"
+  },
+  "diametro_m": {
+   "unidade": "m",
+   "tipo": "numero"
+  },
+  "comprimento_m": {
+   "unidade": "m",
+   "tipo": "numero",
+   "obs": "comprimento do elemento (estaca, viga), não de vala"
+  },
+  "area_planta_m2": {
+   "unidade": "m2",
+   "tipo": "numero"
+  },
+  "perimetro_m": {
+   "unidade": "m",
+   "tipo": "numero"
+  },
+  "altura_m": {
+   "unidade": "m",
+   "tipo": "numero"
+  },
+  "espessura_m": {
+   "unidade": "m",
+   "tipo": "numero"
+  },
+  "volume_m3": {
+   "unidade": "m3",
+   "tipo": "numero"
+  },
+  "composicao": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "código da composição da planilha do contrato (ex. CVCAFD1000)"
+  },
+  "descricao": {
+   "unidade": null,
+   "tipo": "texto"
+  },
+  "unidade_medida": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "unidade declarada no documento (M, M2, M3, UN, VB…)"
+  },
+  "quantidade": {
+   "unidade": null,
+   "tipo": "numero",
+   "obs": "quantidade declarada no documento, na unidade de `unidade_medida`"
+  },
+  "quantidade_etapa1": {
+   "unidade": null,
+   "tipo": "numero"
+  },
+  "quantidade_etapa2": {
+   "unidade": null,
+   "tipo": "numero"
+  },
+  "codigo_material": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "código do cadastro de materiais Sanepar"
+  },
+  "folha_eap": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "folha da EAP padrão a que o item pertence (OP.xx.yy / OL.xx.yy)"
+  },
+  "trecho": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "título do trecho na planilha do contrato"
+  },
+  "uc": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "unidade construtiva da planilha do contrato"
   }
  },
  "tipos_superficie": [

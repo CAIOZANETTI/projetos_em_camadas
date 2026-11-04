@@ -916,6 +916,10 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         for it in dados["inventario"]["itens"]:
             it["ficha"] = prancha.resumo_lote(fl.get(f"{it['pasta_drive']}/{it['arquivo']}"))
     dados["construtivos"] = construtivos.montar(dados, cfg)        # aba Obra: unidade > sistema > elemento
+    try:                                                           # F2: todo o escopo nas gavetas (nunca derruba o build)
+        extrair_gavetas.completar_escopo(cfg, out, dados, log=_log)
+    except Exception as erro:  # noqa: BLE001
+        _log(f"Gavetas (escopo): não concluído (pendência; {type(erro).__name__}: {erro})")
     if dados["construtivos"]:                                       # escopo por unidade, decomposição e evidências
         dados["construtivos"]["escopo"] = escopo_obra.montar(dados, cfg)
     # `dados["eap_gavetas"]` = árvore das gavetas; `dados["eap"]` = EAP codificada (contrato da 0.34.0, cada um na sua chave)

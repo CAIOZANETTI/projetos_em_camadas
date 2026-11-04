@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.70.0 — 2026-11-04 · F1+F2 da reconstrução: todo o escopo de Foz nas gavetas, com documento e página
+- **`camadas/gavetas_documentos.py`** (F1): o inventário vai para as gavetas.
+  - Cada arquivo vira um documento (chave = sha256 do conteúdo; as cópias idênticas ficam em `copias`), com a classe,
+    o nº de páginas e o **destino**: o leitor e as gavetas que ele alimenta, ou o motivo de não alimentar.
+  - Cada página de PDF vira uma página, com a afim da prancha quando georreferenciada.
+- **`camadas/gavetas_construtivos.py`** (F2): os elementos (estacas, blocos, pilares, cavas, trechos) viram objetos,
+  geometria UTM e fatos.
+  - A evidência cita a página e o retângulo em pt da prancha, pela inversa da afim.
+  - O que não cabe numa propriedade vira pendência.
+- **`camadas/gavetas_contrato.py`** (F2): as linhas do contrato 211 e os itens da Relação de Materiais, citados por aba
+  e linha.
+  - Só as colunas de identificação e quantidade são lidas; uma sentinela de preço prova que o valor nunca entra.
+  - A linha sem quantidade declarada vira pendência "a calcular (F4)".
+- **`extrair_gavetas.completar_escopo`**: passo do build depois dos construtivos. Junta as três partes à base,
+  confere, regrava `base/` e grava o resumo em `gavetas_escopo.json`. O `dados` do HTML não muda.
+- **Foz, gavetas:** 324 documentos, 1 514 objetos e **7 327 fatos**, dos quais 5 987 citam a página ou a aba e
+  linha; 0 erros de conferência. **Antes:** 13 documentos, 82 objetos e 180 fatos.
+- **Golden das quantidades:** só mudam as 6 linhas de escoramento em un/mês (sem prazo, decisão do Caio).
+  Escavação, valas, EAP e elementos ficaram idênticos.
+- Lição L068.
+
+## 0.69.0 — 2026-11-04 · F0 da reconstrução: decisões, gavetas v2, golden das quantidades e prazo fora do escopo
+- **`docs/RECONSTRUCAO.md`**: diagnóstico do repositório e o fluxo do Caio conferido passo a passo no código.
+  - Fluxo: inventário → classificação → extração para as gavetas → EAP preenchida pelas gavetas → serviços
+    complementares → laço até a EAP completa.
+  - Fases F0–F7, com portões de saída.
+  - Decisões do Caio (04/11):
+    - EAP única, com o esqueleto OP/OL e os itens técnicos como folhas;
+    - uma frente só;
+    - 3D, fotos e conferências fora do HTML principal;
+    - prazo fora da quantificação.
+- **Planos superados** marcados no cabeçalho: `PLANO.md`, `PLANO_FOZ.md` e `VISUALIZADOR_V2.md`. A `ARQUITETURA.md`
+  aponta para a RECONSTRUCAO.
+- **Gavetas v2** (`conceitos/gavetas.json`, `camadas/gavetas.py`):
+  - gavetas novas `documentos` (chave = sha256 do conteúdo, `gavetas.id_documento`) e `paginas` (`id_pagina`, com a
+    afim quando georreferenciada);
+  - a evidência de um documento registrado tem de citar a página, ou a aba e a linha (`conferir_base`);
+  - 22 propriedades novas para elementos construtivos, contrato e materiais.
+- **Golden das quantidades de Foz** (`scripts/golden_quantidades.py`, `tests/golden_foz/quantidades_foz.json`):
+  escavação, valas, contrato, construtivos, EAP padrão, EAP codificada e gavetas. Serve para provar que a
+  reconstrução não perde nada.
+- **Prazo fora**: o escoramento blindado em un/mês (900506) fica "a preencher (depende de prazo)". As premissas de
+  produtividade, dias úteis e jogos de escoramento saem. A DMT fica.
+- Lição L067.
+
 ## 0.68.0 — 2026-11-04 · Aba EAP legível e interativa: sub-abas, WBS em árvore, Contrato 211 por trecho, ligação com o mapa
 - Pedido do Caio: "a wbs eap não [está] em formato legível e também não está interativa".
 - **Antes:** a aba EAP empilhava 10 seções numa coluna de 329 px, com 37 151 px de rolagem, 863 `<details>` e 26

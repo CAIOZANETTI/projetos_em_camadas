@@ -1,5 +1,7 @@
 # Arquitetura — projetos em camadas (R10, 03/11/2026; estado do código em 0.55.0)
 
+> **04/11/2026:** o plano em vigor é `docs/RECONSTRUCAO.md` (fluxo do Caio: inventário → classificação → extração para as gavetas → EAP preenchida pelas gavetas → serviços complementares → laço até a EAP completa → navegação). Onde este documento divergir, vale a RECONSTRUCAO.
+
 Diagrama, cenário de mesa e índice: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
 
 ## 1. Princípios

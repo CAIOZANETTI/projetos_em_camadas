@@ -448,21 +448,21 @@ def test_transporte_usa_a_dmt_como_premissa(linhas_e2, redes):
     assert premissa["unidade"] == "km" and premissa["estado"] == "calibrar"
 
 
-def test_escoramento_em_meses_com_as_premissas(linhas_e2, redes):
+def test_escoramento_em_meses_fica_a_preencher_por_ser_prazo(linhas_e2, redes):
     res = _quant(linhas_e2, redes)
-    escorada_m = sum(
-        q["extensao_m"] for r in redes[:2] for q in r["quadro"] if q["escorado"]
-    )
     esc = _linha(res, "900506")
-    assert escorada_m > 0
-    assert esc["quantidade_calculada"] == pytest.approx(
-        escorada_m / (8 * 22) * 1, abs=1e-3
+    assert esc["situacao"] == "a preencher" and esc["quantidade_calculada"] is None
+    assert esc["motivo"] == (
+        "depende de prazo de execução: fora do escopo (decisão do Caio, 04/11/2026: sem prazo)"
     )
-    assert {p["nome"] for p in esc["premissas"]} == {
+    prazo = {
         "produtividade_vala_escorada_m_por_dia",
         "dias_uteis_por_mes",
         "jogos_de_escoramento",
     }
+    nomes = {p["nome"] for ln in res for p in ln.get("premissas") or []}
+    assert not nomes & prazo
+    assert not prazo & set(c211.DE_PARA["premissas"])
 
 
 def test_recomposicao_soma_o_quadro_do_trecho(linhas_e2, redes):
@@ -569,7 +569,9 @@ def test_supressao_por_uc_chama_o_estimador_com_as_faixas_da_uc(
     monkeypatch.setattr(supressao, "estimar", estimar_falso)
     saida = c211.supressao_por_uc(redes, "orto.jpg", "mds.png", 4.0, 2.0, linhas_e2)
     assert chamadas["etapas"] == {"UC 1 - UC A": 3}  # UC B não tem rede medida
-    assert chamadas["faixa_m"] == 4.0 and chamadas["folga"] == 0.0  # a faixa já vai pronta
+    assert (
+        chamadas["faixa_m"] == 4.0 and chamadas["folga"] == 0.0
+    )  # a faixa já vai pronta
     assert saida["UC 1 - UC A"]["arvores_m2"] == 10.0
     assert saida["UC 1 - UC A"]["rasteira_m2"] == 20.0
     assert c211.supressao_por_uc([], "o", "m", 4.0, 2.0, linhas_e2) == {}
@@ -684,9 +686,6 @@ def test_premissas_e_tolerancias_vivem_no_conceito():
     premissas = c211.DE_PARA["premissas"]
     esperado = {
         "dmt_bota_fora_km": 10,
-        "produtividade_vala_escorada_m_por_dia": 8,
-        "dias_uteis_por_mes": 22,
-        "jogos_de_escoramento": 1,
     }
     for nome, valor in esperado.items():
         assert premissas[nome]["valor"] == valor
@@ -725,8 +724,13 @@ def test_faixa_dos_trechos_tem_area(linhas_e2, redes, monkeypatch):
 
 def test_supressao_parcial_quando_falta_trecho_da_uc(linhas_e2, redes):
     """A faixa só cobre os trechos medidos: UC com trecho sem rede dá supressão parcial, com o trecho no motivo."""
-    por_uc = {"UC 1 - UC A": {"arvores_m2": 120.5, "rasteira_m2": 300.0, "faixa_m": 4.0}}
-    todas = [*redes, _rede("R3", "TRECHO TRES", 150, ["calcada"] * 10, origem=(0.0, 80.0))]  # os 3 trechos da UC A
+    por_uc = {
+        "UC 1 - UC A": {"arvores_m2": 120.5, "rasteira_m2": 300.0, "faixa_m": 4.0}
+    }
+    todas = [
+        *redes,
+        _rede("R3", "TRECHO TRES", 150, ["calcada"] * 10, origem=(0.0, 80.0)),
+    ]  # os 3 trechos da UC A
     completo = _linha(_quant(linhas_e2, todas, supressao_por_uc=por_uc), "CSUPVEG")
     assert completo["situacao"] == "calculada"
     so_um = [r for r in redes if r["trecho_contrato"] == "TRECHO UM"]
