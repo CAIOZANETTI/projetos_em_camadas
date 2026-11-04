@@ -30,9 +30,9 @@ etapas:
   agente: opus
   estimativa_min: 40
   estimativa_tokens: 150000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T19:42:43Z'
-  fim: null
+  fim: '2026-11-04T19:45:31Z'
   forcado: null
 - id: E2
   nome: 'F0: golden das quantidades atuais de Foz (script + teste)'
@@ -59,9 +59,9 @@ etapas:
   agente: sonnet
   estimativa_min: 15
   estimativa_tokens: 100000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T19:42:46Z'
-  fim: null
+  fim: '2026-11-04T19:45:32Z'
   forcado: null
 - id: E4
   nome: 'F1+F2: documentos e páginas de todos os arquivos do inventário nas gavetas,
@@ -74,8 +74,8 @@ etapas:
   agente: sonnet
   estimativa_min: 40
   estimativa_tokens: 200000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T19:45:34Z'
   fim: null
   forcado: null
 - id: E5
@@ -89,8 +89,8 @@ etapas:
   agente: sonnet
   estimativa_min: 40
   estimativa_tokens: 200000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T19:45:35Z'
   fim: null
   forcado: null
 - id: E6
@@ -104,8 +104,8 @@ etapas:
   agente: sonnet
   estimativa_min: 30
   estimativa_tokens: 150000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T19:45:36Z'
   fim: null
   forcado: null
 - id: E7
