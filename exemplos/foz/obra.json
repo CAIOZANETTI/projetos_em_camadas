@@ -432,6 +432,16 @@
   "fonte": "211 - SAA Foz do Iguaçú.xlsx — abas MATS E EQUIP e Relação de Materiais (oculta)",
   "catalogo": "referencias/sanepar/catalogo_materiais.jsonl.gz"
  },
+ "eap_padrao": {
+  "trechos_lineares": [
+   {
+    "unidade": "U1",
+    "titulo_etapa": "ÁGUA POTÁVEL",
+    "sistema": "AGUA_POTAVEL",
+    "justificativa": "Decisão D11 (Caio, 04/11/2026): a água potável (622 m, vala em PVC no CUSTO CIVIL da Unidade 1) conta uma vez só, como trecho de obra linear dentro da U1; vale só para o título ÁGUA POTÁVEL, os demais tubos internos da ETA seguem na obra localizada"
+   }
+  ]
+ },
  "sondagens": "dados/foz/geotec/sondagens.json",
  "gavetas": {
   "executor_sondagens": "código",

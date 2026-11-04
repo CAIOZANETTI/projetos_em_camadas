@@ -39,7 +39,7 @@ from typing import NamedTuple
 
 import pandas as pd
 
-from . import associados, calibracao, dimensoes, eap, vocabulario
+from . import associados, calibracao, dimensoes, eap, eap_padrao, vocabulario
 from .construtivos import REGRAS as UNIDADES
 from .pdf_cad import CONCEITOS
 from .vocabulario import (
@@ -258,11 +258,22 @@ def _titulo_de_etapa(r) -> str:
     return titulo.strip() if isinstance(titulo, str) else ""
 
 
-def de_planilha(itens: pd.DataFrame, documento: dict, catalogo: dict | None = None) -> list[dict]:
+def _sistema_do_trecho(unidade: str, titulo: str, trechos_lineares: list[dict] | None) -> str:
+    """Sistema do código da linha: o declarado em `eap_padrao.trechos_lineares` ({unidade, titulo_etapa, sistema}) para a
+    unidade e o título (sem acento, caixa ou espaço repetido), senão '*'. Age antes do `consolidar`, no código."""
+    for t in trechos_lineares or []:
+        if str(t["unidade"]).upper() == unidade.upper() and normalizar(t["titulo_etapa"]) == normalizar(titulo):
+            return t["sistema"]
+    return "*"
+
+
+def de_planilha(itens: pd.DataFrame, documento: dict, catalogo: dict | None = None,
+                trechos_lineares: list[dict] | None = None) -> list[dict]:
     """Evidências do contrato (escopo_itens.csv de camadas.orcamento_sanepar): uma parcela por linha. O item vem do
     cadastro de materiais pelo código, senão pela descrição; quantidade em branco = item previsto sem número. A linha
     com `titulo_etapa` (CUSTO CIVIL) grava o título no localizador ({aba, linha, titulo_etapa}): rastreabilidade, não
-    muda a classificação."""
+    muda a classificação. `trechos_lineares` (já validados, `eap_padrao.separar_trechos_lineares`): a linha da unidade
+    declarada sob o título declarado leva o sistema declarado no código (`U1.AGUA_POTAVEL.GEO.MOV.VAL`), em vez de '*'."""
     catalogo, saida = catalogo or {}, []
     for r in itens.itertuples(index=False):
         unidade, item, servico, regra, espec = _item_da_linha_de_planilha(r, catalogo)
@@ -273,17 +284,20 @@ def de_planilha(itens: pd.DataFrame, documento: dict, catalogo: dict | None = No
         titulo = _titulo_de_etapa(r)
         local = {"aba": r.aba, "linha": int(r.linha_origem), "titulo_etapa": titulo} if titulo \
             else f"{r.aba} linha {r.linha_origem}"
-        saida.append(evidencia(codigo=_codigo(unidade, "*", item), servico=servico, unidade=un, valor=valor,
+        sistema = _sistema_do_trecho(unidade, titulo, trechos_lineares) if titulo else "*"
+        saida.append(evidencia(codigo=_codigo(unidade, sistema, item), servico=servico, unidade=un, valor=valor,
                                parcela=True, documento=_doc(documento), localizador=local,
                                trecho=str(r.descricao), metodo="catalogo" if espec else "planilha", regra=regra,
                                escopo=escopo_do_material(espec) if espec else None))
     return saida
 
 
-def titulos_da_planilha(itens: pd.DataFrame, catalogo: dict | None = None) -> list[dict]:
+def titulos_da_planilha(itens: pd.DataFrame, catalogo: dict | None = None,
+                        trechos_lineares: list[dict] | None = None) -> list[dict]:
     """Linhas do escopo da planilha que estão sob um título de etapa (`titulo_etapa`), COM ou SEM item: é o insumo de
     `eap_padrao.preencher` para a etapa do título (a linha sem item não gera evidência, mas diz que a etapa foi citada).
-    Cada registro: {unidade, aba, linha, titulo_etapa, descricao, item (None sem item), servico}. Sem a coluna, vazio."""
+    Cada registro: {unidade, aba, linha, titulo_etapa, descricao, item (None sem item), servico}; a linha de trecho
+    linear declarado (`trechos_lineares`) traz também `sistema`. Sem a coluna, vazio."""
     if "titulo_etapa" not in itens:
         return []
     catalogo, saida = catalogo or {}, []
@@ -291,8 +305,11 @@ def titulos_da_planilha(itens: pd.DataFrame, catalogo: dict | None = None) -> li
         titulo = _titulo_de_etapa(r)
         if titulo:
             unidade, item, servico, _, _ = _item_da_linha_de_planilha(r, catalogo)
-            saida.append({"unidade": unidade, "aba": r.aba, "linha": int(r.linha_origem), "titulo_etapa": titulo,
-                          "descricao": str(r.descricao), "item": item, "servico": servico})
+            registro = {"unidade": unidade, "aba": r.aba, "linha": int(r.linha_origem), "titulo_etapa": titulo,
+                        "descricao": str(r.descricao), "item": item, "servico": servico}
+            if (sistema := _sistema_do_trecho(unidade, titulo, trechos_lineares)) != "*":
+                registro["sistema"] = sistema
+            saida.append(registro)
     return saida
 
 
@@ -838,13 +855,15 @@ def _afirmacoes(evs: list[dict]) -> list[dict]:
 
 
 def _derivadas(chave: tuple, valoradas: list[dict]) -> list[dict]:
-    """Para um fato com '*', o total de cada documento que só fala dos códigos concretos (soma dos sistemas)."""
+    """Para um fato com '*', o total de cada documento que só fala dos códigos concretos (soma dos sistemas). O sistema
+    com vista linear dentro de unidade localizada (trecho declarado, D11) não vira parcela do fato de outra vista."""
     codigo, servico, unidade = chave
     if "*" not in codigo:
         return []
     diretos = {e["documento"]["id"] for e in valoradas if (e["codigo"], e["servico"], e["unidade"]) == chave}
     partes = [e for e in valoradas if e["documento"]["id"] not in diretos and e["codigo"] != codigo and "*" not in e["codigo"]
-              and _casa(codigo, e["codigo"]) and (e["servico"], e["unidade"]) == (servico, unidade)]
+              and _casa(codigo, e["codigo"]) and (e["servico"], e["unidade"]) == (servico, unidade)
+              and not (eap.eh_trecho_linear(e["codigo"]) and eap.vista_do_codigo(codigo) != "linear")]
     return [{**e, "parcela": True, "derivada": True} for doc in dict.fromkeys(e["documento"]["id"] for e in valoradas)
             for e in partes if e["documento"]["id"] == doc]
 
@@ -1308,26 +1327,27 @@ def _ler_ia(caminho: str | Path) -> list:
     return saida
 
 
-def _planilha_do_contrato(esc: dict) -> tuple | None:
-    """(itens, documento, catálogo) da planilha do contrato (`escopo.itens_csv` do obra.json), ou None sem o arquivo."""
+def _planilha_do_contrato(esc: dict, trechos_lineares: list[dict] | None = None) -> tuple | None:
+    """(itens, documento, catálogo, trechos lineares declarados) da planilha do contrato (`escopo.itens_csv` do
+    obra.json), ou None sem o arquivo."""
     from .orcamento_sanepar import catalogo
     if not (esc.get("itens_csv") and Path(esc["itens_csv"]).exists()):
         return None
     df = pd.read_csv(esc["itens_csv"], sep=";", decimal=",", encoding="utf-8-sig")
     cat = catalogo(esc["catalogo"]) if esc.get("catalogo") else None
-    return df, {"id": Path(esc["itens_csv"]).name, "tipo": "planilha", "nome": esc.get("fonte", "")}, cat
+    return df, {"id": Path(esc["itens_csv"]).name, "tipo": "planilha", "nome": esc.get("fonte", "")}, cat, trechos_lineares
 
 
 def _titulos_do_contrato(planilha: tuple | None) -> list[dict]:
-    """`titulos_da_planilha` da planilha do contrato (itens, documento, catálogo); vazio sem planilha."""
-    return titulos_da_planilha(planilha[0], planilha[2]) if planilha else []
+    """`titulos_da_planilha` da planilha do contrato (itens, documento, catálogo, trechos); vazio sem planilha."""
+    return titulos_da_planilha(planilha[0], planilha[2], *planilha[3:]) if planilha else []
 
 
 def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     """Loop de evidências da obra: documentos, planilha do contrato, planilha Obras Lineares, pranchas medidas, IA e decisões do obra.json.
     Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv, dimensoes.csv e calibracao.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
     conf = cfg.get("evidencias") or {}
-    planilha = _planilha_do_contrato(cfg.get("escopo") or {})
+    planilha = _planilha_do_contrato(cfg.get("escopo") or {}, eap_padrao.trechos_do_cfg(cfg))
     extras = {k: (ler if k == "decisoes" else _ler_ia)(conf[k]) if conf.get(k) and Path(conf[k]).exists() else []
               for k in ("ia", "decisoes")}
     recusadas_ia = []
