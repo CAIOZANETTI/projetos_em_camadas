@@ -85,7 +85,6 @@ def conferir_base(base: dict) -> list[str]:
 def id_documento(caminho) -> str:
     """Chave da gaveta `documentos`: sha256 do conteúdo do arquivo (16 hex). O mesmo arquivo dá a mesma chave em
     qualquer obra e em qualquer máquina; renomear não muda, revisar muda."""
-    import hashlib
     h = hashlib.sha256()
     with open(caminho, "rb") as fh:
         for bloco in iter(lambda: fh.read(1 << 20), b""):
