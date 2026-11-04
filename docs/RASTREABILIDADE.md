@@ -129,7 +129,42 @@ Situação conferida na `main` 0.55.0 (template e build), 04/11/2026.
 5. **58 desenhos citados na Relação não estão no Drive**.
 6. **8 estacas** do `estacas.csv` com a unidade trocada (marcadas "Conferir").
 
-## 7. Como manter
+## 7. O HTML da main de 04/11/2026 (0.55.0), parte por parte
+
+`saida/foz/foz-vilac_camadas_v0.55.0_2026-11-04.html` (24,2 MB), gerado com a `main` em `4c06913` e a planilha do
+contrato (`211 - SAA Foz do Iguaçú.xlsx`, fora do git). Teste de interface: 264 verificações, 0 falha.
+
+| Aba | Criada em (sessão) | Mexida depois em |
+|---|---|---|
+| Obra (abre primeiro) | 0.15–0.16 (`intelligent-dijkstra`) | 0.18, 0.20 (`intelligent-dijkstra`) |
+| Camadas | 0.2 (`intelligent-dijkstra`) | 0.11, 0.13–0.14 (área da obra, peso) |
+| Pranchas | 0.2 (`intelligent-dijkstra`) | 0.13 (simplificação e medição exata) |
+| Etapas & escopo | 0.3–0.6 (`intelligent-dijkstra`) | 0.19 (`focused-dijkstra`: sem cronograma/4D) |
+| EAP | 0.35 (`nifty-meitner`) | 0.37–0.38, 0.46–0.48, 0.52, 0.54–0.55 (`nifty-meitner`); gavetas 0.36 (`ccr-2f8fb1ac`) |
+| Anotações | 0.1 (`gracious-maxwell` / Irati) | — |
+| Projeto | 0.7 (`intelligent-dijkstra`) | 0.8–0.10 (fichas), 0.19 (inventário de todos os arquivos) |
+
+| Bloco de dados no HTML | Módulo | Versões (sessão) |
+|---|---|---|
+| `bases`, `area_obra`, `limites_obra` | `obra` | 0.2, 0.11 (`intelligent-dijkstra`) |
+| `pranchas`, `folhas`, `elementos` | `pdf_cad`, `obra` | 0.2–0.8, 0.13 (`intelligent-dijkstra`) |
+| `escopo` (sem preço) | `orcamento_sanepar`, `obra` | 0.5–0.6 (`intelligent-dijkstra`) |
+| `sondagens`, `vertical`, `modelo3d` | `sfm`, `obra` | 0.2, 0.6, 0.14 (`intelligent-dijkstra`) |
+| `inventario` | `inventario` | 0.7 (`intelligent-dijkstra`), 0.19, 0.21–0.23 (`focused-dijkstra`) |
+| `fichas` | `prancha` | 0.8–0.10, 0.18 (`intelligent-dijkstra`) |
+| `escavacao`, `valas` | `escavacao`, `valas` | 0.7, 0.15 (`intelligent-dijkstra`) |
+| `construtivos` (+ `escopo`): 464 elementos, 104 desenhos citados / 46 entregues | `construtivos`, `escopo_obra` | 0.15–0.16, 0.18, 0.20 (`intelligent-dijkstra`) |
+| `geotecnia` | `geotecnia`, `lineares` | 0.21, 0.27–0.31, 0.49–0.51 (`focused-dijkstra`) |
+| `gavetas`, `eap_gavetas`: 73 objetos, 132 fatos, 80 serviços | `gavetas`, `extrair_gavetas` | 0.24–0.26, 0.28, 0.30, 0.34, 0.36 (`ccr-2f8fb1ac`) |
+| `eap`, `eap_padrao`, `eap_painel` | `eap`, `eap_padrao`, `eap_painel`, `eap_html` | 0.32, 0.35–0.38, 0.46–0.48, 0.52, 0.54–0.55 (`nifty-meitner`) |
+| `evidencias`: 2 514 evidências, 167 fatos, 6 conflitos | `evidencias`, `vocabulario` | 0.39–0.44, 0.47 (`nifty-meitner`) |
+| `conferencia_cavas` | `conferencia_cavas`, `secoes_corte` | 0.53 (`ccr-2f8fb1ac`) |
+
+**Fica de fora neste build:** as obras lineares dentro da ETA (0.17, `hopeful-archimedes`) e os trechos das gavetas
+que vêm delas. O código espera a aba "Obras Lineares" do protótipo da Giselle (30/10), que não está no Drive — a
+planilha do contrato no Drive não tem essa aba (`docs/plano/2026-11-02_foz_build_real.md`, achado 3).
+
+## 8. Como manter
 
 A cada PR: a versão no `CHANGELOG.md` (o teste amarra `camadas.VERSAO` ao topo), o plano em `docs/plano/` e, ao
 fechar, `python scripts/rastreabilidade.py --gravar docs/RASTREABILIDADE.md --ramos docs/rastreabilidade_ramos.json`
