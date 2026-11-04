@@ -1,0 +1,1457 @@
+{
+  "construtivos": {
+    "por_sistema": {
+      "u1-ACT360": {
+        "bloco": 30,
+        "cava": 1,
+        "estaca": 39
+      },
+      "u1-ACT600": {
+        "bloco": 85,
+        "cava": 1,
+        "estaca": 91
+      },
+      "u1-BLOCOS_APOIO": {},
+      "u1-CAMARA_CONTATO": {},
+      "u1-CANAL_AT": {},
+      "u1-CX_CHEGADA": {},
+      "u1-CX_SAIDA": {},
+      "u1-DEPOSITO": {
+        "estaca": 6
+      },
+      "u1-DREN_DN300": {
+        "trecho": 1
+      },
+      "u1-DREN_DN400": {
+        "trecho": 1
+      },
+      "u1-EEE_FILTROS_NOVOS": {
+        "estaca": 4
+      },
+      "u1-EEE_LODO": {},
+      "u1-ETA": {
+        "cava": 5,
+        "estrutura": 16
+      },
+      "u1-ETL": {
+        "estaca": 12
+      },
+      "u1-FILTROS": {
+        "bloco": 41,
+        "cava": 1,
+        "estaca": 96,
+        "pilar": 12
+      },
+      "u1-GUARITA": {
+        "estaca": 4
+      },
+      "u1-RECALD_RECALF": {},
+      "u1-TORRE_ELEV": {
+        "estaca": 4
+      },
+      "u2-AAT00": {
+        "trecho": 6
+      },
+      "u2-AAT01": {
+        "trecho": 1
+      },
+      "u2-AAT02": {
+        "trecho": 1
+      },
+      "u2-AAT06": {
+        "trecho": 6
+      }
+    },
+    "total_por_classe": {
+      "bloco": 156,
+      "cava": 8,
+      "estaca": 256,
+      "estrutura": 16,
+      "pilar": 12,
+      "trecho": 16
+    }
+  },
+  "contrato_211": {
+    "linhas": {
+      "CUSTO CIVIL|10": {
+        "calculada": "249,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|100": {
+        "calculada": "0,05",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "un/mês"
+      },
+      "CUSTO CIVIL|101": {
+        "calculada": "0,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "vb"
+      },
+      "CUSTO CIVIL|102": {
+        "calculada": "16,52",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|103": {
+        "calculada": "7,25",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3.km"
+      },
+      "CUSTO CIVIL|104": {
+        "calculada": "0,72",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|105": {
+        "calculada": "26,10",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|106": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|11": {
+        "calculada": "249,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|112": {
+        "calculada": "20,20",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|113": {
+        "calculada": "20,20",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|114": {
+        "calculada": "0,02",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "un/mês"
+      },
+      "CUSTO CIVIL|115": {
+        "calculada": "0,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "vb"
+      },
+      "CUSTO CIVIL|116": {
+        "calculada": "9,77",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|117": {
+        "calculada": "4,65",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3.km"
+      },
+      "CUSTO CIVIL|118": {
+        "calculada": "0,47",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|119": {
+        "calculada": "16,50",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|12": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|120": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|127": {
+        "calculada": "",
+        "declarada": "622,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|128": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|13": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|130": {
+        "calculada": "",
+        "declarada": "1,00",
+        "situacao": "verba",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|132": {
+        "calculada": "246,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|133": {
+        "calculada": "246,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|134": {
+        "calculada": "246,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|14": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|148": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|149": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|15": {
+        "calculada": "52,90",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|150": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|151": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|16": {
+        "calculada": "52,90",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|17": {
+        "calculada": "0,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "un/mês"
+      },
+      "CUSTO CIVIL|18": {
+        "calculada": "0,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "vb"
+      },
+      "CUSTO CIVIL|182": {
+        "calculada": "2.779,90",
+        "declarada": "2.704,00",
+        "situacao": "declarada · confere",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|183": {
+        "calculada": "",
+        "declarada": "580,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|184": {
+        "calculada": "",
+        "declarada": "796,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|19": {
+        "calculada": "185,15",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|194": {
+        "calculada": "",
+        "declarada": "1,00",
+        "situacao": "verba",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|196": {
+        "calculada": "",
+        "declarada": "1,00",
+        "situacao": "verba",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|20": {
+        "calculada": "540,11",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3.km"
+      },
+      "CUSTO CIVIL|206": {
+        "calculada": "",
+        "declarada": "1,00",
+        "situacao": "verba",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|209": {
+        "calculada": "",
+        "declarada": "12,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|21": {
+        "calculada": "54,01",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|22": {
+        "calculada": "107,80",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|23": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|29": {
+        "calculada": "2,60",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|30": {
+        "calculada": "2,60",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|31": {
+        "calculada": "0,01",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "un/mês"
+      },
+      "CUSTO CIVIL|32": {
+        "calculada": "0,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "vb"
+      },
+      "CUSTO CIVIL|33": {
+        "calculada": "9,10",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|34": {
+        "calculada": "26,55",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3.km"
+      },
+      "CUSTO CIVIL|35": {
+        "calculada": "2,65",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|36": {
+        "calculada": "4,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|37": {
+        "calculada": "",
+        "declarada": "3,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|43": {
+        "calculada": "",
+        "declarada": "4,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|49": {
+        "calculada": "21,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|5": {
+        "calculada": "",
+        "declarada": "18,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|50": {
+        "calculada": "21,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|51": {
+        "calculada": "0,12",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "un/mês"
+      },
+      "CUSTO CIVIL|52": {
+        "calculada": "0,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "vb"
+      },
+      "CUSTO CIVIL|53": {
+        "calculada": "78,51",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|54": {
+        "calculada": "217,47",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3.km"
+      },
+      "CUSTO CIVIL|55": {
+        "calculada": "21,75",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|56": {
+        "calculada": "49,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|57": {
+        "calculada": "",
+        "declarada": "2,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|63": {
+        "calculada": "",
+        "declarada": "1,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|69": {
+        "calculada": "18,40",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|70": {
+        "calculada": "20,10",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|71": {
+        "calculada": "",
+        "declarada": "2,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|77": {
+        "calculada": "",
+        "declarada": "1,00",
+        "situacao": "declarada",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|8": {
+        "calculada": "261,60",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|83": {
+        "calculada": "99,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|84": {
+        "calculada": "90,40",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|85": {
+        "calculada": "8,90",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|86": {
+        "calculada": "0,38",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "un/mês"
+      },
+      "CUSTO CIVIL|87": {
+        "calculada": "0,00",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "vb"
+      },
+      "CUSTO CIVIL|88": {
+        "calculada": "75,23",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|89": {
+        "calculada": "45,29",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3.km"
+      },
+      "CUSTO CIVIL|9": {
+        "calculada": "308,30",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|90": {
+        "calculada": "4,53",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m3"
+      },
+      "CUSTO CIVIL|91": {
+        "calculada": "86,10",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m2"
+      },
+      "CUSTO CIVIL|92": {
+        "calculada": "",
+        "declarada": "",
+        "situacao": "a preencher",
+        "unidade_calculada": null
+      },
+      "CUSTO CIVIL|98": {
+        "calculada": "31,60",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      },
+      "CUSTO CIVIL|99": {
+        "calculada": "31,60",
+        "declarada": "",
+        "situacao": "calculada",
+        "unidade_calculada": "m"
+      }
+    }
+  },
+  "eap": {
+    "quantidades": {
+      "U1.ACT360.GEO.FUN.BLO|quantidade": {
+        "quantidade": 30.0,
+        "unidade": "un"
+      },
+      "U1.ACT360.GEO.FUN.BLO|área em planta": {
+        "quantidade": 22.260399,
+        "unidade": "m²"
+      },
+      "U1.ACT360.GEO.FUN.EST|comprimento": {
+        "quantidade": 529.0,
+        "unidade": "m"
+      },
+      "U1.ACT360.GEO.FUN.EST|quantidade": {
+        "quantidade": 39.0,
+        "unidade": "un"
+      },
+      "U1.ACT360.GEO.MOV.ESC|volume": {
+        "quantidade": 283.3,
+        "unidade": "m³"
+      },
+      "U1.ACT360.GEO.MOV.REA|volume": {
+        "quantidade": 81.7,
+        "unidade": "m³"
+      },
+      "U1.ACT600.GEO.FUN.BLO|quantidade": {
+        "quantidade": 85.0,
+        "unidade": "un"
+      },
+      "U1.ACT600.GEO.FUN.BLO|área em planta": {
+        "quantidade": 43.247392,
+        "unidade": "m²"
+      },
+      "U1.ACT600.GEO.FUN.EST|comprimento": {
+        "quantidade": 1158.0,
+        "unidade": "m"
+      },
+      "U1.ACT600.GEO.FUN.EST|quantidade": {
+        "quantidade": 91.0,
+        "unidade": "un"
+      },
+      "U1.ACT600.GEO.MOV.ESC|volume": {
+        "quantidade": 37.2,
+        "unidade": "m³"
+      },
+      "U1.ACT600.GEO.MOV.REA|volume": {
+        "quantidade": 35.4,
+        "unidade": "m³"
+      },
+      "U1.DEPOSITO.GEO.FUN.EST|comprimento": {
+        "quantidade": 60.0,
+        "unidade": "m"
+      },
+      "U1.DEPOSITO.GEO.FUN.EST|quantidade": {
+        "quantidade": 6.0,
+        "unidade": "un"
+      },
+      "U1.DREN_DN300.HID.TUB.RED|extensão": {
+        "quantidade": 329.0,
+        "unidade": "m"
+      },
+      "U1.DREN_DN400.HID.TUB.RED|extensão": {
+        "quantidade": 347.0,
+        "unidade": "m"
+      },
+      "U1.EEE_FILTROS_NOVOS.GEO.FUN.EST|comprimento": {
+        "quantidade": 36.0,
+        "unidade": "m"
+      },
+      "U1.EEE_FILTROS_NOVOS.GEO.FUN.EST|quantidade": {
+        "quantidade": 4.0,
+        "unidade": "un"
+      },
+      "U1.ETA.GEO.MOV.ESC|volume": {
+        "quantidade": 6185.5,
+        "unidade": "m³"
+      },
+      "U1.ETA.GEO.MOV.REA|volume": {
+        "quantidade": 4140.6,
+        "unidade": "m³"
+      },
+      "U1.ETL.GEO.FUN.EST|comprimento": {
+        "quantidade": 130.0,
+        "unidade": "m"
+      },
+      "U1.ETL.GEO.FUN.EST|quantidade": {
+        "quantidade": 12.0,
+        "unidade": "un"
+      },
+      "U1.FILTROS.CIV.EST.PIL|quantidade": {
+        "quantidade": 12.0,
+        "unidade": "un"
+      },
+      "U1.FILTROS.GEO.FUN.BLO|quantidade": {
+        "quantidade": 41.0,
+        "unidade": "un"
+      },
+      "U1.FILTROS.GEO.FUN.BLO|área em planta": {
+        "quantidade": 82.622855,
+        "unidade": "m²"
+      },
+      "U1.FILTROS.GEO.FUN.EST|comprimento": {
+        "quantidade": 1154.0,
+        "unidade": "m"
+      },
+      "U1.FILTROS.GEO.FUN.EST|quantidade": {
+        "quantidade": 96.0,
+        "unidade": "un"
+      },
+      "U1.FILTROS.GEO.MOV.ESC|volume": {
+        "quantidade": 2414.8,
+        "unidade": "m³"
+      },
+      "U1.FILTROS.GEO.MOV.REA|volume": {
+        "quantidade": 1220.8,
+        "unidade": "m³"
+      },
+      "U1.GUARITA.GEO.FUN.EST|comprimento": {
+        "quantidade": 36.0,
+        "unidade": "m"
+      },
+      "U1.GUARITA.GEO.FUN.EST|quantidade": {
+        "quantidade": 4.0,
+        "unidade": "un"
+      },
+      "U1.TORRE_ELEV.GEO.FUN.EST|comprimento": {
+        "quantidade": 40.0,
+        "unidade": "m"
+      },
+      "U1.TORRE_ELEV.GEO.FUN.EST|quantidade": {
+        "quantidade": 4.0,
+        "unidade": "un"
+      },
+      "U2.AAT00.HID.TUB.RED|extensão": {
+        "quantidade": 3258.9,
+        "unidade": "m"
+      },
+      "U2.AAT01.HID.TUB.RED|extensão": {
+        "quantidade": 593.8,
+        "unidade": "m"
+      },
+      "U2.AAT02.HID.TUB.RED|extensão": {
+        "quantidade": 350.0,
+        "unidade": "m"
+      },
+      "U2.AAT06.HID.TUB.RED|extensão": {
+        "quantidade": 3102.1,
+        "unidade": "m"
+      }
+    }
+  },
+  "eap_padrao": {
+    "folhas": {
+      "OL.00.01": {
+        "quantidades_txt": [
+          "Administração local da obra (equipe técnica e administrativa, por mês) 12,00 mês · fonte única [U2.*.GER.PRE.ALO]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OL.01.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.01.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.01.03": {
+        "quantidades_txt": [
+          "Sinalização e segurança de tráfego 1,00 m · fonte única [U2.*.GER.PRE.SIN]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OL.01.04": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.02.01": {
+        "quantidades_txt": [
+          "Corte de pavimento com serra 5.619,00 m · calculada (fórmula) [U2.AAT00.CIV.PAV.REC]",
+          "Corte de pavimento com serra 862,60 m · calculada (fórmula) [U2.AAT01.CIV.PAV.REC]",
+          "Corte de pavimento com serra 590,00 m · calculada (fórmula) [U2.AAT02.CIV.PAV.REC]",
+          "Corte de pavimento com serra 4.998,00 m · calculada (fórmula) [U2.AAT06.CIV.PAV.REC]",
+          "Corte de pavimento com serra 52,00 m · calculada (fórmula) [U2.AAT00.CIV.PAV.CAL]",
+          "Corte de pavimento com serra 180,00 m · calculada (fórmula) [U2.AAT01.CIV.PAV.CAL]",
+          "Corte de pavimento com serra 313,00 m · calculada (fórmula) [U2.AAT06.CIV.PAV.CAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.02.02": {
+        "quantidades_txt": [
+          "Demolição / remoção 2.149,27 m² · calculada (fórmula) [U2.AAT00.CIV.PAV.REC]",
+          "Demolição / remoção 388,17 m² · calculada (fórmula) [U2.AAT01.CIV.PAV.REC]",
+          "Demolição / remoção 225,68 m² · calculada (fórmula) [U2.AAT02.CIV.PAV.REC]",
+          "Demolição / remoção 2.698,92 m² · calculada (fórmula) [U2.AAT06.CIV.PAV.REC]",
+          "Demolição / remoção 17,29 m² · calculada (fórmula) [U2.AAT00.CIV.PAV.CAL]",
+          "Demolição / remoção 72,00 m² · calculada (fórmula) [U2.AAT01.CIV.PAV.CAL]",
+          "Demolição / remoção 169,02 m² · calculada (fórmula) [U2.AAT06.CIV.PAV.CAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.03.01": {
+        "quantidades_txt": [
+          "Escavação 3.344,62 m³ · calculada (fórmula) [U2.AAT00.GEO.MOV.VAL]",
+          "Escavação 751,16 m³ · calculada (fórmula) [U2.AAT01.GEO.MOV.VAL]",
+          "Escavação 356,45 m³ · calculada (fórmula) [U2.AAT02.GEO.MOV.VAL]",
+          "Escavação 5.535,14 m³ · calculada (fórmula) [U2.AAT06.GEO.MOV.VAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.03.02": {
+        "quantidades_txt": [
+          "Escoramento por pontaleteamento 7.221,03 m² · calculada (fórmula) [U2.AAT00.GEO.MOV.VAL]",
+          "Escoramento por pontaleteamento 1.337,03 m² · calculada (fórmula) [U2.AAT01.GEO.MOV.VAL]",
+          "Escoramento por pontaleteamento 834,85 m² · calculada (fórmula) [U2.AAT02.GEO.MOV.VAL]",
+          "Escoramento por pontaleteamento 10.250,25 m² · calculada (fórmula) [U2.AAT06.GEO.MOV.VAL]",
+          "Escoramento contínuo 729,86 m² · calculada (fórmula) [U2.AAT00.GEO.MOV.VAL]",
+          "Escoramento 7.950,89 m² · calculada (fórmula) [U2.AAT00.GEO.MOV.VAL]",
+          "Escoramento 1.337,03 m² · calculada (fórmula) [U2.AAT01.GEO.MOV.VAL]",
+          "Escoramento 834,85 m² · calculada (fórmula) [U2.AAT02.GEO.MOV.VAL]",
+          "Escoramento 10.250,25 m² · calculada (fórmula) [U2.AAT06.GEO.MOV.VAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.03.03": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.04.01": {
+        "quantidades_txt": [
+          "Berço do tubo 244,82 m³ · calculada (fórmula) [U2.AAT00.GEO.MOV.VAL]",
+          "Berço do tubo 51,82 m³ · calculada (fórmula) [U2.AAT01.GEO.MOV.VAL]",
+          "Berço do tubo 26,22 m³ · calculada (fórmula) [U2.AAT02.GEO.MOV.VAL]",
+          "Berço do tubo 335,01 m³ · calculada (fórmula) [U2.AAT06.GEO.MOV.VAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.04.02": {
+        "quantidades_txt": [
+          "7.304,80 m (extensão)",
+          "126 un · fonte única [U2.*.HID.TUB.RED]",
+          "3.258,90 m · fonte única [U2.AAT00.HID.TUB.RED]",
+          "593,80 m · fonte única [U2.AAT01.HID.TUB.RED]",
+          "350,00 m · fonte única [U2.AAT02.HID.TUB.RED]",
+          "3.102,10 m · fonte única [U2.AAT06.HID.TUB.RED]",
+          "Assentamento de tubo 3.259,00 m · calculada (fórmula) [U2.AAT00.HID.TUB.RED]",
+          "Assentamento de tubo 593,80 m · calculada (fórmula) [U2.AAT01.HID.TUB.RED]",
+          "Assentamento de tubo 350,00 m · calculada (fórmula) [U2.AAT02.HID.TUB.RED]",
+          "Assentamento de tubo 3.101,90 m · calculada (fórmula) [U2.AAT06.HID.TUB.RED]",
+          "Assentamento de tubo 3.259,00 m · calculada (fórmula) [U2.AAT00.HID.TUB.RED]",
+          "Assentamento de tubo 593,80 m · calculada (fórmula) [U2.AAT01.HID.TUB.RED]",
+          "Assentamento de tubo 350,00 m · calculada (fórmula) [U2.AAT02.HID.TUB.RED]",
+          "Assentamento de tubo 3.101,90 m · calculada (fórmula) [U2.AAT06.HID.TUB.RED]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OL.04.03": {
+        "quantidades_txt": [
+          "Envoltória do tubo 1.251,66 m³ · calculada (fórmula) [U2.AAT00.GEO.MOV.VAL]",
+          "Envoltória do tubo 294,19 m³ · calculada (fórmula) [U2.AAT01.GEO.MOV.VAL]",
+          "Envoltória do tubo 134,01 m³ · calculada (fórmula) [U2.AAT02.GEO.MOV.VAL]",
+          "Envoltória do tubo 2.148,61 m³ · calculada (fórmula) [U2.AAT06.GEO.MOV.VAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.04.04": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.05.01": {
+        "quantidades_txt": [
+          "Reaterro 1.594,16 m³ · calculada (fórmula) [U2.AAT00.GEO.MOV.VAL]",
+          "Reaterro 310,72 m³ · calculada (fórmula) [U2.AAT01.GEO.MOV.VAL]",
+          "Reaterro 168,94 m³ · calculada (fórmula) [U2.AAT02.GEO.MOV.VAL]",
+          "Reaterro 2.084,58 m³ · calculada (fórmula) [U2.AAT06.GEO.MOV.VAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.05.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.05.03": {
+        "quantidades_txt": [
+          "Carga, transporte e bota-fora 2.275,59 m³ · calculada (fórmula) [U2.AAT00.GEO.MOV.VAL]",
+          "Carga, transporte e bota-fora 572,58 m³ · calculada (fórmula) [U2.AAT01.GEO.MOV.VAL]",
+          "Carga, transporte e bota-fora 243,76 m³ · calculada (fórmula) [U2.AAT02.GEO.MOV.VAL]",
+          "Carga, transporte e bota-fora 4.485,72 m³ · calculada (fórmula) [U2.AAT06.GEO.MOV.VAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.06.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.06.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.07.01": {
+        "quantidades_txt": [
+          "11 un · fonte única [U2.*.HID.TUB.PVS]",
+          "2,00 cj · fonte única [U2.*.HID.TUB.PVS]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OL.07.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.07.03": {
+        "quantidades_txt": [
+          "618 un · fonte única [U2.*.HID.TUB.VAL]",
+          "Montagem / instalação 2 un · fonte única [U2.*.HID.TUB.VAL]",
+          "17,00 cj · fonte única [U2.*.HID.TUB.VAL]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OL.07.04": {
+        "quantidades_txt": [
+          "2 un · fonte única [U2.*.ELE.FOR.INS]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OL.08.01": {
+        "quantidades_txt": [
+          "Corte de pavimento com serra 5.619,00 m · calculada (fórmula) [U2.AAT00.CIV.PAV.REC]",
+          "Corte de pavimento com serra 862,60 m · calculada (fórmula) [U2.AAT01.CIV.PAV.REC]",
+          "Corte de pavimento com serra 590,00 m · calculada (fórmula) [U2.AAT02.CIV.PAV.REC]",
+          "Corte de pavimento com serra 4.998,00 m · calculada (fórmula) [U2.AAT06.CIV.PAV.REC]",
+          "Demolição / remoção 2.149,27 m² · calculada (fórmula) [U2.AAT00.CIV.PAV.REC]",
+          "Demolição / remoção 388,17 m² · calculada (fórmula) [U2.AAT01.CIV.PAV.REC]",
+          "Demolição / remoção 225,68 m² · calculada (fórmula) [U2.AAT02.CIV.PAV.REC]",
+          "Demolição / remoção 2.698,92 m² · calculada (fórmula) [U2.AAT06.CIV.PAV.REC]",
+          "Recomposição / execução 2.149,27 m² · calculada (fórmula) [U2.AAT00.CIV.PAV.REC]",
+          "Recomposição / execução 388,17 m² · calculada (fórmula) [U2.AAT01.CIV.PAV.REC]",
+          "Recomposição / execução 225,68 m² · calculada (fórmula) [U2.AAT02.CIV.PAV.REC]",
+          "Recomposição / execução 2.698,92 m² · calculada (fórmula) [U2.AAT06.CIV.PAV.REC]",
+          "Recomposição / execução 2.149,27 m² · calculada (fórmula) [U2.AAT00.CIV.PAV.REC]",
+          "Recomposição / execução 388,17 m² · calculada (fórmula) [U2.AAT01.CIV.PAV.REC]",
+          "Recomposição / execução 225,68 m² · calculada (fórmula) [U2.AAT02.CIV.PAV.REC]",
+          "Recomposição / execução 2.698,92 m² · calculada (fórmula) [U2.AAT06.CIV.PAV.REC]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.08.02": {
+        "quantidades_txt": [
+          "Corte de pavimento com serra 52,00 m · calculada (fórmula) [U2.AAT00.CIV.PAV.CAL]",
+          "Corte de pavimento com serra 180,00 m · calculada (fórmula) [U2.AAT01.CIV.PAV.CAL]",
+          "Corte de pavimento com serra 313,00 m · calculada (fórmula) [U2.AAT06.CIV.PAV.CAL]",
+          "Demolição / remoção 17,29 m² · calculada (fórmula) [U2.AAT00.CIV.PAV.CAL]",
+          "Demolição / remoção 72,00 m² · calculada (fórmula) [U2.AAT01.CIV.PAV.CAL]",
+          "Demolição / remoção 169,02 m² · calculada (fórmula) [U2.AAT06.CIV.PAV.CAL]",
+          "Recomposição / execução 17,29 m² · calculada (fórmula) [U2.AAT00.CIV.PAV.CAL]",
+          "Recomposição / execução 72,00 m² · calculada (fórmula) [U2.AAT01.CIV.PAV.CAL]",
+          "Recomposição / execução 169,02 m² · calculada (fórmula) [U2.AAT06.CIV.PAV.CAL]",
+          "Recomposição / execução 17,29 m² · calculada (fórmula) [U2.AAT00.CIV.PAV.CAL]",
+          "Recomposição / execução 72,00 m² · calculada (fórmula) [U2.AAT01.CIV.PAV.CAL]",
+          "Recomposição / execução 169,02 m² · calculada (fórmula) [U2.AAT06.CIV.PAV.CAL]"
+        ],
+        "situacao": "calculada"
+      },
+      "OL.09.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.09.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.09.03": {
+        "quantidades_txt": [],
+        "situacao": "fora do escopo"
+      },
+      "OL.10.01": {
+        "quantidades_txt": [
+          "1 un · fonte única [U2.*.HID.TUB.LIG]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OL.11.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.11.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OL.11.03": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.00.01": {
+        "quantidades_txt": [
+          "Administração local da obra (equipe técnica e administrativa, por mês) 18,00 mês · fonte única [U1.*.GER.PRE.ALO]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.01.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.01.02": {
+        "quantidades_txt": [],
+        "situacao": "só menção"
+      },
+      "OP.01.03": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.01.04": {
+        "quantidades_txt": [],
+        "situacao": "só menção"
+      },
+      "OP.02.01": {
+        "quantidades_txt": [
+          "8.920,80 m³ (volume)",
+          "6.185,50 m³ · fonte única [U1.ETA.GEO.MOV.ESC]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.02.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.02.03": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.02.04": {
+        "quantidades_txt": [
+          "5.478,50 m³ (volume)",
+          "4.140,60 m³ · fonte única [U1.ETA.GEO.MOV.REA]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.02.05": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.02.06": {
+        "quantidades_txt": [
+          "Escavação 622,00 m · fonte única [U1.*.GEO.MOV.VAL]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.03.01": {
+        "quantidades_txt": [
+          "256 un",
+          "3.143,00 m (comprimento)",
+          "39 un · fonte única [U1.ACT360.GEO.FUN.EST]",
+          "529,00 m · fonte única [U1.ACT360.GEO.FUN.EST]",
+          "4 un · fonte única [U1.TORRE_ELEV.GEO.FUN.EST]",
+          "40,00 m · fonte única [U1.TORRE_ELEV.GEO.FUN.EST]",
+          "91 un · fonte única [U1.ACT600.GEO.FUN.EST]",
+          "1.158,00 m · fonte única [U1.ACT600.GEO.FUN.EST]",
+          "96 un · fonte única [U1.FILTROS.GEO.FUN.EST]",
+          "1.154,00 m · fonte única [U1.FILTROS.GEO.FUN.EST]",
+          "4 un · fonte única [U1.EEE_FILTROS_NOVOS.GEO.FUN.EST]",
+          "36,00 m · fonte única [U1.EEE_FILTROS_NOVOS.GEO.FUN.EST]",
+          "6 un · fonte única [U1.DEPOSITO.GEO.FUN.EST]",
+          "60,00 m · fonte única [U1.DEPOSITO.GEO.FUN.EST]",
+          "4 un · fonte única [U1.GUARITA.GEO.FUN.EST]",
+          "36,00 m · fonte única [U1.GUARITA.GEO.FUN.EST]",
+          "12 un · fonte única [U1.ETL.GEO.FUN.EST]",
+          "130,00 m · fonte única [U1.ETL.GEO.FUN.EST]",
+          "Concreto estrutural 72,84 m³ · calculada (fórmula) [U1.ACT360.GEO.FUN.EST]",
+          "Concreto estrutural 5,03 m³ · calculada (fórmula) [U1.TORRE_ELEV.GEO.FUN.EST]",
+          "Concreto estrutural 149,48 m³ · calculada (fórmula) [U1.ACT600.GEO.FUN.EST]",
+          "Concreto estrutural 145,02 m³ · calculada (fórmula) [U1.FILTROS.GEO.FUN.EST]",
+          "Concreto estrutural 4,52 m³ · calculada (fórmula) [U1.EEE_FILTROS_NOVOS.GEO.FUN.EST]",
+          "Concreto estrutural 7,54 m³ · calculada (fórmula) [U1.DEPOSITO.GEO.FUN.EST]",
+          "Concreto estrutural 4,52 m³ · calculada (fórmula) [U1.GUARITA.GEO.FUN.EST]",
+          "Concreto estrutural 16,34 m³ · calculada (fórmula) [U1.ETL.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 2.913,51 kg · calculada (fórmula) [U1.ACT360.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 201,06 kg · calculada (fórmula) [U1.TORRE_ELEV.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 5.979,08 kg · calculada (fórmula) [U1.ACT600.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 5.800,64 kg · calculada (fórmula) [U1.FILTROS.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 180,96 kg · calculada (fórmula) [U1.EEE_FILTROS_NOVOS.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 301,59 kg · calculada (fórmula) [U1.DEPOSITO.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 180,96 kg · calculada (fórmula) [U1.GUARITA.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 653,45 kg · calculada (fórmula) [U1.ETL.GEO.FUN.EST]",
+          "Arrasamento de estaca 39 un · calculada (fórmula) [U1.ACT360.GEO.FUN.EST]",
+          "Arrasamento de estaca 4 un · calculada (fórmula) [U1.TORRE_ELEV.GEO.FUN.EST]",
+          "Arrasamento de estaca 91 un · calculada (fórmula) [U1.ACT600.GEO.FUN.EST]",
+          "Arrasamento de estaca 96 un · calculada (fórmula) [U1.FILTROS.GEO.FUN.EST]",
+          "Arrasamento de estaca 4 un · calculada (fórmula) [U1.EEE_FILTROS_NOVOS.GEO.FUN.EST]",
+          "Arrasamento de estaca 6 un · calculada (fórmula) [U1.DEPOSITO.GEO.FUN.EST]",
+          "Arrasamento de estaca 4 un · calculada (fórmula) [U1.GUARITA.GEO.FUN.EST]",
+          "Arrasamento de estaca 12 un · calculada (fórmula) [U1.ETL.GEO.FUN.EST]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.03.02": {
+        "quantidades_txt": [
+          "Arrasamento de estaca 39 un · calculada (fórmula) [U1.ACT360.GEO.FUN.EST]",
+          "Arrasamento de estaca 4 un · calculada (fórmula) [U1.TORRE_ELEV.GEO.FUN.EST]",
+          "Arrasamento de estaca 91 un · calculada (fórmula) [U1.ACT600.GEO.FUN.EST]",
+          "Arrasamento de estaca 96 un · calculada (fórmula) [U1.FILTROS.GEO.FUN.EST]",
+          "Arrasamento de estaca 4 un · calculada (fórmula) [U1.EEE_FILTROS_NOVOS.GEO.FUN.EST]",
+          "Arrasamento de estaca 6 un · calculada (fórmula) [U1.DEPOSITO.GEO.FUN.EST]",
+          "Arrasamento de estaca 4 un · calculada (fórmula) [U1.GUARITA.GEO.FUN.EST]",
+          "Arrasamento de estaca 12 un · calculada (fórmula) [U1.ETL.GEO.FUN.EST]"
+        ],
+        "situacao": "calculada"
+      },
+      "OP.03.03": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.03.04": {
+        "quantidades_txt": [
+          "156 un",
+          "148,13 m² (área em planta)",
+          "41 un · fonte única [U1.FILTROS.GEO.FUN.BLO]",
+          "82,62 m² · fonte única [U1.FILTROS.GEO.FUN.BLO]",
+          "85 un · fonte única [U1.ACT600.GEO.FUN.BLO]",
+          "43,25 m² · fonte única [U1.ACT600.GEO.FUN.BLO]",
+          "30 un · fonte única [U1.ACT360.GEO.FUN.BLO]",
+          "22,26 m² · fonte única [U1.ACT360.GEO.FUN.BLO]",
+          "Concreto estrutural 57,84 m³ · calculada (fórmula) [U1.FILTROS.GEO.FUN.BLO]",
+          "Concreto estrutural 5,05 m³ · calculada (fórmula) [U1.ACT600.GEO.FUN.BLO]",
+          "Concreto estrutural 13,52 m³ · calculada (fórmula) [U1.ACT360.GEO.FUN.BLO]",
+          "Forma 159,33 m² · calculada (fórmula) [U1.FILTROS.GEO.FUN.BLO]",
+          "Forma 27,16 m² · calculada (fórmula) [U1.ACT600.GEO.FUN.BLO]",
+          "Forma 62,15 m² · calculada (fórmula) [U1.ACT360.GEO.FUN.BLO]",
+          "Armadura (aço CA-50/CA-60) 4.626,88 kg · calculada (fórmula) [U1.FILTROS.GEO.FUN.BLO]",
+          "Armadura (aço CA-50/CA-60) 403,66 kg · calculada (fórmula) [U1.ACT600.GEO.FUN.BLO]",
+          "Armadura (aço CA-50/CA-60) 1.081,61 kg · calculada (fórmula) [U1.ACT360.GEO.FUN.BLO]",
+          "Lastro / concreto magro 4,13 m³ · calculada (fórmula) [U1.FILTROS.GEO.FUN.BLO]",
+          "Lastro / concreto magro 2,16 m³ · calculada (fórmula) [U1.ACT600.GEO.FUN.BLO]",
+          "Lastro / concreto magro 1,11 m³ · calculada (fórmula) [U1.ACT360.GEO.FUN.BLO]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.03.05": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.03.06": {
+        "quantidades_txt": [
+          "Lastro / concreto magro 4,13 m³ · calculada (fórmula) [U1.FILTROS.GEO.FUN.BLO]",
+          "Lastro / concreto magro 2,16 m³ · calculada (fórmula) [U1.ACT600.GEO.FUN.BLO]",
+          "Lastro / concreto magro 1,11 m³ · calculada (fórmula) [U1.ACT360.GEO.FUN.BLO]"
+        ],
+        "situacao": "calculada"
+      },
+      "OP.04.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.04.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.04.03": {
+        "quantidades_txt": [
+          "12 un",
+          "12 un · fonte única [U1.FILTROS.CIV.EST.PIL]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.04.04": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.04.05": {
+        "quantidades_txt": [
+          "Forma 159,33 m² · calculada (fórmula) [U1.FILTROS.GEO.FUN.BLO]",
+          "Forma 27,16 m² · calculada (fórmula) [U1.ACT600.GEO.FUN.BLO]",
+          "Forma 62,15 m² · calculada (fórmula) [U1.ACT360.GEO.FUN.BLO]"
+        ],
+        "situacao": "calculada"
+      },
+      "OP.04.06": {
+        "quantidades_txt": [
+          "Armadura (aço CA-50/CA-60) 2.913,51 kg · calculada (fórmula) [U1.ACT360.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 201,06 kg · calculada (fórmula) [U1.TORRE_ELEV.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 5.979,08 kg · calculada (fórmula) [U1.ACT600.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 5.800,64 kg · calculada (fórmula) [U1.FILTROS.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 180,96 kg · calculada (fórmula) [U1.EEE_FILTROS_NOVOS.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 301,59 kg · calculada (fórmula) [U1.DEPOSITO.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 180,96 kg · calculada (fórmula) [U1.GUARITA.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 653,45 kg · calculada (fórmula) [U1.ETL.GEO.FUN.EST]",
+          "Armadura (aço CA-50/CA-60) 4.626,88 kg · calculada (fórmula) [U1.FILTROS.GEO.FUN.BLO]",
+          "Armadura (aço CA-50/CA-60) 403,66 kg · calculada (fórmula) [U1.ACT600.GEO.FUN.BLO]",
+          "Armadura (aço CA-50/CA-60) 1.081,61 kg · calculada (fórmula) [U1.ACT360.GEO.FUN.BLO]"
+        ],
+        "situacao": "calculada"
+      },
+      "OP.04.07": {
+        "quantidades_txt": [
+          "Concreto estrutural 72,84 m³ · calculada (fórmula) [U1.ACT360.GEO.FUN.EST]",
+          "Concreto estrutural 5,03 m³ · calculada (fórmula) [U1.TORRE_ELEV.GEO.FUN.EST]",
+          "Concreto estrutural 149,48 m³ · calculada (fórmula) [U1.ACT600.GEO.FUN.EST]",
+          "Concreto estrutural 145,02 m³ · calculada (fórmula) [U1.FILTROS.GEO.FUN.EST]",
+          "Concreto estrutural 4,52 m³ · calculada (fórmula) [U1.EEE_FILTROS_NOVOS.GEO.FUN.EST]",
+          "Concreto estrutural 7,54 m³ · calculada (fórmula) [U1.DEPOSITO.GEO.FUN.EST]",
+          "Concreto estrutural 4,52 m³ · calculada (fórmula) [U1.GUARITA.GEO.FUN.EST]",
+          "Concreto estrutural 16,34 m³ · calculada (fórmula) [U1.ETL.GEO.FUN.EST]",
+          "Concreto estrutural 57,84 m³ · calculada (fórmula) [U1.FILTROS.GEO.FUN.BLO]",
+          "Concreto estrutural 5,05 m³ · calculada (fórmula) [U1.ACT600.GEO.FUN.BLO]",
+          "Concreto estrutural 13,52 m³ · calculada (fórmula) [U1.ACT360.GEO.FUN.BLO]"
+        ],
+        "situacao": "calculada"
+      },
+      "OP.04.08": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.05.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.06.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.06.02": {
+        "quantidades_txt": [
+          "Esquadrias (portas, janelas, portões, guarda-corpo) 800,95 m · fonte única [U1.*.CIV.ACA.ACB]",
+          "Esquadrias (portas, janelas, portões, guarda-corpo) 3,00 cj · fonte única [U1.*.CIV.ACA.ACB]",
+          "436 un · fonte única [U1.*.CIV.ACA.ACB]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.07.01": {
+        "quantidades_txt": [
+          "676,00 m (extensão)",
+          "753 un · fonte única [U1.*.HID.TUB.RED]",
+          "162,00 cj · fonte única [U1.*.HID.TUB.RED]",
+          "347,00 m · fonte única [U1.DREN_DN400.HID.TUB.RED]",
+          "329,00 m · fonte única [U1.DREN_DN300.HID.TUB.RED]",
+          "Assentamento de tubo 347,00 m · calculada (fórmula) [U1.DREN_DN400.HID.TUB.RED]",
+          "Assentamento de tubo 329,00 m · calculada (fórmula) [U1.DREN_DN300.HID.TUB.RED]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.07.02": {
+        "quantidades_txt": [
+          "2.302 un · fonte única [U1.*.HID.TUB.VAL]",
+          "Montagem / instalação 25 un · fonte única [U1.*.HID.TUB.VAL]",
+          "141,00 cj · fonte única [U1.*.HID.TUB.VAL]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.07.03": {
+        "quantidades_txt": [
+          "28 un · fonte única [U1.*.HID.TUB.PVS]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.07.04": {
+        "quantidades_txt": [],
+        "situacao": "só menção"
+      },
+      "OP.08.01": {
+        "quantidades_txt": [
+          "Drenagem superficial (sarjeta, canaleta, boca de lobo) 55 un · fonte única [U1.*.HID.EQP.EQU]",
+          "117 un · fonte única [U1.*.HID.EQP.EQU]",
+          "12,00 cj · fonte única [U1.*.HID.EQP.EQU]",
+          "40,00 m · fonte única [U1.*.HID.EQP.EQU]",
+          "Montagem / instalação 32 un · fonte única [U1.*.HID.EQP.EQU]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.09.01": {
+        "quantidades_txt": [
+          "69 un · fonte única [U1.*.ELE.FOR.INS]",
+          "90,00 m · fonte única [U1.*.ELE.FOR.INS]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.09.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.10.01": {
+        "quantidades_txt": [
+          "2.704,00 m² · fonte única [U1.*.CIV.PAV.REC]",
+          "Recomposição / execução 580,00 m² · fonte única [U1.*.CIV.PAV.REC]"
+        ],
+        "situacao": "preenchida"
+      },
+      "OP.10.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.10.03": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.11.01": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.11.02": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.11.03": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.12.01": {
+        "quantidades_txt": [],
+        "situacao": "só menção"
+      },
+      "OP.12.02": {
+        "quantidades_txt": [],
+        "situacao": "só menção"
+      },
+      "OP.12.03": {
+        "quantidades_txt": [],
+        "situacao": "a preencher"
+      },
+      "OP.12.04": {
+        "quantidades_txt": [],
+        "situacao": "só menção"
+      }
+    }
+  },
+  "escavacao": {
+    "cavas": {
+      "C01": {
+        "escavacao_m3": 3321.6,
+        "reaterro_m3": 1641.3
+      },
+      "C02": {
+        "escavacao_m3": 2414.8,
+        "reaterro_m3": 1220.8
+      },
+      "C03": {
+        "escavacao_m3": 1663.6,
+        "reaterro_m3": 1551.5
+      },
+      "C04": {
+        "escavacao_m3": 1068.1,
+        "reaterro_m3": 823.2
+      },
+      "C05": {
+        "escavacao_m3": 283.3,
+        "reaterro_m3": 81.7
+      },
+      "C06": {
+        "escavacao_m3": 115.1,
+        "reaterro_m3": 107.5
+      },
+      "C07": {
+        "escavacao_m3": 37.2,
+        "reaterro_m3": 35.4
+      },
+      "C08": {
+        "escavacao_m3": 17.1,
+        "reaterro_m3": 17.1
+      }
+    },
+    "total": {
+      "escavacao_m3": 8920.8,
+      "reaterro_m3": 5478.5
+    }
+  },
+  "gavetas": {
+    "diferencas_paridade": 0,
+    "fatos_ia": 0,
+    "fatos_por_executor": {
+      "código": 180
+    },
+    "fatos_por_natureza": {
+      "inferido": 11,
+      "observado": 96,
+      "projetado": 73
+    },
+    "objetos_por_classe": {
+      "conjunto_cavas": 1,
+      "furo_sondagem": 66,
+      "rede_vala": 15
+    },
+    "pendencias_por_motivo": {
+      "1 marca(s) de cota fora da faixa do terreno (terreno − 10 m a terreno + 0,5 m)": 1,
+      "2 cota(s) escrita(s) fora da faixa do terreno": 1,
+      "43 base(s) sem marca de cota de fundo (dentro, escrita ou a ≤ 3 m)": 1,
+      "84 base(s) com o fundo pela marca vizinha (sem marca interna nem cota escrita), por exemplo": 1,
+      "cava C01 na borda do levantamento": 1,
+      "cava C03 na borda do levantamento": 1,
+      "cava C05 na borda do levantamento": 1,
+      "cava C06 na borda do levantamento": 1,
+      "furo sem coordenadas": 43,
+      "unidade e sistema não definidos": 4
+    },
+    "reaproveitados": 16,
+    "recalculados": 0,
+    "recusas_ia": 0,
+    "sem_codigo_eap": {
+      "area_cava_m2": 8
+    },
+    "servicos": 120
+  },
+  "valas": {
+    "redes": {
+      "AAT00": {
+        "extensao_m": 3259.0,
+        "volume_vala_m3": 4055.0
+      },
+      "AAT01": {
+        "extensao_m": 594.0,
+        "volume_vala_m3": 836.9
+      },
+      "AAT02": {
+        "extensao_m": 350.0,
+        "volume_vala_m3": 433.0
+      },
+      "AAT06": {
+        "extensao_m": 3102.0,
+        "volume_vala_m3": 6304.0
+      },
+      "ETA drenagem Actiflo 600 DN150": {
+        "extensao_m": 20.2,
+        "volume_vala_m3": 9.8
+      },
+      "ETA drenagem DN300": {
+        "extensao_m": 329.0,
+        "volume_vala_m3": 292.8
+      },
+      "ETA drenagem DN400": {
+        "extensao_m": 347.0,
+        "volume_vala_m3": 373.4
+      },
+      "ETA entrada adutora água bruta DN1000": {
+        "extensao_m": 52.9,
+        "volume_vala_m3": 184.9
+      },
+      "ETA interligação adutora × módulo 360 DN1000": {
+        "extensao_m": 2.6,
+        "volume_vala_m3": 9.0
+      },
+      "ETA interligação adutora × módulo 600 DN1000": {
+        "extensao_m": 21.3,
+        "volume_vala_m3": 78.4
+      },
+      "ETA interligação módulo 360 × filtros existentes DN500": {
+        "extensao_m": 15.6,
+        "volume_vala_m3": 20.0
+      },
+      "ETA interligação módulo 360 × filtros existentes DN600": {
+        "extensao_m": 2.8,
+        "volume_vala_m3": 4.4
+      },
+      "ETA retorno lodo EEE flotofiltro DN150": {
+        "extensao_m": 31.6,
+        "volume_vala_m3": 16.6
+      },
+      "ETA saída lodo decantado DN200": {
+        "extensao_m": 90.4,
+        "volume_vala_m3": 69.3
+      },
+      "ETA saída lodo decantado DN300": {
+        "extensao_m": 8.9,
+        "volume_vala_m3": 6.0
+      }
+    }
+  }
+}
