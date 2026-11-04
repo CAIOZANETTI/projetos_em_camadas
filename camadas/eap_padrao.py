@@ -1181,6 +1181,82 @@ def montar(dados: dict, cfg: dict, out: Path | None = None) -> dict:
     return resultado
 
 
+def _linha_do_resumo(bloco: dict) -> dict:
+    """Linha de `resumo` do painel: contagens do `resumo` do tipo (nada é recontado) e a fração preenchida."""
+    r = bloco["resumo"]
+    aplicaveis = r["n_aplicaveis"]
+    return {
+        "tipo": bloco["tipo"],
+        "nome": bloco["nome"],
+        "folhas": r["n_folhas"],
+        "aplicaveis": aplicaveis,
+        "preenchidas": r["n_preenchidas"],
+        "calculadas": r["n_calculadas"],
+        "pct_preenchida": round(r["n_preenchidas"] / aplicaveis, 4)
+        if aplicaveis
+        else 0,
+        "pct_txt": r["pct_txt"],
+        "obrigatorias_a_preencher": r["obrigatorias_a_preencher"],
+        "conflitos": r["conflitos"],
+    }
+
+
+def _linha_da_etapa(bloco: dict, etapa: dict) -> dict:
+    """Linha de `etapas` do painel: contagens do `resumo` da etapa e a citação no contrato (texto 'sim'/'não')."""
+    return {
+        "etapa": etapa["id"],
+        "tipo": bloco["tipo"],
+        "nome": etapa["nome"],
+        "folhas": etapa["resumo"]["n_folhas"],
+        "preenchidas": etapa["resumo"]["n_preenchidas"],
+        "mencao": sum(f["situacao"] == SO_MENCAO for f in etapa["folhas"]),
+        "citada_no_contrato": "sim" if etapa["citada_no_contrato"] else "não",
+        "linhas_citadas": etapa["n_linhas_citadas"],
+    }
+
+
+def _linha_da_folha(bloco: dict, etapa: dict, folha: dict) -> dict:
+    """Linha de `folhas` do painel: a situação (constante de `SITUACOES`, para filtro) e o texto (`situacao_txt`)."""
+    return {
+        "folha": folha["id"],
+        "tipo": bloco["tipo"],
+        "etapa": etapa["id"],
+        "nome": folha["nome"],
+        "situacao": folha["situacao"],
+        "situacao_txt": folha["situacao_txt"],
+        "obrigatoria": "sim" if folha["obrigatoria"] else "não",
+        "aponta": ", ".join(folha["aponta_txt"]),
+        "quantidade": " | ".join(folha["quantidades_txt"]),
+        "evidencias": folha["n_evidencias"],
+        "motivo": folha.get("motivo") or "",
+        "observacao": folha["observacao"],
+    }
+
+
+def tabelas_do_painel(resultado: dict) -> dict[str, list[dict]]:
+    """Achata a saída de `montar` em quatro tabelas para o painel da EAP padrão (só apresentação, sem preço):
+    `resumo` (um por tipo), `situacoes` (tipo × situação com n > 0), `etapas` e `folhas`. Função pura: a ordem é a do
+    esqueleto (tipos da obra, etapas e folhas do `eap_padrao.json`) e `situacoes` segue `SITUACOES`. Em `folhas`,
+    `motivo` é a razão da situação dada pelo preenchimento (ex.: "citado sem valor") e `observacao`, a nota do padrão."""
+    blocos = resultado["tipos"]
+    return {
+        "resumo": [_linha_do_resumo(b) for b in blocos],
+        "situacoes": [
+            {"tipo": b["tipo"], "situacao": s["situacao"], "n": s["n"]}
+            for b in blocos
+            for s in b["resumo"]["por_situacao"]
+            if s["n"] > 0
+        ],
+        "etapas": [_linha_da_etapa(b, e) for b in blocos for e in b["etapas"]],
+        "folhas": [
+            _linha_da_folha(b, e, f)
+            for b in blocos
+            for e in b["etapas"]
+            for f in e["folhas"]
+        ],
+    }
+
+
 def metadados() -> dict:
     """Rastreabilidade do método e das premissas declaradas (regra 9 do estilo)."""
     return {
@@ -1203,6 +1279,7 @@ def metadados() -> dict:
             "preencher",
             "resumir",
             "montar",
+            "tabelas_do_painel",
             "metadados",
         ],
         "situacoes": list(SITUACOES),

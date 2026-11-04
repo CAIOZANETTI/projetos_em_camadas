@@ -1399,7 +1399,7 @@ def _ler_ia(caminho: str | Path) -> list:
     return saida
 
 
-def _planilha_do_contrato(esc: dict, trechos_lineares: list[dict] | None = None) -> tuple | None:
+def planilha_do_contrato(esc: dict, trechos_lineares: list[dict] | None = None) -> tuple | None:
     """(itens, documento, catálogo, trechos lineares declarados) da planilha do contrato (`escopo.itens_csv` do
     obra.json), ou None sem o arquivo."""
     from .orcamento_sanepar import catalogo
@@ -1434,7 +1434,7 @@ def _ler_fontes(cfg: dict, dados: dict, log=print) -> tuple[list[dict], list[dic
     """(evidências, recusadas na leitura, planilha do contrato) de todas as fontes do obra.json, na ordem: planilha
     do contrato, IA e decisões, documentos (log de ausente/recusado) e planilha Obras Lineares (log de pendência) e o
     `loop`; só então as recusas vão para o log."""
-    planilha = _planilha_do_contrato(cfg.get("escopo") or {}, eap_padrao.trechos_do_cfg(cfg))
+    planilha = planilha_do_contrato(cfg.get("escopo") or {}, eap_padrao.trechos_do_cfg(cfg))
     extras = _extras_do_cfg(cfg.get("evidencias") or {})
     recusadas_ia, recusadas = [], []
     documentos = _documentos(cfg, log, recusadas)
