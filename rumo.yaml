@@ -50,10 +50,12 @@ etapas:
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: a_fazer
-  inicio: null
-  fim: null
-  forcado: null
+  status: feito
+  inicio: '2026-11-04T21:52:08Z'
+  fim: '2026-11-04T21:52:08Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main; balanço SEM_GANHO sem piora; build real: interface 331/0,
+    golden 0, EAP única 0, complementares 25/25'
 historico:
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: reconstrução F3 (PR #80, 0.71.0)'
