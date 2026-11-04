@@ -1,39 +1,41 @@
-objetivo: 'A4 do plano: o fundo de cada cava pela marca de cota da sua própria estrutura, não pela vizinha (HH e FF de Foz)'
+objetivo: 'A5 do plano: o NSPT do laudo Geoazimute de Foz lido em código, por metro, nos 23 furos'
 criterio_de_pronto:
-- "cada base de escavação tem o fundo pela marca da própria estrutura (dentro da base ou ligada a ela), com a origem da ligação declarada"
-- "a cota de fundo escrita sem símbolo de marca (ex.: 235,35 da Câmara de Contato) é lida em código, quando existir"
-- "a conferência por seção mostra o fundo do modelo dentro de ±0,30 m em HH e FF, sem piorar as outras"
-- "volumes por cava antes × depois, build real, aceite do Fable, PR e merge"
-base: 51bf074
+- "NSPT por metro (golpes dos 30 cm finais, e os iniciais e a penetração quando impressos) lido pela posição dos números na folha do perfil, nos 23 furos"
+- "conferido à mão em pelo menos 3 furos contra o PDF; nada inventado (célula ilegível fica vazia com alerta)"
+- "sondagens.json com o nspt; build real e aceite do Fable; PR e merge"
+base: 81ed4e2
 etapas:
 - id: E1
-  nome: Ligação marca de cota ↔ base da estrutura e leitura da cota escrita sem símbolo
+  nome: Leitor do NSPT no layout Geoazimute (tabela de golpes da folha do perfil)
   entregaveis:
-  - camadas/escavacao.py
-  - tests/test_escavacao_marcas.py
+  - camadas/geotecnia.py
+  - tests/test_geotecnia.py
   depende_de: []
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
-  status: feito
-  inicio: '2026-11-04T12:32:23Z'
-  fim: '2026-11-04T13:05:00Z'
+  status: fazendo
+  inicio: '2026-11-04T13:41:10Z'
+  fim: null
 - id: E2
-  nome: Build real, conferência, balanço, aceite do Fable, PR e merge
+  nome: Build real, aceite do Fable, balanço, PR e merge
   entregaveis:
-  - docs/plano/2026-11-04_a4_marcas_de_cota.md
+  - docs/plano/2026-11-04_a5_nspt.md
   - rumo.yaml
   - results/iteracoes/*
   - results/agentes/execucoes.csv
   depende_de:
   - E1
   agente: opus
-  estimativa_min: 60
-  estimativa_tokens: 150000
-  status: feito
-  inicio: '2026-11-04T13:05:00Z'
-  fim: '2026-11-04T13:28:05Z'
+  estimativa_min: 45
+  estimativa_tokens: 120000
+  status: a_fazer
+  inicio: null
+  fim: null
 historico:
+- data: '2026-11-04'
+  mudanca: 'objetivo anterior concluído: A4 (PR #68, 0.59.0)'
+  motivo: 'o Caio pediu a A5 até o merge e depois o resumo final para arquivar a conversa'
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: terreno das cavas (PR #63, 0.56.0); plano da memória espacial gravado em docs/plano/2026-11-04_plano_memoria_espacial.md'
   motivo: 'o Caio aprovou o plano e pediu a A4'
