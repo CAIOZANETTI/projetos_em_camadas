@@ -1,7 +1,48 @@
 # Changelog
 
 ## 0.61.0 — 2026-11-04 · Orçamento de Foz 211: as quantidades do CUSTO CIVIL calculadas em código, sem preço
-- (em andamento: números do build real na E5)
+- **`camadas/contrato_211.py`** + `conceitos/composicoes_sanepar.json`: a aba CUSTO CIVIL da planilha 211, lida **só
+  pelas colunas A–E e I**. Um teste prova que VALOR UNITÁRIO e VALOR TOTAL nunca são lidos (sentinela de preço). Cada
+  linha de serviço:
+  - fica ligada à folha da EAP padrão pela composição;
+  - recebe a quantidade calculada, com evidência e premissas, e a situação: `calculada`, `parcial`, `declarada ·
+    confere/diverge`, `declarada`, `verba` ou `a preencher`, esta com o motivo.
+- Regras por composição:
+  - comprimento do trecho (por DN nas linhas CVCA);
+  - escavação, bota-fora e transporte pelo dimensionador único de vala;
+  - rebaixamento (VB) pelo NA do furo mais próximo contra o fundo da vala;
+  - escoramento blindado (un/mês);
+  - recomposição;
+  - supressão na faixa dos trechos;
+  - locação;
+  - limpeza, lavagem e cadastro pela soma dos trechos da UC.
+- Premissas declaradas, em estado `calibrar`, aprovadas pelo Caio ("deixa a premissa"):
+  - DMT do bota-fora de 10 km;
+  - 8 m/dia de vala escorada;
+  - 22 dias úteis por mês;
+  - 1 jogo de escoramento.
+- **`camadas/valas.py`**: eixo do tubo desenhado com dois contornos num layer genérico (`eixos_por_pares`).
+  - Cinco redes internas da ETA na f004, com `trecho_contrato`:
+    - entrada da adutora de água bruta, FD DN 1000: 52,9 m;
+    - saída do lodo decantado, DN 200: 90,4 m; DN 300: 8,9 m;
+    - retorno do lodo EEE flotofiltro, DN 150: 31,6 m;
+    - drenagem do Actiflo 600, DN 150: 20,2 m.
+  - As interligações das folhas 009 e 010 (detalhes 1:100 sem georreferência) ficam em `valas.fora`, com o comprimento
+    medido pela escala.
+- **Aba EAP**: bloco "Contrato 211: quantidades do CUSTO CIVIL (sem preço)", agrupado por folha da EAP. O resumo já
+  sai formatado do Python. O teste de interface confere:
+  - uma linha por linha do Python;
+  - nenhum "R$" no bloco;
+  - o bloco não alarga a página.
+- **Foz** (86 linhas):
+  - das 58 linhas vazias com unidade, **32 calculadas** e 4 parciais. Ficam 22 a preencher, cada uma com o motivo:
+    - 15 nas interligações (14 da f009 e 1 da f010), sem georreferência;
+    - sondagem, interferências e caçambas, sem regra;
+    - a supressão da UC 3;
+  - asfalto: 2 704 m² declarados × 2 779,9 m² do H01 (+2,8 %, confere);
+  - rebaixamento 0 nos cinco trechos: o NA fica uns 7 m abaixo do fundo da vala.
+- Na integração, a supressão da faixa dos trechos zerava: o buffer plano de ponto é vazio. Corrigido, com teste sem
+  mock da geometria. Lições L057 (worktree do executor) e L058 (mock que escondeu a geometria).
 
 ## 0.60.0 — 2026-11-04 · A5: NSPT do laudo Geoazimute lido em código
 - **`geotecnia.nspt_da_folha`** lê a tabela de golpes pela posição de cada número: colunas INI., FIN. e 3 segmentos;
