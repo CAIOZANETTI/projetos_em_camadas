@@ -239,19 +239,23 @@ def _marcas_da_planta(marcas: list[dict]) -> list[dict]:
     return saida
 
 
-def _evidencias_das_cavas(superficie: dict, pranchas: list[str], layers: list[str], crs_h: str, mds: str) -> list[dict]:
-    """A evidência das plantas (pranchas e layers) e a da superfície (MDS do drone, `metodo` geometria)."""
+def _evidencias_das_cavas(superficie: dict, pranchas: list[str], layers: list[str], crs_h: str, mds: str,
+                          fonte_terreno: str | None = None) -> list[dict]:
+    """A evidência das plantas (pranchas e layers) e a da superfície (MDS do drone, `metodo` geometria). Com
+    `fonte_terreno`, o terreno é composto (topografia + MDS) e a evidência diz isso."""
     return [{"evidencia_id": "EV-CAVAS", "classe": "projeto", "documento": ", ".join(pranchas) or "plantas de escavação",
              "localizador": {"pranchas": list(pranchas), "layers": list(layers), "criterio": "plantas de escavação",
                              "crs_h": crs_h, "etapa_origem": "escavacao"},
              "trecho": "cavas", "metodo": "geometria", "executor": "código"},
             {"evidencia_id": superficie["evidencia_id"], "classe": "ortofoto", "documento": mds,
-             "localizador": {"arquivo": mds, "chave": "terreno em cota (MDS), válido e edificação"},
+             "localizador": {"arquivo": mds, "chave": "terreno em cota (MDS), válido e edificação"
+                             + (f"; terreno composto: {fonte_terreno}" if fonte_terreno else "")},
              "trecho": superficie["superficie_id"], "metodo": "geometria", "executor": "código"}]
 
 
 def de_cavas(marcas: list[dict], bases: list[dict], cristas: list, superficie_registro: dict, pranchas: list[str],
-             crs_h: str = "EPSG:31982", mds: str | Path | None = None, layers: list[str] | None = None) -> dict:
+             crs_h: str = "EPSG:31982", mds: str | Path | None = None, layers: list[str] | None = None,
+             fonte_terreno: str | None = None) -> dict:
     """Plantas de escavação → objeto `conjunto_cavas` `CAVAS`, os fatos `marcas_cota`, `bases`, `cristas` e `superficie_id`
     (todos `projetado`), a evidência nas pranchas e layers e a superfície com a sua.
 
@@ -263,7 +267,7 @@ def de_cavas(marcas: list[dict], bases: list[dict], cristas: list, superficie_re
     documento_mds = str(mds) if mds else "sfm/ortofoto_mds.png"
     base["objetos"].append({"objeto_id": "CAVAS", "classe": "conjunto_cavas"})
     base["superficies"].append(superficie)
-    base["evidencias"] += _evidencias_das_cavas(superficie, pranchas, layers or [], crs_h, documento_mds)
+    base["evidencias"] += _evidencias_das_cavas(superficie, pranchas, layers or [], crs_h, documento_mds, fonte_terreno)
     valores = {"marcas_cota": _marcas_da_planta(marcas), "bases": _bases_da_gaveta(bases),
                "cristas": [[list(map(float, xy)) for xy in (c.coords if hasattr(c, "coords") else c)] for c in cristas],
                "superficie_id": superficie["superficie_id"]}
@@ -429,13 +433,23 @@ def _resumo(base: dict, erros: list[str], difs: list[dict], servicos: list[dict]
         "eap": gavetas.para_eap(servicos)}
 
 
+def _fonte_do_terreno(g: dict) -> str | None:
+    """Texto da fonte do terreno composto (topografia + MDS) com as áreas por origem; None quando é o MDS puro."""
+    r = g.get("terreno_resumo")
+    if r is None:
+        return None
+    areas = ", ".join(f"{nome} {m2:g} m²" for nome, m2 in r["area_m2"].items())
+    return f"topografia do projeto no casco das curvas, MDS corrigido fora, costura de {r['faixa_costura_m']:g} m ({areas})"
+
+
 def _base_das_cavas(cfg: dict, out: Path, pasta: Path, cavas: dict) -> dict:
     """Grava a superfície em `pasta/superficies/` e devolve as gavetas das cavas (`de_cavas`)."""
     registro = gavetas.gravar_superficie(pasta, SUPERFICIE_CAVAS, cavas["g"])
     c = cfg.get("escavacao") or {}
     layers = [c[k] for k in ("layer_base", "layer_marca", "layer_crista") if c.get(k)]
     return de_cavas(cavas["marcas"], cavas["bases"], cavas["cristas"], registro, cavas.get("pranchas", []),
-                    registro["crs_h"], mds=Path(out) / "sfm" / "ortofoto_mds.png", layers=layers)
+                    registro["crs_h"], mds=Path(out) / "sfm" / "ortofoto_mds.png", layers=layers,
+                    fonte_terreno=_fonte_do_terreno(cavas["g"]))
 
 
 def _anotar_codigo_eap(base: dict, servicos: list[dict], cfg: dict, por_servico: dict) -> dict:

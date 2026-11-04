@@ -564,11 +564,20 @@ def inferir_cotas(curvas: list[dict], passo_m: float | None) -> list[dict]:
     return curvas
 
 
-def curvas_dos_tracos(tracos: list[dict], M, ler=ler_rotulos) -> list[dict]:
+def _regex_dos_layers(layers: list[str] | None) -> str:
+    """Expressão que casa exatamente os layers dados; sem lista, a padrão (`CAMADAS_CURVAS`)."""
+    if not layers:
+        return CAMADAS_CURVAS
+    return "^(" + "|".join(re.escape(nome) for nome in layers) + ")$"
+
+
+def curvas_dos_tracos(
+    tracos: list[dict], M, ler=ler_rotulos, layers: list[str] | None = None
+) -> list[dict]:
     """Curvas de nível em UTM a partir dos traços de uma prancha: separa, lê rótulos (`ler(grupos)`, injetável), data as
     curvas, infere as sem rótulo e converte pela afim `M` (pt → UTM). Devolve [{cota_m, coords_utm, layer, origem,
-    alertas}]."""
-    curvas, glifos = separar_tracos(tracos)
+    alertas}]. `layers`: nomes dos layers de curva (padrão `CAMADAS_CURVAS`)."""
+    curvas, glifos = separar_tracos(tracos, _regex_dos_layers(layers))
     leituras = ler(agrupar_glifos(glifos))
     passo = estimar_passo(leituras)
     rotulos, alertas_rotulos = rotulos_coerentes(leituras, passo)
@@ -585,11 +594,13 @@ def curvas_dos_tracos(tracos: list[dict], M, ler=ler_rotulos) -> list[dict]:
     return curvas
 
 
-def curvas_de_nivel(pdf: str | Path, M, clip=None) -> list[dict]:
+def curvas_de_nivel(
+    pdf: str | Path, M, clip=None, layers: list[str] | None = None
+) -> list[dict]:
     """Curvas de nível de uma prancha PDF vetorial, cada uma com a sua cota: [{cota_m, coords_utm, layer, origem,
     alertas}]. `M`: afim pt → UTM (2×3 ou 3×3); `clip`: janela [x0, y0, x1, y1] em pt (planta com dois desenhos).
-    `cota_m` None = curva sem cota. Exige pymupdf, tesseract e scipy."""
-    return curvas_dos_tracos(pdf_cad.extrair(pdf, clip=clip), M)
+    `cota_m` None = curva sem cota. `layers`: nomes dos layers de curva. Exige pymupdf, tesseract e scipy."""
+    return curvas_dos_tracos(pdf_cad.extrair(pdf, clip=clip), M, layers=layers)
 
 
 def resumir_curvas(curvas: list[dict]) -> dict:
@@ -1158,3 +1169,113 @@ def gravar(relatorio: dict, caminho: Path) -> Path:
         encoding="utf-8",
     )
     return caminho
+
+
+# --- terreno composto: topografia no casco, MDS corrigido fora (decisão do Caio, 04/11/2026) --------------------------
+ORIGENS_TERRENO = (
+    "sem_terreno",
+    "topografia",
+    "mds_corrigido",
+    "costura",
+)  # código = posição na tupla
+FAIXA_COSTURA_PADRAO_M = (
+    5.0  # largura (para dentro do casco) em que a topografia entra aos poucos
+)
+
+
+def _plano_de_correcao(g: dict, topografia: np.ndarray, excluir: np.ndarray) -> dict:
+    """Plano (E, N) do erro MDS − topografia nas células de terreno aberto: dentro do casco, no levantamento válido, sem
+    edificação nem vegetação alta (`excluir`); ajuste aparado em `APARAR_MAD` MAD. Devolve `ajustar_tendencia` (grau 1)."""
+    mds = g["terreno"].astype(np.float64)
+    mascara = g["valido"] & np.isfinite(topografia) & np.isfinite(mds) & ~excluir
+    if not mascara.any():
+        raise ValueError(
+            "sem terreno aberto dentro do casco das curvas: o plano de correção não pode ser ajustado"
+        )
+    col, lin = _centros(g)
+    li, ci = np.nonzero(mascara)
+    passo = max(1, len(li) // MAX_AMOSTRAS_TENDENCIA)
+    li, ci = li[::passo], ci[::passo]
+    erro = mds[li, ci] - topografia[li, ci]
+    return ajustar_tendencia(col[ci], lin[li], erro, 1, APARAR_MAD)
+
+
+def _valor_do_plano(plano: dict, g: dict) -> np.ndarray:
+    """Valor (m) do plano ajustado em cada célula da grade (E, N dos centros)."""
+    col, lin = _centros(g)
+    c, (e0, n0) = plano["coeficientes"], plano["centro_utm"]
+    return (
+        c["a_m"]
+        + c["b_e_m_por_m"] * (col[None, :] - e0)
+        + c["b_n_m_por_m"] * (lin[:, None] - n0)
+    )
+
+
+def _peso_da_topografia(dentro: np.ndarray, res: float, faixa_m: float) -> np.ndarray:
+    """Peso (0 a 1) da topografia: 0 na borda do casco, cresce linear com a distância à borda e vale 1 a `faixa_m` dela;
+    0 fora do casco."""
+    dist_m = (
+        cv2.distanceTransform(
+            dentro.astype(np.uint8), cv2.DIST_L2, cv2.DIST_MASK_PRECISE
+        )
+        - 0.5
+    ) * res
+    return np.where(dentro, np.clip(dist_m / faixa_m, 0.0, 1.0), 0.0)
+
+
+def _pendencias_sem_terreno(g: dict, sem: np.ndarray, alta: np.ndarray) -> dict:
+    """Área (m²) sem terreno por motivo (na ordem: fora do levantamento, edificação, vegetação alta)."""
+    area = g["res"] ** 2
+    fora = sem & ~g["valido"]
+    edif = sem & g["valido"] & g["edificacao"]
+    veg = sem & g["valido"] & ~g["edificacao"] & alta
+    return {
+        "fora_do_levantamento_m2": round(float(fora.sum() * area), 1),
+        "edificacao_m2": round(float(edif.sum() * area), 1),
+        "vegetacao_alta_m2": round(float(veg.sum() * area), 1),
+        "total_m2": round(float(sem.sum() * area), 1),
+    }
+
+
+def compor_terreno(
+    g: dict,
+    topografia: np.ndarray,
+    vegetacao_alta: np.ndarray,
+    faixa_costura_m: float = FAIXA_COSTURA_PADRAO_M,
+) -> dict:
+    """Terreno das cavas: topografia do projeto dentro do casco das curvas; fora dele, o MDS (`g["terreno"]`) menos o
+    plano de inclinação medido contra a topografia no terreno aberto, sem edificação (`g["edificacao"]`) nem vegetação
+    alta (viram NaN, "sem terreno"); costura linear de `faixa_costura_m` para dentro da borda do casco. Devolve
+    {terreno (float32), origem (uint8, índice em `ORIGENS_TERRENO`), plano, resumo}. Nada é inventado: onde nenhuma das
+    fontes vale, a célula fica NaN."""
+    if faixa_costura_m <= 0:
+        raise ValueError("a faixa de costura deve ser positiva")
+    dentro = np.isfinite(topografia)
+    plano = _plano_de_correcao(g, topografia, g["edificacao"] | vegetacao_alta)
+    mds = g["terreno"].astype(np.float64)
+    util = g["valido"] & ~g["edificacao"] & ~vegetacao_alta & np.isfinite(mds)
+    mds_corrigido = np.where(util, mds - _valor_do_plano(plano, g), np.nan)
+    peso = _peso_da_topografia(dentro, g["res"], faixa_costura_m)
+    topo = np.where(dentro, topografia, np.nan)
+    misturado = peso * topo + (1 - peso) * mds_corrigido
+    terreno = np.where(
+        dentro, np.where(np.isfinite(mds_corrigido), misturado, topo), mds_corrigido
+    )
+    origem = np.select(
+        [~np.isfinite(terreno), dentro & ((peso >= 1) | ~util), dentro, True],
+        [0, 1, 3, 2],
+    ).astype(np.uint8)
+    area = g["res"] ** 2
+    return {
+        "terreno": terreno.astype(np.float32),
+        "origem": origem,
+        "plano": plano,
+        "resumo": {
+            "area_m2": {
+                nome: round(float((origem == k).sum() * area), 1)
+                for k, nome in enumerate(ORIGENS_TERRENO)
+            },
+            "faixa_costura_m": faixa_costura_m,
+            "sem_terreno": _pendencias_sem_terreno(g, origem == 0, vegetacao_alta),
+        },
+    }

@@ -430,13 +430,35 @@ def _amostrar_linha(linha: dict, g: dict) -> tuple:
     )
 
 
+ORIGENS_DA_TOPOGRAFIA = (
+    1,
+    3,
+)  # `topografia.ORIGENS_TERRENO`: topografia e costura (mistura com a topografia)
+
+
+def _fracao_da_topografia(g: dict, lin, col, valido: np.ndarray) -> float | None:
+    """Parte das amostras válidas da linha cujo terreno do modelo é (ou mistura) a topografia do projeto. None quando o
+    terreno é o MDS puro (`g` sem `origem_terreno`). Perto de 1, comparar o terreno do modelo com o TERRENO ORIGINAL
+    da seção é quase circular: as duas coisas vêm do mesmo projeto."""
+    origem = g.get("origem_terreno")
+    if origem is None:
+        return None
+    return (
+        float(np.isin(origem[lin, col], ORIGENS_DA_TOPOGRAFIA)[valido].mean())
+        if valido.any()
+        else 0.0
+    )
+
+
 def perfil_do_modelo(linha: dict, g: dict, corte: np.ndarray) -> dict:
     """Seção do modelo ao longo da linha: área de corte (∫ corte ds), fundo mínimo (terreno − corte onde há corte),
     largura do corte e terreno [[s_m, z_m]]; `fracao_no_mds` é a parte da linha dentro da grade válida,
     `fracao_edificacao` a parte das amostras sobre edificação existente e `corte_na_ponta` diz se o corte vai até uma
     das pontas (a cava continua além da linha)."""
     s, _, passo, lin, col, dentro = _amostrar_linha(linha, g)
-    valido = dentro & g["valido"][lin, col]
+    valido = (
+        dentro & g["valido"][lin, col] & np.isfinite(g["terreno"][lin, col])
+    )  # NaN = sem terreno
     c = np.where(valido, corte[lin, col], 0.0).astype(float)
     z = np.where(valido, g["terreno"][lin, col], np.nan).astype(float)
     edificacao = g.get("edificacao", np.zeros(g["forma"], bool))
@@ -449,6 +471,7 @@ def perfil_do_modelo(linha: dict, g: dict, corte: np.ndarray) -> dict:
         "terreno": np.c_[s, z][valido].round(3).tolist(),
         "fracao_no_mds": float(valido.mean()),
         "fracao_edificacao": float((valido & edificacao[lin, col]).mean()),
+        "fracao_terreno_topografia": _fracao_da_topografia(g, lin, col, valido),
         "amostras_edificacao": (valido & edificacao[lin, col]).tolist(),
         "corte_na_ponta": bool(com_corte[0] or com_corte[-1]),
         "passo_m": float(passo),
@@ -712,6 +735,7 @@ def conferir_secao(sec: dict, mod: dict | None) -> dict:
             area_modelo_m2=mod["area_corte_m2"],
             fundo_modelo_m=mod["cota_fundo_min_m"],
             largura_modelo_m=mod["largura_corte_m"],
+            fracao_terreno_topografia=mod.get("fracao_terreno_topografia"),
             linha_prancha=mod.get("linha_prancha"),
             comprimento_linha_m=mod.get("comprimento_linha_m"),
             dif_terreno_m=terr and terr["dif_media_m"],
@@ -1248,6 +1272,27 @@ def _ler_pdfs(
     return projeto, linhas, notas
 
 
+AVISO_TERRENO_CIRCULAR = (
+    "terreno do modelo = topografia do projeto (curvas da GEOPLANTA) dentro do casco e MDS corrigido fora: a diferença "
+    "de terreno entre o modelo e o TERRENO ORIGINAL das seções é quase circular onde o terreno é a topografia; "
+    "área e fundo seguem informativos"
+)
+
+
+def _terreno_do_modelo(g: dict) -> dict | None:
+    """Declaração da fonte do terreno do modelo quando ele é composto (topografia + MDS); None quando é o MDS puro."""
+    resumo = g.get("terreno_resumo")
+    if resumo is None:
+        return None
+    return {
+        "fonte": "topografia do projeto no casco, MDS corrigido fora",
+        "circular_na_comparacao_de_terreno": True,
+        "area_m2": resumo["area_m2"],
+        "sem_terreno": resumo["sem_terreno"],
+        "aviso": AVISO_TERRENO_CIRCULAR,
+    }
+
+
 def conferir(projeto: list, linhas: list, notas: list, saida: dict) -> dict:
     """Junta tudo: `saida` é o que a escavação entregou (`g`, `corte`, `contornos`, `resultado`)."""
     g, corte = saida["g"], saida["corte"]
@@ -1265,7 +1310,11 @@ def conferir(projeto: list, linhas: list, notas: list, saida: dict) -> dict:
     }
     secoes = conferir_secoes(projeto, modelo)
     medias = secoes_medias(retas, secoes, saida["contornos"], g, corte)
+    terreno_do_modelo = _terreno_do_modelo(g)
+    if terreno_do_modelo:
+        alertas = [*alertas, AVISO_TERRENO_CIRCULAR]
     return {
+        **({"terreno_do_modelo": terreno_do_modelo} if terreno_do_modelo else {}),
         "secoes": secoes,
         "medias": medias,
         "sequencia": ligar_sequencia(notas, saida["cavas_info"]),
@@ -1316,6 +1365,11 @@ def para_html(r: dict) -> dict:
     return {
         "placar": placar(r["secoes"]),
         "placar_sequencia": placar_sequencia(r["sequencia"]),
+        **(
+            {"terreno_do_modelo": r["terreno_do_modelo"]}
+            if r.get("terreno_do_modelo")
+            else {}
+        ),
         "secoes": [formatar_secao(s) for s in r["secoes"]],
         "medias": [formatar_media(m) for m in r["medias"]],
         "sequencia": [formatar_nota(n) for n in r["sequencia"]],
