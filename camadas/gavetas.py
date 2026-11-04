@@ -82,6 +82,22 @@ def conferir_base(base: dict) -> list[str]:
     return erros
 
 
+def id_documento(caminho) -> str:
+    """Chave da gaveta `documentos`: sha256 do conteúdo do arquivo (16 hex). O mesmo arquivo dá a mesma chave em
+    qualquer obra e em qualquer máquina; renomear não muda, revisar muda."""
+    import hashlib
+    h = hashlib.sha256()
+    with open(caminho, "rb") as fh:
+        for bloco in iter(lambda: fh.read(1 << 20), b""):
+            h.update(bloco)
+    return h.hexdigest()[:16]
+
+
+def id_pagina(documento_id: str, pagina: int) -> str:
+    """Chave da gaveta `paginas` (página de 1 a n)."""
+    return f"{documento_id}#p{int(pagina)}"
+
+
 def _localizador_com_pagina(loc) -> bool:
     """Localizador v2: página do documento (PDF) ou aba e linha (planilha)."""
     if isinstance(loc, str):

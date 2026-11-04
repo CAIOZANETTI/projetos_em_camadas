@@ -55,3 +55,11 @@ def test_documento_fora_da_gaveta_segue_regra_v1():
     base = _base(documentos=[], paginas=[])
     base["evidencias"][0]["localizador"] = "prancha f004"
     assert gavetas.conferir_base(base) == []
+
+
+def test_id_documento_pelo_conteudo(tmp_path):
+    a, b, c = tmp_path / "a.pdf", tmp_path / "b.pdf", tmp_path / "c.pdf"
+    a.write_bytes(b"%PDF-1.4 mesmo"), b.write_bytes(b"%PDF-1.4 mesmo"), c.write_bytes(b"%PDF-1.4 outro")
+    assert gavetas.id_documento(a) == gavetas.id_documento(b) != gavetas.id_documento(c)
+    assert len(gavetas.id_documento(a)) == 16
+    assert gavetas.id_pagina("abc", 3) == "abc#p3"
