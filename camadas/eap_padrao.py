@@ -940,6 +940,10 @@ def _avisos_dos_trechos(trechos: list[dict], linhas: list[dict] | None) -> list[
     return avisos
 
 
+MOTIVO_NAO_DECLARADO = "sistema de trecho linear não declarado na obra"
+"""Motivo da recusa na leitura (`evidencias.loop`) que vira o aviso de sistema linear não declarado."""
+
+
 def _aviso_nao_declarado(
     codigo: str, servico: str | None, valor, unidade: str, documentos: list
 ) -> str:
@@ -982,7 +986,11 @@ def _avisos_nao_declarados(dados: dict, declarados: set[tuple[str, str]]) -> lis
     for r in (
         evidencias.get("recusadas") if isinstance(evidencias, dict) else None
     ) or []:
-        if sistema_linear_nao_declarado(r.get("codigo") or "", declarados):
+        if r.get("motivo") != MOTIVO_NAO_DECLARADO:
+            avisos.append(  # decisão fora do schema: aviso próprio, com o motivo, em qualquer obra
+                f"Decisão recusada na leitura: {r.get('codigo') or 'sem código'} ({r.get('motivo')})"
+            )
+        elif sistema_linear_nao_declarado(r.get("codigo") or "", declarados):
             avisos.append(  # o mesmo texto de um fato não duplica: a lista final é única
                 _aviso_nao_declarado(
                     r["codigo"],

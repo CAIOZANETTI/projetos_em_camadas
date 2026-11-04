@@ -942,3 +942,20 @@ def test_recusa_leitura_etapa_devolve_as_recusas_e_o_aviso_da_eap_padrao_sem_dup
     assert resumo["recusadas"] == [] and len(resumo["fatos"]) == 1
     avisos = eap_padrao.montar({"evidencias": resumo}, MISTA)["avisos"]
     assert not [a for a in avisos if "não declarado" in a]
+
+
+def test_recusa_leitura_decisao_invalida_vira_aviso_proprio_e_nao_o_de_nao_declarado():
+    # aceite do Fable (opcional 1): o motivo da recusa decide o aviso; decisão inválida não vira "não declarado"
+    dec = evidencias.decisao(
+        CODIGO_LINEAR, "escavacao", "m", 100.0, "caio", "vala de 100 m"
+    )
+    ruim = {**dec, "codigo": CODIGO_LINEAR.lower()}
+    for cfg in (SEM_DECLARACAO, MISTA):
+        _, recusadas = _ler_com(
+            eap_padrao.trechos_do_cfg(cfg), documentos=[], decisoes=[ruim]
+        )
+        resumo = {"fatos": [], "recusadas": [evidencias._resumo_da_recusa(r) for r in recusadas]}
+        avisos = eap_padrao.montar({"evidencias": resumo}, cfg)["avisos"]
+        assert not [a for a in avisos if "não declarado" in a]
+        [aviso] = [a for a in avisos if a.startswith("Decisão recusada na leitura: ")]
+        assert CODIGO_LINEAR.lower() in aviso and "decisão inválida" in aviso

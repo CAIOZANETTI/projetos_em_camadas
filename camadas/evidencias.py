@@ -1288,7 +1288,7 @@ def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: di
     return evs + associados.de_fatos(consolidar(evs))
 
 
-MOTIVO_NAO_DECLARADO = "sistema de trecho linear não declarado na obra"
+MOTIVO_NAO_DECLARADO = eap_padrao.MOTIVO_NAO_DECLARADO
 
 
 def _decisoes_validas(decisoes: list | None, recusadas: list[dict]) -> list[dict]:

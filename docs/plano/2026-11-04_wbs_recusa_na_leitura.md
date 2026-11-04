@@ -48,3 +48,11 @@ idênticos, cadeia real de Foz igual, `vcm balanco` sem REVERTER, aprovação do
 
 Efeitos: Foz não tem IA, decisões nem documento com `sistema`, e o trecho está declarado, então E1 é vazia para
 Foz. `camadas.referencia` não mede estes caminhos; o invariante útil é o hash da cadeia real de Foz (c5c2d5cd).
+
+## Aceite
+
+Aceite Fable 04/11/2026: ACEITA e605366 — recusa na leitura em `loop` como filtro único com declaração por parâmetro,
+decisões validadas pelo schema, recusas visíveis nos avisos sem duplicar; Foz idêntica (hash c5c2d5cd) e três verdes
+reproduzidos pelo revisor. Opcional tratado no mesmo PR: o aviso escolhe o texto pelo motivo (decisão inválida ganha
+aviso próprio e não aparece como "não declarado"), com teste. Opcionais registrados: `sistema` em minúsculas no
+`obra.json` levanta `ValueError` em `buscar_texto` (pré-existente); `pares_declarados` fora de `metadados()["funcoes"]`.
