@@ -136,3 +136,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-04,A5 NSPT,aceite da A5,gerente (aceite),claude-fable-5-1,143646,41,442,True,nenhum,"ACEITA: 6 furos conferidos à mão, 0 divergências; relato corrigido (SP11/SP12 interrompidos no meio do furo)"
 2026-11-04,WBS 0.61.0,aceite da entrega das travas,revisor (Fable),claude-fable-5-1,105641,20,454,True,nenhum,"ACEITA; Foz reproduzida na base e na entrega; aferição pré-existente na base"
 2026-11-04,WBS recusa,aprovação do plano da recusa na leitura,revisor (Fable),claude-fable-5-1,132358,12,300,True,nenhum,"APROVA com 4 ajustes: declaração por parâmetro em loop; filtro único removendo de evs; recusas nos avisos; E2 recusar ou normalizar (gerente escolheu recusar)"
+2026-11-04,WBS recusa,implementação da recusa na leitura (commit e605366),executor,claude-sonnet-5-5,,,,True,nenhum,"1125 testes; suíte vcm 0 falhas; Foz idêntica (hash c5c2d5cd), 0 recusas; aferição ok"
