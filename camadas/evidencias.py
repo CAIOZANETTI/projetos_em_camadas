@@ -1321,13 +1321,14 @@ def _sem_trecho_linear_nao_declarado(evs: list[dict], trechos: list[dict] | None
 
 def _problemas_do_documento(d: dict) -> list[str]:
     """Campos do documento do obra.json que derrubariam `evidencia()`: `unidade`/`sistema` (ausente = '*') fora do padrão
-    do campo `codigo` do schema (conferido montando um código com um item de teste, sem regex própria), `tipo` ausente
+    do campo `codigo` do schema (conferido montando um código com o item de teste mais longo, sem regex própria), `tipo` ausente
     ou fora do enum e `escopo` fora do enum. Não normaliza caixa: o que está fora do padrão é recusado."""
     props = SCHEMA["properties"]
     problemas = []
     unidade, sistema = d.get("unidade", "*"), d.get("sistema", "*")
     if not (isinstance(unidade, str) and isinstance(sistema, str)
-            and re.fullmatch(props["codigo"]["pattern"], f"{unidade}.{sistema}.TST")):
+            and re.fullmatch(props["codigo"]["pattern"], f"{unidade}.{sistema}.TST.TST.TST")):   # item mais longo:
+        # o padrão admite até 3 segmentos de item, então com item curto um ponto no sistema ('AB.CDE') passaria
         problemas.append(f"unidade '{unidade}' ou sistema '{sistema}' fora do padrão")
     if d.get("tipo") not in props["documento"]["properties"]["tipo"]["enum"]:
         problemas.append(f"tipo '{d.get('tipo')}' inválido")
@@ -1340,13 +1341,16 @@ def _documentos(cfg: dict, log=print, recusadas: list[dict] | None = None) -> li
     """Documentos de leitura do obra.json (`evidencias.documentos`: pdf (PDF ou planilha .xlsx/.xls/.csv), tipo, unidade?,
     sistema?, escopo?), com as páginas. Documento com unidade, sistema, tipo ou escopo fora do schema fica de fora, sem
     ler as páginas, e vai para `recusadas` ({motivo: "documento inválido: …", evidencia: {documento: {id}, codigo:
-    "unidade.sistema.*"}}); sem `recusadas`, quem chama não registra e a recusa vai para o `log`."""
+    "unidade.sistema.*"}}); sem `recusadas`, quem chama não registra e a recusa vai para o `log`. Ordem: arquivo
+    ausente só vai para o log (sem recusa); depois o schema; `obra` desconhecida não recusa, só avisa no log."""
     saida = []
     for d in (cfg.get("evidencias") or {}).get("documentos", []):
         if not Path(d["pdf"]).exists():
             log(f"  evidências: {d['pdf']} não está no disco")
             continue
         problemas = _problemas_do_documento(d)
+        if d.get("obra") is not None and d["obra"] not in {o for it in eap.itens().values() for o in it["obra"]}:
+            log(f"  evidências: documento {Path(d['pdf']).name} com obra '{d['obra']}' desconhecida: nenhum item casa")
         if problemas:
             recusa = {"motivo": "documento inválido: " + "; ".join(problemas),
                       "evidencia": {"documento": {"id": Path(d["pdf"]).name},

@@ -990,6 +990,8 @@ def _etapa_com_documentos(tmp_path, *documentos, cfg=SEM_DECLARACAO):
         ({"tipo": "memorial", "escopo": "pluvial"}, "*.*.*"),
         ({"tipo": "relatorio"}, "*.*.*"),
         ({}, "*.*.*"),
+        ({"tipo": "memorial", "unidade": "U1", "sistema": "AB.CDE"}, "U1.AB.CDE.*"),
+        ({"tipo": "memorial", "unidade": "U1.ABC", "sistema": "DEF"}, "U1.ABC.DEF.*"),
     ],
 )  # fmt: skip
 def test_documento_invalido_e_recusado_com_motivo_e_os_outros_seguem_lidos(
@@ -1044,3 +1046,11 @@ def test_metadados_listam_as_funcoes_publicas_da_declaracao():
     assert {"pares_declarados", "sistema_linear_nao_declarado"} <= set(
         eap_padrao.metadados()["funcoes"]
     )
+
+
+def test_documento_com_obra_desconhecida_avisa_no_log(tmp_path):
+    # aceite do Fable (opcional): obra fora de localizada/linear não levanta, mas não pode zerar em silêncio
+    _, log = _etapa_com_documentos(
+        tmp_path, {"tipo": "memorial", "obra": "ponte"}, {"tipo": "memorial"}
+    )
+    assert any("obra 'ponte' desconhecida" in m for m in log)
