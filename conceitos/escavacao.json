@@ -11,5 +11,9 @@
  "res_m": {"valor": 0.25, "estado": "premissa", "fonte": "resolução do MDS do drone"},
  "marca_min_pt": {"valor": 8.0, "estado": "confirmado", "fonte": "símbolo de nível da planta tem ~9 pt; os da planta-chave (~2 pt) não têm cota legível e ficam de fora"},
  "raio_cota_pt": {"valor": 30.0, "estado": "confirmado", "fonte": "o número fica encostado no símbolo (à direita, ou girado 90°); 'TOPO' ao lado do número é crista, não fundo"},
- "raio_marca_m": {"valor": 3.0, "estado": "premissa", "fonte": "marca vale para a base que a contém ou está a até 3 m dela"}
+ "raio_marca_m": {"valor": 3.0, "estado": "premissa", "fonte": "marca vizinha (fora da base) só vale para a base sem marca interna e sem cota escrita, a até 3 m dela, e gera alerta"},
+ "raio_cota_escrita_m": {"valor": 1.5, "estado": "premissa", "fonte": "cota escrita sem símbolo (rótulo de nível ou de curva da cava) vale para a base que a contém ou está a até 1,5 m da borda; havendo mais de uma, vale a mais baixa (as de curva acima do pé do talude são mais altas)"},
+ "tolerancia_rotulo_pt": {"valor": 8.0, "estado": "premissa", "fonte": "o centro do número lido por OCR fica a até 8 pt do centro dos glifos do rótulo"},
+ "faixa_abaixo_do_terreno_m": {"valor": 10.0, "estado": "premissa", "fonte": "cota de fundo plausível: de terreno − 10 m (dígito perdido no OCR dá cota absurda)"},
+ "faixa_acima_do_terreno_m": {"valor": 0.5, "estado": "premissa", "fonte": "cota de fundo plausível: até terreno + 0,5 m (erro do terreno)"}
 }
