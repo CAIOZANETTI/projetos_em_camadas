@@ -104,9 +104,9 @@ etapas:
   agente: sonnet
   estimativa_min: 30
   estimativa_tokens: 150000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T19:45:36Z'
-  fim: null
+  fim: '2026-11-04T19:49:53Z'
   forcado: null
 - id: E7
   nome: Integração na extração (extrair_gavetas.etapa), build real, paridade com o
