@@ -90,9 +90,27 @@ def amostras(tracos: list, layer: str, M, janela=None, passo: float | None = Non
     return {"pts": np.vstack(P), "tang": np.vstack(T), "peso": np.concatenate(W)}
 
 
-def _segmentos_na_janela(tracos: list, layer: str, M, janelas_pt: list | None) -> np.ndarray:
+def _recortar_na_caixa(a: np.ndarray, b: np.ndarray, caixa) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Recorta os segmentos a→b (n, 2) pela caixa (x0, y0, x1, y1), Liang-Barsky vetorizado. Devolve os extremos
+    recortados e a máscara dos segmentos que têm trecho dentro da caixa."""
+    x0, y0, x1, y1 = caixa
+    d = b - a
+    t0, t1, vale = np.zeros(len(a)), np.ones(len(a)), np.ones(len(a), bool)
+    for p, q in ((-d[:, 0], a[:, 0] - x0), (d[:, 0], x1 - a[:, 0]), (-d[:, 1], a[:, 1] - y0), (d[:, 1], y1 - a[:, 1])):
+        paralelo = p == 0
+        vale &= ~(paralelo & (q < 0))
+        r = np.divide(q, p, out=np.zeros(len(a)), where=~paralelo)
+        t0 = np.where(~paralelo & (p < 0), np.maximum(t0, r), t0)
+        t1 = np.where(~paralelo & (p > 0), np.minimum(t1, r), t1)
+    vale &= t0 < t1
+    return a + d * t0[:, None], a + d * t1[:, None], vale
+
+
+def _segmentos_na_janela(tracos: list, layer: str, M, janelas_pt: list | None, recortar: bool = False) -> np.ndarray:
     """Segmentos (n, 2, 2) em UTM dos traços do layer; com `janelas_pt` (caixas x0, y0, x1, y1 em pt), só os
-    segmentos com os dois extremos dentro de alguma caixa. Geometria exata do desenho (sem simplificar)."""
+    segmentos com os dois extremos dentro de alguma caixa. Geometria exata do desenho (sem simplificar).
+    Com `recortar`, o segmento que cruza a caixa é cortado na borda dela (e o que fica dentro da caixa vale): serve
+    quando o contorno do tubo é uma linha longa que atravessa estruturas (caixa de válvula) que ficam de fora."""
     A = np.asarray(M, float)
     if A.shape == (2, 3):                                 # afim 2×3 vira 3×3 homogênea
         A = np.vstack([A, [0.0, 0.0, 1.0]])
@@ -104,7 +122,10 @@ def _segmentos_na_janela(tracos: list, layer: str, M, janelas_pt: list | None) -
             if len(q) < 2:
                 continue
             a, b = q[:-1], q[1:]
-            if janelas_pt:
+            if janelas_pt and recortar:
+                cortes = [_recortar_na_caixa(a, b, caixa) for caixa in janelas_pt]
+                a, b = (np.concatenate([c[i][c[2]] for c in cortes]) for i in (0, 1))
+            elif janelas_pt:
                 dentro = np.zeros(len(a), bool)
                 for x0, y0, x1, y1 in janelas_pt:
                     dentro |= ((a[:, 0] >= x0) & (a[:, 0] <= x1) & (a[:, 1] >= y0) & (a[:, 1] <= y1)
@@ -170,14 +191,14 @@ def _unir_vaos(partes: list, vao_m: float, cos_min: float = 0.9) -> list:
 
 def eixos_por_pares(tracos: list, layer: str, M, de_m: float, janelas_pt: list | None = None, passo: float | None = None,
                     tol: float = 0.03, ang_max_graus: float = 3.0, comp_min_m: float = 0.05,
-                    vao_m: float = 0.5, min_parte_m: float = 0.0) -> dict:
+                    vao_m: float = 0.5, min_parte_m: float = 0.0, recortar: bool = False) -> dict:
     """Eixo do tubo desenhado com dois contornos num layer genérico (CISM_11_LINHA_TUBULAÇÃO 01 em Foz): o par de
     segmentos paralelos separados pelo DE do tubo na escala do desenho. O DN sai da largura do par (regra
-    determinística), e `janelas_pt` limita o trecho. Mesmo formato de `amostras`, mas o peso de cada ponto é o
+    determinística), e `janelas_pt` limita o trecho (`recortar`: corta os contornos na borda das janelas). Mesmo formato de `amostras`, mas o peso de cada ponto é o
     comprimento do eixo ÷ nº de pontos, de modo que a soma dos pesos é o comprimento geométrico exato do eixo."""
     passo = passo or VALOR["passo_m"]
     vazio = {"pts": np.empty((0, 2)), "tang": np.empty((0, 2)), "peso": np.empty(0)}
-    centros = _pares_paralelos(_segmentos_na_janela(tracos, layer, M, janelas_pt), de_m, tol, ang_max_graus, comp_min_m)
+    centros = _pares_paralelos(_segmentos_na_janela(tracos, layer, M, janelas_pt, recortar), de_m, tol, ang_max_graus, comp_min_m)
     if not centros:
         return vazio
     partes = list(shapely.get_parts(shapely.line_merge(shapely.union_all(centros))))
@@ -370,7 +391,8 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
         tr = pdf_cad.extrair(p["pdf"], clip=r.get("clip_pt") or p.get("clip"))
         if r.get("par_mm"):                               # tubo de dois contornos num layer genérico (ver `eixos_por_pares`)
             am = eixos_por_pares(tr, r["layer"], p["M"], r["par_mm"] / 1000, r.get("janelas_pt"), tol=r.get("tol_par", 0.03),
-                                 vao_m=r.get("vao_m", 0.5), min_parte_m=r.get("min_parte_m", 0.0))
+                                 vao_m=r.get("vao_m", 0.5), min_parte_m=r.get("min_parte_m", 0.0),
+                                 recortar=bool(r.get("recortar_janelas")))
         else:
             am = amostras(tr, r.get("layer") or re.escape(p["layer_tubo"]), p["M"], p.get("clip_mapa"), linha=bool(r.get("layer")))
         limites = {k: shapely.union_all([LineString(geo.aplicar(np.asarray(p["M"]), np.asarray(q))) for t in tr
