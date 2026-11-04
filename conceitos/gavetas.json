@@ -344,6 +344,16 @@
    "unidade": "m",
    "tipo": "numero"
   },
+  "escavacao_m3": {
+   "unidade": "m3",
+   "tipo": "numero",
+   "obs": "volume de escavação da cava (camadas.escavacao, pela topografia); F3: alimenta GEO.MOV.ESC por sistema"
+  },
+  "reaterro_m3": {
+   "unidade": "m3",
+   "tipo": "numero",
+   "obs": "volume de reaterro da cava (camadas.escavacao); F3: alimenta GEO.MOV.REA por sistema"
+  },
   "altura_m": {
    "unidade": "m",
    "tipo": "numero"
