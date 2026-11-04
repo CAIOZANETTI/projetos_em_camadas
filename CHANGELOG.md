@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.69.0 — 2026-11-04 · F0 da reconstrução: decisões, gavetas v2, golden das quantidades e prazo fora do escopo
+- **`docs/RECONSTRUCAO.md`**: diagnóstico do repositório e o fluxo do Caio conferido passo a passo no código.
+  - Fluxo: inventário → classificação → extração para as gavetas → EAP preenchida pelas gavetas → serviços
+    complementares → laço até a EAP completa.
+  - Fases F0–F7, com portões de saída.
+  - Decisões do Caio (04/11):
+    - EAP única, com o esqueleto OP/OL e os itens técnicos como folhas;
+    - uma frente só;
+    - 3D, fotos e conferências fora do HTML principal;
+    - prazo fora da quantificação.
+- **Planos superados** marcados no cabeçalho: `PLANO.md`, `PLANO_FOZ.md` e `VISUALIZADOR_V2.md`. A `ARQUITETURA.md`
+  aponta para a RECONSTRUCAO.
+- **Gavetas v2** (`conceitos/gavetas.json`, `camadas/gavetas.py`):
+  - gavetas novas `documentos` (chave = sha256 do conteúdo, `gavetas.id_documento`) e `paginas` (`id_pagina`, com a
+    afim quando georreferenciada);
+  - a evidência de um documento registrado tem de citar a página, ou a aba e a linha (`conferir_base`);
+  - 22 propriedades novas para elementos construtivos, contrato e materiais.
+- **Golden das quantidades de Foz** (`scripts/golden_quantidades.py`, `tests/golden_foz/quantidades_foz.json`):
+  escavação, valas, contrato, construtivos, EAP padrão, EAP codificada e gavetas. Serve para provar que a
+  reconstrução não perde nada.
+- **Prazo fora**: o escoramento blindado em un/mês (900506) fica "a preencher (depende de prazo)". As premissas de
+  produtividade, dias úteis e jogos de escoramento saem. A DMT fica.
+- Lição L067.
+
 ## 0.68.0 — 2026-11-04 · Aba EAP legível e interativa: sub-abas, WBS em árvore, Contrato 211 por trecho, ligação com o mapa
 - Pedido do Caio: "a wbs eap não [está] em formato legível e também não está interativa".
 - **Antes:** a aba EAP empilhava 10 seções numa coluna de 329 px, com 37 151 px de rolagem, 863 `<details>` e 26

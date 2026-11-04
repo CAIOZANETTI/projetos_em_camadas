@@ -44,9 +44,9 @@ etapas:
   agente: haiku
   estimativa_min: 20
   estimativa_tokens: 100000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T19:42:44Z'
-  fim: null
+  fim: '2026-11-04T19:49:19Z'
   forcado: null
 - id: E3
   nome: 'F0: prazo fora da quantificação (escoramento un/mês, produtividade, dias
