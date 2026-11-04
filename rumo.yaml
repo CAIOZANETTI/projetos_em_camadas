@@ -1,63 +1,42 @@
-objetivo: 'Decidir com evidência qual terreno vale para as cavas de Foz (MDS do drone ou topografia do projeto) e aplicar a decisão'
+objetivo: 'A4 do plano: o fundo de cada cava pela marca de cota da sua própria estrutura, não pela vizinha (HH e FF de Foz)'
 criterio_de_pronto:
-- "superfície topográfica do projeto montada em código a partir das curvas de nível das plantas de escavação, com cotas lidas e resíduo declarado"
-- "topografia × cotas de boca das sondagens, topografia × TERRENO ORIGINAL das seções e MDS × topografia em toda a área, com o mapa do erro e a classe de cobertura"
-- "relatório com a evidência e uma recomendação; o humano decide"
-- "a decisão aplicada ao terreno das cavas, com a conferência das cavas recalculada e o build real refeito"
-base: 023c544
+- "cada base de escavação tem o fundo pela marca da própria estrutura (dentro da base ou ligada a ela), com a origem da ligação declarada"
+- "a cota de fundo escrita sem símbolo de marca (ex.: 235,35 da Câmara de Contato) é lida em código, quando existir"
+- "a conferência por seção mostra o fundo do modelo dentro de ±0,30 m em HH e FF, sem piorar as outras"
+- "volumes por cava antes × depois, build real, aceite do Fable, PR e merge"
+base: 51bf074
 etapas:
 - id: E1
-  nome: Superfície topográfica do projeto (curvas de nível) e comparação com sondagens, seções e MDS
-  entregaveis:
-  - camadas/topografia.py
-  - tests/test_topografia.py
-  depende_de: []
-  agente: sonnet
-  estimativa_min: 90
-  estimativa_tokens: 300000
-  status: feito
-  inicio: '2026-11-03T21:34:01Z'
-  fim: '2026-11-03T22:07:50Z'
-- id: E2
-  nome: Relatório da evidência e decisão do humano
-  entregaveis:
-  - docs/plano/2026-11-03_decisao_terreno.md
-  depende_de:
-  - E1
-  agente: opus
-  estimativa_min: 30
-  estimativa_tokens: 80000
-  status: feito
-  inicio: '2026-11-03T22:07:50Z'
-  fim: '2026-11-04T10:57:32Z'
-- id: E3
-  nome: Aplicar a decisão ao terreno das cavas e recalcular a conferência
+  nome: Ligação marca de cota ↔ base da estrutura e leitura da cota escrita sem símbolo
   entregaveis:
   - camadas/escavacao.py
-  - camadas/conferencia_cavas.py
-  depende_de:
-  - E2
+  - tests/test_escavacao_marcas.py
+  depende_de: []
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
   status: feito
-  inicio: '2026-11-04T10:57:32Z'
-  fim: '2026-11-04T11:12:59Z'
-- id: E4
-  nome: Build real, balanço, aceite do Fable, PR e merge
+  inicio: '2026-11-04T12:32:23Z'
+  fim: '2026-11-04T13:05:00Z'
+- id: E2
+  nome: Build real, conferência, balanço, aceite do Fable, PR e merge
   entregaveis:
+  - docs/plano/2026-11-04_a4_marcas_de_cota.md
   - rumo.yaml
   - results/iteracoes/*
   - results/agentes/execucoes.csv
   depende_de:
-  - E3
+  - E1
   agente: opus
   estimativa_min: 60
-  estimativa_tokens: 200000
+  estimativa_tokens: 150000
   status: feito
-  inicio: '2026-11-04T11:12:59Z'
-  fim: '2026-11-04T12:08:58Z'
+  inicio: '2026-11-04T13:05:00Z'
+  fim: '2026-11-04T13:28:05Z'
 historico:
+- data: '2026-11-04'
+  mudanca: 'objetivo anterior concluído: terreno das cavas (PR #63, 0.56.0); plano da memória espacial gravado em docs/plano/2026-11-04_plano_memoria_espacial.md'
+  motivo: 'o Caio aprovou o plano e pediu a A4'
 - data: '2026-11-03'
   mudanca: 'objetivo anterior concluído: conferência das cavas por seções (PR #56, 0.53.0)'
   motivo: 'Caio pediu a decisão do terreno; a conferência mostrou que a diferença de área vem do terreno (MDS até 0,6 m abaixo da topografia no trecho do corte)'
@@ -129,3 +108,6 @@ historico:
 - data: '2026-11-04'
   mudanca: horários das etapas pelas horas dos commits
   motivo: os horários escritos à mão estavam errados em relação ao relógio da máquina
+- data: '2026-11-04'
+  mudanca: 'A4 fechada: HH e LL conferem; FF não (235,97 não está na planta; TOPO a 90° não é lido); a troca do método do fundo (+12,6 %) mantida pelo aceite do Fable; envoltória para rodada própria'
+  motivo: 'critério de aceite atingido em parte; o resto depende de entrada ausente ou de mudança de modelo com hash novo'

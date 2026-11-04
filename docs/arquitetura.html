@@ -213,11 +213,24 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
 .placar b { font: 700 30px/1 var(--f-disp); color: var(--c); font-variant-numeric: tabular-nums; }
 .placar span { font-size: 13px; color: var(--mut); }
 .alinha { margin: 0; padding-left: 22px; display: grid; gap: 8px; max-width: 100ch; }
+
+.escada-n { display: grid; gap: 6px; }
+.degrau-n { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.3fr); gap: 12px; align-items: start; background: var(--papel); border: 1px solid var(--linha); border-left: 5px solid var(--acc); padding: 9px 12px; margin-left: calc(var(--i) * 14px); min-width: 0; }
+.degrau-n b { font: 700 18px var(--f-disp); color: var(--acc); }
+.degrau-n span { font-weight: 600; font-size: 14px; }
+.degrau-n small { color: var(--mut); font-size: 13px; }
+.degrau-n.chave { border-left-color: var(--ok); background: var(--ok-bg); }
+.degrau-n.chave b { color: var(--ok); }
+@media (max-width: 700px) { .degrau-n { grid-template-columns: 48px minmax(0, 1fr); margin-left: 0; } .degrau-n small { grid-column: 2; } }
+.prova { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.prova div { background: var(--papel); border: 1px solid var(--linha); padding: 10px 12px; display: grid; gap: 2px; }
+.prova b { font: 700 28px/1 var(--f-disp); color: var(--ok); font-variant-numeric: tabular-nums; }
+.prova span { font-size: 13px; color: var(--mut); }
 </style>
 
 <div class="folha">
   <header>
-    <div class="eyebrow">projetos_em_camadas · arquitetura R10.3 · estado em 0.55.0 · 03/11/2026</div>
+    <div class="eyebrow">projetos_em_camadas · arquitetura R10.4 · estado em 0.55.0 · 03/11/2026</div>
     <h1>Do projeto à EAP com quantidades</h1>
     <p class="sub">Só escopo: serviços e atividades numa EAP com quantidades, sem preço e sem prazo. A entrega é um único HTML com todos os dados dentro. O código faz o que já é certeza, a IA trabalha só nas dúvidas e a decisão do engenheiro prevalece sobre a evidência. Fonte: <code>docs/ARQUITETURA.md</code>, <code>docs/MEMORIA_ESPACIAL.md</code> e <code>docs/EAP.md</code> na <code>main</code>, conferidos contra o código.</p>
   </header>
@@ -470,6 +483,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
         <tr><td>WBS · EAP padrão</td><td>EAP padrão, itens GER, etapa pelo título Sanepar</td><td><span class="st feito">na main</span></td><td>nenhuma: respondidas (D10–D13); implementar D10, D11 e D13</td></tr>
         <tr><td>Geo Bd · memória espacial</td><td>gavetas, conferência das cavas, terreno opção D</td><td><span class="st piloto">em revisão</span></td><td>anexar a planilha com a aba Obras Lineares</td></tr>
         <tr><td>Giselle · obras lineares da ETA</td><td>origem do MOS e das premissas D1</td><td><span class="st fazer">parada</span></td><td>calibrar raio de influência e cor do pavimento</td></tr>
+        <tr><td>Extrator redundante · ialocal.extrair.dados</td><td>segunda leitura de todos os arquivos, SQLite único</td><td><span class="st piloto">em andamento lá</span></td><td>nenhuma</td></tr>
         <tr><td>Protótipo 211 · Foz</td><td>build de ponta a ponta</td><td><span class="st feito">concluída</span></td><td>geometria dos Actiflo, folha 10, escopo "a definir", 58 desenhos</td></tr>
       </tbody>
     </table></div>
@@ -483,6 +497,21 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
       <li><b>Premissas da D1 num lugar só</b> (<code>conceitos/geotecnia.json</code>); a calibração da Giselle muda esse arquivo, com decisão registrada.</li>
       <li><b>Cronograma e 4D seguem fora</b>, pelos princípios (28 e 30/10).</li>
     </ol>
+  </section>
+
+
+  <section>
+    <h2>Conferência por extração redundante</h2>
+    <p class="sub">O <code>ialocal.extrair.dados</code>, em outro Mac e com outro código, lê os mesmos arquivos da obra sem IA de linguagem e vai entregar um arquivo único (provavelmente SQLite, com manifesto). Aqui ele entra só como testemunha: confere, nunca substitui, e nenhum número da EAP passa a depender dele. Onde as duas leituras discordam, a pendência aponta o arquivo, a página ou a célula.</p>
+    <div class="prova">
+      <div><b>1.002</b><span>linhas de escopo, iguais nas duas leituras</span></div>
+      <div><b>79</b><span>itens do CUSTO CIVIL, iguais</span></div>
+      <div><b>36</b><span>com título de etapa, iguais</span></div>
+      <div><b>827</b><span>arquivos no inventário externo (489 únicos)</span></div>
+    </div>
+    <p class="nota">Teste de 04/11 em Foz: a planilha principal remontada só com as células da extração externa e passada pelos nossos leitores deu os mesmos números da leitura direta do xlsx.</p>
+    <div class="escada-n" role="list" aria-label="Escada de conferência do geral para o específico"><div class="degrau-n" style="--i: 0"><b>N0</b><span>Contrato</span><small>manifesto do SQLite: obra, versão do código, contagens e hash do arquivo</small></div><div class="degrau-n" style="--i: 1"><b>N1</b><span>Inventário</span><small>mesma quantidade de arquivos por pasta e tipo; mesmo conjunto de sha256; estado lido × sem texto</small></div><div class="degrau-n" style="--i: 2"><b>N2</b><span>Leitura</span><small>páginas, palavras e letras+números por arquivo; abaixo de 90 % da leitura externa sobe um degrau (OCR)</small></div><div class="degrau-n" style="--i: 3"><b>N3</b><span>Projetos</span><small>carimbo pela posição do bloco (canto inferior direito): título, folha n/m, revisão; Relação de Desenhos e aba Projetos</small></div><div class="degrau-n" style="--i: 4"><b>N4</b><span>Tabelas</span><small>abas remontadas das células externas passam pelos nossos leitores; relação de materiais das pranchas linha a linha</small></div><div class="degrau-n" style="--i: 5"><b>N5</b><span>Materiais</span><small>código Sanepar, unidade e quantidade de 1ª e 2ª etapa</small></div><div class="degrau-n" style="--i: 6"><b>N6</b><span>Itens relevantes</span><small>concreto (m³), tubulação (m por material e DN), escavação, aço e estacas por nó da EAP, com tolerância por grandeza</small></div><div class="degrau-n chave" style="--i: 7"><b>N7</b><span>Laço de evidências</span><small>todo fato das gavetas tem o trecho achado nos blocos externos (confirmado por duas leituras); e o contrário: menção externa sem fato aqui vira candidata a lacuna</small></div></div>
+    <p class="nota">Cada nível só roda se o anterior passou ou teve as diferenças explicadas. Roda depois do build (<code>scripts/conferir_extracao_externa.py</code>, a fazer quando o SQLite existir) e grava <code>conferencia_externa.json</code>; a aba EAP mostra, por nó, quantos fatos as duas leituras confirmaram. Cotações e abas de preço ficam fora; arquivos repetidos em zip são comparados pelo hash.</p>
   </section>
 
   <section>
@@ -537,6 +566,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
         <tr><td>Conceitos ajustados com o dado real (PV para água, ALO etapa 00, macromedidor)</td><td><code>eap_geral.jsonl</code> · confirmados (D12)</td><td><span class="st feito">feito</span></td><td class="v">0.54.0</td></tr>
         <tr><td>Conferência das cavas por seções de corte e sequência executiva</td><td><code>secoes_corte.py</code>, <code>conferencia_cavas.py</code></td><td><span class="st feito">feito</span></td><td class="v">0.53.0</td></tr>
         <tr><td>Terreno das cavas: topografia no casco, MDS fora (opção D)</td><td><code>topografia.py</code> (ramo da Geo Bd)</td><td><span class="st piloto">em revisão</span></td><td class="v">—</td></tr>
+        <tr><td>Conferência por extração redundante (N0 a N7)</td><td><code>ialocal.extrair.dados</code> → SQLite; <code>scripts/conferir_extracao_externa.py</code></td><td><span class="st fazer">a fazer</span></td><td class="v">aguarda E12</td></tr>
         <tr><td>Interferências, travessias e MND</td><td>—</td><td><span class="st fazer">a fazer</span></td><td class="v">—</td></tr>
         <tr class="grupo"><td colspan="4">Processo</td></tr>
         <tr><td>Lição por versão com teste</td><td><code>pdca/licoes.jsonl</code>, <code>tests/test_determinismo.py</code> · 41 lições, 39 com teste</td><td><span class="st feito">feito</span></td><td class="v">0.21.0</td></tr>
@@ -660,6 +690,6 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
     <div><i>Título</i>Arquitetura de pesquisa e extração · EAP de escopo em camadas</div>
     <div><i>Folha</i>01/01</div>
     <div><i>Escala</i>sem escala</div>
-    <div><i>Rev. · data</i>R10.3 · 04/11/2026</div>
+    <div><i>Rev. · data</i>R10.4 · 04/11/2026</div>
   </div>
 </div>
