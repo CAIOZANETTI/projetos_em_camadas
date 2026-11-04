@@ -12,7 +12,7 @@ criterio_de_pronto:
   o trecho e ''abrir prancha'' liga a prancha'
 - o HTML só apresenta (textos, contagens e índice de busca prontos no Python); build
   real, interface 0 falha, balanço sem REVERTER, PR e merge
-base: 7ed1274
+base: bd5bd8b
 etapas:
 - id: E1
   nome: 'Vista da aba EAP montada em Python (camadas/eap_vista.py): seções, árvore
@@ -60,16 +60,25 @@ etapas:
   - results/rumo.html
   - docs/plano/2026-11-04_aba_eap_legivel.md
   - docs/RASTREABILIDADE.md
+  - tests/test_obra_caracterizacao.py
   depende_de:
   - E2
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T18:33:24Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-04T18:53:49Z'
+  forcado: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract 5.3.4 do ambiente); balanço SEM_GANHO sem piora,
+    1374 testes passando, interface 331/0
 historico:
+- data: '2026-11-04'
+  mudanca: base passa a bd5bd8b (a main no fim da rodada, 0.67.0 de outra sessão);
+    versão da rodada 0.68.0; E3 também entrega tests/test_obra_caracterizacao.py (eap_vista
+    na lista de blocos de outros módulos do golden)
+  motivo: os 2 golden do obra.py falharam no checkout com a chave nova eap_vista (na
+    worktree da E1 foram pulados); os JSON do golden não mudam
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: folhas 009 e 010 georreferenciadas (PR #76,
     0.66.0)'
