@@ -1,30 +1,32 @@
 ## Rumo do desenvolvimento
 
-**Objetivo:** Aba EAP legível e interativa: WBS em árvore navegável, Contrato 211 agrupado por trecho, seções em sub-abas e clique que leva ao mapa e à prancha
+**Objetivo:** Reconstrução F0–F2 (docs/RECONSTRUCAO.md): decisões registradas, gavetas v2 e golden das quantidades (F0); inventário com destino por arquivo (F1); todo o escopo de Foz extraído para as gavetas com documento, página e geometria (F2)
 
 `▓▓▓▓▓▓▓▓▓▓ 100%`
 
-**Tempo:** Início 04/11/2026 17:48 UTC · fim 04/11/2026 18:53 · 0,05 dias corridos (1,1 h de calendário) · IA trabalhando: 0,8 h de relógio · 0,9 h de agente · paralelismo 1,1×
+**Tempo:** Início 04/11/2026 19:42 UTC · fim 04/11/2026 20:17 · 0,02 dias corridos (0,6 h de calendário) · IA trabalhando: 0,4 h de relógio · 0,7 h de agente · paralelismo 1,8×
 
 | Etapa | Nome | Status | Agente | Est. min | Est. tokens | Real min | IA h | Real tokens | Razão |
 |---|---|---|---|--:|--:|--:|--:|--:|--:|
-| E1 | Vista da aba EAP montada em Python (camadas/eap_vista.py): seções, árvore da WBS com as linhas do contrato, contrato por UC e trecho, contagens e índice de busca | ✅ feito | sonnet | 30 | 200.000 | 6 | 0,1 | 144.162 | 0,7× |
-| E2 | Aba EAP no template: modo largo, sub-abas, árvore interativa, busca, filtros e ligação com o mapa e a prancha; verificações de interface | ✅ feito | sonnet | 60 | 300.000 | 39 | 0,5 | 465.666 | 1,6× |
-| E3 | Build real, capturas, balanço, PR e merge | ✅ feito | opus | 45 | 120.000 | 20 | 0,2 | 32.730 | 0,5× |
+| E1 | F0: decisões, documentos superados, esquema das gavetas v2 e validação | ✅ feito | opus | 40 | 150.000 | 3 | 0,0 | 37.912 | 0,3× |
+| E2 | F0: golden das quantidades atuais de Foz (script + teste) | ✅ feito | haiku | 20 | 100.000 | 7 | 0,0 | 133.020 | 1,3× |
+| E3 | F0: prazo fora da quantificação (escoramento un/mês, produtividade, dias úteis) | ✅ feito | sonnet | 15 | 100.000 | 3 | 0,0 | 32.787 | 0,3× |
+| E4 | F1+F2: documentos e páginas de todos os arquivos do inventário nas gavetas, com destino por arquivo | ✅ feito | sonnet | 40 | 200.000 | 7 | 0,1 | 120.138 | 0,6× |
+| E5 | F2: elementos construtivos (estacas, blocos, pilares, trechos) nas gavetas com página e geometria | ✅ feito | sonnet | 40 | 200.000 | 15 | 0,2 | 187.261 | 0,9× |
+| E6 | F2: linhas do contrato 211 e itens de material nas gavetas (aba e linha, sem preço) | ✅ feito | sonnet | 30 | 150.000 | 4 | 0,0 | 88.026 | 0,6× |
+| E7 | Integração na extração (extrair_gavetas.etapa), build real, paridade com o golden, balanço, PRs | ✅ feito | opus | 60 | 150.000 | 17 | 0,1 | 38.827 | 0,3× |
 
-**Desvios (2)**
-- estouro: E2: tokens real é 1,6× o estimado
-- feito sem prova: E3: marcada como feita à força: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr, que já falha na main (tesseract 5.3.4 do ambiente); balanço SEM_GANHO sem piora, 1374 testes passando, interface 331/0
+**Desvios (1)**
+- feito sem prova: E7: marcada como feita à força: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr, que já falha na main (tesseract do ambiente); balanço DECISAO_HUMANA (sloc_por_funcao +2,1 %), aceito pelo Caio no 'pode seguir com o PR, merge'
 
 **Próxima etapa:** nenhuma disponível
 
-Mudanças de objetivo: 31
+Mudanças de objetivo: 32
 
 ### Correções sugeridas
 
 | Prioridade | O quê | Por quê | Agente |
 |---|---|---|---|
-| média | dividir a etapa em partes menores ou recalibrar a estimativa | estouro: tokens real é 1,6× o estimado | opus |
-| baixa | examinar o desvio com o humano | feito sem prova: marcada como feita à força: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr, que já falha na main (tesseract 5.3.4 do ambiente); balanço SEM_GANHO sem piora, 1374 testes passando, interface 331/0 | humano |
+| baixa | examinar o desvio com o humano | feito sem prova: marcada como feita à força: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr, que já falha na main (tesseract do ambiente); balanço DECISAO_HUMANA (sloc_por_funcao +2,1 %), aceito pelo Caio no 'pode seguir com o PR, merge' | humano |
 
 _Sugestões geradas pelo vcm a partir das medições; nada foi alterado. Aplicar exige aprovação humana._
