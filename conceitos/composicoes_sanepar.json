@@ -1,0 +1,53 @@
+{
+ "metadata": {
+  "fonte": "aba CUSTO CIVIL da planilha 211 - SAA Foz do Iguaçú (Sanepar LE 211/2026), colunas COMPOSIÇÃO, DESCRIÇÃO, UNID. e QUANT. (nunca as colunas de valor); folhas da EAP padrão localizada em conceitos/eap_padrao.json; rodada docs/plano/2026-11-04_orcamento_211.md, etapa E1",
+  "estado": "premissa",
+  "data_referencia": "2026-11",
+  "observacoes": "Cada regra declara o seu estado: confirmado (o texto da planilha ou da EAP basta), premissa (decisão de projeto a validar com o Caio) ou calibrar (depende de dado que a obra ainda não tem). A regra diz como a quantidade será calculada na etapa E2; este arquivo só liga a linha do contrato à folha da EAP e à grandeza. Linha sem de-para recebe regra sem_regra e o motivo; nada é inventado. 900506 (escoramento blindado) fica em OP.02.06 porque é a vala de tubulação interna; OP.02.02 (escoramento de cava) é para cava, não para vala. Medidor de vazão é instrumentação (OP.09.01), não bloco de ancoragem; a elétrica e a hidromecânica estão fora desta rodada, por isso sem_regra."
+ },
+ "composicoes": {
+  "DI": {"descricao": "Administração local da obra", "folha_eap": "OP.00.01", "grandeza": "prazo", "unidade": "mês", "regra": "declarada", "estado": "confirmado"},
+  "020223": {"descricao": "Locação da obra com auxílio de equipamento topográfico", "folha_eap": "OP.01.02", "grandeza": "area", "unidade": "m2", "regra": "area_da_uc", "estado": "premissa"},
+  "CSUPVEG": {"descricao": "Supressão vegetal", "folha_eap": "OP.01.04", "grandeza": "area", "unidade": "m2", "regra": "supressao_arvores", "estado": "premissa"},
+  "030403": {"descricao": "Raspagem da camada vegetal", "folha_eap": "OP.01.04", "grandeza": "area", "unidade": "m2", "regra": "supressao_rasteira", "estado": "premissa"},
+  "030401": {"descricao": "Roçada fina", "folha_eap": "OP.01.04", "grandeza": "area", "unidade": "m2", "regra": "supressao_rasteira", "estado": "premissa"},
+  "CSONDREDE": {"descricao": "Sondagem para execução da rede", "folha_eap": null, "grandeza": "contagem", "unidade": "un", "regra": "sem_regra", "motivo": "o código não tem regra para sondagem da rede (quantidade de furos é decisão de execução)", "estado": "calibrar"},
+  "030101": {"descricao": "Pesquisa e remanejamento de interferências", "folha_eap": null, "grandeza": "contagem", "unidade": "un", "regra": "sem_regra", "motivo": "interferências só se conhecem com o cadastro de redes existentes, que o projeto não traz", "estado": "calibrar"},
+  "030903": {"descricao": "Locação de caçamba para destinação de entulho", "folha_eap": null, "grandeza": "contagem", "unidade": "un", "regra": "sem_regra", "motivo": "o número de caçambas depende do volume de entulho e do plano de demolição, que não existem no código", "estado": "calibrar"},
+  "900506": {"descricao": "Locação de escoramento blindado", "folha_eap": "OP.02.06", "grandeza": "prazo_equipamento", "unidade": "un/mês", "regra": "escoramento_meses", "estado": "premissa", "observacao": "sem cronograma (decisão de 30/10) não há mês: a regra depende de um prazo por trecho como premissa, senão fica a preencher"},
+  "CRELF1": {"descricao": "Rebaixamento de lençol freático com ponteiras (wellpoint)", "folha_eap": "OP.02.03", "grandeza": "verba", "unidade": "vb", "regra": "rebaixamento_vb", "estado": "premissa", "observacao": "1 se o NA do furo mais próximo está acima do fundo da vala; 0 se não"},
+  "041801": {"descricao": "Carga e descarga de solos", "folha_eap": "OP.02.05", "grandeza": "volume", "unidade": "m3", "regra": "escavacao_trecho", "estado": "confirmado"},
+  "900603": {"descricao": "Bota-fora para depósito de material inservível", "folha_eap": "OP.02.05", "grandeza": "volume", "unidade": "m3", "regra": "bota_fora_trecho", "estado": "confirmado"},
+  "041901": {"descricao": "Transporte de solos em rodovia ou rua", "folha_eap": "OP.02.05", "grandeza": "momento_transporte", "unidade": "m3.km", "regra": "transporte_m3km", "estado": "premissa", "observacao": "bota-fora multiplicado pela distância média de transporte (DMT); a DMT é premissa a decidir pelo Caio"},
+  "161301": {"descricao": "Limpeza de obra linear", "folha_eap": "OP.12.01", "grandeza": "comprimento", "unidade": "m", "regra": "soma_trechos", "estado": "premissa"},
+  "020902": {"descricao": "Cadastro de obras lineares", "folha_eap": "OP.12.02", "grandeza": "comprimento", "unidade": "m", "regra": "soma_trechos", "estado": "premissa"},
+  "162004": {"descricao": "Lavagem de rede", "folha_eap": "OP.12.04", "grandeza": "comprimento", "unidade": "m", "regra": "soma_trechos", "estado": "premissa"},
+  "100207": {"descricao": "Revestimento com asfalto (terceirizado)", "folha_eap": "OP.10.01", "grandeza": "area", "unidade": "m2", "regra": "declarada", "estado": "premissa", "observacao": "quantidade declarada pela Sanepar, usada para conferência com o pavimento calculado"},
+  "100224": {"descricao": "Execução de pavimentos de concreto desempenado", "folha_eap": "OP.10.02", "grandeza": "area", "unidade": "m2", "regra": "declarada", "estado": "premissa", "observacao": "OP.10.02 é calçadas e passeios; é a folha mais próxima do concreto desempenado de urbanização"},
+  "100229": {"descricao": "Execução de guia de concreto pré-moldada", "folha_eap": "OP.10.03", "grandeza": "comprimento", "unidade": "m", "regra": "declarada", "estado": "premissa", "observacao": "a EAP não tem folha de guia/meio-fio; OP.10.03 (drenagem superficial, cercamento e paisagismo) é a de urbanização mais próxima"},
+  "PLANILHA": {"descricao": "Fornecimento e montagem hidromecânica de materiais e equipamentos", "folha_eap": "OP.08.01", "grandeza": "verba", "unidade": "vb", "regra": "verba", "estado": "confirmado", "observacao": "item global detalhado em outra aba; fora do escopo desta rodada"},
+  "EMPREITA": {"descricao": "Instalações elétricas", "folha_eap": "OP.09.01", "grandeza": "verba", "unidade": "vb", "regra": "verba", "estado": "confirmado", "observacao": "item global; fora do escopo desta rodada"}
+ },
+ "padroes": [
+  {
+   "padrao": "^CVCA(FD|PVC)(\\d+)$",
+   "descricao": "Escavação, escoramento, assentamento, reaterro e remoção de pavimentos, por material e DN",
+   "materiais": {"FD": "ferro_fundido", "PVC": "pvc"},
+   "folha_eap": "OP.02.06",
+   "grandeza": "comprimento",
+   "unidade": "m",
+   "regra": "comprimento_trecho",
+   "estado": "premissa",
+   "observacao": "o material é o primeiro grupo da expressão e o diâmetro nominal (mm) é o segundo"
+  }
+ ],
+ "por_estrutura": {
+  "titulo_de_trecho": {"descricao": "Comprimento do trecho (linha de título em metro, sem composição)", "folha_eap": "OP.02.06", "grandeza": "comprimento", "unidade": "m", "regra": "comprimento_trecho", "estado": "premissa"}
+ },
+ "por_descricao": {
+  "RECOMPOSICAO DE PAVIMENTO": {"descricao": "Recomposição de pavimento do trecho", "folha_eap": "OP.10.01", "grandeza": "area", "unidade": "m2", "regra": "recomposicao_trecho", "estado": "premissa", "observacao": "título sem unidade na planilha, mas é serviço a quantificar"},
+  "BLOCOS DE ANCORAGEM": {"descricao": "Blocos de ancoragem do trecho", "folha_eap": "OP.07.04", "grandeza": "contagem", "unidade": "un", "regra": "contagem_blocos", "estado": "premissa"},
+  "BLOCOS DE APOIO": {"descricao": "Blocos de apoio do trecho", "folha_eap": "OP.07.04", "grandeza": "contagem", "unidade": "un", "regra": "contagem_blocos", "estado": "premissa"},
+  "MEDIDORES DE VAZAO": {"descricao": "Medidores de vazão do trecho", "folha_eap": "OP.09.01", "grandeza": "contagem", "unidade": "un", "regra": "sem_regra", "motivo": "medidor de vazão é instrumentação (OP.09.01), de elétrica e automação, fora do escopo desta rodada; a EAP não tem folha de medidor em OP.07", "estado": "calibrar"}
+ }
+}
