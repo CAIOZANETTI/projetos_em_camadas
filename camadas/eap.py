@@ -345,7 +345,7 @@ def _medicao_prevista(linha: dict, nos: dict) -> tuple[str | None, dict | None]:
     return None, medicao
 
 
-def _recusa_das_evidencias(linha: dict, por_id: dict) -> str | None:
+def _recusa_por_evidencias(linha: dict, por_id: dict) -> str | None:
     """Status de recusa se a linha não cita evidência ou cita elemento que não existe ou não é do item; senão None."""
     ids = linha.get("evidencias") or []
     if not ids:
@@ -360,7 +360,7 @@ def _status(linha: dict, nos: dict, por_id: dict, quant: pd.DataFrame, epsg: int
     recusa, medicao = _medicao_prevista(linha, nos)
     if recusa:
         return recusa, None
-    recusa = _recusa_das_evidencias(linha, por_id)
+    recusa = _recusa_por_evidencias(linha, por_id)
     if recusa:
         return recusa, None
     valores = [medir(por_id[i], medicao, epsg) for i in linha["evidencias"]]
