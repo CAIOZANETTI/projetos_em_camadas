@@ -920,11 +920,11 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         dados["construtivos"]["escopo"] = escopo_obra.montar(dados, cfg)
     # `dados["eap_gavetas"]` = árvore das gavetas; `dados["eap"]` = EAP codificada (contrato da 0.34.0, cada um na sua chave)
     dados["eap"] = eap.montar(dados, cfg)          # elemento → item (código) → quantidade com evidência
-    try:                                           # F2+F3: todo o escopo nas gavetas e a EAP única preenchida por elas
+    dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
+    try:                                           # F2–F4: escopo nas gavetas, complementares e a EAP única
         extrair_gavetas.completar_escopo(cfg, out, dados, log=_log)
     except Exception as erro:  # noqa: BLE001 - nunca derruba o build
         _log(f"Gavetas (escopo): não concluído (pendência; {type(erro).__name__}: {erro})")
-    dados["evidencias"] = evidencias.etapa(cfg, out, dados, log=_log)   # loop nos documentos: fatos e conflitos
     _conciliar_eaps(dados, servicos_gavetas, out)  # gavetas × codificada × documento: `conciliacao_eap.json` e o resumo
     dados["eap_painel"] = eap_painel.montar(dados.get("eap"), dados.get("evidencias"))   # aba EAP, já em texto
     _eap_padrao_no_build(dados, cfg, out)          # esqueleto por etapa de execução, a preencher
