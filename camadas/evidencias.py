@@ -1415,26 +1415,40 @@ def _titulos_do_contrato(planilha: tuple | None) -> list[dict]:
     return titulos_da_planilha(planilha[0], planilha[2], *planilha[3:]) if planilha else []
 
 
-def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
-    """Loop de evidências da obra: documentos, planilha do contrato, planilha Obras Lineares, pranchas medidas, IA e decisões do obra.json.
-    Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv, dimensoes.csv e calibracao.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
-    conf = cfg.get("evidencias") or {}
+def _extras_do_cfg(conf: dict) -> dict[str, list]:
+    """Linhas de IA (`ia`, JSONL como estão) e decisões (`decisoes`) do bloco `evidencias` do obra.json; arquivo não
+    declarado ou ausente no disco vale lista vazia."""
+    return {k: (ler if k == "decisoes" else _ler_ia)(conf[k]) if conf.get(k) and Path(conf[k]).exists() else []
+            for k in ("ia", "decisoes")}
+
+
+def _registrar_recusas(recusadas_ia: list[dict], recusadas: list[dict], log=print) -> None:
+    """Uma linha de log por linha de IA recusada e, depois, uma por evidência recusada na leitura."""
+    for r in recusadas_ia:
+        log(f"  evidências: linha de IA recusada ({r['motivo']})")
+    for r in recusadas:
+        log(f"  evidências: evidência recusada na leitura ({r['motivo']}): {_descrever_recusada(r['evidencia'])}")
+
+
+def _ler_fontes(cfg: dict, dados: dict, log=print) -> tuple[list[dict], list[dict], tuple | None]:
+    """(evidências, recusadas na leitura, planilha do contrato) de todas as fontes do obra.json, na ordem: planilha
+    do contrato, IA e decisões, documentos (log de ausente/recusado) e planilha Obras Lineares (log de pendência) e o
+    `loop`; só então as recusas vão para o log."""
     planilha = _planilha_do_contrato(cfg.get("escopo") or {}, eap_padrao.trechos_do_cfg(cfg))
-    extras = {k: (ler if k == "decisoes" else _ler_ia)(conf[k]) if conf.get(k) and Path(conf[k]).exists() else []
-              for k in ("ia", "decisoes")}
+    extras = _extras_do_cfg(cfg.get("evidencias") or {})
     recusadas_ia, recusadas = [], []
     documentos = _documentos(cfg, log, recusadas)
     evs = loop(documentos, planilha, dados.get("construtivos"), dados["crs"]["epsg"],
                extras["ia"], extras["decisoes"], dados.get("sondagens"), cfg.get("elementos_declarados"),
                _obras_lineares_da_obra(cfg, dados.get("sondagens"), log), recusadas_ia,
                eap_padrao.trechos_do_cfg(cfg), recusadas)
-    for r in recusadas_ia:
-        log(f"  evidências: linha de IA recusada ({r['motivo']})")
-    for r in recusadas:
-        log(f"  evidências: evidência recusada na leitura ({r['motivo']}): {_descrever_recusada(r['evidencia'])}")
-    if not evs and not recusadas:
-        return None
-    gravar(evs, out / "evidencias.jsonl")
+    _registrar_recusas(recusadas_ia, recusadas, log)
+    return evs, recusadas, planilha
+
+
+def _gravar_tabelas(evs: list[dict], cfg: dict, dados: dict, out: Path) -> dict[str, pd.DataFrame]:
+    """Tabelas da etapa (fatos, cobertura, associados, dimensões, calibração), gravadas em CSV em `out` sem a coluna
+    `afirmacoes`; devolve as tabelas."""
     elementos = (dimensoes.de_construtivos(dados["construtivos"], dados["crs"]["epsg"], dados.get("sondagens"))
                  if dados.get("construtivos") else []) + dimensoes.de_declarados(cfg.get("elementos_declarados"))
     tabelas = {"fatos": consolidar(evs), "cobertura": cobertura(evs), "associados": associados_x_edital(evs),
@@ -1443,6 +1457,17 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     for nome, df in tabelas.items():
         df.drop(columns=[c for c in ("afirmacoes",) if c in df]).to_csv(out / f"{nome}.csv", sep=";", decimal=",",
                                                                        encoding="utf-8-sig", index=False)
+    return tabelas
+
+
+def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
+    """Loop de evidências da obra: documentos, planilha do contrato, planilha Obras Lineares, pranchas medidas, IA e decisões do obra.json.
+    Grava evidencias.jsonl, fatos.csv, cobertura.csv, associados.csv, dimensoes.csv e calibracao.csv em `out`; devolve o resumo para o HTML (None sem fonte)."""
+    evs, recusadas, planilha = _ler_fontes(cfg, dados, log)
+    if not evs and not recusadas:
+        return None
+    gravar(evs, out / "evidencias.jsonl")
+    tabelas = _gravar_tabelas(evs, cfg, dados, out)
     fatos = tabelas["fatos"]
     log(f"  evidências: {len(evs)} · fatos {len(fatos)} · conflitos {int((fatos['status'] == 'conflito').sum()) if len(fatos) else 0}")
     return {"n_evidencias": len(evs), **{k: _registros(df) for k, df in tabelas.items()},

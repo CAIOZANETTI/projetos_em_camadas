@@ -965,9 +965,20 @@ def _avisos_nao_declarados(dados: dict, declarados: set[tuple[str, str]]) -> lis
     """Um aviso por fato (`dados["evidencias"]["fatos"]`), por evidência recusada na leitura
     (`dados["evidencias"]["recusadas"]`) e por quantidade (`dados["eap"]["quantidades"]`) de código de
     sistema linear que a obra não declara: nomeia código, serviço, valor e documento. O número fica fora das duas vistas
-    da EAP padrão (o fato segue em fatos.csv)."""
+    da EAP padrão (o fato segue em fatos.csv). Ordem: fatos, recusadas, quantidades; a lista final é única."""
     evidencias = dados.get("evidencias")
     fatos = evidencias.get("fatos") if isinstance(evidencias, dict) else evidencias
+    recusadas = evidencias.get("recusadas") if isinstance(evidencias, dict) else None
+    avisos = _avisos_dos_fatos(fatos, declarados)
+    avisos += _avisos_das_recusadas(recusadas, declarados)
+    avisos += _avisos_das_quantidades(dados.get("eap"), declarados)
+    return list(dict.fromkeys(avisos))
+
+
+def _avisos_dos_fatos(
+    fatos: list | None, declarados: set[tuple[str, str]]
+) -> list[str]:
+    """Aviso de cada fato consolidado de sistema linear não declarado; o documento é o das afirmações e das decisões."""
     avisos = []
     for f in fatos or []:
         if not sistema_linear_nao_declarado(f["codigo"], declarados):
@@ -983,11 +994,18 @@ def _avisos_nao_declarados(dados: dict, declarados: set[tuple[str, str]]) -> lis
                 f["codigo"], f.get("servico"), f.get("valor"), f["unidade"], documentos
             )
         )
-    for r in (
-        evidencias.get("recusadas") if isinstance(evidencias, dict) else None
-    ) or []:
+    return avisos
+
+
+def _avisos_das_recusadas(
+    recusadas: list | None, declarados: set[tuple[str, str]]
+) -> list[str]:
+    """Aviso de cada evidência recusada na leitura: o motivo "sistema não declarado" vira o aviso do sistema (se a obra
+    não o declara); qualquer outro motivo (decisão ou documento fora do schema) vira aviso próprio, em qualquer obra."""
+    avisos = []
+    for r in recusadas or []:
         if r.get("motivo") != MOTIVO_NAO_DECLARADO:
-            avisos.append(  # decisão ou documento fora do schema: aviso próprio, com o motivo, em qualquer obra
+            avisos.append(
                 f"Recusada na leitura: {r.get('codigo') or 'sem código'} ({r.get('motivo')})"
             )
         elif sistema_linear_nao_declarado(r.get("codigo") or "", declarados):
@@ -1000,14 +1018,22 @@ def _avisos_nao_declarados(dados: dict, declarados: set[tuple[str, str]]) -> lis
                     [r.get("documento")],
                 )
             )
-    for q in (dados.get("eap") or {}).get("quantidades") or []:
+    return avisos
+
+
+def _avisos_das_quantidades(
+    eap_codificada: dict | None, declarados: set[tuple[str, str]]
+) -> list[str]:
+    """Aviso de cada quantidade da EAP codificada (pranchas medidas) de sistema linear não declarado."""
+    avisos = []
+    for q in (eap_codificada or {}).get("quantidades") or []:
         if sistema_linear_nao_declarado(q["codigo"], declarados):
             avisos.append(
                 f"Sistema de trecho linear não declarado na obra: {q['codigo']} ({q['grandeza']}, "
                 f"{_numero(q['quantidade'], q['unidade'])} {q['unidade']}; documento pranchas medidas, "
                 f"{len(q.get('evidencias') or [])} elemento(s)); o número fica fora das duas vistas da EAP padrão"
             )
-    return list(dict.fromkeys(avisos))
+    return avisos
 
 
 def _levantar(problemas: list[str]) -> None:
