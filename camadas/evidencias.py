@@ -1319,13 +1319,42 @@ def _sem_trecho_linear_nao_declarado(evs: list[dict], trechos: list[dict] | None
     return ficam
 
 
-def _documentos(cfg: dict, log=print) -> list[dict]:
+def _problemas_do_documento(d: dict) -> list[str]:
+    """Campos do documento do obra.json que derrubariam `evidencia()`: `unidade`/`sistema` (ausente = '*') fora do padrão
+    do campo `codigo` do schema (conferido montando um código com um item de teste, sem regex própria), `tipo` ausente
+    ou fora do enum e `escopo` fora do enum. Não normaliza caixa: o que está fora do padrão é recusado."""
+    props = SCHEMA["properties"]
+    problemas = []
+    unidade, sistema = d.get("unidade", "*"), d.get("sistema", "*")
+    if not (isinstance(unidade, str) and isinstance(sistema, str)
+            and re.fullmatch(props["codigo"]["pattern"], f"{unidade}.{sistema}.TST")):
+        problemas.append(f"unidade '{unidade}' ou sistema '{sistema}' fora do padrão")
+    if d.get("tipo") not in props["documento"]["properties"]["tipo"]["enum"]:
+        problemas.append(f"tipo '{d.get('tipo')}' inválido")
+    if d.get("escopo") is not None and d["escopo"] not in props["escopo"]["enum"]:
+        problemas.append(f"escopo '{d['escopo']}' inválido")
+    return problemas
+
+
+def _documentos(cfg: dict, log=print, recusadas: list[dict] | None = None) -> list[dict]:
     """Documentos de leitura do obra.json (`evidencias.documentos`: pdf (PDF ou planilha .xlsx/.xls/.csv), tipo, unidade?,
-    sistema?), com as páginas."""
+    sistema?, escopo?), com as páginas. Documento com unidade, sistema, tipo ou escopo fora do schema fica de fora, sem
+    ler as páginas, e vai para `recusadas` ({motivo: "documento inválido: …", evidencia: {documento: {id}, codigo:
+    "unidade.sistema.*"}}); sem `recusadas`, quem chama não registra e a recusa vai para o `log`."""
     saida = []
     for d in (cfg.get("evidencias") or {}).get("documentos", []):
         if not Path(d["pdf"]).exists():
             log(f"  evidências: {d['pdf']} não está no disco")
+            continue
+        problemas = _problemas_do_documento(d)
+        if problemas:
+            recusa = {"motivo": "documento inválido: " + "; ".join(problemas),
+                      "evidencia": {"documento": {"id": Path(d["pdf"]).name},
+                                    "codigo": f"{d.get('unidade', '*')}.{d.get('sistema', '*')}.*"}}
+            if recusadas is None:
+                log(f"  evidências: documento {Path(d['pdf']).name} recusado ({recusa['motivo']})")
+            else:
+                recusadas.append(recusa)                 # `etapa` registra no log, uma linha por recusa
             continue
         try:
             paginas = paginas_do_arquivo(d["pdf"])
@@ -1390,7 +1419,8 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     extras = {k: (ler if k == "decisoes" else _ler_ia)(conf[k]) if conf.get(k) and Path(conf[k]).exists() else []
               for k in ("ia", "decisoes")}
     recusadas_ia, recusadas = [], []
-    evs = loop(_documentos(cfg, log), planilha, dados.get("construtivos"), dados["crs"]["epsg"],
+    documentos = _documentos(cfg, log, recusadas)
+    evs = loop(documentos, planilha, dados.get("construtivos"), dados["crs"]["epsg"],
                extras["ia"], extras["decisoes"], dados.get("sondagens"), cfg.get("elementos_declarados"),
                _obras_lineares_da_obra(cfg, dados.get("sondagens"), log), recusadas_ia,
                eap_padrao.trechos_do_cfg(cfg), recusadas)
@@ -1420,6 +1450,8 @@ def _descrever_recusada(ev) -> str:
     """Código e valor de uma evidência recusada, para o log (a decisão inválida pode não ter os campos)."""
     if not isinstance(ev, dict):
         return str(ev)
+    if "valor" not in ev and isinstance(ev.get("documento"), dict) and str(ev.get("codigo")).endswith(".*"):
+        return f"documento {ev['documento'].get('id')} ({ev['codigo']})"            # recusa de documento, sem valor
     return f"{ev.get('codigo')} {ev.get('valor')} {ev.get('unidade') or ''}".rstrip()
 
 

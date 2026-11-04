@@ -734,6 +734,12 @@ Relatório com contagens antes × depois: `docs/plano/2026-11-03_foz_eap_padrao_
     padrão") e agora a decisão também. Nenhum código em minúsculas chega às folhas, então `_item_do_codigo` não muda;
     `preencher` chamado direto só em teste fica fora do contrato. Foz (mista, declarada) não muda: mesmos números e hash
     da cadeia real.
+  - **Documento validado na entrada (plano `docs/plano/2026-11-04_wbs_documento_validado.md`).** `evidencias._documentos`
+    confere, antes de ler as páginas, `unidade`/`sistema` (ausente = `*`) contra o padrão do campo `codigo` do schema
+    (código montado com um item de teste), `tipo` e `escopo` contra os enums do schema. Documento fora do padrão (por
+    exemplo `sistema` em minúsculas) fica de fora e entra em `recusadas` (`motivo: "documento inválido: …"`, documento =
+    id, código = `unidade.sistema.*`), sem exceção nem normalização; os demais documentos da obra seguem lidos. O aviso da
+    EAP padrão para recusa que não é de sistema não declarado passa a ser genérico: "Recusada na leitura: …".
 
 **Item acessório e a cabeça da descrição** (`eap_geral.jsonl`: `"acessorio": true`, `evidencias._achados_da_cabeca`).
 Mobilização, desmobilização, topografia, sinalização, ensaios, comissionamento, desinfecção, CFTV, travessia, MND,
