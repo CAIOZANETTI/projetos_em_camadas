@@ -1369,7 +1369,15 @@ def formatar_terreno_do_modelo(t: dict) -> dict:
         "plano_melhora_txt": {
             True: "sim",
             False: "NÃO",
-            None: "sem furos fora do casco",
+            None: (
+                "inconclusivo ("
+                + (
+                    f"{v.get('n_furos_validos', 0)} furo utilizável: {', '.join(v.get('furos_validos', []))}"
+                    if v.get("n_furos_validos")
+                    else "sem furos utilizáveis fora do casco"
+                )
+                + ")"
+            ),
         }[v.get("plano_melhora_furos_de_fora")],
         "alertas": list(t.get("alertas", [])),
     }

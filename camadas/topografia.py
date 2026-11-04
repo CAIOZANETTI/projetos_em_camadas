@@ -44,6 +44,7 @@ LIMITE_GLIFO_PT = (
     10.0  # traço com extensão menor é glifo de rótulo (texto ~7 pt); curva é bem maior
 )
 RAIO_AGRUPAR_GLIFOS_PT = 4.5  # glifos a menos disso (dilatação) formam o mesmo rótulo
+VERSAO_LEITURA_CURVAS = 2  # entra na assinatura do cache das curvas: mudou a leitura (continuações, 2º aceite), relê
 RAIO_ROTULO_PT = 30.0  # rótulo vale para a curva com ponta a até isto (como o raio de cota da escavação)
 FATOR_PONTA_MAIS_PERTO = (
     1.6  # além da ponta mais perta, só vale ponta a até 1,6x (lado oposto da folga)
@@ -1403,6 +1404,38 @@ def _comparar_furos(
     }
 
 
+def _rms_dos_furos_de_fora(fora: list) -> dict:
+    """RMS do MDS bruto e do corrigido contra a boca, só nos furos utilizáveis: o furo a mais de
+    `LIMITE_ALERTA_FURO_M` da boca mesmo corrigido é provável copa e fica fora (revisão do Fable). Com 0 ou 1 furo
+    utilizável, `plano_melhora_furos_de_fora` é None (inconclusivo): um furo só não valida um plano."""
+    uteis = [
+        f
+        for f in fora
+        if f["mds_corrigido_menos_boca_m"] is not None
+        and abs(f["mds_corrigido_menos_boca_m"]) <= LIMITE_ALERTA_FURO_M
+    ]
+    saida = {"n_furos_validos": len(uteis), "furos_validos": [f["id"] for f in uteis]}
+    if not uteis:
+        return {
+            **saida,
+            "rms_bruto_m": None,
+            "rms_corrigido_m": None,
+            "plano_melhora_furos_de_fora": None,
+        }
+    brutos = np.array([f["mds_menos_boca_m"] for f in uteis], float)
+    corrigidos = np.array([f["mds_corrigido_menos_boca_m"] for f in uteis], float)
+    rms_b, rms_c = (
+        round(float(np.sqrt((x**2).mean())), 3) for x in (brutos, corrigidos)
+    )
+    melhora = bool(rms_c < rms_b) if len(uteis) >= 2 else None
+    return {
+        **saida,
+        "rms_bruto_m": rms_b,
+        "rms_corrigido_m": rms_c,
+        "plano_melhora_furos_de_fora": melhora,
+    }
+
+
 def validar_fora_do_casco(
     g: dict,
     topografia: np.ndarray,
@@ -1430,25 +1463,7 @@ def validar_fora_do_casco(
     )
     fora = comparacao.pop("fora")
     saida.update(comparacao, furos_fora_do_casco=fora)
-    brutos = np.array([f["mds_menos_boca_m"] for f in fora], float)
-    corrigidos = np.array(
-        [
-            np.nan
-            if f["mds_corrigido_menos_boca_m"] is None
-            else f["mds_corrigido_menos_boca_m"]
-            for f in fora
-        ],
-        float,
-    )
-    ok = np.isfinite(corrigidos)
-    saida["rms_bruto_m"], saida["rms_corrigido_m"] = (
-        (round(float(np.sqrt((x[ok] ** 2).mean())), 3) for x in (brutos, corrigidos))
-        if ok.any()
-        else (None, None)
-    )
-    saida["plano_melhora_furos_de_fora"] = (
-        bool(saida["rms_corrigido_m"] < saida["rms_bruto_m"]) if ok.any() else None
-    )
+    saida.update(_rms_dos_furos_de_fora(fora))
     saida["alertas"] = [
         f"furo {f['id']}: o MDS corrigido fica {f['mds_corrigido_menos_boca_m']:+.2f} m da boca, a máscara de vegetação "
         "alta não o pegou (provável copa): terreno pouco confiável ao redor"

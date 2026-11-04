@@ -364,12 +364,13 @@ def _entregar_as_gavetas(saida: dict, ms: list, bs: list, cristas: list, g: dict
 
 def _curvas_da_topografia(t: dict, out: Path) -> list[dict]:
     """Curvas de nível da prancha de topografia (`topografia.curvas_de_nivel`); a leitura por OCR fica em cache em
-    `out/topografia_curvas_cache.json`, com assinatura do PDF, da afim e dos layers."""
+    `out/topografia_curvas_cache.json`, com assinatura da versão da leitura, do PDF, da afim e dos layers (sem a versão, um
+    cache antigo era reaproveitado em silêncio depois de mudar a leitura)."""
     from . import topografia
 
     arq = Path(t["pdf"])
-    assinatura = (f"{arq.stat().st_size}:{int(arq.stat().st_mtime)}:{np.asarray(t['M']).round(6).tolist()}:"
-                  f"{t.get('layers')}")
+    assinatura = (f"v{topografia.VERSAO_LEITURA_CURVAS}:{arq.stat().st_size}:{int(arq.stat().st_mtime)}:"
+                  f"{np.asarray(t['M']).round(6).tolist()}:{t.get('layers')}")
     cache_arq = out / "topografia_curvas_cache.json"
     cache = json.loads(cache_arq.read_text()) if cache_arq.exists() else {}
     if cache.get("assinatura") != assinatura:

@@ -197,11 +197,11 @@ def test_validacao_fora_do_casco_mede_os_furos_e_declara_a_copa():
 
 def test_plano_que_nao_melhora_os_furos_de_fora_e_dito_no_resultado():
     g, topo = _grade(), _topografia_plana()
-    e, n = 10.0, 5.0  # fora do casco: o plano mexe -0,43 m aqui
-    bruto = float(g["terreno"][int((g["n1"] - n) / RES), int(e / RES)])
-    furos = [
-        _furo("SP9", e, n, bruto)
-    ]  # a boca coincide com o MDS bruto: o plano piora
+    pontos = [(10.0, 5.0), (12.0, 5.0)]  # fora do casco: o plano mexe ~-0,4 m aqui
+    furos = [  # a boca coincide com o MDS bruto: o plano piora; 2 furos utilizáveis (com 1 seria inconclusivo)
+        _furo(f"SP9{i}", e, n, float(g["terreno"][int((g["n1"] - n) / RES), int(e / RES)]))
+        for i, (e, n) in enumerate(pontos)
+    ]
     r = tp.compor_terreno(g, topo, g["vegetacao_alta"], furos=furos)
     v = r["resumo"]["validacao_fora_do_casco"]
     assert (
@@ -482,7 +482,7 @@ def test_html_recebe_o_terreno_do_modelo_e_a_fracao_da_secao_ja_formatados():
         and "," in t["furos_fora"][0]["corrigido_txt"]
     )
     assert (
-        t["plano_melhora_txt"] in {"sim", "NÃO"}
+        t["plano_melhora_txt"].startswith("inconclusivo (1 furo utilizável")
         and t["faixas_borda"][0]["faixa"] == "0–2 m"
     )
     assert (
@@ -498,3 +498,38 @@ def test_html_recebe_o_terreno_do_modelo_e_a_fracao_da_secao_ja_formatados():
         "fracao_terreno_topografia": 0.25,
     }
     assert cc.formatar_secao(linha)["terreno_modelo_txt"] == "25% topografia do projeto"
+
+
+def test_furo_de_copa_fica_fora_do_rms_e_um_furo_so_e_inconclusivo():
+    """2º aceite do Fable: o SP16 (copa) fazia o plano 'melhorar' os furos de fora, e o SP15 piorava."""
+    from camadas import topografia
+
+    fora = [
+        {"id": "SP15", "mds_menos_boca_m": 0.29, "mds_corrigido_menos_boca_m": -0.33},
+        {"id": "SP16", "mds_menos_boca_m": 2.12, "mds_corrigido_menos_boca_m": 1.57},
+    ]
+    r = topografia._rms_dos_furos_de_fora(fora)
+    assert r["furos_validos"] == ["SP15"] and r["plano_melhora_furos_de_fora"] is None
+    dois = fora[:1] + [
+        {"id": "SP99", "mds_menos_boca_m": 0.40, "mds_corrigido_menos_boca_m": -0.50}
+    ]
+    assert (
+        topografia._rms_dos_furos_de_fora(dois)["plano_melhora_furos_de_fora"] is False
+    )
+    assert topografia._rms_dos_furos_de_fora([])["n_furos_validos"] == 0
+
+
+def test_cache_das_curvas_de_outra_versao_da_leitura_e_relido(tmp_path, monkeypatch):
+    """O build reaproveitava o cache de curvas da leitura anterior (sem continuações) e dava outro volume."""
+    import json
+
+    from camadas import escavacao, topografia
+
+    pdf = tmp_path / "geoplanta.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    t = {"pdf": str(pdf), "M": [[1, 0, 0], [0, 1, 0]], "layers": ["Curvas_Mestras"]}
+    chamadas = []
+    monkeypatch.setattr(topografia, "curvas_de_nivel", lambda *a, **k: chamadas.append(1) or [{"cota_m": 240.0}])
+    (tmp_path / "topografia_curvas_cache.json").write_text(json.dumps({"assinatura": "velha", "curvas": [{"cota_m": 1.0}]}))
+    assert escavacao._curvas_da_topografia(t, tmp_path) == [{"cota_m": 240.0}] and chamadas == [1]
+    assert escavacao._curvas_da_topografia(t, tmp_path) == [{"cota_m": 240.0}] and chamadas == [1]  # 2ª vez: cache
