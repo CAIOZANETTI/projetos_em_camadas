@@ -831,9 +831,12 @@ def _eap_padrao_no_build(dados: dict, cfg: dict, out: Path) -> None:
 
 def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | None) -> dict | None:
     """Quantidades do CUSTO CIVIL da planilha 211 (`camadas.contrato_211`), sem preço, para `dados["contrato_211"]`.
-    Sem planilha vira pendência; qualquer falha também, e o contrato nunca derruba o build."""
+    Sem a chave `obras_lineares.planilha` nada muda (obra sem contrato Sanepar); com a chave e sem o arquivo, ou com
+    qualquer falha, vira pendência, e o contrato nunca derruba o build."""
     planilha = cfg.get("obras_lineares", {}).get("planilha")
-    if not planilha or not Path(planilha).is_file():
+    if not planilha:
+        return None
+    if not Path(planilha).is_file():
         _log("Contrato 211: planilha ausente (pendência)")
         return None
     try:
@@ -851,7 +854,14 @@ def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | No
             f"{situacao} {n}" for situacao, n in resumo["por_situacao"].items() if n))
         premissas = [f"{nome}: {p['descricao']} = {str(p['valor']).replace('.', ',')} {p['unidade']} ({p['estado']})"
                      for nome, p in contrato_211.DE_PARA["premissas"].items()]
-        return {"resumo": resumo, "linhas": contrato_211.para_html(resultados), "premissas": premissas,
+        pct = f"{resumo['pct_vazias_calculadas']:.1f}".replace(".", ",") + " %"
+        resumo_txt = [["Linhas", str(resumo["linhas"])],
+                      *[[f"situação: {k}", str(n)] for k, n in resumo["por_situacao"].items()],
+                      ["Linhas sem declarada", str(resumo["vazias"])],
+                      ["Sem declarada, calculadas", str(resumo["vazias_calculadas"])],
+                      ["Sem declarada, calculadas (%)", pct]]           # já em texto: o HTML só apresenta
+        return {"resumo": resumo, "resumo_txt": resumo_txt, "linhas": contrato_211.para_html(resultados),
+                "premissas": premissas,
                 "fonte": "aba CUSTO CIVIL da planilha 211 (colunas A–E e I; sem preço)"}
     except Exception as erro:  # noqa: BLE001 - o contrato nunca derruba o build
         _log(f"Contrato 211: não concluído (pendência; {type(erro).__name__}: {erro})")

@@ -2419,11 +2419,7 @@ function htmlEapPadrao(Q) {
 /* Contrato 211 (D.contrato_211): camadas/contrato_211.py já calcula, classifica e formata tudo; aqui só se exibe, uma tabela
    por folha da EAP, na ordem em que as linhas vêm. Os números do resumo chegam crus e só ganham a vírgula decimal. */
 function htmlContrato211(C) {
-  const RS = C.resumo || {};
-  const num = v => esc(typeof v === "number" ? v.toLocaleString("pt-BR") : v);
-  const pares = [["Linhas", RS.linhas], ...Object.entries(RS.por_situacao || {}).map(([k, v]) => [`situação: ${k}`, v]),
-    ["Linhas sem declarada", RS.vazias], ["Sem declarada, calculadas", RS.vazias_calculadas],
-    ["Sem declarada, calculadas (%)", RS.pct_vazias_calculadas]];
+  const pares = C.resumo_txt || [];   // pares [rótulo, texto] já formatados pelo Python (obra._contrato_211)
   const folhas = new Map();
   for (const l of C.linhas || []) {
     const chave = l.folha_eap ?? "";
@@ -2449,7 +2445,7 @@ function htmlContrato211(C) {
   const grupos = [...folhas].map(([folha, ls]) => `<h3>Folha ${folha ? `<span class="cod">${esc(folha)}</span>` : "sem folha"}</h3>${tabela(ls)}`).join("");
   return `<h2>Contrato 211: quantidades do CUSTO CIVIL (sem preço)</h2>
     <p class="nota-l" style="margin-left:0">${esc(C.fonte)}</p>
-    <div class="eap-res">${pares.map(([k, v]) => `<span>${esc(k)}</span><b>${num(v)}</b>`).join("")}</div>
+    <div class="eap-res">${pares.map(([k, v]) => `<span>${esc(k)}</span><b>${esc(v)}</b>`).join("")}</div>
     <h3>Premissas</h3><ul class="ctr211-prem">${(C.premissas || []).map(p => `<li>${esc(p)}</li>`).join("")}</ul>
     ${grupos}`;
 }
