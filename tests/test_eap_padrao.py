@@ -778,6 +778,10 @@ def test_tabelas_do_painel_etapa_citada_no_contrato_e_mencao():
     assert etapas["OP.00"]["citada_no_contrato"] == "não"
     assert etapas["OP.00"]["linhas_citadas"] == 0
     assert etapas["OP.01"]["mencao"] == 1
+    folhas = {f["folha"]: f for f in tabelas["folhas"]}
+    assert (
+        folhas["OP.01.02"]["motivo"] == "citado sem valor"
+    )  # aceite do Fable: a razão da só menção aparece
 
 
 def test_tabelas_do_painel_percentual_com_zero_aplicaveis():

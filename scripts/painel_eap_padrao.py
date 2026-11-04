@@ -39,6 +39,11 @@ def cadeia(cfg: dict) -> tuple[dict, list[dict], list[dict], list[dict]]:
         raise SystemExit(
             "planilha do contrato ausente: o csv de escopo.itens_csv não existe (use --planilha <xlsx>)"
         )
+    if trechos and "titulo_etapa" not in planilha[0].columns:
+        print(
+            "AVISO: o csv da planilha não tem a coluna titulo_etapa (versão antiga): a declaração "
+            "eap_padrao.trechos_lineares não terá efeito; regere com --planilha <xlsx>"
+        )
     recusadas: list[dict] = []
     evs = evidencias.loop([], planilha, trechos_lineares=trechos, recusadas=recusadas)
     fatos = evidencias.consolidar(evs)

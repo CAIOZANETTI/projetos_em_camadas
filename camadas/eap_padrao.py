@@ -1228,6 +1228,7 @@ def _linha_da_folha(bloco: dict, etapa: dict, folha: dict) -> dict:
         "aponta": ", ".join(folha["aponta_txt"]),
         "quantidade": " | ".join(folha["quantidades_txt"]),
         "evidencias": folha["n_evidencias"],
+        "motivo": folha.get("motivo") or "",
         "observacao": folha["observacao"],
     }
 
@@ -1235,7 +1236,8 @@ def _linha_da_folha(bloco: dict, etapa: dict, folha: dict) -> dict:
 def tabelas_do_painel(resultado: dict) -> dict[str, list[dict]]:
     """Achata a saída de `montar` em quatro tabelas para o painel da EAP padrão (só apresentação, sem preço):
     `resumo` (um por tipo), `situacoes` (tipo × situação com n > 0), `etapas` e `folhas`. Função pura: a ordem é a do
-    esqueleto (tipos da obra, etapas e folhas do `eap_padrao.json`) e `situacoes` segue `SITUACOES`."""
+    esqueleto (tipos da obra, etapas e folhas do `eap_padrao.json`) e `situacoes` segue `SITUACOES`. Em `folhas`,
+    `motivo` é a razão da situação dada pelo preenchimento (ex.: "citado sem valor") e `observacao`, a nota do padrão."""
     blocos = resultado["tipos"]
     return {
         "resumo": [_linha_do_resumo(b) for b in blocos],
