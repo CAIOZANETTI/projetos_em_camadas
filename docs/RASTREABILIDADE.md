@@ -21,8 +21,8 @@ visualizador.html` → `saida/<obra>/<id>_camadas_v<versão>_<data>.html`.
 | `claude/gracious-maxwell-6zyd9c` | #1 | (antes do CHANGELOG) | base: mosaico de drone, camadas de projeto e visualizador HTML (Irati) |
 | `claude/intelligent-dijkstra-l3v3wh` | #2–16, #19, #21 | 0.1–0.16, 0.18, 0.20 | Foz inteira até a aba Obra: 3D e ortofoto, pranchas vetoriais por layer, georreferência, escopo sem preço, sondagens, inventário, escavação e valas, fichas de prancha, área da obra, pacote SIG, nome com versão, aba Obra, escopo por unidade, formas dos Actiflo, unidades da Relação de Desenhos |
 | `claude/hopeful-archimedes-1kaoom` | #17 | 0.17 | obras lineares dentro da ETA (vala pelo MOS, sondagem, pavimento) |
-| `claude/focused-dijkstra-m2k7pj` | #20, #22–24, #28, #30–31, #33, #48, #52–54, #58, #60–61 | 0.19, 0.21–0.23, 0.27, 0.29, 0.31, 0.49–0.51 | arquitetura ("só escopo", sem cronograma/4D; ciclo de extração), geotecnia e obras lineares, decisões D4–D9, verificação noturna da arquitetura |
-| `ccr-2f8fb1ac-7urfse` | #26–27, #29, #32, #35, #39, #46, #56 | 0.24–0.26, 0.28, 0.30, 0.34, 0.36, 0.45, 0.53 | memória espacial (gavetas, de-para), build real de Foz, conferência das cavas |
+| `claude/focused-dijkstra-m2k7pj` | #20, #22–24, #28, #30–31, #33, #48, #52–54, #58, #60–62 | 0.19, 0.21–0.23, 0.27, 0.29, 0.31, 0.49–0.51 | arquitetura ("só escopo", sem cronograma/4D; ciclo de extração), geotecnia e obras lineares, decisões D4–D11, verificação noturna da arquitetura |
+| `ccr-2f8fb1ac-7urfse` | #26–27, #29, #32, #35, #39, #46, #56, #63 | 0.24–0.26, 0.28, 0.30, 0.34, 0.36, 0.45, 0.53, 0.56 | memória espacial (gavetas, de-para), build real de Foz, conferência das cavas, terreno das cavas pela topografia do projeto |
 | `claude/nifty-meitner-uqs554` | #18, #34, #36, #38, #40–45, #47, #49–51, #55, #57, #59 | 0.32–0.33, 0.35, 0.37–0.44, 0.46–0.48, 0.52, 0.54–0.55 | EAP codificada (aba EAP), leitura por IA com citação conferida, EAP padrão alinhada à planilha Sanepar |
 | `ccr-a74a1d05-p8rjle` | #25, #37 | — | Vibe Code Metrics (higiene, `uv`, conjunto de referência) e testes de caracterização de `obra.py` |
 
@@ -31,6 +31,7 @@ visualizador.html` → `saida/<obra>/<id>_camadas_v<versão>_<data>.html`.
 <!-- versoes:inicio -->
 | Versão | Data | PR | Branch (sessão) | Tema |
 |---|---|---|---|---|
+| 0.56.0 | 2026-11-04 | #63 | `ccr-2f8fb1ac-7urfse` | Terreno das cavas: topografia do projeto no casco das curvas, MDS corrigido fora |
 | 0.55.0 | 2026-11-03 | #59 | `claude/nifty-meitner-uqs554` | A etapa pelo título da planilha Sanepar |
 | 0.54.0 | 2026-11-03 | #57 | `claude/nifty-meitner-uqs554` | EAP padrão alinhada à planilha real da Sanepar (Foz) |
 | 0.53.0 | 2026-11-03 | #56 | `ccr-2f8fb1ac-7urfse` | Conferência das cavas por seções de corte e cotas da sequência executiva |
