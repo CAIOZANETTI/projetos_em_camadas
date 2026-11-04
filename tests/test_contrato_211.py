@@ -569,7 +569,7 @@ def test_supressao_por_uc_chama_o_estimador_com_as_faixas_da_uc(
     monkeypatch.setattr(supressao, "estimar", estimar_falso)
     saida = c211.supressao_por_uc(redes, "orto.jpg", "mds.png", 4.0, 2.0, linhas_e2)
     assert chamadas["etapas"] == {"UC 1 - UC A": 3}  # UC B não tem rede medida
-    assert chamadas["faixa_m"] == 4.0 and chamadas["folga"] == 2.0
+    assert chamadas["faixa_m"] == 4.0 and chamadas["folga"] == 0.0  # a faixa já vai pronta
     assert saida["UC 1 - UC A"]["arvores_m2"] == 10.0
     assert saida["UC 1 - UC A"]["rasteira_m2"] == 20.0
     assert c211.supressao_por_uc([], "o", "m", 4.0, 2.0, linhas_e2) == {}
@@ -705,3 +705,19 @@ def test_conceito_alternativo_muda_a_premissa(linhas_e2, redes):
     assert dobro["quantidade_calculada"] == pytest.approx(
         2 * base["quantidade_calculada"], abs=0.1
     )
+
+
+def test_faixa_dos_trechos_tem_area(linhas_e2, redes, monkeypatch):
+    """A faixa que vai ao estimador não pode ser vazia: o buffer plano de ponto dá área 0 (zerava a supressão)."""
+    from camadas import supressao
+
+    faixas = {}
+
+    def estimar_falso(ortofoto, mds_png, geoms_por_etapa, faixa_m, folga_unidades_m):
+        for uc, geoms in geoms_por_etapa.items():
+            faixas[uc] = supressao.faixa_de_obra(geoms, faixa_m, folga_unidades_m)
+        return {"resumo": {}}
+
+    monkeypatch.setattr(supressao, "estimar", estimar_falso)
+    c211.supressao_por_uc(redes, "orto.jpg", "mds.png", 4.0, 2.0, linhas_e2)
+    assert faixas and all(f is not None and f.area > 0 for f in faixas.values())

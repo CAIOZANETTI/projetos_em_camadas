@@ -334,8 +334,10 @@ def supressao_por_uc(
 
     geoms_por_uc: dict[str, list] = {}
     for (_, uc), trechos in _trechos_por_uc(linhas).items():
+        # faixa do trecho = buffer redondo das amostras (a cada 1 m); o buffer plano de `faixa_de_obra` em ponto é
+        # vazio (área 0), por isso a faixa já vai pronta, como polígono, e sem folga
         geoms = [
-            shapely.MultiPoint(np.asarray(rede["pts"], dtype=np.float64))
+            shapely.MultiPoint(np.asarray(rede["pts"], dtype=np.float64)).buffer(faixa_m / 2)
             for rede in redes_vala
             if rede.get("trecho_contrato") in trechos and len(rede.get("pts", ())) > 0
         ]
@@ -348,7 +350,7 @@ def supressao_por_uc(
         mds_png,
         geoms_por_uc,
         faixa_m=faixa_m,
-        folga_unidades_m=folga_m,
+        folga_unidades_m=0.0,
     )["resumo"]
     return {
         uc: {
