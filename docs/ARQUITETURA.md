@@ -258,6 +258,8 @@ Decisão do Caio vale como regra até ser superada por outra, sempre registrada 
 | D6 | 03/11 | o furo impenetrável vale como rocha na faixa abaixo dele (escavação, escoramento, esgotamento) | vigente |
 | D7 | 03/11 | tubo fora da Tabela I do MOS: largura pela NBR 12266 (DE + 0,60 m), com alerta, numa regra só no `lineares` | vigente |
 | D8 | 03/11 | o reaterro desconta o berço e a envoltória, que já são lançados como serviços | vigente |
+| D10 | 04/11 | blocos de ancoragem e de apoio são um item só, `HID.TUB.ANC`, em qualquer unidade (ETA ou adutora); a frente WBS escolhe a etapa da EAP padrão | vigente |
+| D11 | 04/11 | a água potável (622 m) conta uma vez só, como trecho de obra linear dentro da U1 | vigente |
 | D9 | 03/11 | o fallback usa o DE do tubo (dado, ou pela tabela DN → DE do material); trecho em MND não tem largura de vala; o bota-fora inclui o solo deslocado pelo berço e pela envoltória | vigente |
 
 ## 7. Quem faz o quê
@@ -514,12 +516,12 @@ O repositório é trabalhado por várias conversas em paralelo. Cada uma é uma 
 | Giselle · obras lineares da ETA | origem do MOS e das premissas D1 | parada (ramo 407 commits atrás) | calibrar raio de influência e cor do pavimento |
 | Protótipo 211 · Foz | build de ponta a ponta | concluída | geometria dos Actiflo, folha 10, escopo "a definir", 58 desenhos |
 
-**Alinhamentos necessários** (1 e 2 são propostas desta frente, a confirmar pelo Caio):
-1. **Blocos de ancoragem e de apoio:** o Protótipo os trata como unidade "a definir" e a WBS como itens da etapa de
-   instalações hidráulicas. Vale um modelo só: item da EAP codificada (`HID.TUB.ANC`), em qualquer unidade. A WBS
-   decide a etapa.
-2. **Água potável (622 m):** linha da obra linear (Giselle) × item da ETA (WBS). Conta uma vez só: o trecho é obra
-   linear dentro da unidade U1, e a EAP padrão linear o recebe.
+**Alinhamentos necessários** (1 e 2 confirmados pelo Caio em 04/11: D10 e D11):
+1. **Blocos de ancoragem e de apoio (D10):** o Protótipo os tratava como unidade "a definir" e a WBS como itens da
+   etapa de instalações hidráulicas. Vale um modelo só: item da EAP codificada (`HID.TUB.ANC`), em qualquer unidade. A
+   WBS decide a etapa e implementa.
+2. **Água potável, 622 m (D11):** linha da obra linear (Giselle) × item da ETA (WBS). Conta uma vez só: o trecho é
+   obra linear dentro da unidade U1, e a EAP padrão linear o recebe. A WBS implementa.
 3. **Versão e lição:** cada frente pega a próxima versão livre **no merge** (nunca na abertura do ramo); colisão se
    resolve renumerando o próprio ramo, como já foi feito duas vezes.
 4. **Rumo por frente:** `rumo.yaml` passa a ser um por frente (`results/rumo/<frente>.yaml`), para que duas conversas
