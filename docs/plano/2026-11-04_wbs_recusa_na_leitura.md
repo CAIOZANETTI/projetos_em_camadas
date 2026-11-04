@@ -29,3 +29,22 @@ com saída idêntica; `U1.LINEARES.*` e `rede_eta` na localizada.
 
 Três verdes, suíte como o vcm roda com 0 falhas, hash de `camadas.referencia` = 0602c637…, roteiros de ataque
 idênticos, cadeia real de Foz igual, `vcm balanco` sem REVERTER, aprovação do plano e aceite da entrega pelo Fable.
+
+## Parecer do Fable sobre o plano: APROVA, com quatro ajustes obrigatórios
+
+1. **A declaração chega a `loop` por parâmetro**: `etapa` já calcula `eap_padrao.trechos_do_cfg(cfg)` (fonte única) e
+   passa a `loop(trechos_lineares=...)`; `None` = não conferir. A recusa fica em `loop`, **não** em `_conferir_ia`
+   (compartilhada com a CLI `conferir`, que não conhece a obra; documentar que a CLI não aplica esta trava).
+2. **Um mecanismo só**: em `loop`, um filtro único (`eap.eh_trecho_linear` + par não declarado) remove de `evs`, antes
+   de `_sem_ia_repetida`/`consolidar`/`gravar`, toda evidência com sistema linear não declarado — IA, decisão, regex
+   e extras — e registra `{motivo, evidencia}` em `recusadas`. A planilha declarada passa porque o par está declarado.
+   As decisões passam por `validar_evidencia` (motivo de recusa, nunca exceção).
+3. **Visibilidade**: `etapa` devolve as recusas (código, serviço, valor, documento, motivo) e elas entram nos
+   `avisos` da EAP padrão com o mesmo texto "Sistema de trecho linear não declarado na obra: …".
+4. **E2, decisão do gerente: recusar, não normalizar.** O schema (`conceitos/evidencia.schema.json`) já exige
+   maiúsculas no sistema e no item; a IA já é recusada ("código fora do padrão"). Com o ajuste 2, a decisão também
+   passa por `validar_evidencia` e o código fora do padrão é recusado com motivo. Nenhum código em minúsculas chega
+   às folhas; `_item_do_codigo` não muda. A chamada direta de `preencher` (só em teste) fica fora do contrato.
+
+Efeitos: Foz não tem IA, decisões nem documento com `sistema`, e o trecho está declarado, então E1 é vazia para
+Foz. `camadas.referencia` não mede estes caminhos; o invariante útil é o hash da cadeia real de Foz (c5c2d5cd).
