@@ -76,3 +76,19 @@ def test_completar_escopo_sem_insumos_diz_o_que_faltou(tmp_path):
     assert r["faltou"] == ["inventário (sem a listagem do Drive)", "planilha do contrato",
                            "elementos construtivos (sem PDF de prancha no obra.json)"]
     assert json.loads((tmp_path / "gavetas_escopo.json").read_text(encoding="utf-8"))["faltou"] == r["faltou"]
+
+
+def test_substituir_e_idempotente():
+    """Rodar a extração de novo sobre uma base que já a contém dá o mesmo resultado (a parte nova troca a antiga)."""
+    from camadas import extrair_gavetas
+
+    antiga = {"objetos": [{"objeto_id": "o1", "classe": "bloco"}],
+              "fatos": [{"fato_id": "o1.area_planta_m2", "objeto_id": "o1", "propriedade": "area_planta_m2", "valor": 1.234,
+                         "natureza": "projetado", "evidencia_id": "e1"}],
+              "pendencias": [{"objeto_id": "o1", "motivo": "velha"}]}
+    nova = {"objetos": [{"objeto_id": "o1", "classe": "bloco"}],
+            "fatos": [{"fato_id": "o1.area_planta_m2", "objeto_id": "o1", "propriedade": "area_planta_m2", "valor": 1.234567,
+                       "natureza": "projetado", "evidencia_id": "e1"}]}
+    uma = extrair_gavetas._substituir(antiga, nova)
+    assert uma["fatos"][0]["valor"] == 1.234567 and uma["pendencias"] == []
+    assert extrair_gavetas._substituir(uma, nova) == uma

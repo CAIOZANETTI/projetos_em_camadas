@@ -522,6 +522,22 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
             "servicos_eap": servicos}
 
 
+def _substituir(base: dict, *partes: dict) -> dict:
+    """Junta as `partes` à `base` trocando o que já existia com a mesma chave (e as pendências dos mesmos objetos): rodar
+    a extração de novo sobre uma base que já a contém dá o mesmo resultado (idempotente), em vez de colidir."""
+    novas = juntar(*partes)
+    limpa = {}
+    for gaveta in gavetas.GAVETAS:
+        chave = gavetas.REGRAS["gavetas"][gaveta]["chave"]
+        if chave:
+            ids = {r[chave] for r in novas[gaveta]}
+            limpa[gaveta] = [r for r in base.get(gaveta, []) if r.get(chave) not in ids]
+        else:
+            objetos = {r.get("objeto_id") for r in novas[gaveta]} | {o["objeto_id"] for o in novas["objetos"]}
+            limpa[gaveta] = [r for r in base.get(gaveta, []) if r.get("objeto_id") not in objetos]
+    return juntar(limpa, novas)
+
+
 def _sem_os_que_ja_tem(registros: dict, base: dict) -> dict:
     """Só os documentos e páginas que a base ainda não tem (o inventário prevalece sobre o registro mínimo de um leitor)."""
     ja = {g: {r[gavetas.REGRAS["gavetas"][g]["chave"]] for r in base.get(g, [])} for g in ("documentos", "paginas")}
@@ -546,11 +562,11 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
                                                        gavetas_documentos._pranchas_do_build(cfg)))
     else:
         faltou.append("inventário (sem a listagem do Drive)")
-    base = juntar(base, *partes)
+    base = _substituir(base, *partes)
     planilha = Path((cfg.get("obras_lineares") or {}).get("planilha") or "")
     if planilha.is_file():
         doc = gavetas.id_documento(planilha)
-        base = juntar(base, gavetas_contrato.de_contrato(planilha, doc), gavetas_contrato.de_materiais(planilha, doc),
+        base = _substituir(base, gavetas_contrato.de_contrato(planilha, doc), gavetas_contrato.de_materiais(planilha, doc),
                       _sem_os_que_ja_tem({"documentos": [{"documento_id": doc, "arquivo": planilha.name, "sha256": doc,
                                                           "extensao": planilha.suffix, "classe": "planilha", "paginas": 1}]},
                                          base))
@@ -561,7 +577,7 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
         nomes = {Path(d["arquivo"]).name: d["documento_id"] for d in base["documentos"]}
         ids, registros = gavetas_construtivos._documentos_citados(dados["construtivos"],
                                                                   gavetas_construtivos._raiz_de_dados(cfg, Path.cwd() / "obra.json"))
-        base = juntar(base, gavetas_construtivos.de_construtivos(dados["construtivos"], dados.get("pranchas", []),
+        base = _substituir(base, gavetas_construtivos.de_construtivos(dados["construtivos"], dados.get("pranchas", []),
                                                                  {**ids, **nomes}, dados["crs"]["epsg"]),
                       _sem_os_que_ja_tem(registros, base))
     else:
@@ -575,12 +591,31 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
               "fatos_com_pagina": com_pagina, "fatos": len(base["fatos"]),
               "documentos_por_classe": dict(sorted(Counter(d.get("classe") for d in base["documentos"]).items())),
               "faltou": faltou, "erros": erros}
+    resumo["eap_unica"] = _eap_unica(base, dados, out, log)
     (Path(out) / "gavetas_escopo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas (escopo): {len(base['documentos'])} documentos, {len(base['paginas'])} páginas, "
         f"{len(base['objetos'])} objetos, {len(base['fatos'])} fatos ({com_pagina} com página ou aba e linha), "
         f"{len(base['pendencias'])} pendências, {len(erros)} erros de conferência"
         + (f"; faltou: {', '.join(faltou)}" if faltou else ""))
     return resumo
+
+
+def _eap_unica(base: dict, dados: dict, out: Path, log=print) -> dict:
+    """F3: a EAP única preenchida só pelas gavetas (`eap_preencher`), gravada em `eap_unica.json`, com a paridade contra a
+    EAP codificada deste mesmo build (`dados["eap"]`, quando já montada): cada quantidade dela tem de sair igual."""
+    from . import eap_preencher
+
+    eap = eap_preencher.preencher(base)
+    codificada = {f"{q['codigo']}|{q['grandeza']}": {"quantidade": q["quantidade"], "unidade": q["unidade"]}
+                  for q in ((dados.get("eap") or {}).get("quantidades") or []) if q.get("quantidade") is not None}
+    difs = eap_preencher.paridade(eap_preencher.itens_tecnicos(base), codificada) if codificada else []
+    (Path(out) / "eap_unica.json").write_text(json.dumps({**eap, "paridade_eap_codificada": difs}, ensure_ascii=False,
+                                                         indent=1), encoding="utf-8")
+    comp = {t: f"{c.get('preenchida', 0)}/{c.get('folhas', 0)}" for t, c in eap["completude"].items()}
+    log(f"EAP única (pelas gavetas): folhas preenchidas {comp}; paridade com a EAP codificada: "
+        + (f"{len(difs)} diferença(s)" if codificada else "sem EAP codificada no build"))
+    return {"completude": eap["completude"], "paridade_eap_codificada": len(difs) if codificada else None,
+            "quantidades_comparadas": len(codificada)}
 
 
 def metadados() -> dict:
