@@ -230,7 +230,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
 
 <div class="folha">
   <header>
-    <div class="eyebrow">projetos_em_camadas · arquitetura R10.4 · estado em 0.55.0 · 03/11/2026</div>
+    <div class="eyebrow">projetos_em_camadas · arquitetura R10.5 · estado em 0.55.0 · 03/11/2026</div>
     <h1>Do projeto à EAP com quantidades</h1>
     <p class="sub">Só escopo: serviços e atividades numa EAP com quantidades, sem preço e sem prazo. A entrega é um único HTML com todos os dados dentro. O código faz o que já é certeza, a IA trabalha só nas dúvidas e a decisão do engenheiro prevalece sobre a evidência. Fonte: <code>docs/ARQUITETURA.md</code>, <code>docs/MEMORIA_ESPACIAL.md</code> e <code>docs/EAP.md</code> na <code>main</code>, conferidos contra o código.</p>
   </header>
@@ -512,6 +512,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
     <p class="nota">Teste de 04/11 em Foz: a planilha principal remontada só com as células da extração externa e passada pelos nossos leitores deu os mesmos números da leitura direta do xlsx.</p>
     <div class="escada-n" role="list" aria-label="Escada de conferência do geral para o específico"><div class="degrau-n" style="--i: 0"><b>N0</b><span>Contrato</span><small>manifesto do SQLite: obra, versão do código, contagens e hash do arquivo</small></div><div class="degrau-n" style="--i: 1"><b>N1</b><span>Inventário</span><small>mesma quantidade de arquivos por pasta e tipo; mesmo conjunto de sha256; estado lido × sem texto</small></div><div class="degrau-n" style="--i: 2"><b>N2</b><span>Leitura</span><small>páginas, palavras e letras+números por arquivo; abaixo de 90 % da leitura externa sobe um degrau (OCR)</small></div><div class="degrau-n" style="--i: 3"><b>N3</b><span>Projetos</span><small>carimbo pela posição do bloco (canto inferior direito): título, folha n/m, revisão; Relação de Desenhos e aba Projetos</small></div><div class="degrau-n" style="--i: 4"><b>N4</b><span>Tabelas</span><small>abas remontadas das células externas passam pelos nossos leitores; relação de materiais das pranchas linha a linha</small></div><div class="degrau-n" style="--i: 5"><b>N5</b><span>Materiais</span><small>código Sanepar, unidade e quantidade de 1ª e 2ª etapa</small></div><div class="degrau-n" style="--i: 6"><b>N6</b><span>Itens relevantes</span><small>concreto (m³), tubulação (m por material e DN), escavação, aço e estacas por nó da EAP, com tolerância por grandeza</small></div><div class="degrau-n chave" style="--i: 7"><b>N7</b><span>Laço de evidências</span><small>todo fato das gavetas tem o trecho achado nos blocos externos (confirmado por duas leituras); e o contrário: menção externa sem fato aqui vira candidata a lacuna</small></div></div>
     <p class="nota">Cada nível só roda se o anterior passou ou teve as diferenças explicadas. Roda depois do build (<code>scripts/conferir_extracao_externa.py</code>, a fazer quando o SQLite existir) e grava <code>conferencia_externa.json</code>; a aba EAP mostra, por nó, quantos fatos as duas leituras confirmaram. Cotações e abas de preço ficam fora; arquivos repetidos em zip são comparados pelo hash.</p>
+    <p class="nota"><b>Condições confirmadas pelo extrator em 04/11</b> (85 perguntas): inventário, leitura, posição dos blocos, planilhas completas e blocos por hash já servem com os Parquet de hoje (N1, N2, N3, N4, N7); manifesto, versão de esquema, saída igual byte a byte e confiança do OCR por bloco chegam na E12. Do nosso lado: converter números de texto com tolerância, usar hash + versão do leitor como chave e não reprovar o N3 pela falta do texto SHX, lacuna conhecida do extrator. As pendências voltam para lá num JSON com o hash e o problema de cada arquivo.</p>
   </section>
 
   <section>
@@ -690,6 +691,6 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
     <div><i>Título</i>Arquitetura de pesquisa e extração · EAP de escopo em camadas</div>
     <div><i>Folha</i>01/01</div>
     <div><i>Escala</i>sem escala</div>
-    <div><i>Rev. · data</i>R10.4 · 04/11/2026</div>
+    <div><i>Rev. · data</i>R10.5 · 04/11/2026</div>
   </div>
 </div>

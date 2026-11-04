@@ -50,24 +50,32 @@ def tabela(versoes: list[dict], ramos: dict | None = None) -> str:
     return "\n".join(linhas)
 
 
+def linha_principal(ref: str) -> list[tuple[str, str, str]]:
+    """[(hash, data, assunto)] da linha principal de `ref` (primeiro pai), do commit mais antigo ao mais novo."""
+    saida = _git("log", "--first-parent", "--reverse", "--format=%H|%ad|%s", "--date=short", ref)
+    return [tuple(x.split("|", 2)) for x in saida.splitlines()]
+
+
+def regravar(caminho: Path, tabela_md: str) -> None:
+    """Substitui, no Markdown, o trecho entre os marcadores de início e fim pela tabela."""
+    s = caminho.read_text(encoding="utf-8")
+    i, j = s.index(INICIO) + len(INICIO), s.index(FIM)
+    caminho.write_text(s[:i] + "\n" + tabela_md + "\n" + s[j:], encoding="utf-8")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Versões do CHANGELOG × PR × branch, a partir do git")
     ap.add_argument("--ref", default="origin/main")
     ap.add_argument("--ramos", help="JSON {PR: branch} para os PRs em squash")
     ap.add_argument("--gravar", help="Markdown com os marcadores de início e fim da tabela, para substituir")
     a = ap.parse_args(argv)
-    lp = [tuple(x.split("|", 2)) for x in
-          _git("log", "--first-parent", "--reverse", "--format=%H|%ad|%s", "--date=short", a.ref).splitlines()]
-    t = tabela(versoes_novas(lp, lambda h: _git("show", f"{h}:CHANGELOG.md", exigir=False)),
+    t = tabela(versoes_novas(linha_principal(a.ref), lambda h: _git("show", f"{h}:CHANGELOG.md", exigir=False)),
                json.loads(Path(a.ramos).read_text()) if a.ramos else None)
     if not a.gravar:
         print(t)
         return
-    p = Path(a.gravar)
-    s = p.read_text(encoding="utf-8")
-    i, j = s.index(INICIO) + len(INICIO), s.index(FIM)
-    p.write_text(s[:i] + "\n" + t + "\n" + s[j:], encoding="utf-8")
-    print(f"{p}: tabela de versões regravada")
+    regravar(Path(a.gravar), t)
+    print(f"{a.gravar}: tabela de versões regravada")
 
 
 if __name__ == "__main__":
