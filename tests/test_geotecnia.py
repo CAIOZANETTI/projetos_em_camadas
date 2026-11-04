@@ -772,11 +772,172 @@ def test_impenetravel_vale_como_rocha_na_faixa():
 
 def test_impenetravel_corta_no_fundo_do_furo_e_preserva_a_rocha_alterada():
     """Ressalva do Fable (D6): o corte é na profundidade do impenetrável, não no topo da primeira rocha."""
-    furo = {"id": "SP-R", "impenetravel": True, "profundidade_m": 6.0,
-            "camadas": [{"de": 0.0, "ate": 3.0, "descricao": "Argila siltosa"},
-                        {"de": 3.0, "ate": 4.0, "descricao": "Rocha"},
-                        {"de": 4.0, "ate": 6.0, "descricao": "Rocha alterada"}]}
+    furo = {
+        "id": "SP-R",
+        "impenetravel": True,
+        "profundidade_m": 6.0,
+        "camadas": [
+            {"de": 0.0, "ate": 3.0, "descricao": "Argila siltosa"},
+            {"de": 3.0, "ate": 4.0, "descricao": "Rocha"},
+            {"de": 4.0, "ate": 6.0, "descricao": "Rocha alterada"},
+        ],
+    }
     f = geo.solo_na_faixa(furo, 0.0, 7.0)
-    assert f["rocha_alterada"] == pytest.approx(2 / 7) and f["rocha"] == pytest.approx(2 / 7)
+    assert f["rocha_alterada"] == pytest.approx(2 / 7) and f["rocha"] == pytest.approx(
+        2 / 7
+    )
     assert sum(f.values()) == pytest.approx(1.0)
 
+
+# --------------------------------------------------------------------------------------------------------------------
+# NSPT da folha em bloco, lido pela posição de cada número (tabela do laudo Geoazimute)
+# --------------------------------------------------------------------------------------------------------------------
+
+_X_SEGMENTOS = (176.4, 196.1, 215.8)  # centros das 3 colunas de golpes/penetração
+_X_RESISTENCIA = (235.9, 256.3)  # centros das colunas INI. e FIN.
+_PASSO_LINHA_PT = 26.4
+
+
+def _escrever_centrado(pagina, centro_x, y_topo, texto, tamanho=8.8):
+    largura = len(texto) * tamanho * 0.5
+    pagina.insert_text(
+        (centro_x - largura / 2, y_topo + 0.9 * tamanho), texto, fontsize=tamanho
+    )
+
+
+def _folha_com_tabela(caminho, linhas_ensaio, texto_base=()):
+    """PDF de uma folha: texto base (à direita da tabela) e a grade do ensaio.
+
+    `linhas_ensaio[i]` = (golpes[3], penetracao[3], inicial, final), cada célula str ou int; a linha 0 é a de 0,00 m
+    (sem rótulo) e a linha i >= 1 tem o rótulo 'i,00' alinhado ao seu topo.
+    """
+    pymupdf = pytest.importorskip("pymupdf")
+    doc = pymupdf.open()
+    pagina = doc.new_page()
+    for i, linha in enumerate(texto_base):
+        pagina.insert_text((330, 60 + 18 * i), linha, fontsize=10)
+    _escrever_centrado(pagina, _X_RESISTENCIA[0], 161.6, "INI.", 6.6)
+    _escrever_centrado(pagina, _X_RESISTENCIA[1], 161.6, "FIN.", 6.6)
+    for i, (golpes, penetracao, inicial, final) in enumerate(linhas_ensaio):
+        topo = 168.0 if i == 0 else 187.2 + (i - 1) * _PASSO_LINHA_PT
+        if i > 0:
+            _escrever_centrado(pagina, 146.0, topo, f"{i},00")
+        for x, g, p in zip(_X_SEGMENTOS, golpes, penetracao):
+            _escrever_centrado(pagina, x, topo, str(g))
+            _escrever_centrado(pagina, x, topo + 7.6, str(p))
+        _escrever_centrado(pagina, _X_RESISTENCIA[0], topo + 3.6, str(inicial))
+        _escrever_centrado(pagina, _X_RESISTENCIA[1], topo + 3.6, str(final))
+    doc.save(caminho)
+    doc.close()
+    return caminho
+
+
+def _ler_folha(caminho):
+    import pymupdf
+
+    with pymupdf.open(caminho) as doc:
+        return geo.nspt_da_folha(doc[0])
+
+
+def test_nspt_da_folha_le_golpes_penetracao_e_resistencia_pela_posicao(tmp_path):
+    pdf = _folha_com_tabela(
+        tmp_path / "f.pdf",
+        [
+            ([2, 2, 3], [15, 15, 15], 4, 5),
+            ([2, 2, 2], [15, 15, 15], 4, 4),
+            ([9, 12, 17], [15, 15, 15], 21, 29),
+        ],
+    )
+    r = _ler_folha(pdf)
+    assert r["nspt"] == [[0.0, 5], [1.0, 4], [2.0, 29]]
+    assert r["alertas"] == []
+    assert r["nspt_detalhe"][2] == {
+        "prof": 2.0,
+        "golpes": [9, 12, 17],
+        "penetracao_cm": [15, 15, 15],
+        "inicial": 21,
+        "final": 29,
+    }
+
+
+def test_nspt_da_folha_soma_que_nao_bate_alerta_e_o_impresso_prevalece(tmp_path):
+    pdf = _folha_com_tabela(
+        tmp_path / "f.pdf",
+        [
+            ([2, 2, 3], [15, 15, 15], 4, 5),
+            ([3, 3, 2], [15, 15, 15], 6, 9),  # final impresso 9, mas g2+g3 = 5
+            ([2, 3, 3], [15, 15, 15], 7, 6),  # inicial impresso 7, mas g1+g2 = 5
+        ],
+    )
+    r = _ler_folha(pdf)
+    assert r["nspt"] == [[0.0, 5], [1.0, 9], [2.0, 6]]
+    assert len(r["alertas"]) == 2
+    assert "final impresso 9" in r["alertas"][0] and "1,00 m" in r["alertas"][0]
+    assert "inicial impresso 7" in r["alertas"][1] and "2,00 m" in r["alertas"][1]
+
+
+def test_nspt_da_folha_linha_com_traco_ou_interrompida_fica_fora_com_alerta(tmp_path):
+    pdf = _folha_com_tabela(
+        tmp_path / "f.pdf",
+        [
+            (["-", "-", "-"], ["-", "-", "-"], "-", "-"),
+            ([2, 2, 3], [15, 15, 15], 4, 5),
+            ([30, "-", "-"], [5, "-", "-"], 30, "-"),
+        ],
+    )
+    r = _ler_folha(pdf)
+    assert r["nspt"] == [[1.0, 5]]  # nada é inventado para 0,00 m nem para 2,00 m
+    assert len(r["alertas"]) == 2
+    assert "0,00 m" in r["alertas"][0] and "traço" in r["alertas"][0]
+    assert "2,00 m" in r["alertas"][1] and "interrompido" in r["alertas"][1]
+
+
+def test_nspt_da_folha_sem_tabela_devolve_vazio_com_alerta(tmp_path):
+    r = _ler_folha(_gerar_pdf(tmp_path / "f.pdf", [["Folha sem tabela de ensaio"]]))
+    assert r["nspt"] == [] and r["alertas"] == ["tabela de ensaio não encontrada"]
+
+
+def test_ler_laudo_em_bloco_traz_nspt_e_detalhe_e_alertas(tmp_path):
+    base = [
+        "N.A. LEITURAS:",
+        "Foi encontrado N.A.na profundidade de 9,00 m.",
+        "COTA:",
+        "239,68",
+        "COORD. N:",
+        "745814.5615",
+        "7182953.79",
+        "SONDAGEM À PERCUSSÃO:",
+        "SP 01",
+        "TÉRMINO:",
+        "22/02/2022",
+        "13,50",
+        "ROCHA",
+        "0,45",
+        "ATERRO",
+        "•",
+    ]
+    pdf = _folha_com_tabela(
+        tmp_path / "l.pdf",
+        [
+            ([2, 2, 3], [15, 15, 15], 4, 5),
+            ([2, 2, 2], [15, 15, 15], 4, 7),  # soma não bate
+        ],
+        texto_base=base,
+    )
+    r = geo.ler_laudo(pdf)
+    assert r["nao_lidos"] == []
+    sp = r["furos"][0]
+    assert sp["nspt"] == [[0.0, 5], [1.0, 7]]
+    assert sp["nspt_detalhe"][1]["golpes"] == [2, 2, 2]
+    assert [c["descricao"] for c in sp["camadas"]] == ["ATERRO", "ROCHA"]
+    assert [a["id"] for a in r["alertas"]] == ["SP01"]
+    assert "final impresso 7" in r["alertas"][0]["motivo"]
+    assert geo.validar_furos(r["furos"])[1] == []
+
+
+def test_ler_laudo_layout_antigo_mantem_nspt_por_texto(laudo):
+    r = geo.ler_laudo(laudo)
+    f = {x["id"]: x for x in r["furos"]}
+    assert f["SP-01"]["nspt"] == [[1.0, 4], [2.0, 6], [3.0, 9]]
+    assert all("nspt_detalhe" not in x for x in r["furos"])
+    assert r["alertas"] == []
