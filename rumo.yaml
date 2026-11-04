@@ -36,9 +36,9 @@ etapas:
   agente: sonnet
   estimativa_min: 45
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T21:57:01Z'
-  fim: null
+  fim: '2026-11-04T22:02:49Z'
   forcado: null
 - id: E3
   nome: 'F5: ligação no build, build real, balanço, PR e merge'
