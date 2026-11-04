@@ -570,9 +570,17 @@ def test_d11_declaracao_valida_e_recusas():
         assert len(problemas) == 1 and texto in problemas[0], (lista, problemas)
     assert eap_padrao.separar_trechos_lineares(None) == ([], [])
     assert eap_padrao.trechos_do_cfg({}) == []
-    assert eap_padrao.trechos_do_cfg(
-        {"eap_padrao": {"trechos_lineares": [TRECHO]}}
-    ) == [TRECHO]
+    mista = {
+        "eap_padrao": {
+            "tipo": ["obra_localizada", "obra_linear"],
+            "trechos_lineares": [TRECHO],
+        }
+    }
+    assert eap_padrao.trechos_do_cfg(mista) == [TRECHO]
+    # sem o tipo linear (declarado ou deduzido) a declaração é recusada: nenhum trecho aplicado
+    assert (
+        eap_padrao.trechos_do_cfg({"eap_padrao": {"trechos_lineares": [TRECHO]}}) == []
+    )
 
 
 def test_d11_vista_so_do_sistema_marcado_e_valor_desconhecido_e_recusado(monkeypatch):
@@ -637,8 +645,412 @@ def test_d11_linha_declarada_sem_servico_que_folha_linear_receba_gera_aviso():
         "eap_padrao": {"tipo": "obra_localizada", "trechos_lineares": [TRECHO]}
     }
     assert any(
-        "não tem o tipo obra_linear" in a
+        "recusada" in a and "não tem o tipo obra_linear" in a
         for a in avisos([{**declarada, "servico": "escavacao"}], so_localizada)
     )
     ruim = {"eap_padrao": {"trechos_lineares": [{**TRECHO, "sistema": "AB_ENTRADA"}]}}
     assert any("não é de vista linear" in a for a in avisos([], ruim))
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# Travas da vista linear (04/11/2026): sistema linear só com declaração; declaração só em obra com tipo linear
+# ----------------------------------------------------------------------------------------------------------------
+CODIGO_LINEAR = "U1.AGUA_POTAVEL.GEO.MOV.VAL"
+MISTA = {
+    "eap_padrao": {
+        "tipo": ["obra_localizada", "obra_linear"],
+        "trechos_lineares": [TRECHO],
+    }
+}
+SEM_DECLARACAO = {"eap_padrao": {"tipo": ["obra_localizada", "obra_linear"]}}
+SO_LOCALIZADA = {
+    "eap_padrao": {"tipo": "obra_localizada", "trechos_lineares": [TRECHO]}
+}
+
+
+def _evidencia_linear(metodo: str, doc: dict):
+    """Evidência que já chega com o código do sistema linear (IA conferida, decisão ou regex)."""
+    if metodo == "decisao":
+        return evidencias.decisao(
+            CODIGO_LINEAR,
+            "escavacao",
+            "m",
+            100.0,
+            "caio",
+            "vala de 100 m de água potável",
+        )
+    return evidencias.evidencia(
+        codigo=CODIGO_LINEAR, servico="escavacao", unidade="m", valor=100.0,
+        parcela=False, documento=doc, localizador="p. 1",
+        trecho="vala de 100 m de água potável", metodo=metodo, regra="t",
+        **({"citacao": "conferida"} if metodo == "ia" else {}),
+    )  # fmt: skip
+
+
+def _montar_com(evs, cfg):
+    dados = {"evidencias": {"fatos": evidencias._registros(evidencias.consolidar(evs))}}
+    resultado = eap_padrao.montar(dados, cfg)
+    return {t["tipo"]: t for t in resultado["tipos"]}, resultado["avisos"]
+
+
+def _codigos_das_vistas(blocos):
+    return {
+        c
+        for b in blocos.values()
+        for e in b["etapas"]
+        for f in e["folhas"]
+        for c in f["codigos"]
+    }
+
+
+@pytest.mark.parametrize(
+    "metodo,doc",
+    [
+        ("ia", {"id": "ia:memorial.pdf", "tipo": "ia"}),
+        ("decisao", {"id": "decisao:caio", "tipo": "decisao"}),
+        ("regex", {"id": "edital.pdf", "tipo": "edital"}),
+    ],
+)
+def test_trava_sistema_linear_sem_declaracao_sai_das_duas_vistas_com_aviso(metodo, doc):
+    evs = [_evidencia_linear(metodo, doc)]
+    blocos, avisos = _montar_com(evs, SEM_DECLARACAO)
+    assert CODIGO_LINEAR not in _codigos_das_vistas(blocos)
+    for bloco in blocos.values():
+        assert all(
+            "unidade não atribuível" not in (f.get("motivo") or "")
+            for e in bloco["etapas"]
+            for f in e["folhas"]
+        )
+    [aviso] = [a for a in avisos if "não declarado" in a]
+    assert aviso.startswith("Sistema de trecho linear não declarado na obra")
+    assert CODIGO_LINEAR in aviso and "Escavação" in aviso and "100,00 m" in aviso
+    assert doc["id"] in aviso
+    # com declaração, o mesmo número entra na vista linear e só nela
+    blocos, avisos = _montar_com(evs, MISTA)
+    assert CODIGO_LINEAR in _codigos_das_vistas({"l": blocos["obra_linear"]})
+    assert CODIGO_LINEAR not in _codigos_das_vistas({"o": blocos["obra_localizada"]})
+    assert not [a for a in avisos if "não declarado" in a]
+
+
+def test_trava_quantidade_da_eap_codificada_com_sistema_linear_nao_declarado_tem_aviso():
+    quantidade = {
+        "codigo": CODIGO_LINEAR, "grandeza": "comprimento", "unidade": "m",
+        "quantidade": 12.5, "n_elementos": 2, "evidencias": ["a", "b"],
+    }  # fmt: skip
+    dados = {"evidencias": {"fatos": []}, "eap": {"quantidades": [quantidade]}}
+    avisos = eap_padrao.montar(dados, SEM_DECLARACAO)["avisos"]
+    [aviso] = [a for a in avisos if "não declarado" in a]
+    assert CODIGO_LINEAR in aviso and "12,50 m" in aviso and "2 elemento" in aviso
+    avisos = eap_padrao.montar(dados, MISTA)["avisos"]
+    assert not [a for a in avisos if "não declarado" in a]
+
+
+def test_trava_vista_do_codigo_nao_muda_e_preencher_direto_nao_confere():
+    assert eap.vista_do_codigo(CODIGO_LINEAR) == "linear"
+    fato = evidencias._registros(
+        evidencias.consolidar(
+            [_evidencia_linear("regex", {"id": "e.pdf", "tipo": "edital"})]
+        )
+    )
+    direto = eap_padrao.preencher("obra_linear", None, {"fatos": fato})
+    assert CODIGO_LINEAR in _codigos_das_vistas({"l": direto})
+    vazio = eap_padrao.preencher(
+        "obra_linear", None, {"fatos": fato}, trechos_declarados=set()
+    )
+    assert CODIGO_LINEAR not in _codigos_das_vistas({"l": vazio})
+
+
+def test_trava_obra_so_localizada_recusa_a_declaracao_e_a_linha_fica_na_localizada():
+    itens = _vala((10, "ÁGUA POTÁVEL", 100), (11, "", 22))
+    assert eap_padrao.trechos_do_cfg(SO_LOCALIZADA) == []
+    trechos = eap_padrao.trechos_do_cfg(SO_LOCALIZADA)
+    evs = evidencias.de_planilha(itens, DOC, None, trechos)
+    assert {e["codigo"] for e in evs} == {"U1.*.GEO.MOV.VAL"}  # código original
+    dados = {
+        "evidencias": {
+            "fatos": evidencias._registros(evidencias.consolidar(evs)),
+            "titulos_etapa": evidencias.titulos_da_planilha(itens, None, trechos),
+        }
+    }
+    resultado = eap_padrao.montar(dados, SO_LOCALIZADA)
+    recusas = [a for a in resultado["avisos"] if "recusada" in a]
+    assert len(recusas) == 1 and "obra_linear" in recusas[0]
+    assert not [a for a in resultado["avisos"] if "não declarado" in a]
+    [bloco] = resultado["tipos"]
+    folha = _texto_da_folha(bloco, "OP.02.06")
+    assert "122,00 m" in folha["quantidades_txt"][0]  # a soma é a do fato antigo
+    assert folha["codigos"] == ["U1.*.GEO.MOV.VAL"]
+
+
+def test_trava_trechos_do_cfg_e_montar_concordam_sem_aviso_duplo():
+    for cfg in (
+        MISTA,
+        SO_LOCALIZADA,
+        SEM_DECLARACAO,
+        {"eap_padrao": {"trechos_lineares": [TRECHO]}},
+    ):
+        aplicados = eap_padrao.trechos_do_cfg(cfg)
+        avisos = eap_padrao.montar({"evidencias": {"fatos": []}}, cfg)["avisos"]
+        recusas = [a for a in avisos if "trechos_lineares recusada" in a]
+        assert len(recusas) == (
+            0 if aplicados or not cfg["eap_padrao"].get("trechos_lineares") else 1
+        )
+        assert bool(aplicados) == (cfg is MISTA)
+        # declarada em obra mista: nenhum aviso de recusa nem de sistema não declarado
+        if aplicados:
+            assert not [a for a in avisos if "recusada" in a or "não declarado" in a]
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# Recusa na leitura (04/11/2026): o sistema linear sem declaração é recusado em `loop`, antes de virar fato
+# ----------------------------------------------------------------------------------------------------------------
+PAGINA_VALA = "Será executada escavação de vala de 100 m para a rede de água potável."
+DOC_VALA = {
+    "id": "memorial.pdf", "tipo": "memorial", "nome": "memorial.pdf",
+    "paginas": [PAGINA_VALA, "Escavação de 100 m³ de vala."],
+}  # fmt: skip
+DOC_VALA_LINEAR = {
+    **DOC_VALA,
+    "unidade": "U1",
+    "sistema": "AGUA_POTAVEL",
+}  # o regex lê o código do documento
+
+
+def _ia_vala(codigo: str = CODIGO_LINEAR):
+    return {
+        "codigo": codigo, "servico": "escavacao", "unidade": "m³", "valor": 100.0,
+        "parcela": False, "localizador": "p. 2",
+        "documento": {"id": "memorial.pdf", "tipo": "ia"},
+        "trecho": "Escavação de 100 m³ de vala", "metodo": "ia", "regra": "leitura por IA",
+    }  # fmt: skip
+
+
+def _ler_com(trechos, **fontes):
+    recusadas = []
+    documentos = fontes.pop("documentos", [DOC_VALA])
+    evs = evidencias.loop(
+        documentos, trechos_lineares=trechos, recusadas=recusadas, **fontes
+    )
+    return evs, recusadas
+
+
+def _fonte(metodo):
+    if metodo == "ia":
+        return {"ia": [_ia_vala()]}
+    if metodo == "regex":
+        return {"documentos": [DOC_VALA_LINEAR]}
+    if metodo == "decisao":
+        return {
+            "decisoes": [
+                evidencias.decisao(
+                    CODIGO_LINEAR, "escavacao", "m", 100.0, "caio", "vala de 100 m"
+                )
+            ]
+        }
+    raise ValueError(metodo)
+
+
+@pytest.mark.parametrize("metodo", ["ia", "decisao", "regex"])
+def test_recusa_leitura_sem_declaracao_recusa_e_nao_chega_aos_fatos(metodo):
+    evs, recusadas = _ler_com([], **_fonte(metodo))
+    assert CODIGO_LINEAR not in {e["codigo"] for e in evs}
+    fatos = evidencias.consolidar(evs)
+    assert CODIGO_LINEAR not in set(fatos["codigo"]) if len(fatos) else True
+    assert {r["evidencia"]["metodo"] for r in recusadas} == {metodo} and recusadas
+    assert recusadas[0]["motivo"] == "sistema de trecho linear não declarado na obra"
+    assert recusadas[0]["evidencia"]["codigo"] == CODIGO_LINEAR
+
+
+@pytest.mark.parametrize("metodo", ["ia", "decisao", "regex"])
+def test_recusa_leitura_com_declaracao_aceita(metodo):
+    trechos = eap_padrao.trechos_do_cfg(MISTA)
+    evs, recusadas = _ler_com(trechos, **_fonte(metodo))
+    assert recusadas == []
+    assert metodo in {e["metodo"] for e in evs if e["codigo"] == CODIGO_LINEAR}
+    fatos = evidencias.consolidar(evs)
+    assert CODIGO_LINEAR in set(fatos["codigo"])
+
+
+def test_recusa_leitura_sem_trechos_none_nao_confere():
+    evs, recusadas = _ler_com(None, **_fonte("decisao"))
+    assert recusadas == [] and CODIGO_LINEAR in {e["codigo"] for e in evs}
+
+
+def test_recusa_leitura_decisao_com_codigo_em_minusculas_e_recusada_com_motivo():
+    dec = evidencias.decisao(
+        CODIGO_LINEAR, "escavacao", "m", 100.0, "caio", "vala de 100 m"
+    )
+    ruim = {**dec, "codigo": CODIGO_LINEAR.lower()}
+    evs, recusadas = _ler_com(
+        eap_padrao.trechos_do_cfg(MISTA), documentos=[], decisoes=[ruim, "texto"]
+    )
+    assert evs == []
+    assert len(recusadas) == 2
+    assert all(r["motivo"].startswith("decisão inválida") for r in recusadas)
+    assert "fora do padrão" in recusadas[0]["motivo"]
+
+
+def test_recusa_leitura_ia_com_codigo_em_minusculas_continua_recusada():
+    recusadas_ia = []
+    evs = evidencias.loop(
+        [DOC_VALA], ia=[_ia_vala(CODIGO_LINEAR.lower())], recusadas_ia=recusadas_ia
+    )
+    assert "fora do padrão" in recusadas_ia[0]["motivo"]
+    assert CODIGO_LINEAR.lower() not in {e["codigo"] for e in evs}
+
+
+def test_recusa_leitura_planilha_declarada_passa(custo_civil):
+    trechos = eap_padrao.trechos_do_cfg(MISTA)
+    itens = _vala((10, "ÁGUA POTÁVEL", 100), (11, "", 22))
+    evs, recusadas = _ler_com(
+        trechos, documentos=[], planilha=(itens, DOC, None, trechos)
+    )
+    assert recusadas == [] and CODIGO_LINEAR in {e["codigo"] for e in evs}
+
+
+def _etapa_com_decisao(tmp_path, cfg):
+    decisoes = tmp_path / "decisoes.jsonl"
+    dec = evidencias.decisao(
+        CODIGO_LINEAR, "escavacao", "m", 100.0, "caio", "vala de 100 m"
+    )
+    decisoes.write_text(json.dumps(dec, ensure_ascii=False) + "\n", encoding="utf-8")
+    cfg = {**cfg, "evidencias": {"decisoes": str(decisoes)}}
+    log = []
+    resumo = evidencias.etapa(cfg, tmp_path, {"crs": {"epsg": 31982}}, log.append)
+    return resumo, log
+
+
+def test_recusa_leitura_etapa_devolve_as_recusas_e_o_aviso_da_eap_padrao_sem_duplicar(
+    tmp_path,
+):
+    resumo, log = _etapa_com_decisao(tmp_path, SEM_DECLARACAO)
+    [r] = resumo["recusadas"]
+    assert (r["codigo"], r["servico"], r["valor"], r["documento"]) == (
+        CODIGO_LINEAR, "escavacao", 100.0, "decisao:caio",
+    )  # fmt: skip
+    assert r["motivo"] == "sistema de trecho linear não declarado na obra"
+    assert resumo["fatos"] == [] and any("recusada" in m for m in log)
+    resultado = eap_padrao.montar({"evidencias": resumo}, SEM_DECLARACAO)
+    [aviso] = [a for a in resultado["avisos"] if "não declarado" in a]
+    assert aviso.startswith("Sistema de trecho linear não declarado na obra: ")
+    assert "Escavação" in aviso and "100,00 m" in aviso and "decisao:caio" in aviso
+    assert CODIGO_LINEAR not in _codigos_das_vistas(
+        {t["tipo"]: t for t in resultado["tipos"]}
+    )
+    # com declaração: aceita, sem recusa nem aviso
+    resumo, _ = _etapa_com_decisao(tmp_path, MISTA)
+    assert resumo["recusadas"] == [] and len(resumo["fatos"]) == 1
+    avisos = eap_padrao.montar({"evidencias": resumo}, MISTA)["avisos"]
+    assert not [a for a in avisos if "não declarado" in a]
+
+
+def test_recusa_leitura_decisao_invalida_vira_aviso_proprio_e_nao_o_de_nao_declarado():
+    # aceite do Fable (opcional 1): o motivo da recusa decide o aviso; decisão inválida não vira "não declarado"
+    dec = evidencias.decisao(
+        CODIGO_LINEAR, "escavacao", "m", 100.0, "caio", "vala de 100 m"
+    )
+    ruim = {**dec, "codigo": CODIGO_LINEAR.lower()}
+    for cfg in (SEM_DECLARACAO, MISTA):
+        _, recusadas = _ler_com(
+            eap_padrao.trechos_do_cfg(cfg), documentos=[], decisoes=[ruim]
+        )
+        resumo = {
+            "fatos": [],
+            "recusadas": [evidencias._resumo_da_recusa(r) for r in recusadas],
+        }
+        avisos = eap_padrao.montar({"evidencias": resumo}, cfg)["avisos"]
+        assert not [a for a in avisos if "não declarado" in a]
+        [aviso] = [a for a in avisos if a.startswith("Recusada na leitura: ")]
+        assert CODIGO_LINEAR.lower() in aviso and "decisão inválida" in aviso
+
+
+# documento do obra.json validado na entrada ---------------------------------------------------------------------------------
+
+
+def _csv_vala(tmp_path, nome):
+    arquivo = tmp_path / nome
+    arquivo.write_text("Descrição;Un;Qtd\nEscavação de vala;m³;100\n", encoding="utf-8")
+    return str(arquivo)
+
+
+def _etapa_com_documentos(tmp_path, *documentos, cfg=SEM_DECLARACAO):
+    cfg = {**cfg, "evidencias": {"documentos": [
+        {"pdf": _csv_vala(tmp_path, f"{i}.csv"), **d} for i, d in enumerate(documentos)
+    ]}}  # fmt: skip
+    log = []
+    resumo = evidencias.etapa(cfg, tmp_path, {"crs": {"epsg": 31982}}, log.append)
+    return resumo, log
+
+
+@pytest.mark.parametrize(
+    "invalido, prefixo",
+    [
+        ({"tipo": "memorial", "unidade": "U1", "sistema": "agua_potavel"}, "U1.agua_potavel.*"),
+        ({"tipo": "memorial", "unidade": "u1"}, "u1.*.*"),
+        ({"tipo": "memorial", "escopo": "pluvial"}, "*.*.*"),
+        ({"tipo": "relatorio"}, "*.*.*"),
+        ({}, "*.*.*"),
+        ({"tipo": "memorial", "unidade": "U1", "sistema": "AB.CDE"}, "U1.AB.CDE.*"),
+        ({"tipo": "memorial", "unidade": "U1.ABC", "sistema": "DEF"}, "U1.ABC.DEF.*"),
+    ],
+)  # fmt: skip
+def test_documento_invalido_e_recusado_com_motivo_e_os_outros_seguem_lidos(
+    tmp_path, invalido, prefixo
+):
+    resumo, log = _etapa_com_documentos(tmp_path, invalido, {"tipo": "memorial"})
+    [r] = resumo["recusadas"]
+    assert r["documento"] == "0.csv" and r["codigo"] == prefixo
+    assert r["motivo"].startswith("documento inválido: ")
+    assert len([m for m in log if "0.csv" in m or "recusada" in m]) == 1
+    assert resumo["n_evidencias"] >= 1  # o documento válido da mesma obra segue lido
+    assert {f["codigo"] for f in resumo["fatos"]}
+    avisos = eap_padrao.montar({"evidencias": resumo}, SEM_DECLARACAO)["avisos"]
+    [aviso] = [a for a in avisos if a.startswith("Recusada na leitura: ")]
+    assert prefixo in aviso and "documento inválido" in aviso
+
+
+def test_documento_valido_nao_muda(tmp_path):
+    resumo, _ = _etapa_com_documentos(
+        tmp_path,
+        {
+            "tipo": "memorial",
+            "unidade": "U1",
+            "sistema": "AGUA_POTAVEL",
+            "escopo": "agua",
+        },
+        cfg=MISTA,
+    )
+    assert resumo["recusadas"] == [] and resumo["n_evidencias"] >= 1
+    sem_campos, _ = _etapa_com_documentos(tmp_path, {"tipo": "memorial"})
+    assert sem_campos["recusadas"] == []
+
+
+def test_documentos_sem_lista_de_recusas_registram_no_log(tmp_path):
+    cfg = {
+        "evidencias": {
+            "documentos": [
+                {
+                    "pdf": _csv_vala(tmp_path, "x.csv"),
+                    "tipo": "memorial",
+                    "sistema": "ab",
+                }
+            ]
+        }
+    }
+    log = []
+    assert evidencias._documentos(cfg, log.append) == []
+    assert len(log) == 1 and "documento inválido" in log[0]
+
+
+def test_metadados_listam_as_funcoes_publicas_da_declaracao():
+    assert {"pares_declarados", "sistema_linear_nao_declarado"} <= set(
+        eap_padrao.metadados()["funcoes"]
+    )
+
+
+def test_documento_com_obra_desconhecida_avisa_no_log(tmp_path):
+    # aceite do Fable (opcional): obra fora de localizada/linear não levanta, mas não pode zerar em silêncio
+    _, log = _etapa_com_documentos(
+        tmp_path, {"tipo": "memorial", "obra": "ponte"}, {"tipo": "memorial"}
+    )
+    assert any("obra 'ponte' desconhecida" in m for m in log)

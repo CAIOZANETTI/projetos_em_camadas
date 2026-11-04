@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.61.0 — 2026-11-04 · Orçamento de Foz 211: as quantidades do CUSTO CIVIL calculadas em código, sem preço
+## 0.64.0 — 2026-11-04 · Orçamento de Foz 211: as quantidades do CUSTO CIVIL calculadas em código, sem preço
 - **`camadas/contrato_211.py`** + `conceitos/composicoes_sanepar.json`: a aba CUSTO CIVIL da planilha 211, lida **só
   pelas colunas A–E e I**. Um teste prova que VALOR UNITÁRIO e VALOR TOTAL nunca são lidos (sentinela de preço). Cada
   linha de serviço:
@@ -43,7 +43,44 @@
   - asfalto: 2 704 m² declarados × 2 779,9 m² do H01 (+2,8 %, confere);
   - rebaixamento 0 nos cinco trechos: o NA fica uns 7 m abaixo do fundo da vala.
 - Na integração, a supressão da faixa dos trechos zerava: o buffer plano de ponto é vazio. Corrigido, com teste sem
-  mock da geometria. Lições L057 (worktree do executor) e L058 (mock que escondeu a geometria).
+  mock da geometria. Lições L060 (worktree do executor) e L061 (mock que escondeu a geometria).
+## 0.63.0 — 2026-11-04 · Documento de leitura validado na entrada (frente WBS)
+- **Documento do `obra.json` conferido antes da leitura** (`evidencias._problemas_do_documento`): `unidade`/`sistema`
+  pelo padrão do `codigo` do schema (montado com o item de teste mais longo, para um ponto no sistema não escapar),
+  `tipo` e `escopo` pelos enums do schema, sem regex própria e sem normalizar. Fora do padrão: o documento fica de
+  fora com a recusa `documento inválido: …` (código = prefixo `unidade.sistema.*`) nas `recusadas` da etapa, uma linha
+  de log; antes, a etapa de evidências inteira caía em `evidencia()` com `ValueError`. `obra` desconhecida avisa no log.
+- **Aviso genérico na EAP padrão**: recusa que não é de sistema não declarado vira "Recusada na leitura: {código}
+  ({motivo})" (decisão e documento); o texto "Decisão recusada na leitura" da 0.62 sai.
+- `pares_declarados` e `sistema_linear_nao_declarado` em `eap_padrao.metadados()["funcoes"]`.
+- Foz idêntica (656 evidências, 38 fatos, 9/45 e 7/32, mesmo hash da cadeia real); Foz não tem `evidencias.documentos`.
+- Plano `docs/plano/2026-11-04_wbs_documento_validado.md` aprovado pelo Fable (três ajustes); entrega revisada uma vez
+  (sistema com ponto) e aceita.
+- Lição L059.
+
+## 0.62.0 — 2026-11-04 · Recusa na leitura e decisões validadas (frente WBS)
+- **Recusa na leitura**: `evidencias.loop(trechos_lineares=...)` recebe de `etapa` os trechos declarados na obra e
+  recusa, num filtro único antes de `_sem_ia_repetida`/`consolidar`/`gravar`, toda evidência (IA, decisão, regex,
+  planilha, pranchas, extras) de sistema linear que a obra não declara. A recusa vai para `recusadas` ({motivo,
+  evidencia}), não chega a `evidencias.jsonl` nem a fatos, e `eap_padrao.montar` a mostra nos avisos sem duplicar.
+- **Decisões validadas pelo schema** (`validar_evidencia`): decisão fora do padrão (ex.: código em minúsculas) é
+  recusada com o motivo, sem exceção e sem normalizar; vira o aviso "Decisão recusada na leitura" na EAP padrão.
+- A CLI `conferir` não muda (sem declaração de obra). `pares_declarados` passa a ser pública.
+- Foz idêntica (656 evidências, 38 fatos, 9/45 e 7/32, mesmo hash da cadeia real), 0 recusas.
+- Plano `docs/plano/2026-11-04_wbs_recusa_na_leitura.md` aprovado pelo Fable (quatro ajustes) e entrega aceita.
+- Lição L058.
+
+## 0.61.0 — 2026-11-04 · Travas da vista linear da EAP padrão (frente WBS)
+- **Sistema linear só com declaração na obra**: código de sistema marcado `vista_eap_padrao` (ex.: `U1.AGUA_POTAVEL`)
+  sem a (unidade, sistema) declarada em `eap_padrao.trechos_lineares` sai das duas vistas da EAP padrão (não cai em
+  "unidade não atribuível") e `montar` avisa com código, serviço, valor e documento, varrendo os fatos e as
+  quantidades da EAP codificada. Fecha a porta de uma evidência de IA, decisão ou regex contar nas duas vistas.
+- **Declaração em obra sem tipo linear é recusada** (aviso único) e não aplicada: a linha fica na localizada com o
+  código original e a soma igual. `trechos_do_cfg` e `montar` usam a mesma fonte (`_trechos_da_obra`).
+- Foz inalterada (9/45 localizada, 7/32 linear, mesmo hash da cadeia real). Pendências registradas: recusar já em
+  `loop`/`_conferir_ia`; normalização de caixa do item; trecho declarado × futura aba Obras Lineares.
+- Plano `docs/plano/2026-11-04_wbs_travas_vista_linear.md` aprovado pelo Fable (com três ajustes) e entrega aceita.
+- Lição L057.
 
 ## 0.60.0 — 2026-11-04 · A5: NSPT do laudo Geoazimute lido em código
 - **`geotecnia.nspt_da_folha`** lê a tabela de golpes pela posição de cada número: colunas INI., FIN. e 3 segmentos;

@@ -1255,12 +1255,19 @@ def paginas_do_arquivo(caminho: str | Path) -> list[str]:
 def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: dict | None = None,
          epsg: int | None = None, ia: list[dict] | None = None, decisoes: list[dict] | None = None,
          sondagens: list | None = None, declarados: list[dict] | None = None,
-         extras: list[dict] | None = None, recusadas_ia: list[dict] | None = None) -> list[dict]:
+         extras: list[dict] | None = None, recusadas_ia: list[dict] | None = None,
+         trechos_lineares: list[dict] | None = None, recusadas: list[dict] | None = None) -> list[dict]:
     """Passa por todos os documentos e junta as evidências, na ordem: texto (`documentos`: [{id, tipo, nome,
     paginas, unidade?, sistema?, obra?, escopo?}]), planilha ((DataFrame, documento, catálogo)), pranchas medidas
     (`construtivos`), serviços associados aos elementos construtivos e aos `declarados` (a vala usa as `sondagens`),
     `extras` (evidências já prontas, como as da planilha Obras Lineares), IA (citação conferida no documento citado),
-    decisões; por fim os serviços associados aos fatos consolidados."""
+    decisões; por fim os serviços associados aos fatos consolidados.
+
+    Duas recusas valem para todas as fontes e vão para `recusadas` ({motivo, evidencia}): a decisão fora do schema
+    (código fora do padrão etc.) e, se `trechos_lineares` é dado (trechos declarados na obra, `eap_padrao.trechos_do_cfg`),
+    a evidência de sistema com vista linear cuja (unidade, sistema) a obra não declara. `trechos_lineares` None = não
+    conferir (a CLI `conferir` não conhece a obra e não aplica esta trava)."""
+    recusadas = recusadas if recusadas is not None else []
     evs = [e for d in documentos for e in buscar_texto(d, d["paginas"])]
     evs += de_planilha(*planilha) if planilha else []
     evs += de_quantificacao(eap.quantificar(construtivos, epsg)) if construtivos else []
@@ -1275,18 +1282,83 @@ def loop(documentos: list[dict], planilha: tuple | None = None, construtivos: di
             (recusadas_ia if recusadas_ia is not None else []).append({"motivo": conferida["citacao"], "evidencia": conferida})
         else:
             evs.append(conferida)
-    evs += list(decisoes or [])
+    evs += _decisoes_validas(decisoes, recusadas)
+    evs = _sem_trecho_linear_nao_declarado(evs, trechos_lineares, recusadas)
     evs = _sem_ia_repetida(evs)
     return evs + associados.de_fatos(consolidar(evs))
 
 
-def _documentos(cfg: dict, log=print) -> list[dict]:
+MOTIVO_NAO_DECLARADO = eap_padrao.MOTIVO_NAO_DECLARADO
+
+
+def _decisoes_validas(decisoes: list | None, recusadas: list[dict]) -> list[dict]:
+    """Decisões que passam por `validar_evidencia`; as outras vão para `recusadas` com o motivo (nunca exceção)."""
+    validas = []
+    for d in decisoes or []:
+        problemas = validar_evidencia(d) if isinstance(d, dict) else ["a decisão não é um objeto JSON"]
+        if problemas:
+            recusadas.append({"motivo": "decisão inválida: " + "; ".join(problemas), "evidencia": d})
+        else:
+            validas.append(d)
+    return validas
+
+
+def _sem_trecho_linear_nao_declarado(evs: list[dict], trechos: list[dict] | None, recusadas: list[dict]) -> list[dict]:
+    """`evs` sem as evidências de sistema com vista linear (`eap.eh_trecho_linear`) cuja (unidade, sistema) a obra não
+    declara em `trechos`; cada uma vai para `recusadas`. Filtro único de todas as fontes (IA, decisão, regex, extras);
+    a planilha declarada passa porque o par está declarado. `trechos` None = não conferir."""
+    if trechos is None:
+        return evs
+    declarados = eap_padrao.pares_declarados(trechos)
+    ficam = []
+    for e in evs:
+        if eap_padrao.sistema_linear_nao_declarado(e["codigo"], declarados):
+            recusadas.append({"motivo": MOTIVO_NAO_DECLARADO, "evidencia": e})
+        else:
+            ficam.append(e)
+    return ficam
+
+
+def _problemas_do_documento(d: dict) -> list[str]:
+    """Campos do documento do obra.json que derrubariam `evidencia()`: `unidade`/`sistema` (ausente = '*') fora do padrão
+    do campo `codigo` do schema (conferido montando um código com o item de teste mais longo, sem regex própria), `tipo` ausente
+    ou fora do enum e `escopo` fora do enum. Não normaliza caixa: o que está fora do padrão é recusado."""
+    props = SCHEMA["properties"]
+    problemas = []
+    unidade, sistema = d.get("unidade", "*"), d.get("sistema", "*")
+    if not (isinstance(unidade, str) and isinstance(sistema, str)
+            and re.fullmatch(props["codigo"]["pattern"], f"{unidade}.{sistema}.TST.TST.TST")):   # item mais longo:
+        # o padrão admite até 3 segmentos de item, então com item curto um ponto no sistema ('AB.CDE') passaria
+        problemas.append(f"unidade '{unidade}' ou sistema '{sistema}' fora do padrão")
+    if d.get("tipo") not in props["documento"]["properties"]["tipo"]["enum"]:
+        problemas.append(f"tipo '{d.get('tipo')}' inválido")
+    if d.get("escopo") is not None and d["escopo"] not in props["escopo"]["enum"]:
+        problemas.append(f"escopo '{d['escopo']}' inválido")
+    return problemas
+
+
+def _documentos(cfg: dict, log=print, recusadas: list[dict] | None = None) -> list[dict]:
     """Documentos de leitura do obra.json (`evidencias.documentos`: pdf (PDF ou planilha .xlsx/.xls/.csv), tipo, unidade?,
-    sistema?), com as páginas."""
+    sistema?, escopo?), com as páginas. Documento com unidade, sistema, tipo ou escopo fora do schema fica de fora, sem
+    ler as páginas, e vai para `recusadas` ({motivo: "documento inválido: …", evidencia: {documento: {id}, codigo:
+    "unidade.sistema.*"}}); sem `recusadas`, quem chama não registra e a recusa vai para o `log`. Ordem: arquivo
+    ausente só vai para o log (sem recusa); depois o schema; `obra` desconhecida não recusa, só avisa no log."""
     saida = []
     for d in (cfg.get("evidencias") or {}).get("documentos", []):
         if not Path(d["pdf"]).exists():
             log(f"  evidências: {d['pdf']} não está no disco")
+            continue
+        problemas = _problemas_do_documento(d)
+        if d.get("obra") is not None and d["obra"] not in {o for it in eap.itens().values() for o in it["obra"]}:
+            log(f"  evidências: documento {Path(d['pdf']).name} com obra '{d['obra']}' desconhecida: nenhum item casa")
+        if problemas:
+            recusa = {"motivo": "documento inválido: " + "; ".join(problemas),
+                      "evidencia": {"documento": {"id": Path(d["pdf"]).name},
+                                    "codigo": f"{d.get('unidade', '*')}.{d.get('sistema', '*')}.*"}}
+            if recusadas is None:
+                log(f"  evidências: documento {Path(d['pdf']).name} recusado ({recusa['motivo']})")
+            else:
+                recusadas.append(recusa)                 # `etapa` registra no log, uma linha por recusa
             continue
         try:
             paginas = paginas_do_arquivo(d["pdf"])
@@ -1350,13 +1422,17 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     planilha = _planilha_do_contrato(cfg.get("escopo") or {}, eap_padrao.trechos_do_cfg(cfg))
     extras = {k: (ler if k == "decisoes" else _ler_ia)(conf[k]) if conf.get(k) and Path(conf[k]).exists() else []
               for k in ("ia", "decisoes")}
-    recusadas_ia = []
-    evs = loop(_documentos(cfg, log), planilha, dados.get("construtivos"), dados["crs"]["epsg"],
+    recusadas_ia, recusadas = [], []
+    documentos = _documentos(cfg, log, recusadas)
+    evs = loop(documentos, planilha, dados.get("construtivos"), dados["crs"]["epsg"],
                extras["ia"], extras["decisoes"], dados.get("sondagens"), cfg.get("elementos_declarados"),
-               _obras_lineares_da_obra(cfg, dados.get("sondagens"), log), recusadas_ia)
+               _obras_lineares_da_obra(cfg, dados.get("sondagens"), log), recusadas_ia,
+               eap_padrao.trechos_do_cfg(cfg), recusadas)
     for r in recusadas_ia:
         log(f"  evidências: linha de IA recusada ({r['motivo']})")
-    if not evs:
+    for r in recusadas:
+        log(f"  evidências: evidência recusada na leitura ({r['motivo']}): {_descrever_recusada(r['evidencia'])}")
+    if not evs and not recusadas:
         return None
     gravar(evs, out / "evidencias.jsonl")
     elementos = (dimensoes.de_construtivos(dados["construtivos"], dados["crs"]["epsg"], dados.get("sondagens"))
@@ -1370,7 +1446,27 @@ def etapa(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
     fatos = tabelas["fatos"]
     log(f"  evidências: {len(evs)} · fatos {len(fatos)} · conflitos {int((fatos['status'] == 'conflito').sum()) if len(fatos) else 0}")
     return {"n_evidencias": len(evs), **{k: _registros(df) for k, df in tabelas.items()},
-            "titulos_etapa": _titulos_do_contrato(planilha)}
+            "titulos_etapa": _titulos_do_contrato(planilha),
+            "recusadas": [_resumo_da_recusa(r) for r in recusadas]}
+
+
+def _descrever_recusada(ev) -> str:
+    """Código e valor de uma evidência recusada, para o log (a decisão inválida pode não ter os campos)."""
+    if not isinstance(ev, dict):
+        return str(ev)
+    if "valor" not in ev and isinstance(ev.get("documento"), dict) and str(ev.get("codigo")).endswith(".*"):
+        return f"documento {ev['documento'].get('id')} ({ev['codigo']})"            # recusa de documento, sem valor
+    return f"{ev.get('codigo')} {ev.get('valor')} {ev.get('unidade') or ''}".rstrip()
+
+
+def _resumo_da_recusa(recusa: dict) -> dict:
+    """{codigo, servico, valor, unidade, documento, motivo} de uma recusa de `loop`, para o dados.json e os avisos da
+    EAP padrão (campos ausentes ficam None)."""
+    ev = recusa["evidencia"] if isinstance(recusa["evidencia"], dict) else {}
+    documento = ev.get("documento")
+    return {"codigo": ev.get("codigo"), "servico": ev.get("servico"), "valor": ev.get("valor"),
+            "unidade": ev.get("unidade") or "",
+            "documento": documento.get("id") if isinstance(documento, dict) else None, "motivo": recusa["motivo"]}
 
 
 def _registros(df: pd.DataFrame) -> list[dict]:
