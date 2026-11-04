@@ -381,11 +381,13 @@ def _curvas_da_topografia(t: dict, out: Path) -> list[dict]:
 
 
 def _furos_da_obra(cfg: dict) -> list[dict]:
-    """Furos de sondagem (`sondagens` do obra.json) com E, N e cota_boca; vazio se o arquivo não existe."""
+    """Furos de sondagem (`sondagens` do obra.json) com E, N e cota_boca preenchidos; vazio se o arquivo não existe.
+    Furo com coordenada ou cota `null` (desconhecida, regra "nada inventado") fica fora da validação."""
     arq = Path(cfg.get("sondagens", ""))
     if not arq.is_file():
         return []
-    return [f for f in json.loads(arq.read_text(encoding="utf-8"))["furos"] if "cota_boca" in f]
+    furos = json.loads(arq.read_text(encoding="utf-8"))["furos"]
+    return [f for f in furos if all(f.get(k) is not None for k in ("E", "N", "cota_boca"))]
 
 
 def terreno_composto(g: dict, c: dict | None, out: Path, log=print, furos: list[dict] | None = None) -> None:

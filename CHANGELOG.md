@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.57.0 — 2026-11-04 · Rastreabilidade do HTML e o build de Foz com o terreno da 0.56
+- **`docs/RASTREABILIDADE.md`**: o que gerou cada parte do HTML. Traz:
+  - as sessões (branches) e os PRs de cada uma;
+  - a tabela versão × PR × branch, gerada do git por `scripts/rastreabilidade.py` (primeiro pai da main; PR em squash
+    pelo `docs/rastreabilidade_ramos.json`);
+  - os pedidos do Caio × a versão que os entregou;
+  - as decisões que mudaram entregas e as pendências;
+  - o HTML da main parte por parte.
+- **Correção (`escavacao._furos_da_obra`)**: com o scipy instalado, o build de Foz quebrava na validação do terreno
+  fora do casco (0.56). O `sondagens.json` tem furos com `E`, `N` ou `cota_boca` `null` (SPT-01…08, F-01…35); agora
+  só entram os furos com os três preenchidos. Sem o scipy, o build seguia com o MDS e o terreno da 0.56 não era aplicado.
+
 ## 0.56.0 — 2026-11-04 · Terreno das cavas: topografia do projeto no casco das curvas, MDS corrigido fora
 - **`camadas/topografia.py`**: lê as curvas de nível da GEOPLANTA (`Curvas_Mestras` e `Curvas_Auxiliares`, equidistância
   de 0,5 m):
