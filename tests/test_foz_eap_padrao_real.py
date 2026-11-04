@@ -313,3 +313,18 @@ def test_d13_folha_da_eap_padrao_localizada_aponta_desinfeccao():
     folhas = {f["id"]: f for e in eap_padrao.TIPOS["obra_localizada"]["etapas"] for f in e["folhas"]}
     assert folhas["OP.12.04"]["aponta"] == [{"item": "GER.CTL.DSF"}]
     assert folhas["OP.12.04"]["obrigatoria"] is False
+
+
+# Ressalva do aceite (Fable, 04/11): com GER.CTL.DSF ativo na ETA, unidades de tratamento não são "rede".
+@pytest.mark.parametrize(
+    "frase",
+    [
+        "LIMPEZA E DESINFECCAO DOS FILTROS",
+        "LIMPEZA DOS TUBOS DOS DECANTADORES",
+        "LAVAGEM E DESINFECCAO DOS FLOCULADORES",
+        "LIMPEZA DAS CALHAS DE COLETA",
+    ],
+)
+def test_d13_unidades_da_eta_nao_sao_desinfeccao_de_rede(frase):
+    item, _, _ = evidencias.classificar(vocabulario.preparar(frase)[1], "localizada")
+    assert item != "GER.CTL.DSF"
