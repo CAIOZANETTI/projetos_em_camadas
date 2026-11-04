@@ -2,9 +2,11 @@
 
 import hashlib
 
-import pymupdf
+import pytest
 
 from camadas import gavetas, gavetas_documentos
+
+pymupdf = pytest.importorskip("pymupdf")   # extra `pdf`: sem ele (CI) o arquivo é pulado, como os outros testes de PDF
 
 
 def _pdf(caminho, paginas=((842, 595),), texto="x"):
