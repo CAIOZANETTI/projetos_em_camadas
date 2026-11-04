@@ -1,0 +1,212 @@
+{
+ "janela": "0f724aa (0.55.0, alvo da verificação anterior) → origin/main 253d4e5 (0.71.0); 21 merges first-parent (#60 a #80), 208 commits, 148 arquivos, +24 555/−434 linhas; quatro frentes na mesma main: focused-dijkstra (#60, #61, #62, #64, #67, #69: verificação de 03/11, ARQUITETURA R10.3/R10.4, D10–D13 na tabela, aferição), nifty-meitner/WBS (#65 0.57, #71 0.61, #72 0.62, #73 0.63, #75 0.65, #77 0.67: D10–D13 na EAP padrão, travas, recusa, documento validado, complexidade, painel), Geo Bd (#63 0.56 terreno opção D, #68 0.59 A4, #70 0.60 A5) e intelligent-dijkstra (#66 0.58 rastreabilidade, #74 0.64 orçamento 211, #76 0.66 georref 009/010, #78 0.68 aba EAP, #79 0.69+0.70 F0–F2, #80 0.71 F3)",
+ "verdes": "uv run pytest -q: 1282 passed, 94 skipped (57 s; eram 1025/67 em 03/11; os 94 pulos são extras ausentes: pymupdf ~25, rasterio 19, scipy 12, tesseract/pytesseract 6, playwright 2, dados de Foz 3); python -m camadas.referencia: hash 0602c637b4b6e18271f78df964927123c045db2f70598dfddc58e5b2971ac6de (igual ao de 0.31.0, 0.45.0 e 0.55.0), 49 ms, 141 MB; VERSAO 0.71.0 = topo do CHANGELOG (71 cabeçalhos únicos); scripts/afericao.py SEM --registrar: REPROVADA — 1 560 funções, 0 órfãs, 1 duplicata (extrair_gavetas._base_vazia = gavetas_contrato._base_vazia), longas 6 → 14 contra o último registro (04/11 15:15, 0.63.0); scripts/determinismo.py: ok; uv run ruff check .: 3 avisos em scripts/bancada_calculo.py:88 (arquivo fora da janela)",
+ "itens": [
+  {
+   "grupo": "Regras",
+   "item": "Python em português nos sete módulos novos (contrato_211, eap_preencher, eap_vista, gavetas_construtivos, gavetas_contrato, gavetas_documentos, topografia)",
+   "estado": "OK",
+   "evidencia": "203 funções novas (camadas/contrato_211.py 52, eap_preencher.py 20, eap_vista.py 15, gavetas_construtivos.py 21, gavetas_contrato.py 12, gavetas_documentos.py 13, topografia.py 70), todas em português (ler_custo_civil, destino_do_documento, de_inventario, tabelas_do_painel, registrar_cad_escala_fixa, mapa_do_erro); a busca por def com get/set/load/parse/compute/check/read/write/build/update/find/render/format/validate/merge não achou nada. Docstrings e avisos em português (contrato_211.py:1 'ligadas à EAP (sem preço)'; eap_preencher.py:7 'Nenhuma quantidade nasce aqui sem fato por trás; sem preço, sem prazo'; eap_vista.py:5 'Sem preço e sem número inventado'). `uv run ruff check .` acusa 3 avisos (I001/F401) em scripts/bancada_calculo.py:88, arquivo que não mudou na janela."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Python calcula; HTML/JS só apresentam (aba EAP com sub-abas, WBS em árvore, Contrato 211 por trecho, 0.64 e 0.68)",
+   "estado": "OK",
+   "evidencia": "camadas/templates/visualizador.html +283/−7: o novo camadas/eap_vista.py (379 linhas) entrega seções, situações, contagens, textos e o índice de busca sem acento já prontos (CHANGELOG 0.68.0: 'Contagens, textos e o índice de busca (sem acento) já saem prontos do Python'); o template declara 'camadas/contrato_211.py já calcula, classifica e formata tudo; aqui só se exibe' (visualizador.html:2493) e 'textos, contagens, selos e o índice de busca vêm prontos do Python; aqui só se desenha, se mostra/esconde' (bloco eap_vista). O JS novo só normaliza o texto que o usuário digitou (normBusca, NFD), lembra a sub-aba em localStorage, filtra por situação e destaca as valas no mapa; nenhum operador aritmético sobre dado nas linhas acrescentadas. O resumo do Contrato 211 vem em `C.resumo_txt` (pares já formatados pelo Python; execucoes.csv E4: 'formatação do resumo levada ao Python'), embora o comentário em visualizador.html:2493 ('os números do resumo chegam crus e só ganham a vírgula decimal') tenha ficado velho. O teste de interface mede a leitura (scripts/testar_visualizador.py +167: 331 verificações, 0 falha; L066)."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Exceção documentada do visualizador (medir, ll2utm) sem a conferência JS × Python prometida",
+   "estado": "ATENÇÃO",
+   "evidencia": "CLAUDE.md ('Decisões do mantenedor', 31/10) diz que a conferência JS × Python da medição interativa (área, comprimento e UTM de um polígono conhecido, com tolerância absoluta) 'entra em scripts/testar_visualizador.py'. O template segue com as 11 ocorrências de medir/ll2utm, mas o roteiro só clica nas ferramentas (medir_na_folha :257, medir_3d :353, recorte :402) e não compara nenhum número com o Python: grep por pyproj/Transformer/shapely/assert_allclose em scripts/testar_visualizador.py não acha nada. A exceção continua sem a contraprova que a justificou; não mudou na janela."
+  },
+  {
+   "grupo": "Regras",
+   "item": "SI com unidade como sufixo do nome",
+   "estado": "ATENÇÃO",
+   "evidencia": "Os módulos novos seguem a regra: cota_m (26 ocorrências), dn_mm (20), distancia_m (16), extensao_m (14), escavacao_m3, bota_fora_m3, area_planta_m2, recomposicao_m2, pontos_pt; eap_preencher.PROPRIEDADE_GEOMETRICA traduz a grandeza da regra para a propriedade com sufixo ('area' → 'area_planta_m2', :28); as premissas novas de conceitos/escavacao.json levam sufixo (raio_cota_escrita_m, tolerancia_rotulo_pt, faixa_abaixo_do_terreno_m). Mas a pendência das duas verificações anteriores continua igual: o furo canônico segue com E, N e cota_boca sem sufixo (camadas/geotecnia.py:5) e a correção da 0.58 (`escavacao._furos_da_obra`, tests/test_escavacao.py +12) foi escrita sobre essas chaves; conceitos/de_para_extracao.json:69-71 ainda diz cota_boca_m e 'módulo geotecnia a fazer'; conceitos/dimensoes.json:104, :128 e :275 mantêm A_escoramento e V_bota sem sufixo. Nenhum dos 13 planos da janela tocou nisso."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Sem preço: CUSTO CIVIL lida só por A–E e I, sentinela de preço, golden e gavetas sem valor",
+   "estado": "OK",
+   "evidencia": "camadas/contrato_211.py:9 'A leitura toca só as colunas A a E ... e I'; tests/test_contrato_211.py:77 test_sentinela_de_preco_nunca_aparece e :673 test_sentinela_de_preco_continua_fora_da_quantificacao (SENTINELA = 987654.321 nas colunas VALOR UNITÁRIO/TOTAL); tests/test_gavetas_contrato.py:11 repete a sentinela para as gavetas; o golden é 'sem preço' (commit 2adc619); o teste de interface confere 'nenhum R$ no bloco' (CHANGELOG 0.64.0); ARQUITETURA §17 filtra cotações e abas de preço do extrator externo. grep por R$/valor_unit/preco nos módulos novos só acha as frases 'sem preço'."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Sem prazo (§1): premissas de produtividade entraram na 0.64 e saíram na 0.69 por decisão do Caio",
+   "estado": "OK",
+   "evidencia": "A 0.64.0 pôs em conceitos/composicoes_sanepar.json 8 m/dia de vala escorada, 22 dias úteis por mês e 1 jogo de escoramento (estado 'calibrar', 'aprovadas pelo Caio: deixa a premissa', docs/plano/2026-11-04_orcamento_211.md:105), contra o princípio 'sem prazo ... nem produtividade' (ARQUITETURA §1). docs/RECONSTRUCAO.md §1.6 apontou o desvio ('aprovado na rodada do orçamento') e a F0 (0.69.0, decisão do Caio §5.4) o desfez: hoje o 900506 é 'sem_regra ... fora do escopo (decisão do Caio, 04/11/2026: sem prazo)' (composicoes_sanepar.json:35), a ALO fica 'declarada' (:27) e só a DMT de 10 km permanece (m³×km é transporte). Resolvido dentro da janela, depois de cinco versões em vigor."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Nenhuma IA no caminho do número (topografia por OCR, NSPT por posição, EAP pelas gavetas)",
+   "estado": "OK",
+   "evidencia": "camadas/topografia.py lê as cotas das curvas por OCR com alfabeto aprendido dos próprios rótulos e monta o TIN (determinístico, cache com VERSAO_LEITURA_CURVAS, L052); geotecnia.nspt_da_folha lê a tabela pela posição e confere g2+g3 = NSPT (0.60.0, L056); contrato_211 só tem regras por composição, com premissas declaradas; eap_preencher lê exclusivamente fatos e evidências da base (eap_preencher.py:184-192) e as linhas do contrato entram como 'declarada', sem somar (CHANGELOG 0.71.0). As gavetas de F2 vêm de leitores de código (gavetas_construtivos._metodo marca 'camadas.prancha/escavacao/construtivos', :175; gavetas_contrato grava o método da planilha, :69); as 2 517 evidências de texto, onde a IA entra, ainda não estão nas gavetas (RECONSTRUCAO §0, passo 3). Ressalva para a F5: eap_preencher não filtra fato por método ou natureza (grep metodo/natureza/ia: 0), e a regra 'fato que só a IA afirmou não alimenta cálculo' (ARQUITETURA §13) terá de virar trava antes de a IA escrever na base."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Sem nomes de modelo fixos no código",
+   "estado": "OK",
+   "evidencia": "grep por claude-* e por ids de modelo em camadas/ e scripts/ (py e html): nenhuma ocorrência; os nomes só aparecem em dados (results/agentes/execucoes.csv, pdca/agentes.jsonl, rumo.yaml 'agente: sonnet')."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Reprodutibilidade e testes verdes",
+   "estado": "OK",
+   "evidencia": "python -m camadas.referencia: hash 0602c637b4b6e18271f78df964927123c045db2f70598dfddc58e5b2971ac6de, igual ao de 0.31.0, 0.45.0 e 0.55.0 (49 ms, 141 MB); a 0.56.0 declara no CHANGELOG que 'sem a chave, nada muda e o hash da referência fica igual' (:304) e os cartões vcm medem frac_execucoes_identicas = 1 em todos os 17 balanços. uv run pytest -q: 1282 passed, 94 skipped em 57 s (eram 1025/67 em 03/11; +257 testes: test_titulos_etapa +899 linhas, test_contrato_211 +738, test_topografia +575, test_escavacao_terreno +535, test_eap_preencher +524, test_gavetas_construtivos +349, test_eap_vista +348). Tolerâncias declaradas: paridade com o golden 1e-3 (eap_preencher.TOLERANCIA), escala do título a 2 % e pares a 0,15 m na georreferência (0.66.0), rms topografia × sondagens 0,17 m (0.56.0)."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Os verdes dependem de extras ausentes: 94 pulos aqui, 1 teste vermelho no vcm",
+   "estado": "ATENÇÃO",
+   "evidencia": "Dos 94 pulos (67 em 03/11), todos são dependência fora do ambiente: pymupdf (~25, pranchas, extração, geotecnia), rasterio (19: test_cavas_gavetas, test_escavacao_marcas, test_obra_sig), scipy (12: test_topografia, test_escavacao_terreno), tesseract/pytesseract (6), playwright (2) e dados de Foz (3, inclusive test_golden_quantidades). Ou seja, o terreno da 0.56, as marcas da A4 e a topografia não rodam aqui nem no CI (.github/workflows/vcm.yml sem extras; vcm.yaml lista pymupdf, rasterio e geopandas, não scipy nem pytesseract). No sentido inverso, 11 dos 17 cartões vcm da janela trazem testes_falhando = 1 (vermelho, eliminatória) — o test_ler_perfil_ocr, que 'já falhava' (commit 8f38b75) no ambiente do vcm e aqui é pulado — e a recomendação 'corrigir os testes que falham antes do merge (a decisão do balanço é REVERTER)' repete-se nos cartões sem ação. Um vermelho eliminatório aceito como ruído desde a 0.56 esvazia o portão."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Volume das cavas depende do SfM, que não é bit a bit (ATENÇÃO da verificação anterior)",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança: pdca/determinismo.json e vcm.yaml não declaram tolerância para a reconstrução; docs/plano/2026-11-04_plano_memoria_espacial.md registra a rodada C4 'Determinismo do SfM entre duas reconstruções — variação declarada (hoje +0,3 %)' como a fazer, e a RECONSTRUCAO §1.5 lista sfm/sfm.json, ortofoto.jpg e ajuste_absoluto.json entre os caches que 'valem só por existir'. A opção D (0.56) reduziu a dependência do MDS dentro do casco das curvas (topografia do projeto), mas fora dele o MDS corrigido continua sem validação ('o erro é desconhecido', `validacao_fora_do_casco`)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "docs/ARQUITETURA.md atualizada com o entregue (ATENÇÃO da verificação anterior)",
+   "estado": "ATENÇÃO",
+   "evidencia": "Resolvido em parte e atrasado de novo: a R10.3 (fbab4de) acrescentou §14 EAP padrão, §15 cavas e §16 frentes, a R10.4 (154d563) o §17, e a tabela ganhou D10–D13 (f718584, bc666ea) — o que faltava em 03/11 entrou. Mas o título diz 'estado do código em 0.55.0' e a main está em 0.71.0: zero menções a eap_preencher, gavetas_documentos/construtivos/contrato, contrato_211, eap_vista, golden ou 'EAP única'; §13 descreve as gavetas v1 (7 tabelas) quando a 0.69 criou documentos e paginas; §16 lista seis frentes 'em andamento' depois da decisão 'uma frente só'; a tabela de decisões não tem as quatro decisões de 04/11 de RECONSTRUCAO §5 (EAP única, uma frente, HTML só navegação, prazo fora), embora §6 diga 'sempre registrada aqui e no plano da rodada', e está fora de ordem (D10, D12, D13, D11, D9). O cabeçalho de f4268dd remete a docs/RECONSTRUCAO.md ('onde divergir, vale a RECONSTRUCAO'), que tem a tabela 0.1 de andamento por fase — a fonte viva passou a ser outra."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Reconstrução F0–F3: diagnóstico honesto e um eixo só (base → cálculo → EAP única)",
+   "estado": "OK",
+   "evidencia": "docs/RECONSTRUCAO.md (259 linhas) confere o fluxo do Caio passo a passo no build de Foz (§0: 7 EAPs, 8 caminhos para o comprimento de vala, gavetas 'que ninguém lia', caches sem garantia, planos contraditórios, 'escavação de 7 900, 7 905 ou 7 922 m³ conforme o documento') e fixa seis regras da linha com teste (§2) e sete fases com portão (§3). Entregue: F0 (0.69.0) golden das quantidades (tests/golden_foz/quantidades_foz.json, 1 457 linhas, 7 seções; scripts/golden_quantidades.py) e gavetas v2 (conceitos/gavetas.json +134: documentos por sha256, paginas com afim, localizador obrigatório); F1+F2 (0.70.0) 324 documentos, 1 483 páginas, 1 514 objetos, 7 327 fatos (5 987 com página ou aba e linha), 0 erros de conferência, golden idêntico fora das 6 linhas de escoramento decididas; F3 (0.71.0) eap_preencher com paridade 37/37 e código único `<folha>/<U.SISTEMA.DISC.PAC.ITEM>`, cada quantidade citando objetos, fatos e evidências. Lições L067–L069 nomeiam o que faltou ('sistema sem eixo'). Ressalva: o golden é fotografia do próprio build (Haiku E2: '0 diferenças contra o build'), serve de regressão, não de verdade — o gabarito real é a F6 (o Caio confere 10 quantidades), ainda por vir."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Caminhos paralelos continuam vivos depois da F3",
+   "estado": "ATENÇÃO",
+   "evidencia": "A F3 acrescentou um consumidor novo da base (eap_preencher → saida/<obra>/eap_unica.json) sem desligar os antigos: a EAP codificada (eap.py), o painel (eap_painel), a EAP das gavetas (eap_html/gavetas), a conciliação, a EAP padrão (eap_padrao.montar, que lê a codificada e os fatos de texto), o Contrato 211 (que 'refaz a vala por outro caminho', RECONSTRUCAO §0 passo 7) e a vista da aba (eap_vista) seguem no build e no HTML; a paridade é feita 'contra a EAP codificada do mesmo build' (CHANGELOG 0.71.0). As 8 rotas para o comprimento de vala e as 5 para a quantidade por item (RECONSTRUCAO §1.4) só se fecham na F4 ('0 caminho paralelo (teste)') e na F7 ('o HTML antigo e os módulos sem uso saem', §4). Sintoma pequeno: a aferição acusa `_base_vazia` duplicada em camadas/extrair_gavetas.py:32 e camadas/gavetas_contrato.py:42. É o plano, não um desvio dele; fica em atenção porque enquanto durar há duas verdades possíveis para o mesmo número."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Terreno das cavas pela opção D (0.56.0): decisão, duas testemunhas e dois aceites",
+   "estado": "OK",
+   "evidencia": "Decisão do Caio (docs/plano/2026-11-03_decisao_terreno.md): topografia do projeto (TIN das curvas GEOPLANTA, camadas/topografia.py, 1 546 linhas) dentro do casco, MDS corrigido fora, costura de 5 m, alerta além de 30 m e `validacao_fora_do_casco` declarando o erro desconhecido; sem a chave `escavacao.terreno` nada muda (hash igual). Foz: 8 612 → 7 905 m³; topografia × sondagens rms 0,17 m (14 furos), × seções 0,16 m; MDS +0,54 m em média (copa e telhado). Dois aceites do Fable registrados (execucoes.csv: 1º REVISAR — curvas de continuação, costura do lado errado, MDS fora do casco sem validação, testes fora do CI; 2º REVISAR pontual) com as correções no mesmo plano (:100-133, :190-198). Cartão DECISAO_HUMANA registrado como MANTER com a troca explícita (results/iteracoes/4090759_bdbbd8a.decisao.md). A 0.58 fechou o caminho oculto do scipy ausente (L054; test_furos_da_obra_sem_coordenada_ficam_fora)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Caches sem assinatura: o mesmo defeito três vezes na janela",
+   "estado": "ATENÇÃO",
+   "evidencia": "L052 (0.56: topografia_curvas_cache assinado só por PDF, afim e layers deu 7 742 contra 7 905 m³), L064 (0.66: o cache de georreferência das pranchas ignorou em silêncio a afim nova da f010 e o teste de interface passou) e a própria f010 (RECONSTRUCAO §1.5). Os dois casos foram corrigidos com assinatura, mas a RECONSTRUCAO §1.5 lista o que ainda 'vale só por existir': sfm/sfm.json, ortofoto.jpg, ajuste_absoluto.json, pranchas/_ref_*.png, escavacao_cache e conferencia_cavas_cache. A regra 6 da linha ('todo cache leva a assinatura do que o decide', §2) é alvo, não estado; cabe uma rodada só para isso, com um teste genérico de cache (mudar a configuração tem de mudar a chave)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Geotecnia: A5 NSPT por posição com soma impressa como testemunha; gavetas.eixo × lineares.eixo segue",
+   "estado": "OK",
+   "evidencia": "geotecnia.nspt_da_folha (0.60.0) lê INI./FIN. e os três segmentos pela posição, confere g2+g3 = NSPT final e g1+g2 = inicial, deixa fora '-' e ensaio interrompido com alerta; Foz 23 furos, 305 m, 0 somas que não fecham, 24 alertas; 6 furos conferidos à mão pelo Fable, 0 divergências, com o relato corrigido (SP11/SP12 interrompidos no meio do furo). tests/test_geotecnia.py +166/−5: as 5 linhas removidas são o dict do furo SP-R reescrito em várias linhas; os asserts da ressalva do Fable (2/7 e soma 1,0) continuam em :786-789. Pendência antiga mantida: gavetas.eixo (gavetas.py:561) ainda não usa lineares.eixo (lineares.py:55)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Georreferência das folhas 009/010 pela escala fixa do título, com a escala do SIFT como prova",
+   "estado": "OK",
+   "evidencia": "georef_prancha.registrar_cad_escala_fixa (0.66.0): SIFT + RANSAC só para rotação e posição, a vista é aceita se a escala achada ficar a 2 % da do título, reajuste rígido (Kabsch) nos pares a até 0,15 m; f009 (360 e 600) e f010 (360) com resíduo mediano 2,3–2,7 cm, largura do tubo a 1 % do DE, emenda do DN 1000 a 0,04 m e 0,02°; a planta 600 da f010 ficou pendente por ambiguidade 'sem forçar' (L063). Contrato 211 passou de 29 para 51 linhas calculadas. O cache ganhou assinatura da configuração (L064)."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Frente WBS: plano em docs/plano e aceite do Fable em cada ciclo (ATENÇÃO da verificação anterior)",
+   "estado": "OK",
+   "evidencia": "Resolvido: seis ciclos com plano próprio e as seções 'Parecer do Fable sobre o plano: APROVA (com ajustes)' e '## Aceite' — 2026-11-04_wbs_d10_d11.md (2 pareceres: REVISAR → APROVA com 2 condições), _travas_vista_linear (3 ajustes), _recusa_na_leitura (4), _documento_validado (REVISAR por 'sistema com ponto' → reconfirmação 5f89856), _complexidade (caracterização antes), _painel_eap_padrao (REVISAR coluna motivo → reconfirmação 687e6e8); mais o aceite do adendo D12/D13. execucoes.csv: 14 linhas de revisor (Fable) da frente na janela, com tokens e duração. results/rumo/wbs.yaml por frente (§16.4), versão só no merge com renumeração (37aedcd: 0.67.0/L065; 7a24719 na outra frente: 0.58.0). O plano d10_d11.md:15-16 diz textualmente que fecha o ponto apontado em 03/11. A mesma frente devolveu complexidade (0.65: validar 32 → 1, _status 18 → 9, _avisos 22 → 3, etapa 20 → 6, com testes de caracterização que derrubam mutações) e descobriu que a conferência de Foz de cinco ciclos rodava sem o cadastro (L065)."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Frente da reconstrução (0.58, 0.64, 0.66, 0.68, 0.69–0.71) entrou na main sem aceite do Fable",
+   "estado": "DESVIO",
+   "evidencia": "Seis merges do ramo intelligent-dijkstra — #66 (0.58 rastreabilidade), #74 (0.64 orçamento 211, +1 046 linhas de contrato_211), #76 (0.66 georref), #78 (0.68 aba EAP), #79 (0.69 + 0.70: gavetas v2, golden, F1+F2) e #80 (0.71 F3, EAP única) — somam a maior parte das +24 555 linhas da janela e redefinem o eixo da arquitetura, e nenhum tem aceite do Fable: execucoes.csv não traz linha de revisor para 'Orçamento 211' (5 execuções), 'Georref f009/f010' (2), 'Aba EAP legível' (2), 'Reconstrução F0–F2' (5) nem 'Reconstrução F3' (1), e a 0.58 não tem linha nenhuma; os planos existem (orcamento_211.md com 'pode seguir' do Caio; georref_f009_f010.md; aba_eap_legivel.md; RECONSTRUCAO.md) mas nenhum tem seção de aceite; os cartões desses PRs não têm .decisao.md. ARQUITETURA §10: 'Uma entrega só vai para a main com os três verdes e o aceite do Fable'; §16.5 (acordo do próprio 04/11): 'Plano e Fable para toda frente'. A RECONSTRUCAO §3 reescreveu o ciclo como 'rumo → executores → build real → balanço → revisão do gerente (com captura) → PR → merge', e 'gerente' é Opus no CLAUDE.md:20 e Fable em ARQUITETURA.md:345 — contradição que a própria RECONSTRUCAO §1.6 aponta sem resolver. Na mesma sessão, as rodadas Geo Bd anteriores (terreno 0.56, A4 0.59, A5 0.60) tiveram aceite do Fable; a prática caiu a partir da 0.64. Cabe ao Caio dizer se a reconstrução anda sem revisor independente ou se a F4 em diante volta ao acordo."
+  },
+  {
+   "grupo": "Plano",
+   "item": "'Uma frente só' e o plano aprovado que não foi seguido",
+   "estado": "ATENÇÃO",
+   "evidencia": "A RECONSTRUCAO §1.6 admite: 'o plano de 04/11 dizia A4 → A5 → B4. Depois da A5 vieram orçamento 211, georreferência e aba EAP, e a B4 não aconteceu'; 12 planos novos num dia, rumo.yaml com 5 objetivos trocados em 04/11, quatro frentes na mesma main. A decisão do Caio 'uma frente só até a F6' (§5.2) foi cumprida depois do #79 (só o #80, da mesma frente, entrou), mas o documento avisa que 'as outras sessões precisam ser avisadas pelo Caio; a sessão não consegue pará-las', ARQUITETURA §16 segue listando as frentes como ativas, e docs/plano/2026-11-04_plano_memoria_espacial.md (fases B, C e D, aprovado pelo Caio na manhã do mesmo dia) não foi marcado como superado, ao contrário de PLANO.md, PLANO_FOZ.md e VISUALIZADOR_V2.md. Ponto positivo: a F0 marcou os planos superados e a RECONSTRUCAO tem tabela 0.1 de andamento por fase."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Decisões D10–D13: registro, aplicação antes do consolidar e conceitos com a decisão citada",
+   "estado": "OK",
+   "evidencia": "ARQUITETURA.md (tabela §6), docs/plano/2026-11-04_wbs_d10_d11.md e CHANGELOG 0.57.0 registram D10 (HID.TUB.ANC em qualquer unidade, OP.07.04), D11 (água potável 622 m como trecho linear da U1, aplicada antes do consolidar por (unidade, sistema) com marcador vista_eap_padrao; L053), D12 (conceitos do dado real de Foz confirmados) e D13 (lavagem de rede = GER.CTL.DSF, OP.12.04). Cada conceito alterado cita a decisão: conceitos/unidades_construtivas.json AGUA_POTAVEL 'fonte: decisão D11 (Caio, 04/11/2026)', eap_padrao.json OP.12.04 'D13 (04/11)', eap_geral.jsonl HID.TUB.ANC e GER.CTL.DSF com obra ['localizada','linear']. A D12 resolve a ATENÇÃO de 03/11 sobre as classificações da 0.54 alteradas sem decisão (PVS para água, ALO etapa 00, macromedidor)."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Pendências antigas e novas",
+   "estado": "ATENÇÃO",
+   "evidencia": "Fechadas na janela: NSPT por código (A5), terreno MDS × topografia (opção D), georreferência de f009/f010 (3 de 4 plantas), classificações da 0.54 (D12), prazo nas composições (F0), WBS com Fable. Abertas das verificações anteriores: furo com sufixo SI (geotecnia.py:5), de_para_extracao.json:69-71, gavetas.eixo × lineares.eixo (gavetas.py:561), CI sem extras (vcm.yml inalterado desde 31/10), dimensoes.de_fatos aceitando 'fonte única' sem olhar o método (dimensoes.py:332-348, inalterado), tolerância do SfM, conferência das etapas da EAP padrão com o MOS (RECONSTRUCAO §0 passo 5: 'premissa a conferir com o MOS'), conferência dos 23 furos pelo Caio (o Fable conferiu 6 na A5). Abertas nesta janela: f010 planta 600; cota FF 235,97 não lida (A4) e a envoltória 'com hash novo declarado'; cadastro Sanepar classifica 304469 (boca de lobo) como motobomba e o hidrômetro DN 200 cai em HID.TUB.LIG (0.67); 7 linhas do Contrato 211 sem regra; 12 folhas obrigatórias a preencher por tipo de obra (F4/F5); F6 (10 quantidades pelo Caio) e F7."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "tests/test_obras_lineares.py, test_dimensionar_vala.py, test_lineares.py, test_cavas_gavetas.py, test_gavetas.py, test_dimensoes.py, test_evidencias.py, test_valas.py, test_escavacao.py, test_geotecnia.py; datasets/ground_truth, *gabarito*, *avaliador*",
+   "estado": "OK",
+   "evidencia": "git diff --numstat 0f724aa 253d4e5 -- tests/: test_obras_lineares, test_dimensionar_vala, test_lineares, test_cavas_gavetas, test_gavetas, test_dimensoes e test_evidencias não aparecem (0 linhas); test_valas.py +101/−0 (só testes novos de eixos_por_pares e do recorte na janela, 0.64/0.66); test_escavacao.py +12/−0 (test_furos_da_obra_sem_coordenada_ficam_fora, 0.58); test_geotecnia.py +166/−5 (as 5 removidas são a reformatação do dict do furo SP-R; nenhum valor esperado mudou). O padrão '*gabarito*', '*avaliador*' e datasets/ground_truth não casa com nenhum arquivo do repositório. Os gabaritos da vala (planilha da Giselle, quadro MOS) e da geotecnia (D5/D6) estão intactos, como em 03/11."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "tests/test_eap_padrao.py e test_titulos_etapa.py: contagens alteradas por D10/D13, com a decisão citada",
+   "estado": "OK",
+   "evidencia": "test_eap_padrao.py +174/−11: n_aplicaveis 43 → 45, pct '7,0 %' → '6,7 %', teto '81,4 %' → '82,2 %', n_aplicaveis 42 → 44 — consequência das folhas novas OP.07.04 (D10) e OP.12.04 (D13), no commit 883a800 'EAP padrao: D10 ... e D11', com comentários '# D11: trecho linear declarado dentro de unidade localizada' no próprio teste; são contagens de classificação, não números de engenharia. test_titulos_etapa.py +899/−10: testes de caracterização (3dc403b, L062) e das travas/recusas; as 10 linhas removidas são reformatação (DADOS_DE_OUTROS_MODULOS passa a incluir eap_vista, CHANGELOG 0.68.0; _linha em várias linhas). test_obra_caracterizacao.py 1/1 idem."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "Golden das quantidades de Foz: gabarito novo, gerado do próprio build e alterado no mesmo PR por decisão",
+   "estado": "OK",
+   "evidencia": "tests/golden_foz/quantidades_foz.json (1 457 linhas; escavação, valas, contrato, construtivos, EAP padrão, EAP codificada, gavetas) nasceu na F0 (2adc619, Haiku E2: '7 seções, 48 kB, 0 diferenças contra o build') e foi alterado no mesmo PR #79 (beedc23) nas 6 linhas de escoramento em un/mês, pela decisão do Caio 'prazo fora', declarada no CHANGELOG 0.70.0 ('só mudam as 6 linhas ... Escavação, valas, EAP e elementos ficaram idênticos'). O teste (tests/test_golden_quantidades.py) pula sem saida/foz/dados.json, então nem este ambiente nem o CI o exercitam; a paridade 37/37 da F3 foi medida no build real do gerente. Como o golden é fotografia do build, prova que a reconstrução não perde nada, não que os números estão certos — isso é a F6."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Aferição reprovada na main desde o PR #74 e piorando: longas 6 → 14, 1 duplicata, 8 versões sem registro",
+   "estado": "DESVIO",
+   "evidencia": "scripts/afericao.py (sem --registrar) hoje: REPROVADA — 1 560 funções, 0 órfãs, 1 duplicata (camadas/extrair_gavetas.py:32 `_base_vazia` = camadas/gavetas_contrato.py:42 `_base_vazia`) e 'longas piorou: 6 → 14'. Reconstruindo a medida por merge (git archive + afericao.medir): 77662a1 (0.63) 6 longas; fc53b2b (#74, 0.64) 8 (+contrato_211.ler_custo_civil, obra.construir); 7ed1274 (#76, 0.66) 10 (+georef_prancha.registrar_cad_escala_fixa, obra.etapa_pranchas); 91ec281 (#78, 0.68) 11 (+testar_visualizador.verificar_eap_vista); ce73c5e (#79, 0.70) 14 e a duplicata (+gavetas_construtivos._fatos_do_elemento, gavetas_documentos.de_inventario e destino_do_documento); 253d4e5 (#80) igual. A última linha de pdca/afericao.jsonl é de 04/11 15:15 (6 longas, commit 814f6ef, 0.63.0): oito versões entraram sem registro. Toda a piora vem da frente sem Fable, enquanto a WBS gastou um ciclo inteiro (0.65) para baixar quatro funções de 32/18/22/20 para 1/9/3/6. ARQUITETURA §10 exige 'os três verdes (testes, aferição, determinismo)' para entrar na main e a própria frente WBS anotou 'aferição reprova na main desde o PR #74' (execucoes.csv, 0.61/0.67). Duplicata reprova sempre (afericao.julgar). determinismo.py: ok."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Balanço vcm por PR; trocas DECISAO_HUMANA sem registro em dois cartões",
+   "estado": "ATENÇÃO",
+   "evidencia": "Todos os 15 merges com bump têm cartão (17 novos em results/iteracoes: 4c06913_3f3ec7c e 4090759_bdbbd8a (0.56), 4090759_531b666 (0.57), 531b666_7a24719 (0.58), b1f8c8e_d4bbf4f (0.59), 81ed4e2_8744b75 (0.60), 4844813_999dba8 (0.61), acf756b_b06b8f2 (0.62), e4ef3d5_814f6ef (0.63), 77662a1_0c55caf (0.64), fc53b2b_5efa033 (0.65), a7d0b8d_82ef14f (0.66), a7d0b8d_ed3660d (0.67), bd5bd8b_c595c59 (0.68), 91ec281_ae87ef2 (0.69/0.70), ce73c5e_7d871e6 (0.71)); vereditos: 12 SEM_GANHO, 3 DECISAO_HUMANA, 2 MANTER, 0 REVERTER; cobertura 0,824 no último cartão (verde, acima do amarelo 0,55). Os três .decisao.md (0.56, 0.59, 0.60) registram MANTER com 'o Caio autorizou até o merge' e o aceite do Fable. Mas duas trocas ficaram sem registro humano, contra o passo 4 do CLAUDE.md ('havendo troca de métricas, decide o humano'): 4090759_531b666 (0.57: cobertura 0,817 → 0,807, −1,3 %; sloc +2,2 %; complexidade −1,7 %) e 91ec281_ae87ef2 (0.70: sloc_por_funcao 13,876 → 14,174, +2,1 %). Os seis merges só de documentação (#60, #61, #62, #64, #67, #69) não têm cartão, o que é razoável."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Portão REVERTER do vcm no CI (ATENÇÃO da verificação anterior)",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança: .github/workflows/vcm.yml não aparece no diff da janela (último commit b19bd35, 31/10) e docs/arquitetura.html:247 e :575 seguem dizendo 'Ainda aberto: o portão REVERTER do vcm no CI (o passo falha por acesso ao repositório privado)'. Os balanços continuam rodados à mão pelo gerente (cartões acima). O CI tampouco instala os extras (ver item dos verdes), então os testes do terreno, das cavas e das pranchas não rodam lá."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Versão só no merge, CHANGELOG, lição por versão",
+   "estado": "OK",
+   "evidencia": "Sequência monótona na main: 0.56 (#63) … 0.71 (#80), 16 versões em 15 merges (o #79 trouxe 0.69 e 0.70); duas renumerações no ramo antes do merge, como o acordo §16.3 pede (37aedcd 'entrega renumerada para 0.67.0 / L065'; 7a24719 'esta versão como 0.58.0'); 71 cabeçalhos únicos no CHANGELOG e VERSAO 0.71.0 = topo. pdca/licoes.jsonl: L052 a L069, ao menos uma por versão (0.64 com L060/L061 e 0.66 com L063/L064), todas com 'antes', 'formalizada_em' e teste — exceto L060 (worktree do executor), 'formalizada sem teste', que é lição de processo registrada em execucoes.csv; tests/test_determinismo.py passa. Boas lições de método na janela: L062 (caracterização antes de refatorar), L065 (roteiro de conferência fora do repositório envelhece), L067 (sistema sem eixo), L069 (paridade acha lacuna que a extração escondia como pendência)."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Registro das execuções de agentes: completo, mas com 2 linhas duplicadas e dois espelhos desiguais",
+   "estado": "ATENÇÃO",
+   "evidencia": "results/agentes/execucoes.csv +53 linhas (168 no total), cada uma com modelo, tokens, chamadas, duração e aprovado; registra até a tentativa perdida (Orçamento 211 E2: 'worktree criada no repositório errado', 64 402 tokens, L060) e as devoluções do Fable (documento validado 009e987; painel 7070c01). Mas: as linhas 'A5 NSPT, E1' e 'A5 NSPT, aceite da A5' aparecem duas vezes, idênticas (`sort | uniq -d`) — o DESVIO 4 de 03/11 (56 linhas repetidas) volta em miniatura; pdca/agentes.jsonl ganhou só 24 linhas, todas da sessão Geo/reconstrução, e as 29 da frente WBS (Fable e Sonnet) não estão lá; o campo modelo alterna 'sonnet'/'haiku' e 'claude-sonnet-5-5', e scripts/verificacao_noturna.py precisou de um try/except para 'linha fora do cabeçalho (colunas trocadas)'. Vale um teste do csv (chave única, modelo pelo repertório, espelho no jsonl)."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Extração redundante (§17): testemunha, nunca fonte; escada N0–N7 com tolerância declarada",
+   "estado": "OK",
+   "evidencia": "ARQUITETURA §17 (154d563, a2b6ec3): o ialocal.extrair.dados 'entra só como testemunha: confere, nunca substitui, e nenhum número da EAP passa a depender dele'; sete níveis do geral para o específico (N0 contrato … N7 laço de evidências), cada diferença vira pendência com nível, objeto e motivo; condições confirmadas pelo extrator em 85 perguntas (sha256 estável, blocos com caixa em pt, planilhas célula a célula); teste de 04/11: a planilha remontada só com as células externas deu 1 002 linhas de escopo, 79 itens do CUSTO CIVIL e 36 com título de etapa, iguais à leitura direta (0.54/0.55). O script (`scripts/conferir_extracao_externa.py`) fica 'a fazer quando o SQLite existir'. Decisão do Caio em aberto registrada: a saída no Drive tem cotações e dados pessoais em claro."
+  }
+ ],
+ "decisoes_do_caio": [
+  "03/11 (docs/plano/2026-11-03_decisao_terreno.md; 0.56.0): opção D para o terreno das cavas — topografia do projeto (TIN das curvas GEOPLANTA) dentro do casco, MDS corrigido fora, com costura e alerta além de 30 m; escavação de Foz 8 612 → 7 905 m³.",
+  "04/11, D10 (0.57.0): blocos de ancoragem e de apoio são um item só, HID.TUB.ANC, em qualquer unidade; folha OP.07.04 não obrigatória.",
+  "04/11, D11 (0.57.0): a água potável da U1 (622 m) conta uma vez só, como trecho de obra linear, declarada em eap_padrao.trechos_lineares e aplicada antes do consolidar.",
+  "04/11, D12 (0.57.0): ficam confirmados os conceitos ajustados com o dado real de Foz — PV vale para água (MOS módulo 09), administração local é a etapa 00, hidrômetro DN 200 é macromedidor.",
+  "04/11, D13 (0.57.0): 'lavagem de rede' é desinfecção e limpeza da rede (GER.CTL.DSF, também em obra localizada, OP.12.04).",
+  "04/11 (docs/plano/2026-11-04_plano_memoria_espacial.md): 'pode gravar o plano e seguir com a A4'; depois 'pode seguir com a A5' — fases A (fechar a ETA), B (ler das pranchas), C (medir a tese) e D (aceite) aprovadas; a ordem A4 → A5 → B4 não foi seguida (RECONSTRUCAO §1.6).",
+  "04/11 (orçamento 211, 0.64.0): 'pode seguir, deixa a premissa e mostra na aba EAP' — DMT de 10 km, 8 m/dia de vala escorada, 22 dias úteis e 1 jogo de escoramento como premissas 'calibrar'; superada no mesmo dia pela F0 (prazo fora), ficando só a DMT.",
+  "04/11: 'pode georreferenciar as folhas 009 e 010 numa nova rodada' (0.66.0) e 'pode melhorar a tabela na aba EAP numa nova rodada ... a wbs eap não está em formato legível e também não está interativa' (0.68.0).",
+  "04/11 (docs/RECONSTRUCAO.md §5, 'pode seguir com as recomendações e começar a F0'; 0.69.0): EAP única com o esqueleto OP/OL e os itens técnicos como folhas; uma frente só até a F6; HTML principal só com a navegação EAP → detalhe → mapa/prancha (3D, fotos oblíquas, conferências e inventário vão para um relatório à parte); prazo fora da quantificação (escoramento em un/mês 'a preencher (depende de prazo)', produtividade/dias úteis/jogos saem, ALO só 'declarada', DMT fica).",
+  "03–04/11, nos cartões DECISAO_HUMANA/SEM_GANHO de 0.56, 0.59 e 0.60: 'pode seguir até o merge', registrado em results/iteracoes/*.decisao.md com o aceite do Fable.",
+  "Pendentes para o Caio: (1) quem revisa a frente da reconstrução — o gerente é Opus (CLAUDE.md) ou Fable (ARQUITETURA §10)? A F0–F3 entrou sem aceite independente, contra o acordo §16.5 do próprio 04/11; (2) a aferição reprovada na main (14 longas, 1 duplicata, 8 versões sem registro): exigir a volta ao verde antes da F4 ou aceitar e registrar; (3) as duas trocas DECISAO_HUMANA sem registro (0.57 cobertura −1,3 %; 0.70 sloc +2,1 %); (4) conferir as etapas da EAP padrão com o MOS Sanepar; (5) a F6: 10 quantidades ao acaso, do número à prancha; (6) tolerância aceitável para a reconstrução SfM (+0,3 %); (7) a saída do extrator redundante no Drive com cotações e dados pessoais em claro; (8) os 23 furos de Foz (6 conferidos pelo Fable na A5); (9) marcar docs/plano/2026-11-04_plano_memoria_espacial.md como superado ou reencaixar B/C/D nas fases F4–F7."
+ ],
+ "resumo": "Entre 0.55.0 e 0.71.0 o repositório cresceu 24 555 linhas em um dia e ganhou um eixo: a RECONSTRUCAO (F0–F3) diagnosticou com honestidade as 7 EAPs e os 8 caminhos para o comprimento de vala, criou as gavetas v2 e o golden das quantidades, levou todo o escopo de Foz para a base (7 327 fatos, 5 987 com página) e preencheu a EAP única só pelas gavetas com paridade 37/37 — tudo com hash de referência inalterado (0602c637…), 1282 testes verdes e os gabaritos da vala e da geotecnia intactos. As regras do mantenedor seguem respeitadas (203 funções novas em português, JS da aba EAP só apresenta o que eap_vista calcula, sentinela de preço em contrato_211 e nas gavetas, OCR e leitura por posição sem IA no número, sufixo SI nos módulos novos) e o desvio 'sem prazo' da 0.64 foi desfeito pelo Caio na 0.69. Dos oito pontos em atenção de 03/11, dois se fecharam (a frente WBS passou a ter plano e aceite do Fable em cada um dos seis ciclos; as classificações da 0.54 viraram D12/D13) e seis persistem (sufixo SI do furo e do dimensoes.json, de_fatos, tolerância do SfM, ARQUITETURA atrasada — agora de 0.55 para 0.71, com a fonte viva passada à RECONSTRUCAO —, pendências da rodada 25, portão REVERTER do CI). Dois desvios novos, ambos na frente da reconstrução: seis PRs (0.58, 0.64, 0.66, 0.68, 0.69–0.71), a maior parte do código da janela e o novo eixo da arquitetura, entraram na main sem aceite do Fable, contra §10 e o acordo §16.5 firmado no mesmo dia, enquanto a RECONSTRUCAO redefine o ciclo com 'revisão do gerente' e CLAUDE.md e ARQUITETURA discordam sobre quem é o gerente; e a aferição está reprovada desde o PR #74 e piorando (longas 6 → 8 → 10 → 11 → 14 e uma duplicata, oito versões sem registro), toda a piora vinda dessa frente, enquanto a WBS gastou um ciclo para baixar complexidade. Em atenção nova: os verdes dependem de extras ausentes (94 pulos; terreno, cavas e pranchas não rodam aqui nem no CI) e 11 de 17 cartões carregam testes_falhando = 1 aceito como ruído; os caminhos paralelos continuam vivos até a F4/F7; seis caches ainda 'valem só por existir'; duas trocas DECISAO_HUMANA sem registro; o plano A4 → A5 → B4 não foi seguido; o execucoes.csv tem duas linhas repetidas e o agentes.jsonl não espelha a WBS; a exceção do visualizador segue sem a conferência JS × Python prometida."
+}
