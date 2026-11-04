@@ -24,9 +24,9 @@ etapas:
   agente: sonnet
   estimativa_min: 45
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T20:24:50Z'
-  fim: null
+  fim: '2026-11-04T20:40:09Z'
   forcado: null
 - id: E2
   nome: 'F3: ligação no build, build real, paridade, balanço, PR e merge'
@@ -49,8 +49,8 @@ etapas:
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T20:40:10Z'
   fim: null
   forcado: null
 historico:

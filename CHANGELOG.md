@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.71.0 — 2026-11-04 · F3 da reconstrução: a EAP preenchida só pelas gavetas
+- **`camadas/eap_preencher.py`** (novo): o passo 6 do fluxo do Caio.
+  - Um laço sobre os itens técnicos de `eap_geral.jsonl` mede cada um pelos fatos das gavetas (soma de propriedade,
+    contagem, medida geométrica). Os serviços das gavetas (vala, cava) entram pelo `codigo_eap`, e o que os fatos já
+    medem é descartado, para não contar duas vezes.
+  - Um laço sobre o modelo `eap_padrao.json` (obra localizada e obra linear) faz cada folha somar os itens que aponta.
+    As linhas do contrato entram como "declarada", sem somar com o medido.
+  - Código da EAP única: `<folha>/<U.SISTEMA.DISC.PAC.ITEM>`, por exemplo `OP.03.01/U1.ACT600.GEO.FUN.EST`.
+  - Cada quantidade cita objetos, fatos e evidências (documento e página, ou aba e linha).
+- **Lacunas de extração fechadas:**
+  - escavação e reaterro das cavas viram propriedades (`escavacao_m3`, `reaterro_m3`) nas gavetas;
+  - área, perímetro e comprimento dos elementos passam de 3 para 6 casas, porque a soma dos blocos saía da tolerância.
+- **No build** (`extrair_gavetas._eap_unica`): `saida/<obra>/eap_unica.json`, com a paridade contra a EAP codificada
+  do mesmo build. O `completar_escopo` roda depois da EAP codificada e ficou idempotente: a extração nova troca a
+  antiga de mesma chave.
+- **Foz:**
+  - **paridade: 0 diferença nas 37 quantidades** (golden 37/37);
+  - obra localizada: 9 de 45 folhas preenchidas e 6 declaradas;
+  - obra linear: 5 de 32 preenchidas;
+  - 12 obrigatórias a preencher em cada tipo, que a F4 (serviços complementares) e a F5 (laço até a EAP completa)
+    vão atacar.
+- Lição L069.
+
 ## 0.70.0 — 2026-11-04 · F1+F2 da reconstrução: todo o escopo de Foz nas gavetas, com documento e página
 - **`camadas/gavetas_documentos.py`** (F1): o inventário vai para as gavetas.
   - Cada arquivo vira um documento (chave = sha256 do conteúdo; as cópias idênticas ficam em `copias`), com a classe,
