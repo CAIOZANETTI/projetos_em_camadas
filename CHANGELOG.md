@@ -15,7 +15,7 @@
   - A linha sem quantidade declarada vira pendência "a calcular (F4)".
 - **`extrair_gavetas.completar_escopo`**: passo do build depois dos construtivos. Junta as três partes à base,
   confere, regrava `base/` e grava o resumo em `gavetas_escopo.json`. O `dados` do HTML não muda.
-- **Foz, gavetas:** 324 documentos, 1 600 objetos e **7 327 fatos**, dos quais 5 987 citam a página ou a aba e
+- **Foz, gavetas:** 324 documentos, 1 514 objetos e **7 327 fatos**, dos quais 5 987 citam a página ou a aba e
   linha; 0 erros de conferência. **Antes:** 13 documentos, 82 objetos e 180 fatos.
 - **Golden das quantidades:** só mudam as 6 linhas de escoramento em un/mês (sem prazo, decisão do Caio).
   Escavação, valas, EAP e elementos ficaram idênticos.
