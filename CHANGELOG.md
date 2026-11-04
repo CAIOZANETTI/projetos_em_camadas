@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.62.0 — 2026-11-04 · Recusa na leitura e decisões validadas (frente WBS)
+- **Recusa na leitura**: `evidencias.loop(trechos_lineares=...)` recebe de `etapa` os trechos declarados na obra e
+  recusa, num filtro único antes de `_sem_ia_repetida`/`consolidar`/`gravar`, toda evidência (IA, decisão, regex,
+  planilha, pranchas, extras) de sistema linear que a obra não declara. A recusa vai para `recusadas` ({motivo,
+  evidencia}), não chega a `evidencias.jsonl` nem a fatos, e `eap_padrao.montar` a mostra nos avisos sem duplicar.
+- **Decisões validadas pelo schema** (`validar_evidencia`): decisão fora do padrão (ex.: código em minúsculas) é
+  recusada com o motivo, sem exceção e sem normalizar; vira o aviso "Decisão recusada na leitura" na EAP padrão.
+- A CLI `conferir` não muda (sem declaração de obra). `pares_declarados` passa a ser pública.
+- Foz idêntica (656 evidências, 38 fatos, 9/45 e 7/32, mesmo hash da cadeia real), 0 recusas.
+- Plano `docs/plano/2026-11-04_wbs_recusa_na_leitura.md` aprovado pelo Fable (quatro ajustes) e entrega aceita.
+- Lição L058.
+
 ## 0.61.0 — 2026-11-04 · Travas da vista linear da EAP padrão (frente WBS)
 - **Sistema linear só com declaração na obra**: código de sistema marcado `vista_eap_padrao` (ex.: `U1.AGUA_POTAVEL`)
   sem a (unidade, sistema) declarada em `eap_padrao.trechos_lineares` sai das duas vistas da EAP padrão (não cai em

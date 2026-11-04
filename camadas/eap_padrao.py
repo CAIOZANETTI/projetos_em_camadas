@@ -530,7 +530,7 @@ def _par_do_codigo(codigo: str) -> tuple[str, str]:
     return tuple((str(codigo).lower().split(".") + ["*"])[:2])
 
 
-def _pares_declarados(trechos: list[dict]) -> set[tuple[str, str]]:
+def pares_declarados(trechos: list[dict]) -> set[tuple[str, str]]:
     """{(unidade, sistema)} em minúsculas dos trechos lineares declarados (`separar_trechos_lineares`)."""
     return {(t["unidade"].lower(), t["sistema"].lower()) for t in trechos}
 
@@ -940,8 +940,30 @@ def _avisos_dos_trechos(trechos: list[dict], linhas: list[dict] | None) -> list[
     return avisos
 
 
+MOTIVO_NAO_DECLARADO = "sistema de trecho linear não declarado na obra"
+"""Motivo da recusa na leitura (`evidencias.loop`) que vira o aviso de sistema linear não declarado."""
+
+
+def _aviso_nao_declarado(
+    codigo: str, servico: str | None, valor, unidade: str, documentos: list
+) -> str:
+    """Texto do aviso de sistema de trecho linear não declarado (fato consolidado ou evidência recusada na leitura)."""
+    nome = SERVICOS.get(servico, servico or "sem serviço")
+    texto = (
+        "sem valor"
+        if valor is None
+        else f"{_numero(valor, unidade)} {unidade}".rstrip()
+    )
+    citados = ", ".join(str(d) for d in documentos if d) or "não informado"
+    return (
+        f"Sistema de trecho linear não declarado na obra: {codigo} ({nome}, {texto}; documento {citados});"
+        " o número fica fora das duas vistas da EAP padrão"
+    )
+
+
 def _avisos_nao_declarados(dados: dict, declarados: set[tuple[str, str]]) -> list[str]:
-    """Um aviso por fato (`dados["evidencias"]["fatos"]`) e por quantidade (`dados["eap"]["quantidades"]`) de código de
+    """Um aviso por fato (`dados["evidencias"]["fatos"]`), por evidência recusada na leitura
+    (`dados["evidencias"]["recusadas"]`) e por quantidade (`dados["eap"]["quantidades"]`) de código de
     sistema linear que a obra não declara: nomeia código, serviço, valor e documento. O número fica fora das duas vistas
     da EAP padrão (o fato segue em fatos.csv)."""
     evidencias = dados.get("evidencias")
@@ -956,16 +978,28 @@ def _avisos_nao_declarados(dados: dict, declarados: set[tuple[str, str]]) -> lis
                 + [f"decisao:{d['autor']}" for d in f.get("decisoes") or []]
             )
         )
-        servico = SERVICOS.get(f.get("servico"), f.get("servico") or "sem serviço")
-        valor = (
-            "sem valor"
-            if f.get("valor") is None
-            else f"{_numero(f['valor'], f['unidade'])} {f['unidade']}".rstrip()
-        )
         avisos.append(
-            f"Sistema de trecho linear não declarado na obra: {f['codigo']} ({servico}, {valor}; documento "
-            f"{', '.join(documentos) or 'não informado'}); o número fica fora das duas vistas da EAP padrão"
+            _aviso_nao_declarado(
+                f["codigo"], f.get("servico"), f.get("valor"), f["unidade"], documentos
+            )
         )
+    for r in (
+        evidencias.get("recusadas") if isinstance(evidencias, dict) else None
+    ) or []:
+        if r.get("motivo") != MOTIVO_NAO_DECLARADO:
+            avisos.append(  # decisão fora do schema: aviso próprio, com o motivo, em qualquer obra
+                f"Decisão recusada na leitura: {r.get('codigo') or 'sem código'} ({r.get('motivo')})"
+            )
+        elif sistema_linear_nao_declarado(r.get("codigo") or "", declarados):
+            avisos.append(  # o mesmo texto de um fato não duplica: a lista final é única
+                _aviso_nao_declarado(
+                    r["codigo"],
+                    r.get("servico"),
+                    r.get("valor"),
+                    r.get("unidade") or "",
+                    [r.get("documento")],
+                )
+            )
     for q in (dados.get("eap") or {}).get("quantidades") or []:
         if sistema_linear_nao_declarado(q["codigo"], declarados):
             avisos.append(
@@ -1087,7 +1121,7 @@ def montar(dados: dict, cfg: dict, out: Path | None = None) -> dict:
         raise ValueError("eap_padrao.json inválido: " + "; ".join(erros))
     tipos, declaracoes, manuais, trechos = _configuracao(cfg, avisos)
     evidencias = dados.get("evidencias")
-    declarados = _pares_declarados(trechos)
+    declarados = pares_declarados(trechos)
     avisos += _avisos_dos_trechos(
         trechos,
         evidencias.get("titulos_etapa") if isinstance(evidencias, dict) else None,
