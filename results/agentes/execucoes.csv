@@ -139,3 +139,4 @@ data,fase,tarefa,papel,modelo,tokens,chamadas_ferramenta,duracao_s,aprovado,retr
 2026-11-04,WBS recusa,implementação da recusa na leitura (commit e605366),executor (Sonnet),claude-sonnet-5-5,124696,30,397,True,nenhum,"1125 testes; suíte vcm 0 falhas; Foz idêntica (hash c5c2d5cd), 0 recusas; aferição ok"
 2026-11-04,WBS recusa,aceite da entrega e605366,revisor (Fable),claude-fable-5-1,107535,26,353,True,nenhum,"ACEITA; Foz reproduzida; 3 opcionais (1 tratado no PR)"
 2026-11-04,WBS documento validado,aprovação do plano do documento validado,revisor (Fable),claude-fable-5-1,97344,7,158,True,nenhum,"APROVA COM AJUSTES: tipo e escopo no contrato; codigo da recusa = prefixo; recusadas passadas a _documentos"
+2026-11-04,WBS documento validado,implementação do documento validado (commit 009e987),executor (Sonnet),claude-sonnet-5-5,98847,19,224,True,nenhum,"1134 testes; suíte vcm 1248 passed 0 falhas; Foz idêntica (hash c5c2d5cd); aferição ok"
