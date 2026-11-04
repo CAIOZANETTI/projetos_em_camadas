@@ -47,3 +47,22 @@ REVERTER, aprovação do plano e aceite da entrega pelo Fable.
 | plano e integração | Opus (gerente) |
 | aprovação do plano e aceite | Fable |
 | implementação com testes | Sonnet, em worktree a partir desta branch |
+
+## Parecer do Fable sobre o plano: APROVA, com três ajustes obrigatórios
+
+Recusar (E1) é melhor que rebaixar para `U*.*`: `vista_do_codigo` é função só do código e `_derivadas` já exclui
+`U1.AGUA_POTAVEL.*` do fato `U1.*.X`; rebaixar criaria incoerência com `_derivadas` ou mudaria o código que a
+IA/decisão conferiu. A perda não é silenciosa porque o aviso nomeia código, serviço, valor e documento, e o fato
+continua em `fatos.csv`.
+
+1. **E1, onde a trava age:** `preencher` recebe os pares (unidade, sistema) declarados; código de sistema marcado e
+   não declarado sai das duas vistas **sem** cair em `indefinidas` (para não virar "unidade não atribuível"); o aviso
+   nasce em `montar`, varrendo `dados["evidencias"]["fatos"]` **e** `dados["eap"]` (prancha pode ganhar o sistema
+   pelas `chaves`). `vista_do_codigo` não muda (continua função só do código).
+2. **E2, uma fonte só:** `trechos_do_cfg` consulta `tipo_da_obra(cfg)`, e `_configuracao`/`montar` descartam os
+   mesmos trechos (sem aviso duplo); teste de que `trechos_do_cfg` e `montar` concordam.
+3. **E3:** ajustar o teste existente de obra só localizada (texto do aviso), manter o teste de Foz (nenhum aviso de
+   trecho, obra mista) e cobrir também evidência de decisão (hoje `_problemas_ia` não confere o sistema contra
+   `unidades_construtivas.json`).
+
+Pendência registrada (sugestão): recusar já em `loop`/`_conferir_ia`, para o número nem chegar ao `consolidar`.
