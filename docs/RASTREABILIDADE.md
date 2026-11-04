@@ -165,7 +165,7 @@ correção entrou na 0.58.0.
 | `geotecnia` | `geotecnia`, `lineares` | 0.21, 0.27–0.31, 0.49–0.51 (`focused-dijkstra`) |
 | `gavetas`, `eap_gavetas`: 73 objetos, 132 fatos, 77 serviços | `gavetas`, `extrair_gavetas` | 0.24–0.26, 0.28, 0.30, 0.34, 0.36 (`ccr-2f8fb1ac`) |
 | `eap`, `eap_padrao`, `eap_painel` | `eap`, `eap_padrao`, `eap_painel`, `eap_html` | 0.32, 0.35–0.38, 0.46–0.48, 0.52, 0.54–0.55, 0.57 (`nifty-meitner`) |
-| `evidencias`: 2 512 evidências, 165 fatos, 6 conflitos | `evidencias`, `vocabulario` | 0.39–0.44, 0.47 (`nifty-meitner`) |
+| `evidencias`: 2 517 evidências, 167 fatos, 6 conflitos | `evidencias`, `vocabulario` | 0.39–0.44, 0.47 (`nifty-meitner`) |
 | `conferencia_cavas` | `conferencia_cavas`, `secoes_corte` | 0.53 (`ccr-2f8fb1ac`) |
 | `escavacao` com terreno composto. As cavas usam a topografia da GEOPLANTA dentro do casco das curvas e o MDS corrigido fora (15 265 m² de topografia, 6 192 m² de MDS corrigido, 1 387 m² de costura). Resultado: 7 cavas, 7 922 m³ de escavação e 4 951 m³ de reaterro. Dois alertas: o furo SP-16 (provável copa) e 4 288 m² extrapolados a mais de 30 m do casco | `topografia`, `escavacao` | 0.56 (`ccr-2f8fb1ac`), 0.58 (`intelligent-dijkstra`: furos `null` fora da validação) |
 
