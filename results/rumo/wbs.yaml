@@ -12,6 +12,6 @@ etapas:
 - {id: E1, nome: D10 no item, agente: sonnet, estimativa_min: 20, status: a_fazer}
 - {id: E2, nome: D10 na EAP padrão, agente: sonnet, estimativa_min: 15, status: a_fazer}
 - {id: E3, nome: D11 trecho linear em unidade localizada (antes do consolidar; vista por unidade e sistema), agente: sonnet, estimativa_min: 90, status: a_fazer}
-- {id: E4, nome: testes, agente: sonnet, estimativa_min: 30, status: a_fazer}
+- {id: E4, nome: testes, agente: sonnet, estimativa_min: 45, status: a_fazer}
 - {id: E5, nome: cadeia real de Foz e relatório, agente: sonnet, estimativa_min: 20, status: a_fazer}
 - {id: E6, nome: aceite do Fable e merge, agente: fable, estimativa_min: 20, status: a_fazer}
