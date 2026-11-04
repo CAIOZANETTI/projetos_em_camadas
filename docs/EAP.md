@@ -717,9 +717,23 @@ Relatório com contagens antes × depois: `docs/plano/2026-11-03_foz_eap_padrao_
     `trechos_declarados`, não confere. (2) *Declaração só em obra com tipo linear:* se `tipo_da_obra` não inclui
     `obra_linear`, `eap_padrao.trechos_lineares` é recusada (aviso "recusada") e **não é aplicada**, uma fonte só
     (`eap_padrao._trechos_da_obra`, usada por `trechos_do_cfg` e por `montar`): a linha fica na vista localizada com o
-    código original e a soma não muda; sem aviso duplo. **Pendência (sugestão do Fable):** recusar já em
-    `evidencias.loop`/`_conferir_ia`, para o número nem chegar ao `consolidar`; hoje `_problemas_ia` não confere o sistema
-    contra `unidades_construtivas.json`.
+    código original e a soma não muda; sem aviso duplo.
+  - **Recusa na leitura (plano `docs/plano/2026-11-04_wbs_recusa_na_leitura.md`).** `evidencias.etapa` passa
+    `eap_padrao.trechos_do_cfg(cfg)` (fonte única da declaração) a `evidencias.loop(trechos_lineares=...)`. Um filtro único
+    em `loop`, antes de `_sem_ia_repetida`/`consolidar`/`gravar`, remove toda evidência (IA, decisão, regex, extras) cujo
+    código é de sistema com vista linear e cuja (unidade, sistema) a obra não declara, e a registra em `recusadas`
+    (`{motivo: "sistema de trecho linear não declarado na obra", evidencia}`): o número **não chega a `fatos.csv`** nem à
+    cobertura. A planilha do contrato com a declaração passa (o par está declarado). `etapa` devolve as recusas em
+    `evidencias["recusadas"]` (código, serviço, valor, unidade, documento, motivo), registra no log, e `montar` as inclui nos
+    `avisos` com o mesmo texto "Sistema de trecho linear não declarado na obra: …", sem duplicar o aviso que nasce de
+    fatos e quantidades. A trava da EAP padrão fica como segunda barreira (quantidades de prancha, `preencher`). `None` =
+    não conferir: a CLI `conferir` (`conferir_arquivo`/`_conferir_ia`) não conhece a obra e **não aplica esta trava**.
+    **Decisões:** passam por `validar_evidencia` em `loop`; decisão fora do schema (por exemplo, código em minúsculas) é
+    recusada com motivo "decisão inválida: …", nunca exceção. **Caixa do código: recusar, não normalizar.** O schema
+    (`conceitos/evidencia.schema.json`) exige maiúsculas no sistema e no item; a IA já era recusada ("código fora do
+    padrão") e agora a decisão também. Nenhum código em minúsculas chega às folhas, então `_item_do_codigo` não muda;
+    `preencher` chamado direto só em teste fica fora do contrato. Foz (mista, declarada) não muda: mesmos números e hash
+    da cadeia real.
 
 **Item acessório e a cabeça da descrição** (`eap_geral.jsonl`: `"acessorio": true`, `evidencias._achados_da_cabeca`).
 Mobilização, desmobilização, topografia, sinalização, ensaios, comissionamento, desinfecção, CFTV, travessia, MND,
