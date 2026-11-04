@@ -30,7 +30,8 @@ def _propriedades(vista: str) -> list[str]:
 
 
 def _base_vazia() -> dict:
-    return {gaveta: [] for gaveta in gavetas.GAVETAS}
+    """Apelido de `gavetas.base_vazia` (os testes importam este nome)."""
+    return gavetas.base_vazia()
 
 
 def _fato(objeto_id: str, propriedade: str, valor, natureza: str, evidencia_id: str) -> dict:
@@ -551,11 +552,35 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
     elementos construtivos (`gavetas_construtivos`) —, confere e regrava `base/`. Roda depois dos `construtivos`. Devolve
     o resumo (gravado em `gavetas_escopo.json`); nada muda no `dados` do HTML. Sem inventário, planilha ou elementos, a
     parte que falta só não entra (e o resumo diz)."""
-    from . import gavetas_construtivos, gavetas_contrato, gavetas_documentos, inventario
-
     pasta = Path(out) / "base"
     base = gavetas.ler(pasta) if (pasta / "objetos.parquet").exists() else _base_vazia()
-    partes, faltou = [], []
+    faltou = []
+    base = _escopo_inventario(cfg, out, base, faltou)
+    base = _escopo_contrato(cfg, base, faltou)
+    base = _escopo_construtivos(cfg, dados, base, faltou)
+    complementares = _complementares(base, dados, out, log) if (dados.get("crs") or {}).get("epsg") else None
+    if complementares:
+        base = complementares.pop("base")
+    erros = gavetas.conferir_base(base)
+    gavetas.gravar(pasta, base)
+    resumo = _resumo_escopo(base, faltou, erros)
+    com_pagina = resumo["fatos_com_pagina"]
+    resumo["complementares"] = complementares
+    resumo["eap_unica"] = _eap_unica(base, dados, out, log)
+    resumo["laco"] = _laco(base, cfg, out, log)
+    (Path(out) / "gavetas_escopo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
+    log(f"Gavetas (escopo): {len(base['documentos'])} documentos, {len(base['paginas'])} páginas, "
+        f"{len(base['objetos'])} objetos, {len(base['fatos'])} fatos ({com_pagina} com página ou aba e linha), "
+        f"{len(base['pendencias'])} pendências, {len(erros)} erros de conferência"
+        + (f"; faltou: {', '.join(faltou)}" if faltou else ""))
+    return resumo
+
+
+def _escopo_inventario(cfg: dict, out: Path, base: dict, faltou: list) -> dict:
+    """Documentos e páginas do inventário do Drive e as menções do texto (F5); acrescenta ao `faltou` o que não houve."""
+    from . import gavetas_documentos, inventario
+
+    partes = []
     if cfg.get("inventario") and inventario.disponivel(cfg):
         inv = inventario.inventario(cfg, Path(out) / "inventario_cache.json")
         partes.append(gavetas_documentos.de_inventario(inv, Path(cfg["inventario"]["pasta"]),
@@ -569,6 +594,13 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
         texto = gavetas_texto.de_documentos(base["documentos"], Path(cfg["inventario"]["pasta"]))
         texto.pop("lidos", None)
         base = _substituir(base, texto)
+    return base
+
+
+def _escopo_contrato(cfg: dict, base: dict, faltou: list) -> dict:
+    """Linhas do contrato e itens de material da planilha (sem preço); sem planilha, acrescenta ao `faltou`."""
+    from . import gavetas_contrato
+
     planilha = Path((cfg.get("obras_lineares") or {}).get("planilha") or "")
     if planilha.is_file():
         doc = gavetas.id_documento(planilha)
@@ -578,6 +610,13 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
                                          base))
     else:
         faltou.append("planilha do contrato")
+    return base
+
+
+def _escopo_construtivos(cfg: dict, dados: dict, base: dict, faltou: list) -> dict:
+    """Elementos construtivos das pranchas; sem eles ou sem PDF de prancha, acrescenta ao `faltou`."""
+    from . import gavetas_construtivos
+
     tem_pdf = any(q.get("pdf") for q in cfg.get("pranchas", []))
     if (dados.get("construtivos") or {}).get("geojson") and tem_pdf:
         nomes = {Path(d["arquivo"]).name: d["documento_id"] for d in base["documentos"]}
@@ -588,27 +627,18 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
                       _sem_os_que_ja_tem(registros, base))
     else:
         faltou.append("elementos construtivos" if tem_pdf else "elementos construtivos (sem PDF de prancha no obra.json)")
-    complementares = _complementares(base, dados, out, log) if (dados.get("crs") or {}).get("epsg") else None
-    if complementares:
-        base = complementares.pop("base")
-    erros = gavetas.conferir_base(base)
-    gavetas.gravar(pasta, base)
+    return base
+
+
+def _resumo_escopo(base: dict, faltou: list, erros: list) -> dict:
+    """Contagens da base completada (gavetas, classes, fatos com página) para o `gavetas_escopo.json`."""
     ev = {e["evidencia_id"]: e for e in base["evidencias"]}
     com_pagina = sum(1 for f in base["fatos"] if gavetas._localizador_com_pagina((ev.get(f["evidencia_id"]) or {}).get("localizador")))
-    resumo = {"gavetas": {g: len(base[g]) for g in gavetas.GAVETAS},
-              "objetos_por_classe": dict(sorted(Counter(o["classe"] for o in base["objetos"]).items())),
-              "fatos_com_pagina": com_pagina, "fatos": len(base["fatos"]),
-              "documentos_por_classe": dict(sorted(Counter(d.get("classe") for d in base["documentos"]).items())),
-              "faltou": faltou, "erros": erros}
-    resumo["complementares"] = complementares
-    resumo["eap_unica"] = _eap_unica(base, dados, out, log)
-    resumo["laco"] = _laco(base, cfg, out, log)
-    (Path(out) / "gavetas_escopo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
-    log(f"Gavetas (escopo): {len(base['documentos'])} documentos, {len(base['paginas'])} páginas, "
-        f"{len(base['objetos'])} objetos, {len(base['fatos'])} fatos ({com_pagina} com página ou aba e linha), "
-        f"{len(base['pendencias'])} pendências, {len(erros)} erros de conferência"
-        + (f"; faltou: {', '.join(faltou)}" if faltou else ""))
-    return resumo
+    return {"gavetas": {g: len(base[g]) for g in gavetas.GAVETAS},
+            "objetos_por_classe": dict(sorted(Counter(o["classe"] for o in base["objetos"]).items())),
+            "fatos_com_pagina": com_pagina, "fatos": len(base["fatos"]),
+            "documentos_por_classe": dict(sorted(Counter(d.get("classe") for d in base["documentos"]).items())),
+            "faltou": faltou, "erros": erros}
 
 
 def _complementares(base: dict, dados: dict, out: Path, log=print) -> dict:

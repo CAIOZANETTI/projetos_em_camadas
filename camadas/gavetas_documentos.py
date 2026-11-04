@@ -110,6 +110,16 @@ def destino_do_documento(
     por planta georreferenciada) e leitores do build. Sem nenhum leitor, o motivo diz por quê."""
     ext = Path(item["arquivo"]).suffix.lower()
     cl = _classes().get(classe, {})
+    destino = _destino_do_de_para(item, classe, georreferenciado, ext, cl) + _destino_do_build(
+        item, classe, georreferenciado, ext
+    )
+    if destino:
+        return destino, None
+    return [], _motivo_sem_destino(classe, ext, cl)
+
+
+def _destino_do_de_para(item: dict, classe: str, georreferenciado: bool, ext: str, cl: dict) -> list[dict]:
+    """Leitores do de-para 1 da classe, filtrados por tipo de arquivo e por planta georreferenciada."""
     planta = item.get("tipo") == "planta"
     destino = []
     for e in extracao.DE_PARA["entradas"]:
@@ -140,6 +150,13 @@ def destino_do_documento(
                 "estado": e["estado"],
             }
         )
+    return destino
+
+
+def _destino_do_build(item: dict, classe: str, georreferenciado: bool, ext: str) -> list[dict]:
+    """Leitores do build (`LEITORES_DO_BUILD`) que servem a classe e a extensão do arquivo."""
+    planta = item.get("tipo") == "planta"
+    destino = []
     for r in LEITORES_DO_BUILD:
         if r["classe"] != classe or ext not in r["extensoes"]:
             continue
@@ -154,23 +171,20 @@ def destino_do_documento(
                 "estado": r["estado"],
             }
         )
-    if destino:
-        return destino, None
+    return destino
+
+
+def _motivo_sem_destino(classe: str, ext: str, cl: dict) -> str:
+    """Por que o arquivo não tem leitor: fora do escopo (cotação), extensão sem leitor ou classe sem leitor."""
     if classe == "cotacao":
-        return [], f"fora do escopo: {cl.get('fora_do_escopo', 'preço')} ({cl['nome']})"
+        return f"fora do escopo: {cl.get('fora_do_escopo', 'preço')} ({cl['nome']})"
     tem_leitor = any(
         e.get("classe_fontes_json") == cl.get("nome")
         for e in extracao.DE_PARA["entradas"]
     ) or any(r["classe"] == classe for r in LEITORES_DO_BUILD)
     if tem_leitor:
-        return (
-            [],
-            f"nenhum leitor lê arquivo {ext or 'sem extensão'} da classe {classe}",
-        )
-    return (
-        [],
-        f"classe {classe} ({cl.get('nome', classe)}): sem leitor para as gavetas; entrega: {cl.get('entrega', 'não declarada')}",
-    )
+        return f"nenhum leitor lê arquivo {ext or 'sem extensão'} da classe {classe}"
+    return f"classe {classe} ({cl.get('nome', classe)}): sem leitor para as gavetas; entrega: {cl.get('entrega', 'não declarada')}"
 
 
 def _sha256(caminho: Path) -> str:
@@ -223,6 +237,60 @@ def _paginas_do_pdf(caminho: Path) -> list[tuple[float, float]]:
         ]
 
 
+def _pendencia_fora_do_disco(item: dict, rotulo: str) -> dict:
+    """Pendência do arquivo do inventário que não está no disco (ou está indicado e não foi encontrado)."""
+    motivo = (
+        item.get("situacao", "fora do disco")
+        if not item["situacao"].startswith("no disco")
+        else "indicado no disco, arquivo não encontrado"
+    )
+    return {"objeto_id": rotulo, "motivo": f"fora do disco: {motivo}", "arquivo": rotulo}
+
+
+def _paginas_do_documento(documento_id: str, tamanhos: list, prancha: dict | None) -> list[dict]:
+    """Registros de página do documento; só a página da prancha do build recebe `M` e `prancha_id`."""
+    pagina_prancha = (
+        max(1, min(int(prancha.get("pagina", 1)), len(tamanhos)))
+        if prancha
+        else None
+    )
+    paginas = []
+    for n, (largura_pt, altura_pt) in enumerate(tamanhos, start=1):
+        registro = {
+            "pagina_id": gavetas.id_pagina(documento_id, n),
+            "documento_id": documento_id,
+            "pagina": n,
+            "largura_pt": largura_pt,
+            "altura_pt": altura_pt,
+        }
+        if n == pagina_prancha:
+            registro.update(
+                {"M": _afim_3x3(prancha["M"]), "prancha_id": prancha.get("id")}
+            )
+        paginas.append(registro)
+    return paginas
+
+
+def _registro_documento(item: dict, sha: str, arquivo: str, ext: str, classe: str, tamanhos: list,
+                        destino: list, motivo: str | None) -> dict:
+    """Registro da gaveta `documentos` para um arquivo do inventário."""
+    doc = {
+        "documento_id": sha[:16],
+        "arquivo": arquivo,
+        "sha256": sha,
+        "extensao": ext,
+        "classe": classe,
+        "paginas": len(tamanhos) or 1,
+        "tipo": item.get("tipo"),
+        "destino": destino,
+    }
+    if item.get("codigo"):
+        doc["codigo_sanepar"] = item["codigo"]
+    if motivo:
+        doc["motivo_sem_destino"] = motivo
+    return doc
+
+
 def de_inventario(
     inventario: dict, raiz: Path, pranchas: list[dict] | None = None
 ) -> dict:
@@ -240,18 +308,7 @@ def de_inventario(
         rotulo = (Path(item.get("pasta_drive") or "") / item["arquivo"]).as_posix()
         caminho = Path(item["caminho"]) if item.get("caminho") else None
         if caminho is None or not caminho.is_file():
-            motivo = (
-                item.get("situacao", "fora do disco")
-                if not item["situacao"].startswith("no disco")
-                else "indicado no disco, arquivo não encontrado"
-            )
-            base["pendencias"].append(
-                {
-                    "objeto_id": rotulo,
-                    "motivo": f"fora do disco: {motivo}",
-                    "arquivo": rotulo,
-                }
-            )
+            base["pendencias"].append(_pendencia_fora_do_disco(item, rotulo))
             continue
         ext = caminho.suffix.lower()
         tamanhos = []
@@ -277,40 +334,10 @@ def de_inventario(
         destino, motivo = destino_do_documento(
             item, classe, bool(item.get("no_mapa") or prancha)
         )
-        doc = {
-            "documento_id": sha[:16],
-            "arquivo": arquivo,
-            "sha256": sha,
-            "extensao": ext,
-            "classe": classe,
-            "paginas": len(tamanhos) or 1,
-            "tipo": item.get("tipo"),
-            "destino": destino,
-        }
-        if item.get("codigo"):
-            doc["codigo_sanepar"] = item["codigo"]
-        if motivo:
-            doc["motivo_sem_destino"] = motivo
+        doc = _registro_documento(item, sha, arquivo, ext, classe, tamanhos, destino, motivo)
         por_id[doc["documento_id"]] = doc
         base["documentos"].append(doc)
-        pagina_prancha = (
-            max(1, min(int(prancha.get("pagina", 1)), len(tamanhos)))
-            if prancha
-            else None
-        )
-        for n, (largura_pt, altura_pt) in enumerate(tamanhos, start=1):
-            registro = {
-                "pagina_id": gavetas.id_pagina(doc["documento_id"], n),
-                "documento_id": doc["documento_id"],
-                "pagina": n,
-                "largura_pt": largura_pt,
-                "altura_pt": altura_pt,
-            }
-            if n == pagina_prancha:
-                registro.update(
-                    {"M": _afim_3x3(prancha["M"]), "prancha_id": prancha.get("id")}
-                )
-            base["paginas"].append(registro)
+        base["paginas"] += _paginas_do_documento(doc["documento_id"], tamanhos, prancha)
     return base
 
 

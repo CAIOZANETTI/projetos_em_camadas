@@ -42,6 +42,11 @@ EAP = _ler("de_para_eap")
 GAVETAS = list(REGRAS["gavetas"])
 
 
+def base_vazia() -> dict:
+    """Base com todas as gavetas, cada uma sem registros."""
+    return {gaveta: [] for gaveta in GAVETAS}
+
+
 # --------------------------------------------------------------------------------------------------------------------
 # Conferência: base e de-para
 # --------------------------------------------------------------------------------------------------------------------
