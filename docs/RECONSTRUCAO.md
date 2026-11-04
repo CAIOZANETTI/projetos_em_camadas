@@ -9,6 +9,35 @@ Pedido do Caio (04/11/2026):
 
 Este documento é a **proposta para aprovação**. Nenhum código muda antes do "ok" do Caio às decisões da §5.
 
+## 0. O fluxo do Caio × o que o código faz hoje (conferido no build de Foz, 04/11/2026)
+
+O Caio definiu o fluxo (04/11/2026):
+
+> Loop em todos os arquivos → inventário → classificação → abrir cada arquivo e extrair com código → gavetas (escopo
+> e localização, para georreferenciar) → percorrer os modelos de EAP (obra linear, obra localizada) preenchendo com
+> o que está nas gavetas → calcular os serviços complementares (adutora: demolição de pavimento, escavação,
+> escoramento, rebaixamento, reaterro e recomposição por tipo de pavimento; localizada: escavação da fundação,
+> impermeabilização, escoramento de laje…) → **o processo termina quando a EAP está completa.**
+
+| # | Passo | Peça no repositório | Situação em Foz | Lacuna |
+|---|---|---|---|---|
+| 1 | Loop em todos os arquivos e inventário | `inventario.py` (pela listagem do Drive, cache por arquivo) | **funciona**: 328 arquivos, 325 PDFs no disco, 0 sem leitor | — |
+| 2 | Classificação | `extracao.py` + `conceitos/fontes.json` (classe), `inventario` (planta, detalhe, documento) | **funciona**: projeto 165, memorial 99, edital 45, laudo 11, lista 8; extração completa 252, parcial 73 | a classe não diz **o que extrair** de cada arquivo para a EAP |
+| 3 | Abrir cada arquivo e extrair para as gavetas | `extrair_gavetas.py` → `saida/foz/base/*.parquet` | **parcial**: só **13 documentos** chegam às gavetas (94 evidências, 180 fatos, 82 objetos: 66 furos, 15 trechos de rede, 1 conjunto de cavas) | o resto do escopo é extraído **por fora das gavetas**: os 464 elementos construtivos (estacas, blocos, pilares) em `construtivos`, as 86 linhas do contrato em `contrato_211`, os 1 002 itens de material em `escopo` e as 2 517 evidências de texto em `evidencias.jsonl` |
+| 4 | Localização e georreferência | `georef_prancha`, `pdf_cad`, geometria das gavetas | **parcial**: 38 geometrias nas gavetas; 35 pranchas no mapa de 57 plantas | elementos e linhas do contrato não levam a geometria para as gavetas |
+| 5 | Modelos de EAP (linear, localizada) | `conceitos/eap_padrao.json`: obra localizada (45 folhas) e obra linear (32), com etapas pré-definidas | **existe** | é "premissa" a conferir com o MOS |
+| 6 | Percorrer a EAP preenchendo com as gavetas | `eap_padrao.montar` | **não é assim hoje**: preenche a partir da EAP codificada (feita dos `construtivos`), dos fatos de texto e do contrato; **as gavetas não entram** (elas alimentam outra árvore, a `eap_gavetas`) | o preenchimento tem de ler **só** das gavetas |
+| 7 | Serviços complementares | `dimensoes.py` + `associados.py` + `conceitos/servicos_associados.jsonl` | **existe**, com as regras que o Caio citou: vala (corte e demolição de pavimento, escavação, escoramento por tipo, esgotamento, berço, envoltória, assentamento, reaterro, bota-fora, recomposição por classe de pavimento: pista, calçada, gramado…); laje (escoramento, impermeabilização); cava de fundação (escavação, reaterro); bloco, pilar, viga, parede, baldrame, estaca | calcula a partir dos `construtivos`, não das gavetas; o `contrato_211` refaz a vala por outro caminho |
+| 8 | Termina quando a EAP está completa | `eap_padrao` mede (27 % preenchidas; 6 obrigatórias da localizada e 7 da linear a preencher); `conceitos/documentos_esperados.json` e a escada código → IA → humano em `extracao.py` | **não há laço nem critério de fim**: o build roda uma vez e mostra o que faltou | falta o laço "folha a preencher → documento esperado → novo passe de extração → preencher de novo" e o portão "EAP completa" |
+
+**Conclusão:** o fluxo está certo e as peças existem (passos 1, 2, 5 e 7 prontos). O que falta é a ligação:
+- tudo o que é extraído entra nas gavetas (passo 3);
+- a EAP é preenchida **só** das gavetas (passo 6);
+- os serviços complementares leem das gavetas e gravam nelas (passo 7);
+- o processo roda em laço até a EAP fechar (passo 8).
+
+As fases da §3 foram reorganizadas nesses passos.
+
 ## 1. Diagnóstico: o que temos (0.68.0)
 
 ### 1.1 Tamanho
@@ -159,18 +188,24 @@ e os recortes das páginas citadas.
 Uma frente ativa por vez, um `rumo.yaml` por fase. Cada fase só começa quando a anterior passa no portão de saída. A
 `main` continua recebendo só por PR, com o `vcm balanco`.
 
-| Fase | Entrega | Portão de saída (verificável) |
-|---|---|---|
-| **F0 · Congelar e consolidar** | decisões da §5 registradas; documentos superados em `docs/legado/`; `ARQUITETURA.md` reescrita como fonte única; contrato da base (esquema da §2.1) e da navegação; golden das quantidades atuais de Foz (escavação, valas, contrato) para provar que nada se perde | o Caio aprova o esquema e a EAP única; golden gravado |
-| **F1 · Extração → base** | cada leitor existente (planilha, pranchas, laudo, topografia, drone) escreve na base, com `documentos`/`paginas`/`evidencias` completos; caches com assinatura | 0 fato sem evidência com página; mesma entrada dá os mesmos bytes; nº de objetos e fatos de Foz ≥ o de hoje |
-| **F2 · Cálculo pela base** | as regras (vala MOS, cavas, contrato, estacas…) leem só da base e gravam serviços com fatos citados; os caminhos paralelos saem | paridade com o golden da F0 (tolerância declarada); um teste prova que nenhum módulo de cálculo lê PDF/xlsx direto |
-| **F3 · EAP única** | árvore oficial com código único e soma por nível; contrato 211 e EAP padrão como vistas filtradas dela | cada linha do contrato e cada folha da EAP padrão aponta para um item da EAP única; 0 código órfão |
-| **F4 · Pacote de navegação** | exportação da base para o HTML: EAP, detalhe, índice de evidências, geometria por objeto, recortes de página | o pacote tem só o que a navegação usa; tamanho medido; reproduzível |
-| **F5 · HTML novo** | template novo, do zero, nos três painéis da §2.2; o atual fica até o aceite | teste de interface: do item à evidência e à prancha em ≤ 3 cliques, nos dois sentidos com o mapa, no celular |
-| **F6 · Aceite** | o Caio confere 10 quantidades ao acaso, do número à prancha | aceite registrado; o HTML antigo e os módulos sem uso saem |
+As fases seguem os passos do fluxo do Caio (§0). O processo **termina na F6, com a EAP completa**. A navegação (F7)
+só apresenta o que a F6 fechou.
 
-**Ordem:** F0 → F1 → F2 → F3 → F4 → F5 → F6. A F1 e a F2 andam leitor a leitor: primeiro valas e cavas, que já
-estão na base; depois o contrato, depois estacas e blocos.
+| Fase | Passo do fluxo | Entrega | Portão de saída (verificável) |
+|---|---|---|---|
+| **F0 · Congelar e consolidar** | — | decisões da §5 registradas; documentos superados em `docs/legado/`; `ARQUITETURA.md` como fonte única; esquema das gavetas v2 (§2.1); golden das quantidades atuais de Foz (escavação, valas, contrato, elementos) | o Caio aprova o esquema e a EAP única; golden gravado |
+| **F1 · Inventário e classificação** | 1 e 2 | o inventário que já existe ganha, por arquivo, **o que extrair dele**: classe → leitor → gavetas de destino, pelo `documentos_esperados.json` e pelo `fontes.json` | todo arquivo tem destino ou motivo de não ter; 0 "sem leitor" |
+| **F2 · Extração para as gavetas** | 3 e 4 | todos os leitores escrevem nas gavetas, com `documentos`, `paginas` e `evidencias` completos e geometria quando houver: pranchas (redes, cavas, estacas, blocos, pilares, lajes), planilha do contrato (linhas sem preço), relação de materiais, laudo, topografia, memoriais e editais (texto com citação conferida) | nada do escopo fica fora das gavetas (o `construtivos`, o `contrato_211`, o `escopo` e o `evidencias` passam a ler da base); 0 fato sem evidência com página; mesma entrada dá os mesmos bytes |
+| **F3 · Preencher a EAP pelas gavetas** | 5 e 6 | laço sobre o modelo da EAP (linear e localizada): cada folha consulta as gavetas pelo seu código e soma os fatos medidos; EAP única (§5.1) | cada folha preenchida cita os fatos; paridade com o golden da F0 |
+| **F4 · Serviços complementares** | 7 | as regras de `servicos_associados.jsonl` leem as dimensões das gavetas e gravam os serviços nas gavetas (vala: demolição, escavação, escoramento, rebaixamento, reaterro, recomposição por pavimento; localizada: escavação da fundação, impermeabilização, escoramento de laje…); um só caminho por grandeza (o `contrato_211` deixa de refazer a vala) | cada serviço cita as dimensões e a premissa; paridade com o golden; 0 caminho paralelo (teste) |
+| **F5 · Laço até a EAP completa** | 8 | para cada folha "a preencher": qual documento deveria trazer o dado (`documentos_esperados.json`) → novo passe da escada (código → IA com citação conferida → humano) → F2–F4 de novo; o que não existe no projeto vira pendência com motivo | **portão "EAP completa"**: toda folha obrigatória preenchida, calculada ou "não se aplica / ausente do projeto" com motivo; o índice de completude fica registrado por obra |
+| **F6 · Aceite da EAP** | fim do processo | o Caio confere 10 quantidades ao acaso, do número à prancha | aceite registrado: **fim do processo** para a obra |
+| **F7 · Navegação (HTML novo)** | apresentação | pacote exportado das gavetas e template novo, do zero, nos três painéis da §2.2: EAP → detalhe → mapa/prancha | do item à evidência e à prancha em ≤ 3 cliques, nos dois sentidos com o mapa; o HTML antigo e os módulos sem uso saem |
+
+**Ordem:** F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7.
+
+A F2 anda leitor a leitor. Primeiro valas, cavas e furos, que já estão nas gavetas. Depois as estruturas (estacas,
+blocos), o contrato, os materiais e o texto.
 
 Cada fase segue o ciclo de sempre: rumo → executores em worktree → build real → balanço → revisão do gerente (com
 captura, se houver tela) → PR → merge.
