@@ -1,200 +1,196 @@
-objetivo: 'Orçamento de Foz 211, sem preço: as quantidades das linhas vazias da CUSTO CIVIL calculadas em código, com evidência,
-  e as declaradas conferidas'
+objetivo: Georreferenciar as folhas de interligação 009 e 010 (detalhes 1:100) pela
+  f004, para medir os trechos de interligação e completar as linhas do Contrato 211
 criterio_de_pronto:
-- leitor da CUSTO CIVIL só pelas colunas A–E e I (teste prova que F e G nunca são lidas)
-- ≥ 40 das 58 linhas vazias calculadas com evidência; as demais com motivo
-- as 15 declaradas conferidas (confere/diverge, tolerância declarada)
-- build real, teste de interface 0 falha, 5 linhas conferidas pelo Caio, balanço sem REVERTER, PR e merge
-base: 77662a1
+- 'f009 e f010 com afim no obra.json: escala do título (1:100) conferida pela largura
+  do tubo (par de linhas ≈ DE) e resíduo ≤ 0,15 m nos pontos homólogos com a f004'
+- o DN1000 da f009 continua o DN1000 da entrada na f004 (folga ≤ 0,5 m na emenda)
+- trechos das interligações em valas.redes com trecho_contrato; as 15 linhas do Contrato
+  211 que dependiam deles saem de 'a preencher' (calculadas ou com motivo novo)
+- build real, interface 0 falha, balanço sem REVERTER, PR e merge
+base: fc53b2b
 etapas:
 - id: E1
-  nome: Leitor da CUSTO CIVIL e de-para composição → EAP
+  nome: Afim das folhas 009 e 010 pela f004 (escala do título, pontos homólogos ou
+    CAD × CAD com escala fixa)
   entregaveis:
-  - camadas/contrato_211.py
-  - conceitos/composicoes_sanepar.json
-  - tests/test_contrato_211.py
+  - camadas/georef_prancha.py
+  - exemplos/foz/obra.json
+  - tests/test_georef_prancha.py
   depende_de: []
   agente: sonnet
-  estimativa_min: 30
-  estimativa_tokens: 150000
-  status: feito
-  inicio: '2026-11-04T14:24:29Z'
-  fim: '2026-11-04T14:31:58Z'
+  estimativa_min: 45
+  estimativa_tokens: 250000
+  status: fazendo
+  inicio: '2026-11-04T16:16:06Z'
+  fim: null
   forcado: null
 - id: E2
-  nome: Regras por composição e conferência das declaradas
+  nome: Trechos das interligações em valas.redes (trecho_contrato) e saída de valas.fora
   entregaveis:
-  - camadas/contrato_211.py
-  - tests/test_contrato_211.py
-  - conceitos/composicoes_sanepar.json
+  - exemplos/foz/obra.json
+  - camadas/valas.py
+  - tests/test_valas.py
   depende_de:
   - E1
   agente: sonnet
-  estimativa_min: 45
+  estimativa_min: 30
   estimativa_tokens: 200000
-  status: feito
-  inicio: '2026-11-04T14:31:59Z'
-  fim: '2026-11-04T14:42:25Z'
+  status: a_fazer
+  inicio: null
+  fim: null
   forcado: null
 - id: E3
-  nome: Trechos FD internos da ETA pela prancha citada
+  nome: Build real, contrato 211 conferido, balanço, PR e merge
   entregaveis:
-  - camadas/valas.py
-  - exemplos/foz/obra.json
-  - tests/test_valas.py
-  depende_de: []
-  agente: sonnet
-  estimativa_min: 60
-  estimativa_tokens: 250000
-  status: feito
-  inicio: '2026-11-04T14:24:31Z'
-  fim: '2026-11-04T14:50:52Z'
-  forcado: null
-- id: E4
-  nome: Bloco no HTML e verificações de interface
-  entregaveis:
-  - camadas/templates/visualizador.html
-  - camadas/obra.py
-  - scripts/testar_visualizador.py
-  depende_de:
-  - E2
-  agente: haiku
-  estimativa_min: 20
-  estimativa_tokens: 80000
-  status: feito
-  inicio: '2026-11-04T14:42:27Z'
-  fim: '2026-11-04T14:48:58Z'
-  forcado: null
-- id: E5
-  nome: Build real, conferência de 5 linhas, balanço, PR e merge
-  entregaveis:
-  - docs/plano/2026-11-04_orcamento_211.md
+  - CHANGELOG.md
+  - camadas/__init__.py
+  - pdca/licoes.jsonl
+  - pdca/agentes.jsonl
   - rumo.yaml
   - results/iteracoes/*
   - results/agentes/execucoes.csv
-  - CHANGELOG.md
-  - pdca/licoes.jsonl
-  - camadas/__init__.py
-  - docs/RASTREABILIDADE.md
-  - pdca/agentes.jsonl
+  - docs/plano/2026-11-04_georref_f009_f010.md
   depende_de:
   - E2
-  - E3
-  - E4
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: feito
-  inicio: '2026-11-04T14:50:53Z'
-  fim: '2026-11-04T15:44:46Z'
-  forcado: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr, que já falha na main (o tesseract
-    5.3.4 deste ambiente lê INFERIOR como INFERGR9O); balanço MANTER, 1339 testes passando, interface 274/0
+  status: a_fazer
+  inicio: null
+  fim: null
+  forcado: null
 historico:
 - data: '2026-11-04'
-  mudanca: base passa a 77662a1 (a main no fim da rodada); E5 também entrega camadas/__init__.py (versão), docs/RASTREABILIDADE.md
-    (pedidos 0.58 e 0.64) e pdca/agentes.jsonl
-  motivo: com a base anterior, os arquivos trazidos pelos merges das outras sessões (0.61–0.63 da frente WBS) apareciam como
-    'fora do plano'; a versão da rodada passou a 0.64.0
+  mudanca: 'objetivo anterior concluído: orçamento de Foz 211 (PR #74, 0.64.0)'
+  motivo: 'o Caio pediu: ''pode georreferenciar as folhas 009 e 010 numa nova rodada'''
 - data: '2026-11-04'
-  mudanca: 'critério ''≥ 40 das 58 linhas vazias calculadas'' não atingido: 29 calculadas e 7 parciais; 15 linhas dependem
-    das interligações f009/f010 sem georreferência'
-  motivo: 'registrado para o Caio decidir: georreferenciar f009/f010 pela f004 numa próxima rodada ou aceitar'
+  mudanca: base passa a 77662a1 (a main no fim da rodada); E5 também entrega camadas/__init__.py
+    (versão), docs/RASTREABILIDADE.md (pedidos 0.58 e 0.64) e pdca/agentes.jsonl
+  motivo: com a base anterior, os arquivos trazidos pelos merges das outras sessões
+    (0.61–0.63 da frente WBS) apareciam como 'fora do plano'; a versão da rodada passou
+    a 0.64.0
 - data: '2026-11-04'
-  mudanca: E2 também entrega conceitos/composicoes_sanepar.json (premissas DMT e produtividade do escoramento, tolerâncias
-    da conferência)
-  motivo: as premissas aprovadas pelo Caio ('deixa a premissa') moram no conceito, com estado calibrar
+  mudanca: 'critério ''≥ 40 das 58 linhas vazias calculadas'' não atingido: 29 calculadas
+    e 7 parciais; 15 linhas dependem das interligações f009/f010 sem georreferência'
+  motivo: 'registrado para o Caio decidir: georreferenciar f009/f010 pela f004 numa
+    próxima rodada ou aceitar'
+- data: '2026-11-04'
+  mudanca: E2 também entrega conceitos/composicoes_sanepar.json (premissas DMT e produtividade
+    do escoramento, tolerâncias da conferência)
+  motivo: as premissas aprovadas pelo Caio ('deixa a premissa') moram no conceito,
+    com estado calibrar
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: A5, NSPT do laudo Geoazimute (PR #70, 0.60.0)'
-  motivo: 'o Caio pediu a rodada do orçamento de Foz 211 (docs/plano/2026-11-04_orcamento_211.md) e aprovou: ''pode seguir,
-    deixa a premissa e mostra na aba EAP'''
+  motivo: 'o Caio pediu a rodada do orçamento de Foz 211 (docs/plano/2026-11-04_orcamento_211.md)
+    e aprovou: ''pode seguir, deixa a premissa e mostra na aba EAP'''
 - data: '2026-11-04'
-  mudanca: DMT do bota-fora e prazo do escoramento blindado entram como premissas declaradas (estado calibrar); a saída aparece
-    na aba EAP; E3 sem dependência de E1
+  mudanca: DMT do bota-fora e prazo do escoramento blindado entram como premissas
+    declaradas (estado calibrar); a saída aparece na aba EAP; E3 sem dependência de
+    E1
   motivo: decisão do Caio na aprovação; a E3 lê a prancha e não usa o leitor da planilha
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: A4 (PR #68, 0.59.0)'
   motivo: o Caio pediu a A5 até o merge e depois o resumo final para arquivar a conversa
 - data: '2026-11-04'
-  mudanca: 'objetivo anterior concluído: terreno das cavas (PR #63, 0.56.0); plano da memória espacial gravado em docs/plano/2026-11-04_plano_memoria_espacial.md'
+  mudanca: 'objetivo anterior concluído: terreno das cavas (PR #63, 0.56.0); plano
+    da memória espacial gravado em docs/plano/2026-11-04_plano_memoria_espacial.md'
   motivo: o Caio aprovou o plano e pediu a A4
 - data: '2026-11-03'
-  mudanca: 'objetivo anterior concluído: conferência das cavas por seções (PR #56, 0.53.0)'
-  motivo: Caio pediu a decisão do terreno; a conferência mostrou que a diferença de área vem do terreno (MDS até 0,6 m abaixo
-    da topografia no trecho do corte)
+  mudanca: 'objetivo anterior concluído: conferência das cavas por seções (PR #56,
+    0.53.0)'
+  motivo: Caio pediu a decisão do terreno; a conferência mostrou que a diferença de
+    área vem do terreno (MDS até 0,6 m abaixo da topografia no trecho do corte)
 - data: '2026-11-03'
   mudanca: 'objetivo anterior concluído: build real de Foz (PR #46, 0.45.0)'
-  motivo: Caio pediu a conferência das cavas; a planilha do contrato e as pranchas não declaram volume de cava, e ele escolheu
-    a conferência por cortes e cotas
+  motivo: Caio pediu a conferência das cavas; a planilha do contrato e as pranchas
+    não declaram volume de cava, e ele escolheu a conferência por cortes e cotas
 - data: '2026-11-02'
-  mudanca: 'objetivo anterior (de outra sessão): Travar o comportamento atual do pipeline (camadas/obra.py) com testes de
-    caracterização antes de novas mudanças — concluído (E1 e E2 feitos, PR #37)'
-  motivo: o rumo.yaml é um só no repositório; esta sessão passa a registrar aqui a memória espacial, rodada 6
+  mudanca: 'objetivo anterior (de outra sessão): Travar o comportamento atual do pipeline
+    (camadas/obra.py) com testes de caracterização antes de novas mudanças — concluído
+    (E1 e E2 feitos, PR #37)'
+  motivo: o rumo.yaml é um só no repositório; esta sessão passa a registrar aqui a
+    memória espacial, rodada 6
 - data: '2026-11-02'
   mudanca: rumo da rodada 6 registrado no fim da rodada, com estimativas retroativas
-  motivo: a skill vcm-rumo chegou à main (#37) no meio da rodada; as estimativas foram escritas depois e não servem para calibrar
+  motivo: a skill vcm-rumo chegou à main (#37) no meio da rodada; as estimativas foram
+    escritas depois e não servem para calibrar
 - data: '2026-11-02'
-  mudanca: base passa a 82eb01e (a main no fim da rodada) e horários aproximados das etapas
-  motivo: com a base anterior, os arquivos trazidos pelos merges das outras sessões (eap_painel, golden do obra.py) apareciam
-    como 'fora do plano'; os horários foram reconstituídos pelo log da sessão (E2 e E3 rodaram juntas num executor de 8 min)
+  mudanca: base passa a 82eb01e (a main no fim da rodada) e horários aproximados das
+    etapas
+  motivo: com a base anterior, os arquivos trazidos pelos merges das outras sessões
+    (eap_painel, golden do obra.py) apareciam como 'fora do plano'; os horários foram
+    reconstituídos pelo log da sessão (E2 e E3 rodaram juntas num executor de 8 min)
 - data: '2026-11-02'
-  mudanca: 'objetivo anterior concluído: Casar a EAP das gavetas com a EAP codificada: todo serviço com o código UNIDADE.SISTEMA.ITEM
-    real e as duas EAP conciliadas (memória espacial, rodada 6) (PR #39)'
+  mudanca: 'objetivo anterior concluído: Casar a EAP das gavetas com a EAP codificada:
+    todo serviço com o código UNIDADE.SISTEMA.ITEM real e as duas EAP conciliadas
+    (memória espacial, rodada 6) (PR #39)'
   motivo: Caio pediu o build real de Foz
 - data: '2026-11-03'
-  mudanca: 'E3 levou 6 execuções do build: cada uma revelou um insumo real que derrubava o build (laudo Geoazimute, estacas.csv,
-    aba Obras Lineares em 3 leitores, serviço sem item) ou um par unidade/sistema ausente'
-  motivo: o dado real de Foz não cabia no que o sintético testava; cada achado foi corrigido com teste antes de seguir
+  mudanca: 'E3 levou 6 execuções do build: cada uma revelou um insumo real que derrubava
+    o build (laudo Geoazimute, estacas.csv, aba Obras Lineares em 3 leitores, serviço
+    sem item) ou um par unidade/sistema ausente'
+  motivo: o dado real de Foz não cabia no que o sintético testava; cada achado foi
+    corrigido com teste antes de seguir
 - data: '2026-11-03'
-  mudanca: 'E4 com dois aceites do Fable (REVISAR → ACEITA) e merge da main (0.43.0/0.44.0 de outra sessão): a versão da rodada
-    passou a 0.45.0 e a lição a L041'
+  mudanca: 'E4 com dois aceites do Fable (REVISAR → ACEITA) e merge da main (0.43.0/0.44.0
+    de outra sessão): a versão da rodada passou a 0.45.0 e a lição a L041'
   motivo: outra sessão publicou na main durante a rodada
 - data: '2026-11-03'
   mudanca: base passa a 666554b (a main no fim da rodada)
-  motivo: com a base anterior, os arquivos trazidos pelo merge da main (0.43.0/0.44.0 de outra sessão) apareciam como 'fora
-    do plano'
+  motivo: com a base anterior, os arquivos trazidos pelo merge da main (0.43.0/0.44.0
+    de outra sessão) apareciam como 'fora do plano'
 - data: '2026-11-03'
   mudanca: 'desvio aceito: 9 módulos de camadas/ e os testes alterados fora dos entregáveis'
-  motivo: o plano previa só rodar o build; o dado real de Foz exigiu 5 correções (relatório, seção Achados) e as 5 da revisão
-    do Fable, todas com teste
+  motivo: o plano previa só rodar o build; o dado real de Foz exigiu 5 correções (relatório,
+    seção Achados) e as 5 da revisão do Fable, todas com teste
 - data: '2026-11-03'
-  mudanca: 'E1 parcial aceita: 36 de 37 PDFs do obra.json e as 13 fotos; falta 002-...PLANTIM-R2 (elétrica, sem relação com
-    as cavas) e a listagem completa do Drive'
-  motivo: o necessário para o build e para as cavas está no disco; o resto fica como pendência registrada
+  mudanca: 'E1 parcial aceita: 36 de 37 PDFs do obra.json e as 13 fotos; falta 002-...PLANTIM-R2
+    (elétrica, sem relação com as cavas) e a listagem completa do Drive'
+  motivo: o necessário para o build e para as cavas está no disco; o resto fica como
+    pendência registrada
 - data: '2026-11-03'
-  mudanca: E4 começou depois de mais 3 achados do contêiner novo (prancha ausente, inventário sem listagem, escavação sem
-    controle vertical silenciosa), corrigidos com teste
+  mudanca: E4 começou depois de mais 3 achados do contêiner novo (prancha ausente,
+    inventário sem listagem, escavação sem controle vertical silenciosa), corrigidos
+    com teste
   motivo: o build real no contêiner novo dependia de insumos que só existiam no anterior
 - data: '2026-11-03'
-  mudanca: 'decisão do Caio: usar o talude de cada seção do projeto no modelo das cavas (etapa E5)'
-  motivo: a conferência mostrou área de corte do modelo 12 a 31 % menor; o modelo usava talude único de 1,5:1 e o projeto
-    tem 1,0 a 5,7:1 por seção
+  mudanca: 'decisão do Caio: usar o talude de cada seção do projeto no modelo das
+    cavas (etapa E5)'
+  motivo: a conferência mostrou área de corte do modelo 12 a 31 % menor; o modelo
+    usava talude único de 1,5:1 e o projeto tem 1,0 a 5,7:1 por seção
 - data: '2026-11-03'
   mudanca: E5 (talude por seção) cancelada pelo Caio depois do aceite do Fable
-  motivo: corrigida pelo terreno, a área do modelo fica de +1 % (AA) a −20 % (OO) e +17 % (RR); a diferença vem do terreno
-    do MDS (0,1 a 0,4 m abaixo da topografia) e das marcas de cota vizinhas, não do talude; terreno e talude vão para a próxima
+  motivo: corrigida pelo terreno, a área do modelo fica de +1 % (AA) a −20 % (OO)
+    e +17 % (RR); a diferença vem do terreno do MDS (0,1 a 0,4 m abaixo da topografia)
+    e das marcas de cota vizinhas, não do talude; terreno e talude vão para a próxima
     rodada
 - data: '2026-11-03'
-  mudanca: E4 concluída depois de 3 aceites do Fable (REVISAR, REVISAR, ACEITA); placar final 1 confere, 4 difere, 13 não
-    conferível
-  motivo: os aceites acharam motivos falsos (letras deitadas, linha incompleta, edificação, segmento espúrio) e uma conclusão
-    não sustentada (subestimado), todos corrigidos com teste
+  mudanca: E4 concluída depois de 3 aceites do Fable (REVISAR, REVISAR, ACEITA); placar
+    final 1 confere, 4 difere, 13 não conferível
+  motivo: os aceites acharam motivos falsos (letras deitadas, linha incompleta, edificação,
+    segmento espúrio) e uma conclusão não sustentada (subestimado), todos corrigidos
+    com teste
 - data: '2026-11-03'
   mudanca: horários de E2, E3 e E4 corrigidos pelas horas dos commits
-  motivo: os horários escritos à mão estavam adiantados em relação ao relógio da máquina (a E4 saía com −6 min)
+  motivo: os horários escritos à mão estavam adiantados em relação ao relógio da máquina
+    (a E4 saía com −6 min)
 - data: '2026-11-04'
-  mudanca: 'decisão do Caio: opção D (topografia do projeto no casco das curvas, MDS corrigido fora, sem edificação e copa,
-    costura suavizada)'
-  motivo: topografia × seções rms 0,16 m e × sondagens 0,25 m; MDS +0,54 m em média, 21 % da área com erro > 1 m por copa
-    e prédio, inclinação ~1 m/100 m
+  mudanca: 'decisão do Caio: opção D (topografia do projeto no casco das curvas, MDS
+    corrigido fora, sem edificação e copa, costura suavizada)'
+  motivo: topografia × seções rms 0,16 m e × sondagens 0,25 m; MDS +0,54 m em média,
+    21 % da área com erro > 1 m por copa e prédio, inclinação ~1 m/100 m
 - data: '2026-11-04'
-  mudanca: E4 com dois aceites do Fable (REVISAR, REVISAR pontual) e um achado do gerente (cache das curvas sem a versão da
-    leitura); volume final 7 905 m³
-  motivo: os aceites acharam curvas de continuação, costura do lado errado, validação fora do casco e o furo de copa; o build
-    só reproduziu o executor depois de versionar o cache
+  mudanca: E4 com dois aceites do Fable (REVISAR, REVISAR pontual) e um achado do
+    gerente (cache das curvas sem a versão da leitura); volume final 7 905 m³
+  motivo: os aceites acharam curvas de continuação, costura do lado errado, validação
+    fora do casco e o furo de copa; o build só reproduziu o executor depois de versionar
+    o cache
 - data: '2026-11-04'
   mudanca: horários das etapas pelas horas dos commits
   motivo: os horários escritos à mão estavam errados em relação ao relógio da máquina
 - data: '2026-11-04'
-  mudanca: 'A4 fechada: HH e LL conferem; FF não (235,97 não está na planta; TOPO a 90° não é lido); a troca do método do
-    fundo (+12,6 %) mantida pelo aceite do Fable; envoltória para rodada própria'
-  motivo: critério de aceite atingido em parte; o resto depende de entrada ausente ou de mudança de modelo com hash novo
+  mudanca: 'A4 fechada: HH e LL conferem; FF não (235,97 não está na planta; TOPO
+    a 90° não é lido); a troca do método do fundo (+12,6 %) mantida pelo aceite do
+    Fable; envoltória para rodada própria'
+  motivo: critério de aceite atingido em parte; o resto depende de entrada ausente
+    ou de mudança de modelo com hash novo
