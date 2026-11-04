@@ -1,40 +1,51 @@
-objetivo: 'Reconstrução F4 (docs/RECONSTRUCAO.md): os serviços complementares (concreto,
-  forma, armadura, lastro, escoramento, impermeabilização; vala: corte, demolição,
-  escavação, escoramento, berço, envoltória, reaterro, bota-fora, recomposição) calculados
-  das gavetas e gravados nelas, preenchendo as folhas ''calculada'' da EAP única'
+objetivo: 'Reconstrução F5 (docs/RECONSTRUCAO.md): laço até a EAP completa — o texto
+  dos editais, memoriais e laudos lido por código para as gavetas (menções com página),
+  e para cada folha a preencher: onde está, o roteiro do próximo passe (IA com citação
+  conferida ou o Caio) e o portão ''EAP completa'''
 criterio_de_pronto:
-- 'camadas/gavetas_servicos.py: dimensões lidas dos fatos das gavetas, regras de servicos_associados.jsonl
-  aplicadas, serviços gravados na gaveta `servicos` com codigo_eap, fatos citados
-  e versão da regra'
-- 'paridade com o caminho atual (saida/<obra>/associados.csv): mesmos serviços e valores
-  por elemento (tolerância declarada)'
-- a EAP única (eap_preencher) mostra as folhas 'calculada' a partir desses serviços;
-  completude de Foz registrada
-- build real sem regressão (golden 0 diferença, EAP única × codificada 0), interface
-  0 falha, balanço sem REVERTER, PR e merge
-base: 253d4e5
+- 'camadas/gavetas_texto.py: menções aos itens técnicos nos documentos de texto, por
+  página, nas gavetas (objeto mencao_documento, fatos item_tecnico/mencao/quantidade
+  quando houver, evidência com página e trecho)'
+- 'camadas/eap_laco.py: cada folha a preencher com o destino (documentos e páginas
+  candidatas, ou ''ausente do projeto'' com motivo), o roteiro do próximo passe e
+  o portão ''EAP completa'' (folhas obrigatórias sem destino = 0)'
+- build real sem regressão (golden 0, EAP única × codificada 0, complementares 25/25),
+  interface 0 falha, balanço sem REVERTER, PR e merge
+base: a988f75
 etapas:
 - id: E1
-  nome: 'F4: serviços complementares pelas gavetas (gavetas_servicos) e folhas ''calculada''
-    na EAP única'
+  nome: 'F5: texto dos documentos → gavetas (menções por página)'
   entregaveis:
-  - camadas/gavetas_servicos.py
-  - tests/test_gavetas_servicos.py
-  - camadas/eap_preencher.py
-  - tests/test_eap_preencher.py
+  - camadas/gavetas_texto.py
+  - tests/test_gavetas_texto.py
   depende_de: []
   agente: sonnet
-  estimativa_min: 60
-  estimativa_tokens: 300000
-  status: feito
-  inicio: '2026-11-04T21:04:22Z'
-  fim: '2026-11-04T21:52:20Z'
-  forcado: o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr, que
-    já falha na main; os testes da E1 passam (paridade 25/25)
+  estimativa_min: 45
+  estimativa_tokens: 250000
+  status: fazendo
+  inicio: '2026-11-04T21:57:00Z'
+  fim: null
+  forcado: null
 - id: E2
-  nome: 'F4: ligação no build, build real, paridade, balanço, PR e merge'
+  nome: 'F5: laço da EAP (destino de cada folha a preencher, roteiro do próximo passe,
+    portão EAP completa)'
+  entregaveis:
+  - camadas/eap_laco.py
+  - tests/test_eap_laco.py
+  depende_de: []
+  agente: sonnet
+  estimativa_min: 45
+  estimativa_tokens: 250000
+  status: fazendo
+  inicio: '2026-11-04T21:57:01Z'
+  fim: null
+  forcado: null
+- id: E3
+  nome: 'F5: ligação no build, build real, balanço, PR e merge'
   entregaveis:
   - camadas/extrair_gavetas.py
+  - camadas/eap_preencher.py
+  - conceitos/gavetas.json
   - CHANGELOG.md
   - camadas/__init__.py
   - pdca/licoes.jsonl
@@ -48,16 +59,19 @@ etapas:
   - tests/test_gavetas_v2.py
   depende_de:
   - E1
+  - E2
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: feito
-  inicio: '2026-11-04T21:52:08Z'
-  fim: '2026-11-04T21:52:08Z'
-  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
-    que já falha na main; balanço SEM_GANHO sem piora; build real: interface 331/0,
-    golden 0, EAP única 0, complementares 25/25'
+  status: a_fazer
+  inicio: null
+  fim: null
+  forcado: null
 historico:
+- data: '2026-11-04'
+  mudanca: 'objetivo anterior concluído: reconstrução F4 (PR #81, 0.72.0)'
+  motivo: a F5 segue a F4 no plano; o texto de 41 editais e 99 memoriais nunca tinha
+    sido lido (só inventariado)
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: reconstrução F3 (PR #80, 0.71.0)'
   motivo: 'o Caio: ''vai interagindo até a entrega final'' — a F4 segue a F3 no plano'

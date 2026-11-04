@@ -417,6 +417,16 @@
    "unidade": null,
    "tipo": "texto",
    "obs": "unidade construtiva da planilha do contrato"
+  },
+  "item_tecnico": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "item técnico da EAP (DISC.PAC.ITEM, ex. GEO.FUN.EST) mencionado no documento (F5)"
+  },
+  "mencao": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "trecho do documento (≤ 200 caracteres) que menciona o item, numa página; a evidência traz a página (F5)"
   }
  },
  "tipos_superficie": [
