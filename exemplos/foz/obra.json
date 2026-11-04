@@ -652,10 +652,90 @@
     "criterio": "ortofoto",
     "de_mm": 300,
     "fonte_de": "nome do layer (DN300)"
+   },
+   {
+    "id": "ETA entrada adutora água bruta DN1000",
+    "trecho_contrato": "ENTRADA DA ADUTORA DE ÁGUA BRUTA",
+    "pranchas": ["f004"],
+    "layer": "CISM_11_LINHA_TUBULAÇÃO 01",
+    "criterio": "ortofoto",
+    "material": "FD",
+    "clip_pt": [0, 0, 2240, 1684],
+    "par_mm": 1048,
+    "de_mm": 1048,
+    "dn_mm": 1000,
+    "fonte_de": "rótulo da f004 'ADUTORA ÁGUA BRUTA FD DN 1000 i=0,00129m/m - 57,30m'; os dois contornos do tubo distam 1,0475 m na escala da afim (DE 1048 mm, ISO 2531/NBR 7675, conceitos/lineares.json)",
+    "janelas_pt": [[1004, 40, 1640, 87]],
+    "tol_par": 0.03
+   },
+   {
+    "id": "ETA saída lodo decantado DN200",
+    "trecho_contrato": "SAÍDA DO LODO DECANTADO",
+    "pranchas": ["f004"],
+    "layer": "CISM_11_LINHA_TUBULAÇÃO 01",
+    "criterio": "ortofoto",
+    "material": "FD",
+    "clip_pt": [0, 0, 2240, 1684],
+    "par_mm": 170,
+    "de_mm": 222,
+    "dn_mm": 200,
+    "fonte_de": "rótulo da f004 'SAÍDA LODO DECANTADO FD DN 200' (balões 50, 51 e 52 = tubos DN200 da relação, tabela 06); o desenho traça os contornos a 0,17 m (largura de DN150): o DN vem do rótulo, não da largura; DE 222 mm pela tabela ISO 2531",
+    "janelas_pt": [[950, 420, 1010, 480], [1000, 468, 1300, 480], [1295, 365, 1625, 478], [1625, 365, 1880, 418]],
+    "tol_par": 0.06
+   },
+   {
+    "id": "ETA saída lodo decantado DN300",
+    "trecho_contrato": "SAÍDA DO LODO DECANTADO",
+    "pranchas": ["f004"],
+    "layer": "CISM_11_LINHA_TUBULAÇÃO 01",
+    "criterio": "ortofoto",
+    "material": "FD",
+    "clip_pt": [0, 0, 2240, 1684],
+    "par_mm": 170,
+    "de_mm": 326,
+    "dn_mm": 300,
+    "fonte_de": "rótulo da f004 'SAÍDA LODO DECANTADO FD DN 300' (balões 53 e 54 = tubos DN300 da relação, tabela 06: 5,80 m + 3,50 m = 9,30 m); contornos a 0,17 m: o DN vem do rótulo; DE 326 mm pela tabela ISO 2531",
+    "janelas_pt": [[1765, 505, 1880, 525]],
+    "tol_par": 0.06
+   },
+   {
+    "id": "ETA retorno lodo EEE flotofiltro DN150",
+    "trecho_contrato": "RETORNO LODO EEE FLOTOFILTRO",
+    "pranchas": ["f004"],
+    "layer": "CISM_11_LINHA_TUBULAÇÃO 01",
+    "criterio": "ortofoto",
+    "material": "FD",
+    "clip_pt": [0, 0, 2240, 1684],
+    "par_mm": 170,
+    "de_mm": 170,
+    "dn_mm": 150,
+    "fonte_de": "rótulo da f004 'RETORNO LODO EEE FLOTOFILTRO FD DN 150' (balões 91, 93 e 94 = tabela 10 da relação); contornos a 0,17 m; DE 170 mm pela tabela ISO 2531",
+    "janelas_pt": [[1535, 430, 1610, 720]],
+    "tol_par": 0.06
+   },
+   {
+    "id": "ETA drenagem Actiflo 600 DN150",
+    "trecho_contrato": "DRENAGEM ACTIFLO 600 L/S",
+    "pranchas": ["f004"],
+    "layer": "CISM_11_LINHA_TUBULAÇÃO 01",
+    "criterio": "ortofoto",
+    "material": "FD",
+    "clip_pt": [0, 0, 2240, 1684],
+    "par_mm": 170,
+    "de_mm": 170,
+    "dn_mm": 150,
+    "fonte_de": "rótulo da f004 'DRENAGEM ACTIFLO 600 LITROS' (DN150 pela tabela 10.1 da relação e pelo rótulo 'LIGAR NA REDE DE DRENAGEM'); contornos a 0,17 m; DE 170 mm pela tabela ISO 2531; estado calibrar: o rótulo fica a ~10 m do tubo",
+    "janelas_pt": [[1675, 415, 1882, 430], [1676, 420, 1688, 470]],
+    "tol_par": 0.06
    }
   ],
   "fora": [
-   "ETA água potável (folha 08): o layer CISM_53_AGUA POT só tem rótulos; o tubo está no layer genérico CISM_11_LINHA_TUBULAÇÃO 01, junto com as outras tubulações"
+   "ETA água potável (folha 08): o layer CISM_53_AGUA POT só tem rótulos; o tubo está no layer genérico CISM_11_LINHA_TUBULAÇÃO 01, junto com as outras tubulações",
+   "ENTRADA DA ADUTORA DE ÁGUA BRUTA (folha 05): o perfil hidráulico (1:200, sem malha) desenha a chegada aos módulos, não o trecho da entrada; o comprimento vem da f004 (52,9 m de eixo pelos contornos; o rótulo do próprio desenho diz 57,30 m e a relação traz 6,5 m + 7 barras de 5,5 a 7,0 m; a diferença fica na ponta final do rótulo, não conferida)",
+   "INTERLIGAÇÃO adutora × módulo 360 L (folha 09, CVCAFD1000): detalhe 1:100 sem malha nem coordenada, a afim da f004 não vale para ele; sem classe de pavimento nem vala. Medido na planta pela escala do título (0,03528 m/pt): DN1000 = 2,59 m (par de contornos a 1,048 m); a relação (tabela 14) traz 1,0 m de tubo DN1000",
+   "INTERLIGAÇÃO adutora × módulo 600 L (folha 09, CVCAFD1000): detalhe 1:100 sem malha nem coordenada; sem classe de pavimento nem vala. Medido na planta pela escala do título: DN1000 = 26,49 m de eixo em 4 peças (2,48 + 4,60 + 10,00 + 9,40 m), com vãos nas caixas da válvula e do medidor; extensão contínua de 28,6 m; a relação (tabela 15) traz 22,1 m de tubo DN1000",
+   "INTERLIGAÇÃO módulo 360 L × filtros existentes (folha 10, sem composição de vala no contrato): pendência conhecida, a folha não tem georreferência (planta 1:100). Medido na planta pela escala do título: DN500 = 15,76 m na horizontal + 2,75 m nos dois trechos verticais; DN600 = 2,84 m",
+   "Trechos da f004 em layer genérico (CISM_11_LINHA_TUBULAÇÃO 01): o desenho traça os contornos dos tubos DN150, DN200 e DN300 todos a 0,17 m, então a largura do par não separa o DN; o DN vem do rótulo/balão e o trecho, da janela em pt de cada entrada. Só o DN1000 (par a 1,0475 m = DE 1048 mm) é desenhado em escala"
   ]
  },
  "fichas": [

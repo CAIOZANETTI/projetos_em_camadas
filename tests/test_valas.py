@@ -158,3 +158,58 @@ def test_rede_devolve_os_layers_lidos(monkeypatch):
     v = valas.rede({"id": "R2", "pranchas": ["P1"], "criterio": "divisas", "de_mm": 300, "layer": "T", "layer_limite": "LIM"},
                    pranchas, None, None)
     assert v["layers"] == ["T", "LIM"]
+
+
+def _tubo_de_dois_contornos(y, largura, barras, vao=0.16, comp=7.0, layer="G"):
+    """Tubo horizontal em y (eixo) com `barras` peças de `comp` m separadas por `vao` (a bolsa não tem contorno)."""
+    x, saida = 0.0, []
+    for _ in range(barras):
+        saida += [_traco(layer, [(x, y - largura / 2), (x + comp, y - largura / 2)]),
+                  _traco(layer, [(x, y + largura / 2), (x + comp, y + largura / 2)]),
+                  _traco(layer, [(x + comp, y - largura), (x + comp, y + largura)])]    # junta, perpendicular ao tubo
+        x += comp + vao
+    return saida
+
+
+def test_eixo_por_pares_mede_o_comprimento_exato_e_cobre_o_vao_das_bolsas():
+    tracos = _tubo_de_dois_contornos(10, 1.048, 3) + _tubo_de_dois_contornos(30, 0.5, 2)   # o 2º tubo é outro DN
+    am = valas.eixos_por_pares(tracos, "G", M, 1.048)
+    assert am["peso"].sum() == pytest.approx(3 * 7.0 + 2 * 0.16, abs=0.001)      # barras + vãos, sem o tubo de 0,5 m
+    assert np.abs(am["pts"][:, 1] - 10).max() < 1e-6                              # no eixo, não no contorno
+    assert valas.eixos_por_pares(tracos, "G", M, 0.5)["peso"].sum() == pytest.approx(2 * 7.0 + 0.16, abs=0.001)
+
+
+def test_eixo_por_pares_respeita_layer_janela_e_tolerancia():
+    tracos = _tubo_de_dois_contornos(10, 1.048, 3) + _tubo_de_dois_contornos(40, 1.048, 1, layer="outro")
+    assert valas.eixos_por_pares(tracos, "G", M, 1.048, [[-1, 0, 7.5, 20]])["peso"].sum() == pytest.approx(7.0, abs=0.001)
+    assert valas.eixos_por_pares(tracos, "G", M, 1.048, tol=0.03, janelas_pt=[[-1, 0, 100, 20]])["peso"].sum() > 20
+    assert len(valas.eixos_por_pares(tracos, "G", M, 1.20)["pts"]) == 0           # 14 % fora da tolerância
+    diagonal = [_traco("G", [(0, 0), (10, 10)]), _traco("G", [(0.12, -0.12), (10.12, 9.88)])]   # par a 0,1697 m, 45°
+    assert valas.eixos_por_pares(diagonal, "G", M, 0.17, tol=0.06)["peso"].sum() == pytest.approx(14.14, abs=0.02)
+    assert len(valas.eixos_por_pares(diagonal, "G", M, 0.17, tol=0.0001)["pts"]) == 0
+
+
+def test_rede_por_pares_leva_o_trecho_do_contrato_e_o_dn(monkeypatch):
+    monkeypatch.setattr(valas.pdf_cad, "extrair", lambda pdf, clip=None: _tubo_de_dois_contornos(10, 1.048, 2))
+    orto = {"img": np.full((40, 40, 3), (60, 140, 70), np.uint8), "e0": -5.0, "n1": 25.0, "res": 1.0}   # grama
+    prancha = {"P": {"id": "P", "pdf": "x.pdf", "M": np.eye(3), "clip": None, "clip_mapa": None}}
+    r = {"id": "T", "pranchas": ["P"], "layer": "G", "criterio": "ortofoto", "par_mm": 1048, "de_mm": 1048, "dn_mm": 1000,
+         "material": "FD", "trecho_contrato": "ENTRADA DA ADUTORA DE ÁGUA BRUTA", "janelas_pt": [[-1, 0, 20, 20]]}
+    v = valas.rede(r, prancha, orto, None)
+    assert v["trecho_contrato"] == "ENTRADA DA ADUTORA DE ÁGUA BRUTA" and v["dn_mm"] == 1000 and v["material"] == "FD"
+    assert v["extensao_m"] == pytest.approx(14.16, abs=0.05) and set(v["classes"]) == {"vegetacao"}
+    assert valas.para_html([v], {}, None, 31982)["redes"][0]["trecho_contrato"] == r["trecho_contrato"]
+    sem = valas.rede({k: x for k, x in r.items() if k != "trecho_contrato"}, prancha, orto, None)
+    assert "trecho_contrato" not in sem                                           # as redes antigas não ganham campo
+
+
+def test_obra_foz_declara_os_trechos_internos_da_eta():
+    import json
+
+    from camadas import pdf_cad
+    obra = json.loads((pdf_cad.CONCEITOS.parent / "exemplos" / "foz" / "obra.json").read_text(encoding="utf-8"))
+    trechos = [r for r in obra["valas"]["redes"] if r.get("trecho_contrato")]
+    assert {r["trecho_contrato"] for r in trechos} == {"ENTRADA DA ADUTORA DE ÁGUA BRUTA", "SAÍDA DO LODO DECANTADO",
+                                                      "RETORNO LODO EEE FLOTOFILTRO", "DRENAGEM ACTIFLO 600 L/S"}
+    assert all(r["material"] == "FD" and r["de_mm"] and r["dn_mm"] and r["fonte_de"] and r["janelas_pt"] for r in trechos)
+    assert all(r["par_mm"] / 1000 <= r["de_mm"] / 1000 + 1e-9 for r in trechos)
