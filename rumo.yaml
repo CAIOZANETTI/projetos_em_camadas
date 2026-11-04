@@ -48,9 +48,9 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T14:24:31Z'
-  fim: null
+  fim: '2026-11-04T14:50:52Z'
   forcado: null
 - id: E4
   nome: Bloco no HTML e verificações de interface
@@ -83,8 +83,8 @@ etapas:
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T14:50:53Z'
   fim: null
   forcado: null
 historico:
