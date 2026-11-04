@@ -22,8 +22,8 @@ roteiro. Regra 2 do mantenedor: o cálculo fica em Python, no pacote, com teste;
 
 ## O que não muda
 
-- `montar` e toda a cadeia; Foz idêntica (hash c5c2d5cd…). As quatro tabelas geradas pelo roteiro novo têm de ser
-  iguais (conteúdo) às publicadas no painel de 04/11.
+- `montar` e toda a cadeia; Foz só planilha idêntica (hash c5c2d5cd…). O painel de 04/11 foi gerado sem cadastro: as
+  tabelas novas podem diferir dele, e a diferença é relatada (folhas que mudam de situação) e o painel é republicado.
 - O painel (artefato) não entra no repositório: ele lê os quatro JSON.
 
 ## Verificação
@@ -33,6 +33,25 @@ roteiro. Regra 2 do mantenedor: o cálculo fica em Python, no pacote, com teste;
   (`scratchpad/artefato/*.json`).
 - `vcm balanco` sem REVERTER; aceite do Fable antes do PR. (Aferição: reprova na main desde o PR #74, por funções
   longas de outra frente; registrar só se voltar a passar.)
+
+## Parecer do Fable sobre o plano: APROVA COM AJUSTES
+
+Obrigatórios e decisão do gerente:
+1. **A cadeia de conferência dos ciclos anteriores não era a real**: o roteiro do scratchpad chama a planilha sem o
+   cadastro Sanepar (`escopo.catalogo` do `obra.json` de Foz) e sem as pranchas (`dados["eap"]`). Decisão: o roteiro
+   E2 roda **como a obra declara** — planilha do contrato (`escopo.itens_csv`) **com o cadastro** e trechos lineares
+   declarados; sem pranchas, o que fica escrito no `docs/EAP.md` e no painel ("planilha do contrato + cadastro, sem
+   pranchas"). O hash dessa rodada passa a ser a referência do painel e é registrado no Aceite; o hash c5c2d5cd…
+   (só planilha, sem cadastro) continua como invariante de regressão desta frente e não pode mudar.
+2. **Sem reescrever o encadeamento**: E2 reaproveita `evidencias._planilha_do_contrato` (tornar pública como
+   `planilha_do_contrato`, chamadores atualizados) e `titulos_da_planilha`; não copia o roteiro do scratchpad.
+3. **Contrato de E1 fechado**: `mencao` = folhas com `situacao == "só menção"` da etapa; `aponta` = `", "`.join de
+   `aponta_txt`; `quantidade` = `" | "`.join de `quantidades_txt`; `pct_preenchida` = `n_preenchidas/n_aplicaveis` do
+   `resumo` do tipo (não recontar folhas); `situacao` é a constante de `SITUACOES` (filtro) e `situacao_txt` vai junto
+   (apresentação, regra 3); `pct_txt` do resumo também.
+
+Opcionais aceitos: teste confere **valores** sem "R$"; caso com `situacao_txt` parcial e `citada_no_contrato`/`mencao`.
+E4 (renomeação) em commit separado.
 
 ## Agentes
 
