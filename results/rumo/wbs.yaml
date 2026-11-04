@@ -8,7 +8,7 @@ criterio_de_pronto:
 - 'aviso de recusa com texto pelo motivo (genérico fora do não declarado)'
 - 'Foz inalterada; três verdes; vcm sem REVERTER; aceite do Fable'
 etapas:
-- {id: E1, nome: documento validado na entrada, entregaveis: [camadas/evidencias.py], agente: sonnet, estimativa_min: 20, status: a_fazer}
+- {id: E1, nome: documento validado na entrada, entregaveis: [camadas/evidencias.py], agente: sonnet, estimativa_min: 20, status: fazendo}
 - {id: E2, nome: aviso genérico e metadados, entregaveis: [camadas/eap_padrao.py], agente: sonnet, estimativa_min: 10, status: a_fazer}
 - {id: E3, nome: testes, entregaveis: [tests/test_titulos_etapa.py], agente: sonnet, estimativa_min: 20, status: a_fazer}
 - {id: E4, nome: registro, aceite e merge, entregaveis: [docs/EAP.md, docs/plano/2026-11-04_wbs_documento_validado.md, results/rumo/wbs.yaml, CHANGELOG.md, camadas/__init__.py, pdca/licoes.jsonl, results/agentes/execucoes.csv, pdca/afericao.jsonl], agente: opus, estimativa_min: 20, status: a_fazer}
