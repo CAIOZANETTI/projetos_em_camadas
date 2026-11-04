@@ -63,3 +63,11 @@ são rodados por caminho absoluto, contra o worktree.
 | plano e integração | Opus (gerente) |
 | aprovação do plano e aceite | Fable |
 | refatoração com testes | Sonnet, em worktree a partir da `main` |
+
+## Aceite
+
+Aceite Fable 04/11/2026: ACEITA 7470cf0 — "refatoração de validar/_status/_avisos_nao_declarados/etapa com saída
+idêntica provada por caracterização (passa em 3dc403b e detecta mutações de ordem/dedup/log), referência, ataques e
+Foz; complexidade 32/18/22/20 → 1/9/3/6." Opcionais registrados: renomear `_recusa_das_evidencias` →
+`_recusa_por_evidencias`; demais funções C dos módulos (`eap_padrao.validar` 12, `_avisos_dos_trechos` 15, `loop` 15)
+e `eap_html.valor_txt` (com a frente Geo Bd) em outro ciclo.

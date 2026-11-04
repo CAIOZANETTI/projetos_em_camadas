@@ -11,4 +11,4 @@ etapas:
 - {id: E1, nome: caracterização e eap.validar/_status, entregaveis: [camadas/eap.py, tests/test_eap.py, tests/test_titulos_etapa.py], agente: sonnet, estimativa_min: 30, status: feito}
 - {id: E2, nome: eap_padrao._avisos_nao_declarados, entregaveis: [camadas/eap_padrao.py], agente: sonnet, estimativa_min: 15, status: feito}
 - {id: E3, nome: evidencias.etapa, entregaveis: [camadas/evidencias.py], agente: sonnet, estimativa_min: 20, status: feito}
-- {id: E4, nome: registro, aceite e merge, entregaveis: [docs/plano/2026-11-04_wbs_complexidade.md, results/rumo/wbs.yaml, CHANGELOG.md, camadas/__init__.py, pdca/licoes.jsonl, results/agentes/execucoes.csv, pdca/afericao.jsonl, tests/test_eap.py], agente: opus, estimativa_min: 20, status: a_fazer}
+- {id: E4, nome: registro, aceite e merge, entregaveis: [docs/plano/2026-11-04_wbs_complexidade.md, results/rumo/wbs.yaml, CHANGELOG.md, camadas/__init__.py, pdca/licoes.jsonl, results/agentes/execucoes.csv, pdca/afericao.jsonl, tests/test_eap.py], agente: opus, estimativa_min: 20, status: feito}
