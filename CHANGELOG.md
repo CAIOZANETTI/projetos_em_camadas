@@ -35,7 +35,8 @@
   - nenhum "R$" no bloco;
   - o bloco não alarga a página.
 - **Foz** (86 linhas):
-  - das 58 linhas vazias com unidade, **32 calculadas** e 4 parciais. Ficam 22 a preencher, cada uma com o motivo:
+  - das 58 linhas vazias com unidade, **29 calculadas** e 7 parciais (a supressão e a locação da UC 1 cobrem só os
+    trechos medidos; limpeza, lavagem e cadastro, idem). Ficam 22 a preencher, cada uma com o motivo:
     - 15 nas interligações (14 da f009 e 1 da f010), sem georreferência;
     - sondagem, interferências e caçambas, sem regra;
     - a supressão da UC 3;
