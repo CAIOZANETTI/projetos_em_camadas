@@ -563,6 +563,12 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
     else:
         faltou.append("inventário (sem a listagem do Drive)")
     base = _substituir(base, *partes)
+    if partes and base["documentos"]:                               # F5: menções do texto (edital, memorial, laudo), por página
+        from . import gavetas_texto
+
+        texto = gavetas_texto.de_documentos(base["documentos"], Path(cfg["inventario"]["pasta"]))
+        texto.pop("lidos", None)
+        base = _substituir(base, texto)
     planilha = Path((cfg.get("obras_lineares") or {}).get("planilha") or "")
     if planilha.is_file():
         doc = gavetas.id_documento(planilha)
@@ -596,6 +602,7 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
               "faltou": faltou, "erros": erros}
     resumo["complementares"] = complementares
     resumo["eap_unica"] = _eap_unica(base, dados, out, log)
+    resumo["laco"] = _laco(base, cfg, out, log)
     (Path(out) / "gavetas_escopo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas (escopo): {len(base['documentos'])} documentos, {len(base['paginas'])} páginas, "
         f"{len(base['objetos'])} objetos, {len(base['fatos'])} fatos ({com_pagina} com página ou aba e linha), "
@@ -637,6 +644,25 @@ def _eap_unica(base: dict, dados: dict, out: Path, log=print) -> dict:
         + (f"{len(difs)} diferença(s)" if codificada else "sem EAP codificada no build"))
     return {"completude": eap["completude"], "paridade_eap_codificada": len(difs) if codificada else None,
             "quantidades_comparadas": len(codificada)}
+
+
+def _laco(base: dict, cfg: dict, out: Path, log=print) -> dict:
+    """F5: o laço até a EAP completa (`eap_laco`): o destino de cada folha a preencher (código → IA com citação conferida
+    → Caio), o portão "EAP completa" em `eap_laco.json` e o roteiro do próximo passe de leitura em `proximo_passe.jsonl`.
+    As decisões de "ausente do projeto" vêm do arquivo de `cfg["decisoes_eap"]`, se houver."""
+    from . import eap_laco, eap_preencher
+
+    eap = eap_preencher.preencher(base)
+    destinos = eap_laco.destinos(eap, base, eap_laco.ler_decisoes(cfg.get("decisoes_eap")))
+    portao = eap_laco.portao(eap, destinos)
+    roteiro = eap_laco.roteiro(destinos)
+    (Path(out) / "eap_laco.json").write_text(json.dumps({"portao": portao, "destinos": destinos}, ensure_ascii=False,
+                                                        indent=1), encoding="utf-8")
+    (Path(out) / "proximo_passe.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in roteiro),
+                                                   encoding="utf-8")
+    log(f"Laço da EAP: {'EAP COMPLETA' if portao['fechada'] else 'EAP aberta'}; {len(portao.get('trava', []))} "
+        f"obrigatória(s) travam; próximo passe: {len(roteiro)} leitura(s) de documento")
+    return {"fechada": portao["fechada"], "trava": len(portao.get("trava", [])), "roteiro": len(roteiro)}
 
 
 def metadados() -> dict:
