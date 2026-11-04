@@ -27,9 +27,9 @@ etapas:
   agente: sonnet
   estimativa_min: 30
   estimativa_tokens: 200000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T17:48:03Z'
-  fim: null
+  fim: '2026-11-04T17:54:07Z'
   forcado: null
 - id: E2
   nome: 'Aba EAP no template: modo largo, sub-abas, árvore interativa, busca, filtros
@@ -42,8 +42,8 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 300000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T17:54:08Z'
   fim: null
   forcado: null
 - id: E3
