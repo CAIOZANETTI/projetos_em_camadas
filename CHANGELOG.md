@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.56.0 — 2026-11-04 · Terreno das cavas: topografia do projeto no casco das curvas, MDS corrigido fora
+- **`camadas/topografia.py`**: lê as curvas de nível da GEOPLANTA (`Curvas_Mestras` e `Curvas_Auxiliares`, equidistância
+  de 0,5 m):
+  - as cotas saem dos rótulos por OCR, com alfabeto aprendido dos próprios rótulos;
+  - a curva partida no PDF herda a cota da continuação;
+  - o TIN é montado na grade do MDS;
+  - compara a topografia com as sondagens, as seções de corte e o MDS (mapa do erro, por cobertura e por distância).
+- **Decisão do Caio (opção D)**: o terreno das cavas é composto (`escavacao.terreno` no obra.json; sem a chave, nada
+  muda e o hash da referência fica igual):
+  - topografia dentro do casco;
+  - fora dele, MDS corrigido pelo plano medido contra a topografia, sem edificação e sem vegetação alta;
+  - costura de 5 m para fora do casco;
+  - além de 30 m do casco, a origem é `mds_corrigido_extrapolado`, com alerta;
+  - `validacao_fora_do_casco` declara que, fora do casco, o erro é desconhecido.
+- **Foz:**
+  - escavação 8 612 → **7 905 m³** (−8,2 %); reaterro 5 467 → **4 952 m³** (−9,4 %);
+  - a C07, de 0,2 m de profundidade, some, porque a topografia fica abaixo do fundo projetado;
+  - topografia × sondagens: rms 0,17 m (14 furos); topografia × seções: rms 0,16 m;
+  - o MDS fica em média +0,54 m acima da topografia: copa e telhado (21 % da área com erro maior que 1 m) e um anel de
+    +0,6 a +1 m na borda do casco.
+
+  Relatório em `docs/plano/2026-11-03_decisao_terreno.md`.
+- O cache das curvas leva `VERSAO_LEITURA_CURVAS`: o build reaproveitava em silêncio a leitura anterior. O extra
+  `topografia` traz o scipy.
+- Lição L052.
+
+## 0.55.0 — 2026-11-03 · A etapa pelo título da planilha Sanepar
+- **`orcamento_sanepar.extrair_custo_civil`**: colunas novas `titulo_etapa` e `titulo_trecho` no escopo (ao fim de
+  `COLUNAS_ESCOPO`). Título de etapa é o que casa um `titulos_sanepar` de `conceitos/eap_padrao.json` (fonte única);
+  linha sem composição e sem quantidade que não é etapa encerra a etapa anterior. A leitura passou a pular as
+  colunas F e G (preço) em vez de lê-las e descartá-las. A função foi dividida (complexidade 25 → 15).
+- **Evidência de planilha** guarda `titulo_etapa` no localizador; a classificação por item não muda.
+- **EAP padrão**: cada etapa ganha `citada_no_contrato` (linhas do contrato sob o título da etapa, mesmo sem item
+  codificado, com exemplos) e `avisos_titulo` (linha com item de outra etapa — candidato a erro de classificação).
+  A situação das folhas não muda. A aba EAP mostra os dois por etapa.
+- **Foz (dado real)**: 36 de 79 linhas da aba CUSTO CIVIL ganharam título de etapa; etapas OP.01, OP.07, OP.08,
+  OP.10 e OP.12 citadas no contrato; **nenhum aviso** "item fora da etapa do título" — as 22 linhas com item caem
+  todas na etapa do seu título, o que confirma a classificação. Candidatos para decisão: BLOCOS DE ANCORAGEM, BLOCOS
+  DE APOIO e ÁGUA POTÁVEL aparecem dentro da ETA mas só estão em etapas da obra linear; "lavagem de rede" sem item.
+- Lição L051.
+
 ## 0.54.0 — 2026-11-03 · EAP padrão alinhada à planilha real da Sanepar (Foz)
 - **Primeira passada com dado real**: planilha do contrato Sanepar 211/26 (Foz do Iguaçu), baixada do Drive para
   `dados/` (fora do git), sem nenhuma coluna de preço → 1.002 linhas de escopo → 651 evidências → 35 fatos →

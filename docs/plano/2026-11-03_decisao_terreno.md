@@ -22,7 +22,7 @@ o TIN na mesma grade do MDS e faz as comparações. Nenhum volume foi alterado.
 | Curvas | 45 |
 | Com cota pelo rótulo | 27 (o OCR com alfabeto aprendido lê os 15 rótulos) |
 | Inferidas pela vizinhança, com alerta | 4 |
-| Sem cota na 1ª leitura (10 delas são continuação de curva datada; ver o aceite) | 14 (516 m de traço) |
+| Sem cota na 1ª leitura (depois do aceite: 15 por continuação, 4 seguem sem cota) | 14 (516 m de traço) |
 | Área do casco convexo | 12 958 m² |
 
 ## A evidência
@@ -129,3 +129,70 @@ O que o aceite corrigiu neste relatório:
 
 As correções de código (curvas de continuação, costura para fora do casco, validação e limite da extrapolação do MDS,
 HTML, testes no CI) estão na seção seguinte, com os números finais.
+
+## Resultado final (build real de 04/11, depois de dois aceites do Fable)
+
+**Curvas:**
+
+| Origem da cota | Curvas |
+|---|---:|
+| Rótulo | 26 |
+| Continuação de curva datada | 15 |
+| Inferida | 0 |
+| Sem cota (#23, #24 e #44, 81 m entre SP-11 e SP-13; #25, 10 m na borda) | 4 |
+
+A topografia ocupa 15 208 m² da grade.
+
+**Validação da topografia:**
+- × sondagens dentro do casco: **n = 14, rms 0,17 m** (antes eram 11 furos e 0,25 m);
+- × seções de corte: rms 0,16 m (coerência interna do projeto).
+
+**Plano de correção do MDS:** −0,40 cm/m em E e −0,72 cm/m em N. O rms cai de 0,34 para 0,20 m, mas só nas células
+mantidas pelo aparo. Na borda interna do casco sobra um anel: média de +0,98 m a 0–2 m (mediana +0,57), +0,78 m a 2–5 m
+e +0,45 m a 5–10 m.
+
+**Fora do casco, o erro é desconhecido.**
+- O único furo utilizável é o SP15. Nele o plano **piora** o MDS (+0,29 → −0,33 m), e o resultado registra
+  "inconclusivo (1 furo utilizável)".
+- O SP16 é copa (+1,57 m mesmo corrigido) e fica fora do cálculo.
+- O SP12, o SP13 e o SP14 agora estão dentro do casco.
+
+**Área por origem do terreno (m²):**
+
+| Origem | Área |
+|---|---:|
+| Topografia | 15 208 |
+| MDS corrigido | 6 206 |
+| MDS corrigido extrapolado (> 30 m do casco; pendência, não terreno) | 4 346 |
+| Costura (fora do casco) | 1 367 |
+| Sem terreno: fora do levantamento (5 143), vegetação alta (887), edificação (45) | 6 075 |
+
+**Volumes (m³):**
+
+| Cava | Antes (MDS) | Agora | Variação |
+|---|---:|---:|---:|
+| C01 | 3 713,6 | 3 167,9 | −14,7 % |
+| C02 (antes C03, fundo 234,5) | 1 522,8 | 1 675,5 | +10,0 % |
+| C03 (antes C02, fundo 235,21) | 1 876,6 | 1 595,7 | −15,0 % |
+| C04 | 1 213,0 | 1 111,6 | −8,4 % |
+| C05 | 180,2 | 241,8 | +34 % |
+| C06 | 93,5 | 112,3 | +20 % |
+| C07 | 12,4 | — | some (físico: o fundo 239,42 fica acima da boca do SP-14, 239,17) |
+| **Escavação** | **8 612,1** | **7 904,8** | **−8,2 %** |
+| **Reaterro** | **5 467,3** | **4 952,1** | **−9,4 %** |
+
+- Todas as cavas ficam 100 % sobre a topografia; a C04 tem 1 % na costura.
+- A C01 é a menos amarrada: a curva datada mais próxima fica, em mediana, a 29 m, o que dá cerca de ±10 % no volume.
+
+**Conferência por seção:** 2 confere (AA e LL), 4 difere, 12 não conferível. No terreno, a comparação fica quase
+circular, porque o modelo usa agora a mesma topografia das seções. A área e o fundo continuam informativos.
+
+**Revisões do Fable:**
+- **1º aceite:** curvas de continuação, costura do lado errado, MDS fora do casco sem validação, testes que não rodavam
+  no CI;
+- **2º aceite:** o furo de copa contava a favor do plano.
+
+Os dois foram corrigidos com teste.
+
+O próprio gerente achou mais um problema: o cache das curvas não levava a versão da leitura, e o build reaproveitou em
+silêncio a leitura de antes das continuações (7 742 m³ contra 7 905 m³). Corrigido com `VERSAO_LEITURA_CURVAS` (L052).

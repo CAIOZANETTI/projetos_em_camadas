@@ -22,11 +22,13 @@ from __future__ import annotations
 
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 
 from . import eap
 from .eap_html import br
 from .pdf_cad import CONCEITOS
+from .vocabulario import normalizar
 
 PADRAO = json.loads((CONCEITOS / "eap_padrao.json").read_text(encoding="utf-8"))
 TIPOS = PADRAO["tipos"]
@@ -173,6 +175,29 @@ def _problemas_dos_titulos(etapa: dict) -> list[str]:
     ):
         return []
     return [f"{etapa['id']}: `titulos_sanepar` deve ser lista de textos não vazios"]
+
+
+@lru_cache(maxsize=1)
+def _etapas_por_titulo() -> dict[str, tuple[tuple[str, str], ...]]:
+    """Título normalizado da Sanepar → ((tipo, id da etapa), ...) de todas as etapas que o listam em
+    `titulos_sanepar` (fonte única; título repetido em várias etapas, como ÁGUA POTÁVEL, devolve todas)."""
+    indice: dict[str, list[tuple[str, str]]] = {}
+    for tipo, meta in TIPOS.items():
+        for etapa in meta["etapas"]:
+            for titulo in etapa.get("titulos_sanepar") or []:
+                indice.setdefault(normalizar(titulo), []).append((tipo, etapa["id"]))
+    return {titulo: tuple(etapas) for titulo, etapas in indice.items()}
+
+
+def eh_titulo_de_etapa(titulo: str | None) -> bool:
+    """O título (normalizado: sem acento, caixa ou espaço repetido) é um `titulos_sanepar` de alguma etapa."""
+    return normalizar(re.sub(r"\s+", " ", str(titulo or ""))) in _etapas_por_titulo()
+
+
+def etapas_do_titulo(titulo: str | None, tipo: str) -> list[str]:
+    """Ids das etapas do `tipo` cujo `titulos_sanepar` casa o título (vazio se nenhuma)."""
+    chave = normalizar(re.sub(r"\s+", " ", str(titulo or "")))
+    return [e for t, e in _etapas_por_titulo().get(chave, ()) if t == tipo]
 
 
 def validar() -> tuple[list[str], list[str]]:
@@ -672,6 +697,77 @@ def resumir(folhas: list[dict]) -> dict:
     }
 
 
+def _itens_da_etapa(etapa: dict) -> set[str]:
+    """Itens da EAP codificada apontados por alguma folha da etapa (qualquer serviço)."""
+    return {alvo["item"] for folha in etapa["folhas"] for alvo in folha["aponta"]}
+
+
+def _nova_citacao() -> dict:
+    return {"sem_item": [], "fora": []}
+
+
+def _citacoes_por_etapa(tipo: str, linhas: list[dict] | None) -> dict[str, dict]:
+    """Linhas da planilha sob título de etapa, por etapa do `tipo` (id → {sem_item, fora}). Só vale a linha de unidade
+    do mesmo tipo de obra, sob título que alguma etapa do tipo lista. Regra: (a) item apontado por folha da etapa do
+    título (ou de uma das etapas que o título nomeia): nada muda; (b) sem item: a etapa foi citada no contrato; (c) item
+    que nenhuma folha dessas etapas aponta: aviso 'item fora da etapa do título'."""
+    itens = {e["id"]: _itens_da_etapa(e) for e in TIPOS[tipo]["etapas"]}
+    por_etapa: dict[str, dict] = {}
+    for linha in linhas or []:
+        obra = OBRA_DA_UNIDADE.get(str(linha.get("unidade", "")).lower())
+        if obra != OBRA_DO_TIPO[tipo]:
+            continue
+        etapas = etapas_do_titulo(linha.get("titulo_etapa"), tipo)
+        item = linha.get("item")
+        if not etapas or (item and any(item in itens[e] for e in etapas)):
+            continue
+        tipo_de_citacao = "fora" if item else "sem_item"
+        for e in etapas:
+            por_etapa.setdefault(e, _nova_citacao())[tipo_de_citacao].append(linha)
+    return por_etapa
+
+
+def _exemplos(linhas: list[dict], limite: int = 3) -> list[str]:
+    """Até `limite` descrições distintas, na ordem em que aparecem."""
+    return list(dict.fromkeys(linha["descricao"] for linha in linhas))[:limite]
+
+
+def _avisos_fora_da_etapa(linhas: list[dict]) -> list[str]:
+    """Um texto por (descrição, item, título): 'item fora da etapa do título', com o nº de linhas."""
+    grupos: dict[tuple, int] = {}
+    for linha in linhas:
+        chave = (linha["descricao"], linha["item"], linha["titulo_etapa"])
+        grupos[chave] = grupos.get(chave, 0) + 1
+    return [
+        f"Item fora da etapa do título «{titulo}»: «{descricao}» classificada em {item}"
+        + (f" ({n} linhas)" if n > 1 else " (1 linha)")
+        for (descricao, item, titulo), n in grupos.items()
+    ]
+
+
+def _contrato_da_etapa(etapa: dict, citacao: dict | None) -> dict:
+    """Indicadores da etapa pelo título da planilha: `citada_no_contrato` (linhas sem item sob o título, com
+    exemplos; sem quantidade, porque não há item) e `avisos_titulo` (itens fora da etapa do título)."""
+    citacao = citacao or _nova_citacao()
+    sem_item = citacao["sem_item"]
+    grafias: dict[str, str] = {}
+    for linha in sem_item:
+        grafias.setdefault(normalizar(linha["titulo_etapa"]), linha["titulo_etapa"])
+    titulos = list(grafias.values())
+    return {
+        "citada_no_contrato": bool(sem_item),
+        "n_linhas_citadas": len(sem_item),
+        "exemplos_citados": _exemplos(sem_item),
+        "citada_txt": (
+            f"Citada no contrato (título «{'», «'.join(titulos)}»): {len(sem_item)} linha(s) sem item, "
+            f"ex.: {'; '.join(_exemplos(sem_item))}"
+            if sem_item
+            else ""
+        ),
+        "avisos_titulo": _avisos_fora_da_etapa(citacao["fora"]),
+    }
+
+
 def _levantar(problemas: list[str]) -> None:
     """Modo estrito de `preencher`: o primeiro problema das declarações vira ValueError."""
     if problemas:
@@ -687,10 +783,12 @@ def preencher(
     manuais: list[dict] | None = None,
 ) -> dict:
     """Preenche o esqueleto do `tipo` com a EAP codificada (`dados["eap"]`, só unidades do tipo de obra) e os fatos
-    (`dados["evidencias"]`). `declaracoes` = `eap_padrao.nao_se_aplica` ({id, justificativa, autor}); `manuais` =
+    (`dados["evidencias"]`; a chave `titulos_etapa` traz as linhas da planilha sob título de etapa, de
+    `evidencias.titulos_da_planilha`). `declaracoes` = `eap_padrao.nao_se_aplica` ({id, justificativa, autor}); `manuais` =
     `eap_padrao.preenchimento_manual` (folha sem item, com documento); `escopos` = escopos da obra (None = todos).
     Registro inválido é ValueError claro (o `montar` converte em aviso). Devolve {tipo, nome, prefixo, etapas:
-    [{id, nome, folhas, resumo}], resumo}."""
+    [{id, nome, folhas, resumo, citada_no_contrato, n_linhas_citadas, exemplos_citados, citada_txt, avisos_titulo}],
+    resumo}."""
     if tipo not in TIPOS:
         raise ValueError(
             f"tipo de EAP padrão desconhecido: '{tipo}'; use {list(TIPOS)}"
@@ -705,6 +803,9 @@ def preencher(
         "escopos": escopos,
     }
     indices = (_indice_quantidades(eap_codificada), _indice_fatos(evidencias))
+    citacoes = _citacoes_por_etapa(
+        tipo, evidencias.get("titulos_etapa") if isinstance(evidencias, dict) else None
+    )
     etapas, todas = [], []
     for etapa in TIPOS[tipo]["etapas"]:
         folhas = [
@@ -716,6 +817,7 @@ def preencher(
                 "nome": etapa["nome"],
                 "folhas": folhas,
                 "resumo": resumir(folhas),
+                **_contrato_da_etapa(etapa, citacoes.get(etapa["id"])),
             }
         )
         todas += folhas
@@ -794,6 +896,8 @@ def metadados() -> dict:
         "que já foi preenchido, o que foi só calculado, o que é só menção, o que falta e o que não se aplica",
         "funcoes": [
             "validar",
+            "eh_titulo_de_etapa",
+            "etapas_do_titulo",
             "itens_fora_do_padrao",
             "tipo_da_obra",
             "escopos_do_tipo",

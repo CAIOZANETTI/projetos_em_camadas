@@ -226,6 +226,14 @@ mostram duas coisas:
 Qual terreno está certo decide se o volume está sub ou superestimado, e é a próxima pergunta da tese. Relatório em
 `docs/plano/2026-11-03_conferencia_cavas.md`.
 
+**Terreno das cavas (0.56.0, 04/11/2026).** Decisão do Caio:
+- dentro do casco das curvas de nível da GEOPLANTA vale a topografia do projeto, validada pelas sondagens com rms de
+  0,17 m;
+- fora do casco, o MDS corrigido, com o erro declarado como desconhecido.
+
+A escavação das cavas fica em 7 905 m³, 8,2 % abaixo do cálculo pelo MDS puro. Relatório em
+`docs/plano/2026-11-03_decisao_terreno.md`.
+
 **O que falta para fechar a tese:**
 1. ~~o build real de Foz~~ (0.45.0); falta a aba EAP conferida pelo Caio e, para as obras lineares, a planilha do
    protótipo com a aba "Obras Lineares", que não está no Drive;

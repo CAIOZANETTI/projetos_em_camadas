@@ -1,4 +1,4 @@
-# Arquitetura — projetos em camadas (R10, 03/11/2026; estado do código em 0.49.0)
+# Arquitetura — projetos em camadas (R10, 03/11/2026; estado do código em 0.55.0)
 
 Diagrama, cenário de mesa e índice: https://claude.ai/artifact/ESsAkB2JX7JZgBdRRxPzyg (privado; peça acesso ao Caio).
 
@@ -258,6 +258,8 @@ Decisão do Caio vale como regra até ser superada por outra, sempre registrada 
 | D6 | 03/11 | o furo impenetrável vale como rocha na faixa abaixo dele (escavação, escoramento, esgotamento) | vigente |
 | D7 | 03/11 | tubo fora da Tabela I do MOS: largura pela NBR 12266 (DE + 0,60 m), com alerta, numa regra só no `lineares` | vigente |
 | D8 | 03/11 | o reaterro desconta o berço e a envoltória, que já são lançados como serviços | vigente |
+| D10 | 04/11 | blocos de ancoragem e de apoio são um item só, `HID.TUB.ANC`, em qualquer unidade (ETA ou adutora); a frente WBS escolhe a etapa da EAP padrão | vigente |
+| D11 | 04/11 | a água potável (622 m) conta uma vez só, como trecho de obra linear dentro da U1 | vigente |
 | D9 | 03/11 | o fallback usa o DE do tubo (dado, ou pela tabela DN → DE do material); trecho em MND não tem largura de vala; o bota-fora inclui o solo deslocado pelo berço e pela envoltória | vigente |
 
 ## 7. Quem faz o quê
@@ -455,4 +457,81 @@ documentos ─► ETAPA 1: ler e guardar ─► GAVETAS ─► ETAPA 2: calcular
 - A paridade (`gavetas.paridade`) confere o cálculo das gavetas contra o cálculo direto; na 0.45.0, Foz deu 30
   objetos, 75 serviços, 0 erros de conferência e 0 diferenças de paridade.
 - A Etapa 3 soma os serviços nos nós da EAP; cada número abre o caminho de volta até o recorte da prancha.
+
+## 14. EAP padrão por tipo de obra (0.48.0 a 0.55.0)
+
+A EAP codificada (`U.SISTEMA.DISC.PACOTE.ITEM`) diz **o que** existe; a EAP padrão diz **em que ordem a obra acontece**.
+É um esqueleto por etapa de execução, um para cada tipo de obra, preenchido a cada obra pelos mesmos fatos
+(`conceitos/eap_padrao.json`, `camadas/eap_padrao.py`, `docs/EAP.md` §9.1).
+
+| Tipo | Prefixo | Etapas |
+|---|---|---|
+| obra localizada (ETA, reservatório, elevatória) | `OP` | 00 administração local · 01 preliminares · 02 movimento de terra · 03 fundações · 04 estrutura · 05 impermeabilização · 06 arquitetura · 07 hidráulica · 08 equipamentos · 09 elétrica · 10 urbanização · 11 ensaios e comissionamento · 12 serviços finais |
+| obra linear (adutora, rede, emissário) | `OL` | 00 administração local · 01 preliminares · 02 remoção de pavimento · 03 vala · 04 assentamento · 05 reaterro · 06 travessias e MND · 07 PVs, caixas e peças · 08 recomposição · 09 testes · 10 ligações · 11 cadastro e desmobilização |
+
+- Cada folha (`OL.03.02`) aponta para itens da EAP codificada; as folhas que não tinham item ganharam a disciplina
+  `GER` (serviços gerais: preliminares, controle, finais) e itens como `HID.TUB.MND/TRV/ANC/CAM`. Nenhuma folha fica
+  sem item; folha futura sem item continua com preenchimento manual.
+- **Item acessório e a cabeça da descrição:** mobilização, topografia, ensaios, cadastro… só classificam a linha se
+  nenhum item principal aparece antes ("estaca…, inclusive mobilização" continua estaca). Regra única em código, usada
+  na classificação, na busca e na conferência da IA.
+- **Etapa pelo título da planilha Sanepar** (0.55.0): na aba CUSTO CIVIL, o título que casa um `titulos_sanepar` da
+  etapa marca as linhas abaixo dele. A etapa fica "citada no contrato" mesmo sem item, e item de outra etapa vira
+  aviso de classificação. Em Foz: 36 de 79 linhas com título de etapa e nenhum aviso.
+- **Primeira passada com dado real** (contrato 211/26 de Foz, 0.54.0): administração local entrou como etapa 00; PV
+  vale para água e esgoto; macromedidor (hidrômetro DN 200) é instrumentação, não ligação. Esses ajustes de conceito
+  aguardam a confirmação do Caio (sessão WBS, decisões 1 a 3).
+
+## 15. Conferência das cavas por testemunhas independentes (0.53.0)
+
+A planilha não tem item de cava nem quadro de volumes, então o cálculo pelo MDS (`escavacao.calcular`) é conferido
+contra duas testemunhas do próprio projeto, sem IA no número:
+
+1. **Seções das pranchas de corte** (`camadas/secoes_corte.py`): quadros do Civil 3D calibrados pelas marcas de 1 m e
+   pelos rótulos de 5 m (OCR, resíduo de 2 mm); por seção, área de corte (integral exata de terreno − fundo) e cota de
+   fundo.
+2. **Cotas da sequência executiva** da planta, ligadas à cava só quando a ligação é única.
+
+`camadas/conferencia_cavas.py` mede o mesmo perfil no modelo e classifica cada seção como confere, difere ou não
+conferível, sempre com motivo. Tolerâncias declaradas: fundo e terreno ±0,30 m; área, o maior entre 15 % e
+0,30 m × largura; seções médias ±20 %. É etapa do build: grava `conferencia_cavas.json` e uma tabela na aba EAP.
+
+Foz (7 cavas, 8 612 m³): o fundo bate em 5 de 7 seções; a área difere sobretudo pelo terreno (o MDS fica até 0,6 m
+abaixo da topografia do projeto); placar 1 confere, 4 difere, 13 não conferível. Ainda não dá para dizer se o volume
+está sub ou superestimado: falta decidir qual terreno vale (MDS do drone × topografia do projeto).
+
+Em andamento (sessão Geo Bd, ramo `ccr-2f8fb1ac-7urfse`): o Caio escolheu a **opção D** para o terreno das cavas.
+Dentro do casco das curvas GEOPLANTA vale a topografia do projeto (TIN); fora dele, o MDS corrigido. Isso leva a
+escavação de 8 612 para cerca de 7 900 m³. O 1º aceite do Fable pediu revisão; entra na `main` depois do 2º aceite.
+
+## 16. Frentes de trabalho e alinhamento (04/11/2026)
+
+O repositório é trabalhado por várias conversas em paralelo. Cada uma é uma frente com dono, ramo e plano.
+
+| Frente (conversa) | Entrega na arquitetura | Estado em 04/11 | Pendente do Caio |
+|---|---|---|---|
+| Arquitetura (esta) | ARQUITETURA, decisões D1–D9, dimensionador único, verificação noturna | na `main` (0.49–0.51) | conferir o leitor de laudo em Foz; repositórios do observatório |
+| WBS · EAP padrão | §14: EAP padrão, itens `GER`, etapa pelo título Sanepar | na `main` (0.48, 0.52, 0.54, 0.55) | decisões 1 a 3: PV para água, ALO como etapa 00, macromedidor; ancoragem, apoio e água potável na ETA; lavagem de rede como desinfecção |
+| Geo Bd · memória espacial | §13 gavetas, §15 cavas, terreno opção D | 0.53 na `main`; opção D em revisão | nenhuma bloqueante; anexar a planilha com a aba Obras Lineares |
+| Giselle · obras lineares da ETA | origem do MOS e das premissas D1 | parada (ramo 407 commits atrás) | calibrar raio de influência e cor do pavimento |
+| Protótipo 211 · Foz | build de ponta a ponta | concluída | geometria dos Actiflo, folha 10, escopo "a definir", 58 desenhos |
+
+**Alinhamentos necessários** (1 e 2 confirmados pelo Caio em 04/11: D10 e D11):
+1. **Blocos de ancoragem e de apoio (D10):** o Protótipo os tratava como unidade "a definir" e a WBS como itens da
+   etapa de instalações hidráulicas. Vale um modelo só: item da EAP codificada (`HID.TUB.ANC`), em qualquer unidade. A
+   WBS decide a etapa e implementa.
+2. **Água potável, 622 m (D11):** linha da obra linear (Giselle) × item da ETA (WBS). Conta uma vez só: o trecho é
+   obra linear dentro da unidade U1, e a EAP padrão linear o recebe. A WBS implementa.
+3. **Versão e lição:** cada frente pega a próxima versão livre **no merge** (nunca na abertura do ramo); colisão se
+   resolve renumerando o próprio ramo, como já foi feito duas vezes.
+4. **Rumo por frente:** `rumo.yaml` passa a ser um por frente (`results/rumo/<frente>.yaml`), para que duas conversas
+   não reescrevam o mesmo arquivo.
+5. **Plano e Fable para toda frente:** a WBS passa a ter plano em `docs/plano/` e aceite do Fable, como as outras (a
+   verificação noturna apontou 0.54 e 0.55 sem revisor).
+6. **Ramos parados recomeçam da `main`:** Giselle e Protótipo estão centenas de commits atrás; retomar do ramo antigo
+   reintroduziria o dimensionador antigo (contra a D4).
+7. **Premissas da D1 em um lugar:** raio, NA e empolamento só em `conceitos/geotecnia.json`; a calibração que a
+   Giselle pede muda esse arquivo, por decisão registrada.
+8. **Cronograma e 4D:** fora do sistema por decisão do Caio (28 e 30/10, §1). O Protótipo pediu confirmação: está
+   confirmada nos princípios.
 

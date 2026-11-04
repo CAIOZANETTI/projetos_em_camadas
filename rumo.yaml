@@ -123,3 +123,6 @@ historico:
 - data: '2026-11-04'
   mudanca: 'decisão do Caio: opção D (topografia do projeto no casco das curvas, MDS corrigido fora, sem edificação e copa, costura suavizada)'
   motivo: 'topografia × seções rms 0,16 m e × sondagens 0,25 m; MDS +0,54 m em média, 21 % da área com erro > 1 m por copa e prédio, inclinação ~1 m/100 m'
+- data: '2026-11-04'
+  mudanca: 'E4 com dois aceites do Fable (REVISAR, REVISAR pontual) e um achado do gerente (cache das curvas sem a versão da leitura); volume final 7 905 m³'
+  motivo: 'os aceites acharam curvas de continuação, costura do lado errado, validação fora do casco e o furo de copa; o build só reproduziu o executor depois de versionar o cache'
