@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.68.0 — 2026-11-04 · Aba EAP legível e interativa: sub-abas, WBS em árvore, Contrato 211 por trecho, ligação com o mapa
+- (em andamento: build real na E3)
+
 ## 0.67.0 — 2026-11-04 · Dados do painel da EAP padrão reproduzíveis (frente WBS)
 - **`eap_padrao.tabelas_do_painel`** (pura, testada): achata a saída de `montar` em `resumo` (fração preenchida =
   preenchidas/aplicáveis do resumo, `pct_txt`), `situacoes`, `etapas` (folhas, preenchidas, só menção, citada no
