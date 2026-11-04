@@ -9,6 +9,8 @@
     vala      = largura e escoramento do dimensionador único (`lineares.dimensionar_vala`, MOS: L = D + SL + X + Y);
                 profundidade h = recobrimento da classe + DE + berço
     demolição = recomposição = extensão × (b + 2 × sobrelargura de recorte)
+    pares     = tubo interno da ETA desenhado com dois contornos num layer genérico (CISM_11_LINHA_TUBULAÇÃO 01): o eixo é a
+                linha média dos pares de segmentos paralelos à distância do desenho (`par_mm`), dentro de `janelas_pt`
 
 Regras e premissas em `conceitos/valas.json`. É posição no desenho, não cadastro de pavimento: conferir em campo.
 """
@@ -86,6 +88,108 @@ def amostras(tracos: list, layer: str, M, janela=None, passo: float | None = Non
     if not P:
         return {"pts": np.empty((0, 2)), "tang": np.empty((0, 2)), "peso": np.empty(0)}
     return {"pts": np.vstack(P), "tang": np.vstack(T), "peso": np.concatenate(W)}
+
+
+def _segmentos_na_janela(tracos: list, layer: str, M, janelas_pt: list | None) -> np.ndarray:
+    """Segmentos (n, 2, 2) em UTM dos traços do layer; com `janelas_pt` (caixas x0, y0, x1, y1 em pt), só os
+    segmentos com os dois extremos dentro de alguma caixa. Geometria exata do desenho (sem simplificar)."""
+    A = np.asarray(M, float)
+    if A.shape == (2, 3):                                 # afim 2×3 vira 3×3 homogênea
+        A = np.vstack([A, [0.0, 0.0, 1.0]])
+    pedacos = []
+    for t in tracos:
+        if not re.fullmatch(layer, t["layer"]):
+            continue
+        for q in map(np.asarray, t["partes"]):
+            if len(q) < 2:
+                continue
+            a, b = q[:-1], q[1:]
+            if janelas_pt:
+                dentro = np.zeros(len(a), bool)
+                for x0, y0, x1, y1 in janelas_pt:
+                    dentro |= ((a[:, 0] >= x0) & (a[:, 0] <= x1) & (a[:, 1] >= y0) & (a[:, 1] <= y1)
+                               & (b[:, 0] >= x0) & (b[:, 0] <= x1) & (b[:, 1] >= y0) & (b[:, 1] <= y1))
+                a, b = a[dentro], b[dentro]
+            if len(a):
+                pedacos.append(np.stack([geo.aplicar(A, a), geo.aplicar(A, b)], axis=1))
+    return np.concatenate(pedacos) if pedacos else np.empty((0, 2, 2))
+
+
+def _pares_paralelos(seg: np.ndarray, de_m: float, tol: float, ang_max_graus: float, comp_min_m: float) -> list:
+    """Linha de centro de cada par de segmentos paralelos a uma distância de `de_m` (± `tol` relativo): o tubo desenhado
+    com dois contornos. Vale só o trecho em que os dois segmentos se sobrepõem na direção do tubo."""
+    d = seg[:, 1] - seg[:, 0]
+    comp = np.linalg.norm(d, axis=1)
+    seg, d, comp = seg[comp >= comp_min_m], d[comp >= comp_min_m], comp[comp >= comp_min_m]
+    if len(seg) < 2:
+        return []
+    u = d / comp[:, None]
+    linhas = shapely.linestrings(seg)
+    i, j = shapely.STRtree(linhas).query(linhas, predicate="dwithin", distance=de_m * (1 + tol))
+    k = i < j
+    i, j = i[k], j[k]
+    n = np.c_[-u[:, 1], u[:, 0]]
+    sa = np.einsum("ij,ij->i", seg[j, 0] - seg[i, 0], n[i])         # distância assinada dos extremos de j à reta de i
+    sb = np.einsum("ij,ij->i", seg[j, 1] - seg[i, 0], n[i])
+    ok = (np.abs(u[i, 0] * u[j, 1] - u[i, 1] * u[j, 0]) <= np.sin(np.radians(ang_max_graus))) \
+        & (np.sign(sa) == np.sign(sb)) & (np.abs(sa) >= de_m * (1 - tol)) & (np.abs(sa) <= de_m * (1 + tol)) \
+        & (np.abs(sb) >= de_m * (1 - tol)) & (np.abs(sb) <= de_m * (1 + tol))
+    i, j, sa, sb = i[ok], j[ok], sa[ok], sb[ok]
+    ta = np.einsum("ij,ij->i", seg[j, 0] - seg[i, 0], u[i])         # extremos de j projetados na direção de i
+    tb = np.einsum("ij,ij->i", seg[j, 1] - seg[i, 0], u[i])
+    t0, t1 = np.maximum(0.0, np.minimum(ta, tb)), np.minimum(comp[i], np.maximum(ta, tb))
+    ok = t1 - t0 >= comp_min_m
+    i, t0, t1, meia = i[ok], t0[ok], t1[ok], ((sa + sb) / 4)[ok]
+    p0 = seg[i, 0] + u[i] * t0[:, None] + n[i] * meia[:, None]
+    p1 = seg[i, 0] + u[i] * t1[:, None] + n[i] * meia[:, None]
+    return list(shapely.linestrings(np.stack([p0, p1], axis=1)))
+
+
+def _unir_vaos(partes: list, vao_m: float, cos_min: float = 0.9) -> list:
+    """Liga extremos de peças distintas a até `vao_m` quando a ligação segue a direção do tubo nos dois lados (a bolsa
+    e a junta entre barras não têm contorno: sem isso cada barra viraria uma peça solta e o vão ficaria sem medir)."""
+    pts, tang, dono = [], [], []
+    for k, ln in enumerate(partes):
+        c = np.asarray(ln.coords)
+        for p, q in ((c[0], c[1]), (c[-1], c[-2])):
+            v = (p - q) / (np.linalg.norm(p - q) + 1e-12)        # tangente que sai da peça
+            pts.append(p)
+            tang.append(v)
+            dono.append(k)
+    pts, tang, dono = np.array(pts), np.array(tang), np.array(dono)
+    ligacoes = []
+    for a in range(len(pts)):
+        v = pts - pts[a]
+        dist = np.linalg.norm(v, axis=1)
+        for b in np.flatnonzero((dono != dono[a]) & (dist > 1e-9) & (dist <= vao_m) & (np.arange(len(pts)) > a)):
+            c = v[b] / dist[b]
+            if c @ tang[a] >= cos_min and -c @ tang[b] >= cos_min:
+                ligacoes.append(shapely.linestrings([pts[a], pts[b]]))
+    return list(shapely.get_parts(shapely.line_merge(shapely.union_all([*partes, *ligacoes]))))
+
+
+def eixos_por_pares(tracos: list, layer: str, M, de_m: float, janelas_pt: list | None = None, passo: float | None = None,
+                    tol: float = 0.03, ang_max_graus: float = 3.0, comp_min_m: float = 0.05,
+                    vao_m: float = 0.5, min_parte_m: float = 0.0) -> dict:
+    """Eixo do tubo desenhado com dois contornos num layer genérico (CISM_11_LINHA_TUBULAÇÃO 01 em Foz): o par de
+    segmentos paralelos separados pelo DE do tubo na escala do desenho. O DN sai da largura do par (regra
+    determinística), e `janelas_pt` limita o trecho. Mesmo formato de `amostras`, mas o peso de cada ponto é o
+    comprimento do eixo ÷ nº de pontos, de modo que a soma dos pesos é o comprimento geométrico exato do eixo."""
+    passo = passo or VALOR["passo_m"]
+    vazio = {"pts": np.empty((0, 2)), "tang": np.empty((0, 2)), "peso": np.empty(0)}
+    centros = _pares_paralelos(_segmentos_na_janela(tracos, layer, M, janelas_pt), de_m, tol, ang_max_graus, comp_min_m)
+    if not centros:
+        return vazio
+    partes = list(shapely.get_parts(shapely.line_merge(shapely.union_all(centros))))
+    partes = [g for g in _unir_vaos(partes, vao_m) if g.length >= min_parte_m]
+    P, T, W = [], [], []
+    for ln in partes:
+        p, t = _amostrar(ln, passo)
+        if len(p):
+            P.append(p)
+            T.append(t)
+            W.append(np.full(len(p), ln.length / len(p)))
+    return {"pts": np.vstack(P), "tang": np.vstack(T), "peso": np.concatenate(W)} if P else vazio
 
 
 def cruzamentos(pts: np.ndarray, tang: np.ndarray, limite, alcance: float) -> tuple[list, list]:
@@ -263,8 +367,12 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
         if p is None or p.get("M") is None:
             continue
         layers.append(r.get("layer") or p["layer_tubo"])
-        tr = pdf_cad.extrair(p["pdf"], clip=p.get("clip"))
-        am = amostras(tr, r.get("layer") or re.escape(p["layer_tubo"]), p["M"], p.get("clip_mapa"), linha=bool(r.get("layer")))
+        tr = pdf_cad.extrair(p["pdf"], clip=r.get("clip_pt") or p.get("clip"))
+        if r.get("par_mm"):                               # tubo de dois contornos num layer genérico (ver `eixos_por_pares`)
+            am = eixos_por_pares(tr, r["layer"], p["M"], r["par_mm"] / 1000, r.get("janelas_pt"), tol=r.get("tol_par", 0.03),
+                                 vao_m=r.get("vao_m", 0.5), min_parte_m=r.get("min_parte_m", 0.0))
+        else:
+            am = amostras(tr, r.get("layer") or re.escape(p["layer_tubo"]), p["M"], p.get("clip_mapa"), linha=bool(r.get("layer")))
         limites = {k: shapely.union_all([LineString(geo.aplicar(np.asarray(p["M"]), np.asarray(q))) for t in tr
                                          if t["layer"] == r[f"layer_{k}"] for q in t["partes"] if len(q) >= 2])
                    for k in ("limite", "meio_fio", "alinhamento") if r.get(f"layer_{k}")}
@@ -283,7 +391,8 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
             "pranchas": list(r["pranchas"]), "layers": list(dict.fromkeys(layers + apoio)), "finais": finais if any(finais) else None,
             "extensao_m": round(float(peso.sum()), 1), "pts": np.vstack(pts), "tang": np.vstack(tang), "peso": peso,
             "classes": classes, "quadro": quantificar(classes, peso, r["de_mm"] / 1000, finais if any(finais) else None,
-                                                    r.get("material"), r.get("dn_mm"))}
+                                                    r.get("material"), r.get("dn_mm"))} \
+        | ({"trecho_contrato": r["trecho_contrato"]} if r.get("trecho_contrato") else {})
 
 
 def quantificar_gavetas(dados: dict, furos=None, pts=None) -> dict:
@@ -356,7 +465,8 @@ def para_html(redes: list[dict], c: dict, final: dict | None, epsg: int) -> dict
                                          "cor": REGRAS["classes"][cl]["cor"], "extensao_m": round(float(v["peso"][sel].sum()), 1),
                                          "estimado": True}})
     tabela = [{k: v[k] for k in ("id", "de_mm", "fonte_de", "criterio", "extensao_m", "quadro")}
-              | {"material": v.get("material", MATERIAL_PADRAO), "dn_mm": v.get("dn_mm", v["de_mm"])} for v in redes]
+              | {"material": v.get("material", MATERIAL_PADRAO), "dn_mm": v.get("dn_mm", v["de_mm"])}
+              | ({"trecho_contrato": v["trecho_contrato"]} if v.get("trecho_contrato") else {}) for v in redes]
     return {"redes": tabela, "classes": {k: {"nome": v["nome"], "cor": v["cor"]} for k, v in REGRAS["classes"].items()},
             "urbanizacao_m2": {n: round(g.area, 1) for n, g in (final or {}).items()},
             "fonte": c.get("fonte", ""), "fora": c.get("fora", []), "premissas": REGRAS["metadata"]["observacoes"],
@@ -370,7 +480,7 @@ def metadados() -> dict:
         "descricao": "classe da superfície em cada metro de tubo (desenho ou ortofoto) e o quadro de demolição, "
                      "recomposição e volume de vala por rede",
         "funcoes": ["amostras", "cruzamentos", "classe_divisas", "classe_quadras", "classe_meio_fio", "ortofoto", "classe_ortofoto",
-                    "urbanizacao", "secao", "quantificar", "quantificar_gavetas", "classificar", "rede", "de_do_escopo", "etapa", "para_html"],
+                    "urbanizacao", "eixos_por_pares", "secao", "quantificar", "quantificar_gavetas", "classificar", "rede", "de_do_escopo", "etapa", "para_html"],
         "bibliografia": [
             {"obra": "ABNT NBR 12266 — Projeto e execução de valas para assentamento de tubulação de água, esgoto ou "
                      "drenagem urbana", "ano": 1992, "editora": "ABNT",

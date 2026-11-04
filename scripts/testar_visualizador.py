@@ -18,6 +18,8 @@ Roda o roteiro duas vezes: desktop 1400x900 (tema claro) e celular 400x860 (tema
     dentro/fora/a definir, filtro "Só o escopo", escolha por sistema (localStorage, exportar/restaurar), decomposição
     construtiva com evidências em link e partes com geometria enquadradas no mapa; sistemas sem elemento de geometria;
     desenhos da Relação por sistema (entregue com link, não entregue com alerta), resumo geral e atalho "Só com desenho não entregue";
+  * Contrato 211 (aba EAP, só com `D.contrato_211`): título, uma linha por linha do Python, sem "R$" e sem rolagem
+    horizontal da página;
   * sem rolagem horizontal da página no celular.
 Sai com código 1 se algum passo falhar. Capturas em PNG na pasta indicada (padrão: <pasta do html>/capturas).
 Requer apenas `playwright` (já com o Chromium instalado); não instala nada.
@@ -1110,6 +1112,29 @@ def verificar_projeto(c: dict) -> None:
     page.wait_for_timeout(300)
 
 
+def verificar_contrato_211(c: dict) -> None:
+    """Contrato 211 (aba EAP, com `D.contrato_211`): aparece, tem título, uma linha por linha do Python, sem preço e sem
+    rolagem horizontal da página. Sem `D.contrato_211` as verificações são puladas."""
+    if not js(c, "!!__viz.D.contrato_211"):
+        print("  [--]    Contrato 211: sem D.contrato_211 (verificações puladas)")
+        return
+    page = c["page"]
+    passo(c, "Contrato 211: aba EAP aparece", js(c, "!document.querySelector('#t-eap').hidden"))
+    passo(c, "Contrato 211: título 'Contrato 211' na aba EAP", js(c, "document.querySelector('#aba-eap').textContent.includes('Contrato 211')"))
+    page.click("#t-eap")
+    page.wait_for_timeout(300)
+    r = js(c, """() => ({tabela: document.querySelectorAll('#aba-eap table.ctr211 tbody tr').length,
+      esperado: __viz.D.contrato_211.linhas.length,
+      preco: [...document.querySelectorAll('#aba-eap table.ctr211')].some(t => t.textContent.includes('R$')
+        || [...t.querySelectorAll('[title]')].some(e => e.title.includes('R$')))})""")
+    passo(c, "Contrato 211: uma linha na tabela por linha do Python", r["tabela"] == r["esperado"], str(r))
+    passo(c, "Contrato 211: nenhum texto da tabela com preço (R$)", not r["preco"], str(r))
+    passo(c, "Contrato 211: o bloco não aumenta a largura da página", js(c, "document.documentElement.scrollWidth <= window.innerWidth + 1"))
+    foto(c, "17_contrato_211")
+    page.click("#t-camadas")
+    page.wait_for_timeout(300)
+
+
 def verificar_final(c: dict) -> None:
     c["page"].wait_for_timeout(300)
     passo(c, "sem rolagem horizontal ao final", js(c, "document.documentElement.scrollWidth <= window.innerWidth + 1"))
@@ -1122,7 +1147,7 @@ def roteiro(pw, html: Path, cen: dict, pasta: Path, rel: Relatorio) -> None:
     for secao in (verificar_obra_abertura, verificar_inicio, verificar_mapa, verificar_filtro_etapa, verificar_escopo_tabela, verificar_escopo_valores,
                   verificar_pranchas, verificar_sondagens_fotos, verificar_3d, verificar_v3_arvore, verificar_v3_intervencao,
                   verificar_v3_estacas_mapa, verificar_v3_estacas_3d, verificar_v3_marcos, verificar_area_obra,
-                  verificar_obra, verificar_projeto):
+                  verificar_obra, verificar_projeto, verificar_contrato_211):
         secao(c)
     verificar_final(c)
 
