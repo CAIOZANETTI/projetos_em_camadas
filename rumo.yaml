@@ -27,9 +27,9 @@ etapas:
   agente: opus
   estimativa_min: 30
   estimativa_tokens: 80000
-  status: fazendo
+  status: feito
   inicio: '2026-11-03T22:05:00Z'
-  fim: null
+  fim: '2026-11-04T00:05:00Z'
 - id: E3
   nome: Aplicar a decisão ao terreno das cavas e recalcular a conferência
   entregaveis:
@@ -40,8 +40,8 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T00:06:00Z'
   fim: null
 - id: E4
   nome: Build real, balanço, aceite do Fable, PR e merge
@@ -120,3 +120,6 @@ historico:
 - data: '2026-11-03'
   mudanca: horários de E2, E3 e E4 corrigidos pelas horas dos commits
   motivo: os horários escritos à mão estavam adiantados em relação ao relógio da máquina (a E4 saía com −6 min)
+- data: '2026-11-04'
+  mudanca: 'decisão do Caio: opção D (topografia do projeto no casco das curvas, MDS corrigido fora, sem edificação e copa, costura suavizada)'
+  motivo: 'topografia × seções rms 0,16 m e × sondagens 0,25 m; MDS +0,54 m em média, 21 % da área com erro > 1 m por copa e prédio, inclinação ~1 m/100 m'

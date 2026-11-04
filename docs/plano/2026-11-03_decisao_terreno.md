@@ -89,4 +89,10 @@ alta.**
   atuais. Se houve aterro ou obra nova, o MDS de 2026 é que vale ali, e isso só se resolve com a informação do Caio ou
   com um levantamento novo.
 
-Decisão do Caio: (registrar aqui)
+## Decisão do Caio (04/11/2026)
+
+**Opção D:**
+- dentro do casco das curvas da GEOPLANTA, o terreno das cavas é a topografia do projeto;
+- fora do casco, vale o MDS corrigido pela inclinação medida contra a topografia, sem as áreas de edificação e vegetação
+  alta, com a costura suavizada na borda;
+- o resultado avisa que o terreno pode ter mudado entre 2022 e 2026.
