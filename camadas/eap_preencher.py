@@ -140,22 +140,42 @@ def _de_objetos(base: dict, ind: dict, modelo: dict) -> dict[tuple, dict]:
 
 
 def _de_servicos(base: dict, medidos: set[str]) -> tuple[dict[tuple, dict], list[dict]]:
-    """({(código, saída, unidade): quantidade}, descartados): serviços das gavetas com `codigo_eap`. O serviço de um item
-    que os fatos dos objetos já medem (a cava: escavação e reaterro) não soma de novo; fica em `descartados`."""
+    """({(código, saída, unidade): quantidade}, descartados): serviços das gavetas com `codigo_eap`. Dois serviços não
+    entram, para a mesma grandeza não ser contada por dois caminhos, e ficam em `descartados` com o motivo:
+    - o serviço sem nome (`servicos_eap` vazio) de um item que os fatos dos objetos já medem (a cava: escavação e
+      reaterro); o serviço com nome (forma, armadura, concreto…) é outra grandeza e entra;
+    - o serviço complementar (`regra` `associado:*`) cujo código e serviço já são calculados por outra regra das
+      gavetas (a vala da rede): vale a regra primária, e o complementar fica como caminho paralelo declarado."""
+    primarios: dict[str, set[str]] = {}
+    for s in base["servicos"]:
+        if s.get("codigo_eap") and not str(s["regra"]).startswith("associado:"):
+            primarios.setdefault(s["codigo_eap"], set()).update(
+                s.get("servicos_eap") or []
+            )
     acumulado: dict[tuple, dict] = {}
     descartados = []
     for s in sorted(base["servicos"], key=lambda x: x["servico_id"]):
         codigo = s.get("codigo_eap")
         if not codigo:
             continue
-        if codigo.split(".", 2)[2] in medidos:
+        nomes_eap = set(s.get("servicos_eap") or [])
+        motivo = None
+        if not nomes_eap and codigo.split(".", 2)[2] in medidos:
+            motivo = "o item já é medido pelos fatos dos objetos"
+        elif str(s["regra"]).startswith("associado:") and nomes_eap & primarios.get(
+            codigo, set()
+        ):
+            motivo = (
+                "o código e o serviço já são calculados por outra regra das gavetas"
+            )
+        if motivo:
             descartados.append(
                 {
                     "servico_id": s["servico_id"],
                     "codigo": codigo,
                     "valor": s["valor"],
                     "unidade": s["unidade"],
-                    "motivo": "o item já é medido pelos fatos dos objetos",
+                    "motivo": motivo,
                 }
             )
             continue
@@ -169,9 +189,7 @@ def _de_servicos(base: dict, medidos: set[str]) -> tuple[dict[tuple, dict], list
         q["objetos"].append(s["objeto_id"])
         q["fatos"] += s.get("fatos", [])
         q["servicos"].append(s["servico_id"])
-        q["servicos_eap"] = sorted(
-            set(q["servicos_eap"]) | set(s.get("servicos_eap") or [])
-        )
+        q["servicos_eap"] = sorted(set(q["servicos_eap"]) | nomes_eap)
         chave = str(s.get("chave") or "")
         q["por_chave"][chave] = round(
             q["por_chave"].get(chave, 0.0) + float(s["valor"]), 6
@@ -323,7 +341,14 @@ def _folha(
         for _, q in sorted(escolhidas.items())
     ]
     declarou = any(d["quantidade"] is not None for d in declaradas)
-    situacao = "preenchida" if medidas else "declarada" if declarou else "a preencher"
+    if not medidas:
+        situacao = "declarada" if declarou else "a preencher"
+    elif all(q["origem"] == "servico" for q in medidas):
+        situacao = (
+            "calculada"  # só serviço calculado por regra: não é medida de documento
+        )
+    else:
+        situacao = "preenchida"
     return {
         "id": folha["id"],
         "nome": folha["nome"],
@@ -338,11 +363,12 @@ def _folha(
 
 
 def _completude(folhas: list[dict]) -> dict:
-    """Folhas por situação, obrigatórias a preencher e % preenchida (medida com evidência) de um tipo de obra."""
+    """Folhas por situação, obrigatórias a preencher, % preenchida (medida de documento, com evidência) e % calculada
+    (só serviço de regra, à parte como na EAP padrão atual) de um tipo de obra."""
     n = len(folhas)
     por_situacao = {
         s: sum(f["situacao"] == s for f in folhas)
-        for s in ("preenchida", "declarada", "a preencher")
+        for s in ("preenchida", "calculada", "declarada", "a preencher")
     }
     obrigatorias = [f for f in folhas if f["obrigatoria"]]
     return {
@@ -355,6 +381,9 @@ def _completude(folhas: list[dict]) -> dict:
         "pct_preenchidas": round(100.0 * por_situacao["preenchida"] / n, 1)
         if n
         else None,
+        "pct_calculadas": round(100.0 * por_situacao["calculada"] / n, 1)
+        if n
+        else None,
     }
 
 
@@ -362,8 +391,9 @@ def preencher(base: dict) -> dict:
     """Laço sobre o modelo `eap_padrao.json` (obra localizada e obra linear): cada folha soma as quantidades dos itens
     técnicos que aponta e traz as linhas do contrato como "declarada" (sem somar com o medido).
 
-    Situação: `preenchida` (há quantidade medida, com fatos e evidências), `declarada` (só o contrato declara quantidade),
-    `a preencher` (nada); `obrigatoria` vem do modelo. Devolve {tipos: {tipo: {nome, prefixo, etapas, completude}},
+    Situação: `preenchida` (há quantidade medida de documento, com fatos e evidências), `calculada` (só há serviço
+    calculado por regra, como os complementares de `gavetas_servicos`: não é medida e conta à parte), `declarada` (só o
+    contrato declara quantidade), `a preencher` (nada); `obrigatoria` vem do modelo. Devolve {tipos: {tipo: {nome, prefixo, etapas, completude}},
     completude, quantidades_sem_folha, contrato_sem_folha, servicos_descartados}."""
     quantidades, descartados = _quantidades(base)
     por_item: dict[str, list[dict]] = {}
@@ -462,8 +492,9 @@ def principal(argv=None) -> int:
     for tipo, v in resultado["tipos"].items():
         c = v["completude"]
         print(
-            f"{tipo}: {c['preenchida']} preenchidas, {c['declarada']} declaradas, {c['a preencher']} a preencher "
-            f"de {c['folhas']} folhas ({c['pct_preenchidas']} % preenchidas); obrigatórias a preencher: "
+            f"{tipo}: {c['preenchida']} preenchidas, {c['calculada']} calculadas, {c['declarada']} declaradas, "
+            f"{c['a preencher']} a preencher de {c['folhas']} folhas ({c['pct_preenchidas']} % preenchidas, "
+            f"{c['pct_calculadas']} % calculadas); obrigatórias a preencher: "
             f"{', '.join(c['obrigatorias_a_preencher']) or 'nenhuma'}"
         )
         for etapa in v["etapas"]:

@@ -1,38 +1,40 @@
-objetivo: 'Reconstrução F3 (docs/RECONSTRUCAO.md): a EAP preenchida só pelas gavetas
-  — laço sobre o modelo da EAP (localizada e linear), código da EAP única, cada quantidade
-  citando objetos, fatos e evidências'
+objetivo: 'Reconstrução F4 (docs/RECONSTRUCAO.md): os serviços complementares (concreto,
+  forma, armadura, lastro, escoramento, impermeabilização; vala: corte, demolição,
+  escavação, escoramento, berço, envoltória, reaterro, bota-fora, recomposição) calculados
+  das gavetas e gravados nelas, preenchendo as folhas ''calculada'' da EAP única'
 criterio_de_pronto:
-- 'camadas/eap_preencher.py: itens técnicos e folhas da EAP padrão preenchidos só
-  das gavetas; código da EAP única <folha>/<item técnico>'
-- 'paridade com o golden: as 37 quantidades da EAP codificada saem iguais lendo só
-  das gavetas (0 diferença, tolerância 1e-3)'
-- cada quantidade cita objetos, fatos e evidências (documento e página ou aba e linha);
-  completude por tipo de obra registrada
-- ligado ao build (saida/<obra>/eap_unica.json), build real sem regressão contra o
-  golden, interface 0 falha, balanço sem REVERTER, PR e merge
-base: ce73c5e
+- 'camadas/gavetas_servicos.py: dimensões lidas dos fatos das gavetas, regras de servicos_associados.jsonl
+  aplicadas, serviços gravados na gaveta `servicos` com codigo_eap, fatos citados
+  e versão da regra'
+- 'paridade com o caminho atual (saida/<obra>/associados.csv): mesmos serviços e valores
+  por elemento (tolerância declarada)'
+- a EAP única (eap_preencher) mostra as folhas 'calculada' a partir desses serviços;
+  completude de Foz registrada
+- build real sem regressão (golden 0 diferença, EAP única × codificada 0), interface
+  0 falha, balanço sem REVERTER, PR e merge
+base: 253d4e5
 etapas:
 - id: E1
-  nome: 'F3: eap_preencher (itens técnicos e folhas pelas gavetas, paridade com o
-    golden; fecha lacunas de extração se houver)'
+  nome: 'F4: serviços complementares pelas gavetas (gavetas_servicos) e folhas ''calculada''
+    na EAP única'
   entregaveis:
+  - camadas/gavetas_servicos.py
+  - tests/test_gavetas_servicos.py
   - camadas/eap_preencher.py
   - tests/test_eap_preencher.py
-  - camadas/gavetas_construtivos.py
-  - conceitos/gavetas.json
   depende_de: []
   agente: sonnet
-  estimativa_min: 45
-  estimativa_tokens: 250000
+  estimativa_min: 60
+  estimativa_tokens: 300000
   status: feito
-  inicio: '2026-11-04T20:24:50Z'
-  fim: '2026-11-04T20:40:09Z'
-  forcado: null
+  inicio: '2026-11-04T21:04:22Z'
+  fim: '2026-11-04T21:52:20Z'
+  forcado: o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr, que
+    já falha na main; os testes da E1 passam (paridade 25/25)
 - id: E2
-  nome: 'F3: ligação no build, build real, paridade, balanço, PR e merge'
+  nome: 'F4: ligação no build, build real, paridade, balanço, PR e merge'
   entregaveis:
   - camadas/extrair_gavetas.py
-  - camadas/obra.py
   - CHANGELOG.md
   - camadas/__init__.py
   - pdca/licoes.jsonl
@@ -50,12 +52,15 @@ etapas:
   estimativa_min: 45
   estimativa_tokens: 120000
   status: feito
-  inicio: '2026-11-04T20:40:10Z'
-  fim: '2026-11-04T21:01:17Z'
+  inicio: '2026-11-04T21:52:08Z'
+  fim: '2026-11-04T21:52:08Z'
   forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
-    que já falha na main (tesseract do ambiente); balanço SEM_GANHO sem piora; build
-    real: interface 331/0, golden 0 diferença, EAP única 37/37'
+    que já falha na main; balanço SEM_GANHO sem piora; build real: interface 331/0,
+    golden 0, EAP única 0, complementares 25/25'
 historico:
+- data: '2026-11-04'
+  mudanca: 'objetivo anterior concluído: reconstrução F3 (PR #80, 0.71.0)'
+  motivo: 'o Caio: ''vai interagindo até a entrega final'' — a F4 segue a F3 no plano'
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: reconstrução F0–F2 (PR #79, 0.70.0)'
   motivo: 'o Caio: ''pode seguir com o merge e continuar a F3''; a E1 da F3 já tinha

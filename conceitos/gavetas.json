@@ -251,6 +251,11 @@
    "unidade": "m",
    "tipo": "numero"
   },
+  "eixo_partes": {
+   "unidade": "m",
+   "tipo": "lista",
+   "obs": "partes do eixo em UTM [[[E, N], ...], ...] quando a geometria do trecho tem mais de uma linha (a gaveta geometria guarda só a mais longa); a vala mede a sondagem por todo o eixo"
+  },
   "classes_por_metro": {
    "unidade": null,
    "tipo": "lista",

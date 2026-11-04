@@ -24,6 +24,7 @@ from shapely import geometry as sg
 from shapely import ops as so
 
 from . import gavetas, geo
+from .pdf_cad import CONCEITOS
 
 # rótulo do atributo no elemento → (propriedade de gavetas.json, fator para a unidade da propriedade, natureza)
 ROTULOS = {
@@ -51,7 +52,20 @@ ROTULOS = {
         "inferido",
     ),  # calculada pela topografia (camadas.escavacao)
     "Reaterro (m³)": ("reaterro_m3", 1.0, "inferido"),
+    "Item do contrato": (
+        "material",
+        1.0,
+        "inferido",
+    ),  # descrição do item de tubo casado no contrato: o material que a vala (MOS) lê
 }
+SUPERFICIES = {
+    f"{v['nome']} (m)": classe
+    for classe, v in json.loads((CONCEITOS / "valas.json").read_text(encoding="utf-8"))[
+        "classes"
+    ].items()
+}
+"""Rótulo do atributo de metros por superfície do trecho ('Pista (leito carroçável) (m)') → classe de `valas.json`;
+os metros viram um fato só, `pavimentos` ({classe: m}), o que a vala lê."""
 ATRIBUTOS_NA_GEOMETRIA = (
     "E (m)",
     "N (m)",
@@ -297,8 +311,24 @@ def _fatos_do_elemento(
         for campo in ("etapa", "origem_etapa")
         if elemento.get(campo) and "Etapa" not in lidos
     ]
+    superficies = {
+        SUPERFICIES[r]: float(v)
+        for r, v in atributos
+        if r in SUPERFICIES
+        and isinstance(v, (int, float))
+        and not isinstance(v, bool)
+        and v > 0
+    }
+    if superficies:
+        incluir("pavimentos", superficies, "inferido")
+    if len(utm) > 1 and elemento["geometria"]["type"] == "MultiLineString":
+        incluir("eixo_partes", [p.tolist() for p in utm], "projetado")
     for rotulo, bruto in atributos:
-        if rotulo in ATRIBUTOS_NA_GEOMETRIA or bruto in (None, ""):
+        if (
+            rotulo in SUPERFICIES
+            or rotulo in ATRIBUTOS_NA_GEOMETRIA
+            or bruto in (None, "")
+        ):
             continue
         if rotulo not in ROTULOS:
             pendencias.append(

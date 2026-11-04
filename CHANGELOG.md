@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.72.0 — 2026-11-04 · F4 da reconstrução: os serviços complementares calculados das gavetas
+- **`camadas/gavetas_servicos.py`** (novo): o passo 7 do fluxo do Caio.
+  - Os elementos (estaca, bloco, pilar, a cava derivada do bloco e a vala de cada trecho, por superfície) são
+    montados só dos fatos e da geometria das gavetas.
+  - Aplica as 26 regras de `servicos_associados.jsonl` (concreto, forma, armadura, lastro, arrasamento,
+    impermeabilização; vala: corte e demolição de pavimento, escavação, escoramento, berço, envoltória, reaterro,
+    bota-fora, recomposição por superfície).
+  - Os serviços são gravados na gaveta `servicos` com o `codigo_eap`, os fatos usados, a versão da regra e a memória
+    de cálculo na evidência. Dimensão que falta vira pendência com a cadeia do que faltou.
+- **Lacunas de extração fechadas**:
+  - metros por superfície do trecho → fato `pavimentos`;
+  - "Item do contrato" → `material`;
+  - eixo multipartes do trecho → fato `eixo_partes`.
+- **`eap_preencher`**: a situação `calculada` (folha só com serviço de regra) passa a ser contada à parte. O serviço
+  complementar já calculado por outra regra das gavetas (a `vala_rede`) é descartado, com o motivo, para não contar
+  duas vezes.
+- **No build** (`extrair_gavetas._complementares`): roda depois das evidências, é idempotente e grava a paridade
+  contra o `associados.csv` do mesmo build.
+- **Foz**:
+  - **paridade 25 de 25 linhas do `associados.csv`**, com 1 698 serviços;
+  - EAP única × EAP codificada: 0 diferença;
+  - completude da EAP única:
+
+    | Tipo | Preenchidas | Calculadas | Declaradas | Total | Obrigatórias que saíram de "a preencher" |
+    |---|---|---|---|---|---|
+    | Localizada | 6 | 8 | 6 | 45 | OP.04.06 Armadura, OP.04.07 Concreto |
+    | Linear | 1 | 10 | — | 32 | OL.05.01 Reaterro, OL.05.03 Bota-fora |
+
+- **Para o Caio decidir**: a vala tem dois caminhos com números diferentes, a `vala_rede` (por metro de eixo) e a vala
+  do trecho (serviços complementares). Exemplo: demolição da AAT00 de 3 413 m² × 2 149 m². Por ora vale a
+  `vala_rede`.
+- Lição L070.
+
 ## 0.71.0 — 2026-11-04 · F3 da reconstrução: a EAP preenchida só pelas gavetas
 - **`camadas/eap_preencher.py`** (novo): o passo 6 do fluxo do Caio.
   - Um laço sobre os itens técnicos de `eap_geral.jsonl` mede cada um pelos fatos das gavetas (soma de propriedade,

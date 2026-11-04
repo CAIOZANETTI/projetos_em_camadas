@@ -582,6 +582,9 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
                       _sem_os_que_ja_tem(registros, base))
     else:
         faltou.append("elementos construtivos" if tem_pdf else "elementos construtivos (sem PDF de prancha no obra.json)")
+    complementares = _complementares(base, dados, out, log) if (dados.get("crs") or {}).get("epsg") else None
+    if complementares:
+        base = complementares.pop("base")
     erros = gavetas.conferir_base(base)
     gavetas.gravar(pasta, base)
     ev = {e["evidencia_id"]: e for e in base["evidencias"]}
@@ -591,6 +594,7 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
               "fatos_com_pagina": com_pagina, "fatos": len(base["fatos"]),
               "documentos_por_classe": dict(sorted(Counter(d.get("classe") for d in base["documentos"]).items())),
               "faltou": faltou, "erros": erros}
+    resumo["complementares"] = complementares
     resumo["eap_unica"] = _eap_unica(base, dados, out, log)
     (Path(out) / "gavetas_escopo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas (escopo): {len(base['documentos'])} documentos, {len(base['paginas'])} páginas, "
@@ -598,6 +602,22 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
         f"{len(base['pendencias'])} pendências, {len(erros)} erros de conferência"
         + (f"; faltou: {', '.join(faltou)}" if faltou else ""))
     return resumo
+
+
+def _complementares(base: dict, dados: dict, out: Path, log=print) -> dict:
+    """F4: serviços complementares (`gavetas_servicos`, regras de `servicos_associados.jsonl`) calculados das gavetas e
+    gravados nelas (idempotente: os da rodada anterior são trocados), com a paridade contra o `associados.csv` deste build."""
+    from . import gavetas_servicos
+
+    r = gavetas_servicos.complementares(base, dados["crs"]["epsg"])
+    nova = _substituir(base, {g: r.get(g, []) for g in ("servicos", "evidencias", "pendencias")})
+    csv = Path(out) / "associados.csv"
+    difs = gavetas_servicos.paridade([s for s in nova["servicos"] if str(s.get("regra", "")).startswith("associado:")], csv) \
+        if csv.exists() else None
+    log(f"Complementares (pelas gavetas): {len(r.get('servicos', []))} serviços, {len(r.get('pendencias', []))} pendências; "
+        + (f"paridade com o associados.csv: {len(difs)} diferença(s)" if difs is not None else "sem associados.csv no build"))
+    return {"base": nova, "servicos": len(r.get("servicos", [])), "pendencias": len(r.get("pendencias", [])),
+            "paridade_associados": len(difs) if difs is not None else None, "diferencas": (difs or [])[:20]}
 
 
 def _eap_unica(base: dict, dados: dict, out: Path, log=print) -> dict:
@@ -611,8 +631,9 @@ def _eap_unica(base: dict, dados: dict, out: Path, log=print) -> dict:
     difs = eap_preencher.paridade(eap_preencher.itens_tecnicos(base), codificada) if codificada else []
     (Path(out) / "eap_unica.json").write_text(json.dumps({**eap, "paridade_eap_codificada": difs}, ensure_ascii=False,
                                                          indent=1), encoding="utf-8")
-    comp = {t: f"{c.get('preenchida', 0)}/{c.get('folhas', 0)}" for t, c in eap["completude"].items()}
-    log(f"EAP única (pelas gavetas): folhas preenchidas {comp}; paridade com a EAP codificada: "
+    comp = {t: f"{c.get('preenchida', 0)} preenchidas + {c.get('calculada', 0)} calculadas + {c.get('declarada', 0)} "
+               f"declaradas de {c.get('folhas', 0)}" for t, c in eap["completude"].items()}
+    log(f"EAP única (pelas gavetas): {comp}; paridade com a EAP codificada: "
         + (f"{len(difs)} diferença(s)" if codificada else "sem EAP codificada no build"))
     return {"completude": eap["completude"], "paridade_eap_codificada": len(difs) if codificada else None,
             "quantidades_comparadas": len(codificada)}

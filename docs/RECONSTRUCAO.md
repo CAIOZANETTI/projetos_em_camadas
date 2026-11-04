@@ -44,8 +44,9 @@ As fases da §3 foram reorganizadas nesses passos.
 |---|---|---|---|
 | F0 | 0.69.0 | feita (PR #79) | decisões registradas; gavetas v2; golden das quantidades |
 | F1+F2 | 0.70.0 | feita (PR #79) | 324 documentos, 1 483 páginas, 1 514 objetos, 7 327 fatos (5 987 com página), 0 erros |
-| F3 | 0.71.0 | feita (este PR) | EAP pelas gavetas: paridade 37/37; localizada 9/45 folhas preenchidas (+6 declaradas), linear 5/32 |
-| F4 | — | próxima | serviços complementares lendo e gravando nas gavetas |
+| F3 | 0.71.0 | feita (PR #80) | EAP pelas gavetas: paridade 37/37 |
+| F4 | 0.72.0 | feita (este PR) | complementares pelas gavetas: paridade 25/25 com o associados.csv; localizada 6 preenchidas + 8 calculadas + 6 declaradas de 45, linear 1 + 10 de 32 |
+| F5 | — | próxima | laço até a EAP completa: folha a preencher → documento esperado → novo passe de extração |
 
 ## 1. Diagnóstico: o que temos (0.68.0)
 
