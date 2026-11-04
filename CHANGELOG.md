@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.59.0 — 2026-11-04 · A4: o fundo de cada cava pela marca de cota da própria estrutura
+- **`escavacao.ligar_marcas`**: cada base de escavação recebe o fundo nesta ordem: marca interna; cota escrita sem
+  símbolo (lida por OCR, com cache versionado); só então a marca vizinha a até 3 m, com alerta. A origem fica
+  registrada por base.
+- **Fundo na cava pela base mais próxima da mesma região**, a mesma regra da superfície do talude, no lugar da "marca
+  mais próxima". Era o mecanismo pelo qual a marca de uma estrutura rasa vizinha sujava a cava funda.
+- **Foz:** escavação 7 905 → **8 904 m³ (+12,6 %)**:
+  - +793 m³ na estrutura cortada por LL (238,07 → 235,57, a marca interna);
+  - +166 m³ na Câmara de Contato (→ 235,35, a cota escrita);
+  - HH passa a conferir; conferência 2/4/12 → 3/3/12.
+- **Não resolvido:**
+  - FF: 235,97 não está na planta 007, e o "TOPO" a 90° não é lido;
+  - a envoltória, que vai para uma rodada própria com hash novo declarado.
+
+  Relatório em `docs/plano/2026-11-04_a4_marcas_de_cota.md`.
+- Lição L055.
+
+## 0.58.0 — 2026-11-04 · Rastreabilidade do HTML e o build de Foz com o terreno da 0.56
+- **`docs/RASTREABILIDADE.md`**: o que gerou cada parte do HTML. Traz:
+  - as sessões (branches) e os PRs de cada uma;
+  - a tabela versão × PR × branch, gerada do git por `scripts/rastreabilidade.py` (primeiro pai da main; PR em squash
+    pelo `docs/rastreabilidade_ramos.json`);
+  - os pedidos do Caio × a versão que os entregou;
+  - as decisões que mudaram entregas e as pendências;
+  - o HTML da main parte por parte.
+- **Correção (`escavacao._furos_da_obra`)**: com o scipy instalado, o build de Foz quebrava na validação do terreno
+  fora do casco (0.56). O `sondagens.json` tem furos com `E`, `N` ou `cota_boca` `null` (SPT-01…08, F-01…35); agora
+  só entram os furos com os três preenchidos. Sem o scipy, o build seguia com o MDS e o terreno da 0.56 não era aplicado.
+## 0.57.0 — 2026-11-04 · D10, D11, D12 e D13 na EAP padrão (frente WBS)
+- **D10** (decisão do Caio, 04/11): blocos de ancoragem e de apoio são um item só, `HID.TUB.ANC`, em qualquer unidade.
+  O item vale em obra localizada e linear e casa "bloco de apoio" de tubulação/curva/peça; folha nova `OP.07.04` (não
+  obrigatória) e títulos "BLOCOS DE ANCORAGEM"/"BLOCOS DE APOIO" em OP.07.
+- **D11** (decisão do Caio, 04/11): a água potável da U1 (622 m) conta uma vez só, como trecho de obra linear.
+  Declaração na obra (`eap_padrao.trechos_lineares`), aplicada **antes do `consolidar`**: a linha declarada recebe o
+  sistema `U1.AGUA_POTAVEL`, marcado em `unidades_construtivas.json` com `vista_eap_padrao: "linear"`; a vista da EAP
+  padrão é decidida por (unidade, sistema) (`eap.vista_do_codigo`), e `_derivadas` não cruza vistas. Em Foz, os 622 m
+  saem de OP.02.06 e entram em OL.03.01; as 7 linhas de vala FD da ETA ficam na localizada.
+- **D12** (04/11): os conceitos ajustados com o dado real de Foz (poço de visita para água, ALO como etapa 00,
+  hidrômetro DN 200 como macromedidor) ficam confirmados; nenhuma mudança de código.
+- **D13** (04/11): "lavagem de rede" é desinfecção e limpeza da rede. `GER.CTL.DSF` passa a valer também em obra
+  localizada e a EAP padrão localizada ganha `OP.12.04` (serviços finais, não obrigatória).
+- Correção de leitura do relatório de 03/11: "preenchidas" era inflado por tratar o valor vazio de fato "só menção"
+  como número; pelo caminho real (`evidencias._registros`), Foz fica com 9/44 (localizada) e 7/32 (linear).
+- Processo (acordos de `docs/ARQUITETURA.md` §16): plano `docs/plano/2026-11-04_wbs_d10_d11.md` aprovado pelo Fable
+  (2º parecer, com duas condições cumpridas), rumo em `results/rumo/wbs.yaml`, aceite do Fable sobre a entrega, versão
+  só no merge. Pendência registrada: trecho declarado × futura aba Obras Lineares (`U1.LINEARES`).
+- Lição L053.
+
 ## 0.56.0 — 2026-11-04 · Terreno das cavas: topografia do projeto no casco das curvas, MDS corrigido fora
 - **`camadas/topografia.py`**: lê as curvas de nível da GEOPLANTA (`Curvas_Mestras` e `Curvas_Auxiliares`, equidistância
   de 0,5 m):

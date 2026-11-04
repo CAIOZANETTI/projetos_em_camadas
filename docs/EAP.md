@@ -633,7 +633,7 @@ codificado" e de preenchimento manual continua valendo para folha futura (e é c
 | OP.12.01 Limpeza final · OL.11.02 Limpeza e recomposição final da faixa | `GER.FIN.LIM` (e `GER.FIN.FAI` na faixa) | ambas · linear |
 | OP.12.02 · OL.11.01 Cadastro e as built | `GER.FIN.CAD` | ambas |
 | OP.12.03 · OL.11.03 Desmobilização | `GER.FIN.DES` e `GER.PRE.MOB` · `mobilizacao` (linha "mobilização e desmobilização") | ambas |
-| OL.04.04 Ancoragens e blocos de ancoragem | `HID.TUB.ANC` | linear |
+| OL.04.04 Ancoragens e blocos de ancoragem · OP.07.04 Ancoragens, blocos de ancoragem e de apoio | `HID.TUB.ANC` | linear · localizada (decisão D10) |
 | OL.06.01 Travessias de rios, ferrovias e rodovias | `HID.TUB.TRV` | linear |
 | OL.06.02 Método não destrutivo (MND/HDD) | `HID.TUB.MND` | linear |
 | OL.07.02 Caixas e câmaras (descarga, ventosa, registro) | `HID.TUB.CAM` | linear |
@@ -682,6 +682,30 @@ Relatório com contagens antes × depois: `docs/plano/2026-11-03_foz_eap_padrao_
   piso); "monovia viga" da talha não é viga; "torneira parede" e "passa-muro" não são parede; "via" não casa "3 vias",
   "5/2 vias" nem "via rebite"; "registro passeio" não é calçada; "revestimento com asfalto" é recomposição; "central de
   preparação de ar" é equipamento; "escavação, escoramento, assentamento, reaterro…" é vala (`GEO.MOV.VAL`).
+- **D10: bloco de ancoragem e bloco de apoio são um item só** (`HID.TUB.ANC`, "Ancoragens, blocos de ancoragem e de
+  apoio"), em qualquer unidade: o item vale em obra localizada e linear, os termos casam também "bloco de apoio de
+  tubulação, curva ou peça" e "blocos de apoio e ancoragem" (bloco de apoio de equipamento não casa), e a obra localizada
+  ganhou a folha `OP.07.04` (não obrigatória) com os títulos "BLOCOS DE ANCORAGEM" e "BLOCOS DE APOIO" em `OP.07`. A regra
+  da cabeça da descrição continua (acessório). O sistema `BLOCOS_APOIO` de `unidades_construtivas.json` segue como o lugar
+  da geometria: a D10 trata do item (o quê), não do sistema (onde).
+- **D11: trecho linear dentro de unidade localizada** (`eap_padrao.trechos_lineares` do obra.json, `eap.vista_do_codigo`).
+  A água potável da U1 (título ÁGUA POTÁVEL, 622 m) conta **uma vez só**, na vista linear. A obra declara
+  `eap_padrao.trechos_lineares: [{unidade, titulo_etapa, sistema, justificativa}]` e a declaração age **antes do
+  `consolidar`**: em `evidencias.de_planilha` (e `titulos_da_planilha`), a linha da unidade sob aquele título recebe o
+  sistema declarado no código (`U1.AGUA_POTAVEL.GEO.MOV.VAL` em vez de `U1.*.GEO.MOV.VAL`). O sistema é registrado em
+  `unidades_construtivas.json` com o marcador `"vista_eap_padrao": "linear"` (valor desconhecido é recusado por
+  `eap.validar`; a vista **não** é deduzida da `tipologia`, e as `chaves` do sistema são mínimas para não casar `local`
+  nenhum). A vista de um código é uma função só do par (unidade, sistema): sistema marcado → linear, senão a obra da
+  unidade; por isso o mesmo número nunca entra nas duas vistas (fusão de fatos: duas linhas U1 iguais, uma declarada, uma
+  não, dão `OL.03.01` só com a declarada e `OP.02.06` só com a outra, com a mesma soma de antes). Consequências:
+  `evidencias._derivadas` não faz evidência concreta de sistema com vista linear virar parcela do fato `U*.*.X` de
+  outra vista; `_citacoes_por_etapa` avalia as linhas do título declarado contra as etapas lineares (OL.03 a OL.05;
+  `etapas_do_titulo("ÁGUA POTÁVEL", "obra_localizada")` continua vazio). Avisos de `montar`: declaração malformada
+  (unidade que não é localizada, título que não é de etapa, sistema sem vista linear, sem justificativa, duplicada),
+  obra sem o tipo linear, declaração sem linha na planilha e linha declarada com item e serviço que nenhuma folha linear
+  recebe (o número não pode sumir das duas vistas). Sem declaração nada muda. **Não muda:** as evidências da aba Obras
+  Lineares (`U1.LINEARES.*`) e os sistemas `rede_eta` da U1 (AB_ENTRADA, LODO_*…) seguem na vista localizada; generalizar
+  para "todo tubo interno da ETA" é decisão que o Caio não tomou. Plano: `docs/plano/2026-11-04_wbs_d10_d11.md`.
 
 **Item acessório e a cabeça da descrição** (`eap_geral.jsonl`: `"acessorio": true`, `evidencias._achados_da_cabeca`).
 Mobilização, desmobilização, topografia, sinalização, ensaios, comissionamento, desinfecção, CFTV, travessia, MND,
