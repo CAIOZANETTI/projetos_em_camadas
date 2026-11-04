@@ -40,8 +40,9 @@ GLIFOS_DO_ROTULO = (5, 7)                    # "235,35": 3 dígitos + vírgula +
 LADO_MAIOR_ROTULO_PT = (10.0, 45.0)          # caixa de um rótulo de cota (altura de texto ~ 5–8 pt)
 LADO_MENOR_ROTULO_PT = (3.0, 12.0)
 GLIFO_MAX_PT = 12.0                          # maior lado de um glifo (acima, é desenho, não letra)
+MAX_EXEMPLOS_ALERTA = 5                      # alertas de marca vizinha: quantos exemplos vão ao texto
 TOLERANCIA_DENTRO_M = 1e-6                   # distância até a base que ainda é "dentro" dela
-TOLERANCIA_COTA_IGUAL_M = 0.005              # cotas escritas com 2 casas: diferença menor que isso é o mesmo número
+TOLERANCIA_COTA_IGUAL_M = 0.05               # mesma cota apesar do OCR errar o último dígito (237,257 por 237,25; 236,14 por 236,16; aceite do Fable)
 
 
 def ler_cota(pagina, centro, dpi: int = 300, raio_pt: float = 50.0) -> dict | None:
@@ -364,7 +365,8 @@ def calcular(bs: list[dict], ms: list[dict], cristas: list, g: dict) -> dict:
     e0, n1, forma, terreno = g["e0"], g["n1"], g["forma"], g["terreno"]
     simbolos, escritas = _separar_escritas(ms)
     validas, fora_da_faixa = plausiveis(simbolos, g)
-    ligadas = ligar_marcas(bs, validas, plausiveis(escritas, g)[0])
+    escritas_ok, escritas_fora = plausiveis(escritas, g)              # as fora da faixa são OCR errado: contadas, não somem
+    ligadas = ligar_marcas(bs, validas, escritas_ok)
     usadas = [lig["base"] for lig in ligadas if lig["origem"] != "sem_marca"]
     fundo = fundo_na_grade(ligadas, e0, n1, res, forma)
     sup, base = superficie_da_cava(fundo, res, talude, folga)
@@ -387,7 +389,7 @@ def calcular(bs: list[dict], ms: list[dict], cristas: list, g: dict) -> dict:
             "origem_fundo": {o: sum(b["origem"] == o for b in bases_fundo) for o in ORIGENS_FUNDO},
             "alertas_fundo": [b["alerta"] for b in bases_fundo if b["alerta"]],
             "marcas": {**_resumo_marcas(simbolos), "fora_da_faixa": fora_da_faixa, "usadas": len(validas),
-                       **({"cotas_escritas": len(escritas)} if escritas else {})},
+                       **({"cotas_escritas": len(escritas), "escritas_fora_da_faixa": escritas_fora} if escritas else {})},
             "parametros": {"talude_h_v": talude, "folga_m": folga, "terreno_m": VALOR["terreno_m"], "res_m": res,
                            "edificacao_m2": round(float(g["edificacao"].sum() * res * res)),
                            **({"terreno": g["terreno_resumo"]} if "terreno_resumo" in g else {})}}
@@ -412,12 +414,16 @@ def _marcas_da_gaveta(marcas_cota: list[dict]) -> list[dict]:
 def _alertas_das_cavas(r: dict) -> list[str]:
     """Avisos do `calcular`: bases sem marca, marcas fora da faixa e cavas na borda do levantamento."""
     alertas = []
-    if r["alertas_fundo"]:
+    if r["alertas_fundo"]:      # agregado: a lista inteira fica em r["alertas_fundo"], não no HTML
+        exemplos = "; ".join(r["alertas_fundo"][:MAX_EXEMPLOS_ALERTA])
         alertas.append(f"{len(r['alertas_fundo'])} base(s) com o fundo pela marca vizinha (sem marca interna nem cota "
-                       f"escrita): {'; '.join(r['alertas_fundo'])}")
+                       f"escrita), por exemplo: {exemplos}")
     if r["bases_sem_marca"]:
         alertas.append(f"{r['bases_sem_marca']} base(s) sem marca de cota de fundo (dentro, escrita ou a ≤ "
-                       f"{VALOR['raio_marca_m']:g} m): ficam fora do cálculo")
+                       f"{VALOR['raio_marca_m']:g} m): as células delas recebem o fundo da base vizinha na mesma região")
+    if r["marcas"].get("escritas_fora_da_faixa"):
+        alertas.append(f"{r['marcas']['escritas_fora_da_faixa']} cota(s) escrita(s) fora da faixa do terreno: leitura "
+                       "de OCR provavelmente errada, ignoradas")
     if r["marcas"]["fora_da_faixa"]:
         alertas.append(f"{r['marcas']['fora_da_faixa']} marca(s) de cota fora da faixa do terreno "
                        "(terreno − 10 m a terreno + 0,5 m): ignoradas")

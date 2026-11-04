@@ -146,3 +146,24 @@ def test_cotas_escritas_le_o_rotulo_perto_da_base_e_pula_o_do_simbolo_e_o_de_lon
     assert achadas[0]["utm"] == pytest.approx([107.5, 195.0], abs=0.3)
     com_simbolo = escavacao.cotas_escritas(caminho, tracos, M, base, [{"pt": [152.0, 100.0]}])
     assert com_simbolo == []                                          # o número já é de um símbolo (a ≤ 30 pt)
+
+
+def test_rotulo_lido_com_um_digito_a_mais_ainda_e_do_simbolo_vizinho():
+    """Aceite do Fable: '237,257' (OCR de '237,25') escapava da regra de mesma cota com tolerância de 0,005 m."""
+    import numpy as np
+
+    from camadas import escavacao
+
+    simbolos = (np.array([[0.0, 0.0]]), np.array([237.25]))
+    escritas = (np.array([[1.4, 0.0], [1.4, 0.0]]), np.array([237.257, 236.80]))
+    assert escavacao._escritas_sem_dono(simbolos, escritas).tolist() == [False, True]
+
+
+def test_alertas_agregam_as_marcas_vizinhas_e_contam_as_escritas_descartadas():
+    from camadas import escavacao
+
+    r = {"alertas_fundo": [f"base {i}: fundo pela marca vizinha a 1,0 m" for i in range(83)], "bases_sem_marca": 43,
+         "marcas": {"fora_da_faixa": 0, "escritas_fora_da_faixa": 2}, "cavas": []}
+    alertas = escavacao._alertas_das_cavas(r)
+    assert alertas[0].startswith("83 base(s)") and alertas[0].count("base ") <= escavacao.MAX_EXEMPLOS_ALERTA + 1
+    assert any("mesma região" in a for a in alertas) and any("2 cota(s) escrita(s)" in a for a in alertas)
