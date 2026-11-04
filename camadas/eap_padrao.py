@@ -482,9 +482,26 @@ def separar_trechos_lineares(lista) -> tuple[list[dict], list[str]]:
     return validos, problemas
 
 
+def _trechos_da_obra(cfg: dict, tipos: list[str]) -> tuple[list[dict], list[str]]:
+    """(trechos aplicáveis, problemas) de `eap_padrao.trechos_lineares`. Fonte única de `trechos_do_cfg` e de `montar`:
+    em obra cujos `tipos` não incluem `obra_linear` a declaração é recusada (aviso) e nenhum trecho é aplicado, para a
+    linha ficar na vista localizada com o código original."""
+    trechos, problemas = separar_trechos_lineares(
+        _padrao_do_cfg(cfg).get("trechos_lineares")
+    )
+    if trechos and "obra_linear" not in tipos:
+        problemas.append(
+            "eap_padrao.trechos_lineares recusada: a obra não tem o tipo obra_linear; o trecho declarado não foi "
+            "aplicado e a linha segue na vista localizada com o código original"
+        )
+        return [], problemas
+    return trechos, problemas
+
+
 def trechos_do_cfg(cfg: dict) -> list[dict]:
-    """Trechos lineares válidos de `eap_padrao.trechos_lineares` do obra.json (os inválidos viram aviso em `montar`)."""
-    return separar_trechos_lineares(_padrao_do_cfg(cfg).get("trechos_lineares"))[0]
+    """Trechos lineares válidos e aplicáveis de `eap_padrao.trechos_lineares` do obra.json: os inválidos e a declaração
+    em obra sem tipo `obra_linear` (`tipo_da_obra`) são recusados e viram aviso em `montar`."""
+    return _trechos_da_obra(cfg, tipo_da_obra(cfg, []))[0]
 
 
 def _so_dos_tipos(
@@ -508,20 +525,51 @@ def _item_do_codigo(codigo: str) -> str:
     return ".".join(str(codigo).split(".")[2:])
 
 
-def _indice_quantidades(eap_codificada: dict | None) -> dict[str, list[dict]]:
-    """Quantidades da EAP codificada agrupadas pelo item (sem unidade e sistema)."""
+def _par_do_codigo(codigo: str) -> tuple[str, str]:
+    """(unidade, sistema) em minúsculas de um código `U1.SISTEMA.ITEM` (sistema `*` se faltar)."""
+    return tuple((str(codigo).lower().split(".") + ["*"])[:2])
+
+
+def _pares_declarados(trechos: list[dict]) -> set[tuple[str, str]]:
+    """{(unidade, sistema)} em minúsculas dos trechos lineares declarados (`separar_trechos_lineares`)."""
+    return {(t["unidade"].lower(), t["sistema"].lower()) for t in trechos}
+
+
+def sistema_linear_nao_declarado(
+    codigo: str, declarados: set[tuple[str, str]] | None
+) -> bool:
+    """O código é de sistema com vista linear dentro de unidade localizada (`eap.eh_trecho_linear`) e a obra não declara
+    essa (unidade, sistema). `declarados` None = não conferir (chamada direta de `preencher`, sem obra). Esse número não
+    entra em nenhuma vista da EAP padrão (D11): o sistema linear só vale com a declaração da obra."""
+    return (
+        declarados is not None
+        and eap.eh_trecho_linear(codigo)
+        and _par_do_codigo(codigo) not in declarados
+    )
+
+
+def _indice_quantidades(
+    eap_codificada: dict | None, declarados: set[tuple[str, str]] | None = None
+) -> dict[str, list[dict]]:
+    """Quantidades da EAP codificada agrupadas pelo item (sem unidade e sistema); fica de fora o sistema linear não
+    declarado (`sistema_linear_nao_declarado`)."""
     indice: dict[str, list[dict]] = {}
     for q in (eap_codificada or {}).get("quantidades") or []:
-        indice.setdefault(_item_do_codigo(q["codigo"]), []).append(q)
+        if not sistema_linear_nao_declarado(q["codigo"], declarados):
+            indice.setdefault(_item_do_codigo(q["codigo"]), []).append(q)
     return indice
 
 
-def _indice_fatos(evidencias: dict | list | None) -> dict[str, list[dict]]:
-    """Fatos agrupados pelo item; aceita `dados["evidencias"]` (dict com `fatos`) ou a própria lista de fatos."""
+def _indice_fatos(
+    evidencias: dict | list | None, declarados: set[tuple[str, str]] | None = None
+) -> dict[str, list[dict]]:
+    """Fatos agrupados pelo item; aceita `dados["evidencias"]` (dict com `fatos`) ou a própria lista de fatos. Fica de
+    fora o sistema linear não declarado (`sistema_linear_nao_declarado`)."""
     lista = evidencias.get("fatos") if isinstance(evidencias, dict) else evidencias
     indice: dict[str, list[dict]] = {}
     for f in lista or []:
-        indice.setdefault(_item_do_codigo(f["codigo"]), []).append(f)
+        if not sistema_linear_nao_declarado(f["codigo"], declarados):
+            indice.setdefault(_item_do_codigo(f["codigo"]), []).append(f)
     return indice
 
 
@@ -779,7 +827,11 @@ def _nova_citacao() -> dict:
     return {"sem_item": [], "fora": []}
 
 
-def _citacoes_por_etapa(tipo: str, linhas: list[dict] | None) -> dict[str, dict]:
+def _citacoes_por_etapa(
+    tipo: str,
+    linhas: list[dict] | None,
+    declarados: set[tuple[str, str]] | None = None,
+) -> dict[str, dict]:
     """Linhas da planilha sob título de etapa, por etapa do `tipo` (id → {sem_item, fora}). Só vale a linha de unidade
     da mesma vista (a linha de trecho linear declarado, com `sistema`, vale na vista linear), sob título que alguma etapa
     do tipo lista. Regra: (a) item apontado por folha da etapa do
@@ -788,9 +840,10 @@ def _citacoes_por_etapa(tipo: str, linhas: list[dict] | None) -> dict[str, dict]
     itens = {e["id"]: _itens_da_etapa(e) for e in TIPOS[tipo]["etapas"]}
     por_etapa: dict[str, dict] = {}
     for linha in linhas or []:
-        obra = eap.vista_do_codigo(
-            f"{linha.get('unidade', '')}.{linha.get('sistema', '*')}"
-        )
+        codigo = f"{linha.get('unidade', '')}.{linha.get('sistema', '*')}"
+        if sistema_linear_nao_declarado(codigo, declarados):
+            continue
+        obra = eap.vista_do_codigo(codigo)
         if obra != OBRA_DO_TIPO[tipo]:
             continue
         etapas = etapas_do_titulo(linha.get("titulo_etapa"), tipo)
@@ -853,20 +906,12 @@ def _folha_linear_recebe(item: str, servico: str | None) -> bool:
     )
 
 
-def _avisos_dos_trechos(
-    trechos: list[dict], linhas: list[dict] | None, tipos: list[str]
-) -> list[str]:
-    """Avisos de `eap_padrao.trechos_lineares`: obra sem o tipo linear, declaração sem linha na planilha e linha
-    declarada com item e serviço que nenhuma folha linear recebe (o número sumiria das duas vistas)."""
-    if not trechos:
+def _avisos_dos_trechos(trechos: list[dict], linhas: list[dict] | None) -> list[str]:
+    """Avisos de `eap_padrao.trechos_lineares` (já aplicáveis, `_trechos_da_obra`): declaração sem linha na planilha e
+    linha declarada com item e serviço que nenhuma folha linear recebe (o número sumiria das duas vistas)."""
+    if not trechos or linhas is None:
         return []
     avisos = []
-    if "obra_linear" not in tipos:
-        avisos.append(
-            "eap_padrao.trechos_lineares: a obra não tem o tipo obra_linear; o trecho declarado não aparece em nenhuma vista"
-        )
-    if linhas is None:
-        return avisos
     declaradas = [linha for linha in linhas if linha.get("sistema")]
     avisos += [
         f"eap_padrao.trechos_lineares: nenhuma linha da unidade {t['unidade']} sob o título «{t['titulo_etapa']}» na planilha; a declaração não teve efeito"
@@ -895,10 +940,61 @@ def _avisos_dos_trechos(
     return avisos
 
 
+def _avisos_nao_declarados(dados: dict, declarados: set[tuple[str, str]]) -> list[str]:
+    """Um aviso por fato (`dados["evidencias"]["fatos"]`) e por quantidade (`dados["eap"]["quantidades"]`) de código de
+    sistema linear que a obra não declara: nomeia código, serviço, valor e documento. O número fica fora das duas vistas
+    da EAP padrão (o fato segue em fatos.csv)."""
+    evidencias = dados.get("evidencias")
+    fatos = evidencias.get("fatos") if isinstance(evidencias, dict) else evidencias
+    avisos = []
+    for f in fatos or []:
+        if not sistema_linear_nao_declarado(f["codigo"], declarados):
+            continue
+        documentos = list(
+            dict.fromkeys(
+                [a["documento"] for a in f.get("afirmacoes") or []]
+                + [f"decisao:{d['autor']}" for d in f.get("decisoes") or []]
+            )
+        )
+        servico = SERVICOS.get(f.get("servico"), f.get("servico") or "sem serviço")
+        valor = (
+            "sem valor"
+            if f.get("valor") is None
+            else f"{_numero(f['valor'], f['unidade'])} {f['unidade']}".rstrip()
+        )
+        avisos.append(
+            f"Sistema de trecho linear não declarado na obra: {f['codigo']} ({servico}, {valor}; documento "
+            f"{', '.join(documentos) or 'não informado'}); o número fica fora das duas vistas da EAP padrão"
+        )
+    for q in (dados.get("eap") or {}).get("quantidades") or []:
+        if sistema_linear_nao_declarado(q["codigo"], declarados):
+            avisos.append(
+                f"Sistema de trecho linear não declarado na obra: {q['codigo']} ({q['grandeza']}, "
+                f"{_numero(q['quantidade'], q['unidade'])} {q['unidade']}; documento pranchas medidas, "
+                f"{len(q.get('evidencias') or [])} elemento(s)); o número fica fora das duas vistas da EAP padrão"
+            )
+    return list(dict.fromkeys(avisos))
+
+
 def _levantar(problemas: list[str]) -> None:
     """Modo estrito de `preencher`: o primeiro problema das declarações vira ValueError."""
     if problemas:
         raise ValueError(problemas[0])
+
+
+def _insumos(
+    tipo: str,
+    eap_codificada: dict | None,
+    evidencias: dict | list | None,
+    declarados: set[tuple[str, str]] | None,
+) -> tuple[tuple, dict[str, dict]]:
+    """((índice de quantidades, índice de fatos), citações por etapa) de `preencher`, sem o sistema linear não declarado."""
+    linhas = evidencias.get("titulos_etapa") if isinstance(evidencias, dict) else None
+    indices = (
+        _indice_quantidades(eap_codificada, declarados),
+        _indice_fatos(evidencias, declarados),
+    )
+    return indices, _citacoes_por_etapa(tipo, linhas, declarados)
 
 
 def preencher(
@@ -908,12 +1004,15 @@ def preencher(
     declaracoes: list[dict] | None = None,
     escopos: set[str] | None = None,
     manuais: list[dict] | None = None,
+    trechos_declarados: set[tuple[str, str]] | None = None,
 ) -> dict:
     """Preenche o esqueleto do `tipo` com a EAP codificada (`dados["eap"]`, só unidades do tipo de obra) e os fatos
     (`dados["evidencias"]`; a chave `titulos_etapa` traz as linhas da planilha sob título de etapa, de
     `evidencias.titulos_da_planilha`). `declaracoes` = `eap_padrao.nao_se_aplica` ({id, justificativa, autor}); `manuais` =
     `eap_padrao.preenchimento_manual` (folha sem item, com documento); `escopos` = escopos da obra (None = todos).
-    Registro inválido é ValueError claro (o `montar` converte em aviso). Devolve {tipo, nome, prefixo, etapas:
+    `trechos_declarados` = {(unidade, sistema)} em minúsculas dos trechos lineares da obra (`montar` sempre passa): o
+    código de sistema com vista linear fora dessa lista sai das duas vistas, sem virar "unidade não atribuível"
+    (None = não conferir). Registro inválido é ValueError claro (o `montar` converte em aviso). Devolve {tipo, nome, prefixo, etapas:
     [{id, nome, folhas, resumo, citada_no_contrato, n_linhas_citadas, exemplos_citados, citada_txt, avisos_titulo}],
     resumo}."""
     if tipo not in TIPOS:
@@ -929,10 +1028,7 @@ def preencher(
         "manuais": {m["id"]: m for m in validos},
         "escopos": escopos,
     }
-    indices = (_indice_quantidades(eap_codificada), _indice_fatos(evidencias))
-    citacoes = _citacoes_por_etapa(
-        tipo, evidencias.get("titulos_etapa") if isinstance(evidencias, dict) else None
-    )
+    indices, citacoes = _insumos(tipo, eap_codificada, evidencias, trechos_declarados)
     etapas, todas = [], []
     for etapa in TIPOS[tipo]["etapas"]:
         folhas = [
@@ -971,7 +1067,7 @@ def _configuracao(
     tipos = tipo_da_obra(cfg, avisos)
     declaracoes, p1 = separar_declaracoes(padrao.get("nao_se_aplica"))
     manuais, p2 = separar_manuais(padrao.get("preenchimento_manual"))
-    trechos, p3 = separar_trechos_lineares(padrao.get("trechos_lineares"))
+    trechos, p3 = _trechos_da_obra(cfg, tipos)
     avisos += p1 + p2 + p3
     return (
         tipos,
@@ -991,11 +1087,12 @@ def montar(dados: dict, cfg: dict, out: Path | None = None) -> dict:
         raise ValueError("eap_padrao.json inválido: " + "; ".join(erros))
     tipos, declaracoes, manuais, trechos = _configuracao(cfg, avisos)
     evidencias = dados.get("evidencias")
+    declarados = _pares_declarados(trechos)
     avisos += _avisos_dos_trechos(
         trechos,
         evidencias.get("titulos_etapa") if isinstance(evidencias, dict) else None,
-        tipos,
     )
+    avisos += _avisos_nao_declarados(dados, declarados)
     resultado = {
         "fonte": PADRAO["metadata"]["fonte"],
         "estado": PADRAO["metadata"]["estado"],
@@ -1009,6 +1106,7 @@ def montar(dados: dict, cfg: dict, out: Path | None = None) -> dict:
                 declaracoes,
                 escopos_do_tipo(t, cfg, avisos),
                 manuais,
+                declarados,
             )
             for t in tipos
         ],
