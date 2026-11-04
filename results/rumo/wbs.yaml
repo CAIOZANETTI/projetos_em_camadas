@@ -2,7 +2,7 @@ frente: wbs
 conversa: '[WBS] estrutura de projetos'
 objetivo: 'Travas da vista linear: sistema linear só com declaração na obra e declaração recusada em obra sem tipo linear'
 plano: docs/plano/2026-11-04_wbs_travas_vista_linear.md
-base: 531b666
+base: 81ed4e2
 criterio_de_pronto:
 - 'evidência com código de sistema linear sem declaração na obra é recusada na EAP padrão, com aviso'
 - 'declaração em obra sem tipo linear é recusada e a linha fica na localizada'

@@ -1,6 +1,6 @@
 # Frente WBS — ciclo de 04/11/2026 (2): travas da vista linear
 
-Frente: EAP, evidências e EAP padrão (conversa "[WBS] estrutura de projetos"). Base: `main` (0.57.0).
+Frente: EAP, evidências e EAP padrão (conversa "[WBS] estrutura de projetos"). Base: `main` 81ed4e2 (0.59.0).
 Versão só no merge (`docs/ARQUITETURA.md` §16). Origem: pendências do aceite do Fable no ciclo D10–D13
 (`docs/plano/2026-11-04_wbs_d10_d11.md`, seção Aceite).
 
