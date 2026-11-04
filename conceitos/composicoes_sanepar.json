@@ -7,9 +7,6 @@
  },
  "premissas": {
  "dmt_bota_fora_km": {"valor": 10, "unidade": "km", "estado": "calibrar", "descricao": "distância média de transporte do bota-fora (041901)", "fonte": "premissa do gerente aprovada pelo Caio em 04/11/2026 ('deixa a premissa'); calibrar com o TR/licenciamento e a produtividade real"},
- "produtividade_vala_escorada_m_por_dia": {"valor": 8, "unidade": "m/dia", "estado": "calibrar", "descricao": "avanço diário da vala escorada (900506)", "fonte": "premissa do gerente aprovada pelo Caio em 04/11/2026 ('deixa a premissa'); calibrar com o TR/licenciamento e a produtividade real"},
- "dias_uteis_por_mes": {"valor": 22, "unidade": "dia/mês", "estado": "calibrar", "descricao": "dias úteis por mês de locação do escoramento (900506)", "fonte": "premissa do gerente aprovada pelo Caio em 04/11/2026 ('deixa a premissa'); calibrar com o TR/licenciamento e a produtividade real"},
- "jogos_de_escoramento": {"valor": 1, "unidade": "un", "estado": "calibrar", "descricao": "jogos de escoramento blindado em uso simultâneo (900506)", "fonte": "premissa do gerente aprovada pelo Caio em 04/11/2026 ('deixa a premissa'); calibrar com o TR/licenciamento e a produtividade real"},
  "folga_locacao_lateral_m": {"valor": 0, "unidade": "m", "estado": "calibrar", "descricao": "folga de cada lado da vala na área de locação (020223); 0 = a locação é a própria faixa da vala", "fonte": "premissa do gerente (E2, 04/11/2026): a locação cobre a faixa da vala; calibrar com o TR/licenciamento"}
  },
  "tolerancias": {
@@ -35,7 +32,7 @@
   "CSONDREDE": {"descricao": "Sondagem para execução da rede", "folha_eap": null, "grandeza": "contagem", "unidade": "un", "regra": "sem_regra", "motivo": "o código não tem regra para sondagem da rede (quantidade de furos é decisão de execução)", "estado": "calibrar"},
   "030101": {"descricao": "Pesquisa e remanejamento de interferências", "folha_eap": null, "grandeza": "contagem", "unidade": "un", "regra": "sem_regra", "motivo": "interferências só se conhecem com o cadastro de redes existentes, que o projeto não traz", "estado": "calibrar"},
   "030903": {"descricao": "Locação de caçamba para destinação de entulho", "folha_eap": null, "grandeza": "contagem", "unidade": "un", "regra": "sem_regra", "motivo": "o número de caçambas depende do volume de entulho e do plano de demolição, que não existem no código", "estado": "calibrar"},
-  "900506": {"descricao": "Locação de escoramento blindado", "folha_eap": "OP.02.06", "grandeza": "prazo_equipamento", "unidade": "un/mês", "regra": "escoramento_meses", "estado": "premissa", "observacao": "sem cronograma (decisão de 30/10) não há mês: a regra depende de um prazo por trecho como premissa, senão fica a preencher"},
+  "900506": {"descricao": "Locação de escoramento blindado", "folha_eap": "OP.02.06", "grandeza": "prazo_equipamento", "unidade": "un/mês", "regra": "sem_regra", "estado": "confirmado", "motivo": "depende de prazo de execução: fora do escopo (decisão do Caio, 04/11/2026: sem prazo)"},
   "CRELF1": {"descricao": "Rebaixamento de lençol freático com ponteiras (wellpoint)", "folha_eap": "OP.02.03", "grandeza": "verba", "unidade": "vb", "regra": "rebaixamento_vb", "estado": "premissa", "observacao": "1 se o NA do furo mais próximo está acima do fundo da vala; 0 se não"},
   "041801": {"descricao": "Carga e descarga de solos", "folha_eap": "OP.02.05", "grandeza": "volume", "unidade": "m3", "regra": "escavacao_trecho", "estado": "confirmado"},
   "900603": {"descricao": "Bota-fora para depósito de material inservível", "folha_eap": "OP.02.05", "grandeza": "volume", "unidade": "m3", "regra": "bota_fora_trecho", "estado": "confirmado"},
