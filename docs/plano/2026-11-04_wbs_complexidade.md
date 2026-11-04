@@ -18,7 +18,6 @@ frente** (os outros, como `extrair_gavetas.etapa` e `prancha.*`, são de outras 
 | E2 | `_status` — C (18) | `camadas/eap.py` | ≤ 10 |
 | E3 | `_avisos_nao_declarados` — D (22) | `camadas/eap_padrao.py` | ≤ 10: um gerador por origem (fatos, recusadas, quantidades) |
 | E4 | `etapa` — C (20) | `camadas/evidencias.py` | ≤ 10: montagem das fontes e registro no log em funções próprias |
-| E5 | `valor_txt` — C (20) | `camadas/eap_html.py` | ≤ 10 (formatação em Python; o HTML só apresenta) |
 | E6 | Registro | `results/rumo/wbs.yaml`, este plano, `CHANGELOG.md`, `camadas/__init__.py`, `pdca/licoes.jsonl`, `results/agentes/execucoes.csv`, `pdca/afericao.jsonl` | versão no merge, lição, aceite |
 
 ## Contrato (o que não pode mudar)
@@ -38,6 +37,24 @@ frente** (os outros, como `extrair_gavetas.etapa` e `prancha.*`, são de outras 
 - `uvx radon cc` antes × depois das cinco funções e das novas (nenhuma nova acima de 10).
 - `vcm balanco` sem REVERTER; esperado ganho em "enxuto" (complexidade média).
 - Aceite do Fable antes do PR.
+
+## Parecer do Fable sobre o plano: APROVA COM AJUSTES
+
+Obrigatórios (incorporados):
+1. **Caracterização antes de refatorar** (testes novos, no mesmo PR, sem alterar os existentes; commit próprio antes da
+   refatoração): `eap.validar` com `monkeypatch` de `GERAL`/`REGRAS`, um item quebrado por bloco, asserindo a lista
+   inteira e a ordem (repetidos → pacote → por item → vistas → pranchas); as funções novas leem os globais do módulo
+   na chamada, não no import. `evidencias.etapa`: lista completa do `log` num caso com `ia` e `decisoes` no cfg (e o
+   ramo `extras`), preservando a ordem de avaliação (`_documentos` antes de `_obras_lineares_da_obra`; `return None`
+   depois dos logs de recusa e antes de `gravar`).
+2. `_avisos_nao_declarados`: manter ordem fatos → recusadas → quantidades e a deduplicação final; `_status`: ordem dos
+   retornos antecipados e o `float(linha.get("quantidade", np.nan))`.
+3. `ruff format` só em `eap_padrao.py` (os outros não estavam formatados).
+
+Decisão do gerente: `eap_html.valor_txt` **sai do ciclo** — formata propriedades de `gavetas.json` (frente Geo Bd,
+§13); fica para combinar com aquela conversa. Opcionais aceitos: funções novas com ao menos ~2 ramos (sem
+pulverizar); `pytest --cov-branch` antes × depois nos módulos tocados. Os roteiros de ataque ficam no scratchpad e
+são rodados por caminho absoluto, contra o worktree.
 
 ## Agentes
 

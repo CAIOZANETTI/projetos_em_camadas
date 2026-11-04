@@ -1,21 +1,21 @@
 ## Rumo do desenvolvimento
 
-**Objetivo:** Recusar com motivo o documento de leitura com unidade/sistema fora do padrão (sem exceção) e fechar os opcionais do aceite da 0.62
+**Objetivo:** Reduzir a complexidade das quatro funções mais complexas da frente WBS (eap, eap_padrao, evidencias, eap_html) sem mudar nenhuma saída
 
-`░░░░░░░░░░ 0%`
+`▓▓░░░░░░░░ 18%`
 
 **Tempo:** Nenhuma etapa iniciada.
 
 | Etapa | Nome | Status | Agente | Est. min | Est. tokens | Real min | IA h | Real tokens | Razão |
 |---|---|---|---|--:|--:|--:|--:|--:|--:|
-| E1 | documento validado na entrada | ⏳ a_fazer | sonnet | 20 | 0 | — | — | — | — |
-| E2 | aviso genérico e metadados | ⏳ a_fazer | sonnet | 10 | 0 | — | — | — | — |
-| E3 | testes | ⏳ a_fazer | sonnet | 20 | 0 | — | — | — | — |
+| E1 | caracterização e eap.validar/_status | 🔄 fazendo | sonnet | 30 | 0 | — | — | — | — |
+| E2 | eap_padrao._avisos_nao_declarados | ⏳ a_fazer | sonnet | 15 | 0 | — | — | — | — |
+| E3 | evidencias.etapa | ⏳ a_fazer | sonnet | 20 | 0 | — | — | — | — |
 | E4 | registro | ⏳ a_fazer | opus | 20 | 0 | — | — | — | — |
 
 **Desvios:** nenhum
 
-**Próxima etapa:** E1
+**Próxima etapa:** E2
 
 ### Correções sugeridas
 
