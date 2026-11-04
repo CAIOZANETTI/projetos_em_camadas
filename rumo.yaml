@@ -16,7 +16,7 @@ etapas:
   estimativa_tokens: 250000
   status: feito
   inicio: '2026-11-04T13:41:10Z'
-  fim: '2026-11-04T14:05:00Z'
+  fim: '2026-11-04T13:49:48Z'
 - id: E2
   nome: Build real, aceite do Fable, balanço, PR e merge
   entregaveis:
@@ -30,7 +30,7 @@ etapas:
   estimativa_min: 45
   estimativa_tokens: 120000
   status: feito
-  inicio: '2026-11-04T14:05:00Z'
+  inicio: '2026-11-04T13:49:48Z'
   fim: '2026-11-04T13:58:50Z'
 historico:
 - data: '2026-11-04'
