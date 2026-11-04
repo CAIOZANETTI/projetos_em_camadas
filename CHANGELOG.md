@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.57.0 — 2026-11-04 · D10 e D11 na EAP padrão (frente WBS)
+## 0.57.0 — 2026-11-04 · D10, D11, D12 e D13 na EAP padrão (frente WBS)
 - **D10** (decisão do Caio, 04/11): blocos de ancoragem e de apoio são um item só, `HID.TUB.ANC`, em qualquer unidade.
   O item vale em obra localizada e linear e casa "bloco de apoio" de tubulação/curva/peça; folha nova `OP.07.04` (não
   obrigatória) e títulos "BLOCOS DE ANCORAGEM"/"BLOCOS DE APOIO" em OP.07.
@@ -9,6 +9,10 @@
   sistema `U1.AGUA_POTAVEL`, marcado em `unidades_construtivas.json` com `vista_eap_padrao: "linear"`; a vista da EAP
   padrão é decidida por (unidade, sistema) (`eap.vista_do_codigo`), e `_derivadas` não cruza vistas. Em Foz, os 622 m
   saem de OP.02.06 e entram em OL.03.01; as 7 linhas de vala FD da ETA ficam na localizada.
+- **D12** (04/11): os conceitos ajustados com o dado real de Foz (poço de visita para água, ALO como etapa 00,
+  hidrômetro DN 200 como macromedidor) ficam confirmados; nenhuma mudança de código.
+- **D13** (04/11): "lavagem de rede" é desinfecção e limpeza da rede. `GER.CTL.DSF` passa a valer também em obra
+  localizada e a EAP padrão localizada ganha `OP.12.04` (serviços finais, não obrigatória).
 - Correção de leitura do relatório de 03/11: "preenchidas" era inflado por tratar o valor vazio de fato "só menção"
   como número; pelo caminho real (`evidencias._registros`), Foz fica com 9/44 (localizada) e 7/32 (linear).
 - Processo (acordos de `docs/ARQUITETURA.md` §16): plano `docs/plano/2026-11-04_wbs_d10_d11.md` aprovado pelo Fable

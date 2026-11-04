@@ -260,11 +260,11 @@ def test_servico_associado_e_calculada_nao_preenchida():
     r = bloco["resumo"]
     assert (
         r["n_calculadas"] == 1
-        and r["pct_calculada_txt"] == "2,3 % calculada"
-        and r["pct_txt"] == "6,8 %"
+        and r["pct_calculada_txt"] == "2,2 % calculada"
+        and r["pct_txt"] == "6,7 %"
     )
     assert (
-        r["n_preenchidas"] == 3 and r["n_aplicaveis"] == 44
+        r["n_preenchidas"] == 3 and r["n_aplicaveis"] == 45
     )  # calculada fica no denominador
 
 
@@ -364,7 +364,7 @@ def test_nao_se_aplica_com_quantidade_real_vira_conflito_no_denominador():
         and f["destaque"] is True
     )
     assert f["classe"] == "conflito" and f["quantidades_txt"] == ["12 un"]
-    assert bloco["resumo"]["n_aplicaveis"] == 44 and bloco["resumo"]["conflitos"] == 1
+    assert bloco["resumo"]["n_aplicaveis"] == 45 and bloco["resumo"]["conflitos"] == 1
     assert bloco["resumo"]["n_preenchidas"] == 0
 
 
@@ -385,12 +385,12 @@ def test_percentual_por_etapa_e_total_excluem_nao_se_aplica():
     assert r["pct"] == pytest.approx(33.3, abs=0.05) and r["pct_txt"] == "33,3 %"
     total = bloco["resumo"]
     assert (
-        total["n_folhas"] == 44
-        and total["n_aplicaveis"] == 42
+        total["n_folhas"] == 45
+        and total["n_aplicaveis"] == 43
         and total["n_preenchidas"] == 2
     )
-    assert total["pct_txt"] == "4,8 %"
-    assert sum(s["n"] for s in total["por_situacao"]) == 44
+    assert total["pct_txt"] == "4,7 %"
+    assert sum(s["n"] for s in total["por_situacao"]) == 45
 
 
 def test_etapa_toda_fora_do_denominador_nao_divide_por_zero():
@@ -422,9 +422,9 @@ def test_preenchimento_manual_de_folha_sem_item_com_documento(monkeypatch):
     assert (
         r["n_preenchidas"] == 1
         and r["n_sem_item"] == 8
-        and r["teto_pct"] == pytest.approx(81.8, abs=0.05)
+        and r["teto_pct"] == pytest.approx(82.2, abs=0.05)
     )
-    assert r["teto_txt"] == "teto sem preenchimento manual: 81,8 %"
+    assert r["teto_txt"] == "teto sem preenchimento manual: 82,2 %"
     problemas = {
         "documento": {"id": "OP.12.02", "quantidade": 1, "unidade": "vb"},
         "com item": {
@@ -460,7 +460,7 @@ def test_escopo_da_folha_fora_do_escopo_da_obra_sai_do_denominador(monkeypatch):
         f["OP.07.03"]["situacao"] == "fora do escopo"
         and f["OP.07.03"]["destaque"] is False
     )
-    assert bloco["resumo"]["n_aplicaveis"] == 43
+    assert bloco["resumo"]["n_aplicaveis"] == 44
     com_esgoto = eap_padrao.preencher(
         "obra_localizada", None, escopos={"agua", "esgoto"}
     )

@@ -288,3 +288,28 @@ def test_d10_linha_de_bloco_de_apoio_preenche_a_folha_na_u1_e_na_u2():
         bloco = eap_padrao.preencher(tipo, None, fatos)
         f = next(f for e in bloco["etapas"] for f in e["folhas"] if f["id"] == folha)
         assert f["situacao"] == "preenchida" and texto in f["quantidades_txt"][0]
+
+
+# D13 (04/11): "lavagem de rede" é desinfecção e limpeza da rede (GER.CTL.DSF), também na ETA (obra localizada).
+@pytest.mark.parametrize("obra", ["localizada", "linear"])
+def test_d13_lavagem_de_rede_e_desinfeccao(obra):
+    from camadas import evidencias, vocabulario
+
+    item, servico, _ = evidencias.classificar(vocabulario.preparar("LAVAGEM DE REDE")[1], obra)
+    assert (item, servico) == ("GER.CTL.DSF", "desinfeccao")
+
+
+@pytest.mark.parametrize("frase", ["LAVAGEM DE REDE COLETORA", "LAVAGEM DO RESERVATORIO"])
+def test_d13_nao_alcanca_esgoto_nem_reservatorio(frase):
+    from camadas import evidencias, vocabulario
+
+    item, _, _ = evidencias.classificar(vocabulario.preparar(frase)[1], "localizada")
+    assert item != "GER.CTL.DSF"
+
+
+def test_d13_folha_da_eap_padrao_localizada_aponta_desinfeccao():
+    from camadas import eap_padrao
+
+    folhas = {f["id"]: f for e in eap_padrao.TIPOS["obra_localizada"]["etapas"] for f in e["folhas"]}
+    assert folhas["OP.12.04"]["aponta"] == [{"item": "GER.CTL.DSF"}]
+    assert folhas["OP.12.04"]["obrigatoria"] is False
