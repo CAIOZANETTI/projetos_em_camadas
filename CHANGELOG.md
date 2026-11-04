@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.58.0 — 2026-11-04 · Rastreabilidade do HTML e o build de Foz com o terreno da 0.56
+- **`docs/RASTREABILIDADE.md`**: o que gerou cada parte do HTML. Traz:
+  - as sessões (branches) e os PRs de cada uma;
+  - a tabela versão × PR × branch, gerada do git por `scripts/rastreabilidade.py` (primeiro pai da main; PR em squash
+    pelo `docs/rastreabilidade_ramos.json`);
+  - os pedidos do Caio × a versão que os entregou;
+  - as decisões que mudaram entregas e as pendências;
+  - o HTML da main parte por parte.
+- **Correção (`escavacao._furos_da_obra`)**: com o scipy instalado, o build de Foz quebrava na validação do terreno
+  fora do casco (0.56). O `sondagens.json` tem furos com `E`, `N` ou `cota_boca` `null` (SPT-01…08, F-01…35); agora
+  só entram os furos com os três preenchidos. Sem o scipy, o build seguia com o MDS e o terreno da 0.56 não era aplicado.
 ## 0.57.0 — 2026-11-04 · D10, D11, D12 e D13 na EAP padrão (frente WBS)
 - **D10** (decisão do Caio, 04/11): blocos de ancoragem e de apoio são um item só, `HID.TUB.ANC`, em qualquer unidade.
   O item vale em obra localizada e linear e casa "bloco de apoio" de tubulação/curva/peça; folha nova `OP.07.04` (não

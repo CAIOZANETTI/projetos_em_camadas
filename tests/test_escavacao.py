@@ -80,3 +80,15 @@ def test_ler_cota_ao_lado_do_simbolo():
     pg.insert_text((100, 160), "239,20 TOPO", fontsize=9)
     assert escavacao.ler_cota(pg, np.array([100.0, 100.0]))["cota"] == pytest.approx(237.45)
     assert escavacao.ler_cota(pg, np.array([30.0, 30.0])) is None
+
+
+def test_furos_da_obra_sem_coordenada_ficam_fora(tmp_path):
+    """Furo com E, N ou cota_boca null (desconhecido) não entra na validação do terreno (quebrava o build de Foz)."""
+    arq = tmp_path / "sondagens.json"
+    arq.write_text(
+        '{"furos": [{"id": "SP-01", "E": 1.0, "N": 2.0, "cota_boca": 3.0},'
+        ' {"id": "SPT-01", "E": null, "N": null, "cota_boca": 100.0},'
+        ' {"id": "F-01", "E": null, "N": null, "cota_boca": null}, {"id": "F-02", "E": 1.0, "N": 2.0}]}',
+        encoding="utf-8",
+    )
+    assert [f["id"] for f in escavacao._furos_da_obra({"sondagens": str(arq)})] == ["SP-01"]
