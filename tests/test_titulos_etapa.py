@@ -570,9 +570,17 @@ def test_d11_declaracao_valida_e_recusas():
         assert len(problemas) == 1 and texto in problemas[0], (lista, problemas)
     assert eap_padrao.separar_trechos_lineares(None) == ([], [])
     assert eap_padrao.trechos_do_cfg({}) == []
-    assert eap_padrao.trechos_do_cfg(
-        {"eap_padrao": {"trechos_lineares": [TRECHO]}}
-    ) == [TRECHO]
+    mista = {
+        "eap_padrao": {
+            "tipo": ["obra_localizada", "obra_linear"],
+            "trechos_lineares": [TRECHO],
+        }
+    }
+    assert eap_padrao.trechos_do_cfg(mista) == [TRECHO]
+    # sem o tipo linear (declarado ou deduzido) a declaração é recusada: nenhum trecho aplicado
+    assert (
+        eap_padrao.trechos_do_cfg({"eap_padrao": {"trechos_lineares": [TRECHO]}}) == []
+    )
 
 
 def test_d11_vista_so_do_sistema_marcado_e_valor_desconhecido_e_recusado(monkeypatch):
@@ -637,8 +645,157 @@ def test_d11_linha_declarada_sem_servico_que_folha_linear_receba_gera_aviso():
         "eap_padrao": {"tipo": "obra_localizada", "trechos_lineares": [TRECHO]}
     }
     assert any(
-        "não tem o tipo obra_linear" in a
+        "recusada" in a and "não tem o tipo obra_linear" in a
         for a in avisos([{**declarada, "servico": "escavacao"}], so_localizada)
     )
     ruim = {"eap_padrao": {"trechos_lineares": [{**TRECHO, "sistema": "AB_ENTRADA"}]}}
     assert any("não é de vista linear" in a for a in avisos([], ruim))
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# Travas da vista linear (04/11/2026): sistema linear só com declaração; declaração só em obra com tipo linear
+# ----------------------------------------------------------------------------------------------------------------
+CODIGO_LINEAR = "U1.AGUA_POTAVEL.GEO.MOV.VAL"
+MISTA = {
+    "eap_padrao": {
+        "tipo": ["obra_localizada", "obra_linear"],
+        "trechos_lineares": [TRECHO],
+    }
+}
+SEM_DECLARACAO = {"eap_padrao": {"tipo": ["obra_localizada", "obra_linear"]}}
+SO_LOCALIZADA = {
+    "eap_padrao": {"tipo": "obra_localizada", "trechos_lineares": [TRECHO]}
+}
+
+
+def _evidencia_linear(metodo: str, doc: dict):
+    """Evidência que já chega com o código do sistema linear (IA conferida, decisão ou regex)."""
+    if metodo == "decisao":
+        return evidencias.decisao(
+            CODIGO_LINEAR,
+            "escavacao",
+            "m",
+            100.0,
+            "caio",
+            "vala de 100 m de água potável",
+        )
+    return evidencias.evidencia(
+        codigo=CODIGO_LINEAR, servico="escavacao", unidade="m", valor=100.0,
+        parcela=False, documento=doc, localizador="p. 1",
+        trecho="vala de 100 m de água potável", metodo=metodo, regra="t",
+        **({"citacao": "conferida"} if metodo == "ia" else {}),
+    )  # fmt: skip
+
+
+def _montar_com(evs, cfg):
+    dados = {"evidencias": {"fatos": evidencias._registros(evidencias.consolidar(evs))}}
+    resultado = eap_padrao.montar(dados, cfg)
+    return {t["tipo"]: t for t in resultado["tipos"]}, resultado["avisos"]
+
+
+def _codigos_das_vistas(blocos):
+    return {
+        c
+        for b in blocos.values()
+        for e in b["etapas"]
+        for f in e["folhas"]
+        for c in f["codigos"]
+    }
+
+
+@pytest.mark.parametrize(
+    "metodo,doc",
+    [
+        ("ia", {"id": "ia:memorial.pdf", "tipo": "ia"}),
+        ("decisao", {"id": "decisao:caio", "tipo": "decisao"}),
+        ("regex", {"id": "edital.pdf", "tipo": "edital"}),
+    ],
+)
+def test_trava_sistema_linear_sem_declaracao_sai_das_duas_vistas_com_aviso(metodo, doc):
+    evs = [_evidencia_linear(metodo, doc)]
+    blocos, avisos = _montar_com(evs, SEM_DECLARACAO)
+    assert CODIGO_LINEAR not in _codigos_das_vistas(blocos)
+    for bloco in blocos.values():
+        assert all(
+            "unidade não atribuível" not in (f.get("motivo") or "")
+            for e in bloco["etapas"]
+            for f in e["folhas"]
+        )
+    [aviso] = [a for a in avisos if "não declarado" in a]
+    assert aviso.startswith("Sistema de trecho linear não declarado na obra")
+    assert CODIGO_LINEAR in aviso and "Escavação" in aviso and "100,00 m" in aviso
+    assert doc["id"] in aviso
+    # com declaração, o mesmo número entra na vista linear e só nela
+    blocos, avisos = _montar_com(evs, MISTA)
+    assert CODIGO_LINEAR in _codigos_das_vistas({"l": blocos["obra_linear"]})
+    assert CODIGO_LINEAR not in _codigos_das_vistas({"o": blocos["obra_localizada"]})
+    assert not [a for a in avisos if "não declarado" in a]
+
+
+def test_trava_quantidade_da_eap_codificada_com_sistema_linear_nao_declarado_tem_aviso():
+    quantidade = {
+        "codigo": CODIGO_LINEAR, "grandeza": "comprimento", "unidade": "m",
+        "quantidade": 12.5, "n_elementos": 2, "evidencias": ["a", "b"],
+    }  # fmt: skip
+    dados = {"evidencias": {"fatos": []}, "eap": {"quantidades": [quantidade]}}
+    avisos = eap_padrao.montar(dados, SEM_DECLARACAO)["avisos"]
+    [aviso] = [a for a in avisos if "não declarado" in a]
+    assert CODIGO_LINEAR in aviso and "12,50 m" in aviso and "2 elemento" in aviso
+    avisos = eap_padrao.montar(dados, MISTA)["avisos"]
+    assert not [a for a in avisos if "não declarado" in a]
+
+
+def test_trava_vista_do_codigo_nao_muda_e_preencher_direto_nao_confere():
+    assert eap.vista_do_codigo(CODIGO_LINEAR) == "linear"
+    fato = evidencias._registros(
+        evidencias.consolidar(
+            [_evidencia_linear("regex", {"id": "e.pdf", "tipo": "edital"})]
+        )
+    )
+    direto = eap_padrao.preencher("obra_linear", None, {"fatos": fato})
+    assert CODIGO_LINEAR in _codigos_das_vistas({"l": direto})
+    vazio = eap_padrao.preencher(
+        "obra_linear", None, {"fatos": fato}, trechos_declarados=set()
+    )
+    assert CODIGO_LINEAR not in _codigos_das_vistas({"l": vazio})
+
+
+def test_trava_obra_so_localizada_recusa_a_declaracao_e_a_linha_fica_na_localizada():
+    itens = _vala((10, "ÁGUA POTÁVEL", 100), (11, "", 22))
+    assert eap_padrao.trechos_do_cfg(SO_LOCALIZADA) == []
+    trechos = eap_padrao.trechos_do_cfg(SO_LOCALIZADA)
+    evs = evidencias.de_planilha(itens, DOC, None, trechos)
+    assert {e["codigo"] for e in evs} == {"U1.*.GEO.MOV.VAL"}  # código original
+    dados = {
+        "evidencias": {
+            "fatos": evidencias._registros(evidencias.consolidar(evs)),
+            "titulos_etapa": evidencias.titulos_da_planilha(itens, None, trechos),
+        }
+    }
+    resultado = eap_padrao.montar(dados, SO_LOCALIZADA)
+    recusas = [a for a in resultado["avisos"] if "recusada" in a]
+    assert len(recusas) == 1 and "obra_linear" in recusas[0]
+    assert not [a for a in resultado["avisos"] if "não declarado" in a]
+    [bloco] = resultado["tipos"]
+    folha = _texto_da_folha(bloco, "OP.02.06")
+    assert "122,00 m" in folha["quantidades_txt"][0]  # a soma é a do fato antigo
+    assert folha["codigos"] == ["U1.*.GEO.MOV.VAL"]
+
+
+def test_trava_trechos_do_cfg_e_montar_concordam_sem_aviso_duplo():
+    for cfg in (
+        MISTA,
+        SO_LOCALIZADA,
+        SEM_DECLARACAO,
+        {"eap_padrao": {"trechos_lineares": [TRECHO]}},
+    ):
+        aplicados = eap_padrao.trechos_do_cfg(cfg)
+        avisos = eap_padrao.montar({"evidencias": {"fatos": []}}, cfg)["avisos"]
+        recusas = [a for a in avisos if "trechos_lineares recusada" in a]
+        assert len(recusas) == (
+            0 if aplicados or not cfg["eap_padrao"].get("trechos_lineares") else 1
+        )
+        assert bool(aplicados) == (cfg is MISTA)
+        # declarada em obra mista: nenhum aviso de recusa nem de sistema não declarado
+        if aplicados:
+            assert not [a for a in avisos if "recusada" in a or "não declarado" in a]

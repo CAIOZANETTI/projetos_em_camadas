@@ -655,3 +655,11 @@ def test_foz_declara_a_agua_potavel_da_u1_como_trecho_linear():
     resultado = eap_padrao.montar({}, cfg)
     assert [t["tipo"] for t in resultado["tipos"]] == ["obra_localizada", "obra_linear"]
     assert not [a for a in resultado["avisos"] if "trecho" in a.lower()]
+    fato = {
+        "codigo": "U1.AGUA_POTAVEL.GEO.MOV.VAL", "servico": "escavacao", "unidade": "m",
+        "status": "convergente", "valor": 622.0, "afirmacoes": [], "decisoes": [],
+    }  # fmt: skip
+    mista = eap_padrao.montar({"evidencias": {"fatos": [fato]}}, cfg)
+    assert not [
+        a for a in mista["avisos"] if "trecho" in a.lower()
+    ]  # declarada: obra mista, sem aviso
