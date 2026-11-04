@@ -126,7 +126,8 @@ def grade(ortofoto: Path, mds_png: Path, vertical: dict, area_edificacao_m2: flo
     n, comp, st, _ = cv2.connectedComponentsWithStats(ed)
     grandes = [k for k in range(1, n) if st[k, cv2.CC_STAT_AREA] * res * res >= area_edificacao_m2]
     return {"e0": e0, "n1": n1, "res": res, "forma": forma, "epsg": v["epsg"], "valido": v["valido"],
-            "terreno": supressao.terreno(z, res, VALOR["terreno_m"]), "edificacao": np.isin(comp, grandes)}
+            "terreno": supressao.terreno(z, res, VALOR["terreno_m"]), "edificacao": np.isin(comp, grandes),
+            "vegetacao_alta": v["alta"]}
 
 
 def plausiveis(ms: list[dict], g: dict) -> tuple[list[dict], int]:
@@ -235,7 +236,7 @@ def calcular(bs: list[dict], ms: list[dict], cristas: list, g: dict) -> dict:
     usadas, P, cotas = com_marca(bs, validas)
     fundo = fundo_na_grade(usadas, P, cotas, e0, n1, res, forma)
     sup, base = superficie_da_cava(fundo, res, talude, folga)
-    livre = g["valido"] & ~g["edificacao"]
+    livre = g["valido"] & ~g["edificacao"] & np.isfinite(terreno)       # NaN = sem terreno (terreno composto)
     modelo = livre & (terreno - np.nan_to_num(sup, nan=1e9) > 0.01)
     R = regiao(modelo, linhas_na_grade(cristas, g), livre, base, int(1.0 / res))
     F = fundo_na_regiao(R, validas, VALOR["raio_marca_m"] / res)
@@ -252,7 +253,8 @@ def calcular(bs: list[dict], ms: list[dict], cristas: list, g: dict) -> dict:
             "bases_sem_marca": len(bs) - len(usadas),
             "marcas": {**_resumo_marcas(ms), "fora_da_faixa": fora_da_faixa, "usadas": len(validas)},
             "parametros": {"talude_h_v": talude, "folga_m": folga, "terreno_m": VALOR["terreno_m"], "res_m": res,
-                           "edificacao_m2": round(float(g["edificacao"].sum() * res * res))}}
+                           "edificacao_m2": round(float(g["edificacao"].sum() * res * res)),
+                           **({"terreno": g["terreno_resumo"]} if "terreno_resumo" in g else {})}}
 
 
 SAIDAS_CAVA = {"escavacao_cava_m3": "escavacao_m3", "reaterro_cava_m3": "reaterro_m3", "area_cava_m2": "area_m2"}
@@ -360,6 +362,64 @@ def _entregar_as_gavetas(saida: dict, ms: list, bs: list, cristas: list, g: dict
                  resultado={"cavas": [{k: cv[k] for k in campos} for cv in r["cavas"]]})
 
 
+def _curvas_da_topografia(t: dict, out: Path) -> list[dict]:
+    """Curvas de nível da prancha de topografia (`topografia.curvas_de_nivel`); a leitura por OCR fica em cache em
+    `out/topografia_curvas_cache.json`, com assinatura da versão da leitura, do PDF, da afim e dos layers (sem a versão, um
+    cache antigo era reaproveitado em silêncio depois de mudar a leitura)."""
+    from . import topografia
+
+    arq = Path(t["pdf"])
+    assinatura = (f"v{topografia.VERSAO_LEITURA_CURVAS}:{arq.stat().st_size}:{int(arq.stat().st_mtime)}:"
+                  f"{np.asarray(t['M']).round(6).tolist()}:{t.get('layers')}")
+    cache_arq = out / "topografia_curvas_cache.json"
+    cache = json.loads(cache_arq.read_text()) if cache_arq.exists() else {}
+    if cache.get("assinatura") != assinatura:
+        curvas = topografia.curvas_de_nivel(arq, t["M"], layers=t.get("layers"))
+        cache = {"assinatura": assinatura, "curvas": curvas}
+        cache_arq.write_text(json.dumps(cache, ensure_ascii=False, default=float))
+    return cache["curvas"]
+
+
+def _furos_da_obra(cfg: dict) -> list[dict]:
+    """Furos de sondagem (`sondagens` do obra.json) com E, N e cota_boca; vazio se o arquivo não existe."""
+    arq = Path(cfg.get("sondagens", ""))
+    if not arq.is_file():
+        return []
+    return [f for f in json.loads(arq.read_text(encoding="utf-8"))["furos"] if "cota_boca" in f]
+
+
+def terreno_composto(g: dict, c: dict | None, out: Path, log=print, furos: list[dict] | None = None) -> None:
+    """Troca `g["terreno"]` pelo terreno composto quando o `obra.json` pede (`escavacao.terreno.fonte` =
+    "topografia_e_mds"): topografia do projeto dentro do casco das curvas, MDS corrigido fora, costura de
+    `faixa_costura_m` (`topografia.compor_terreno`). Guarda em `g` o MDS original (`terreno_mds`), a origem por célula
+    (`origem_terreno`, índice em `topografia.ORIGENS_TERRENO`) e o resumo (`terreno_resumo`, m²). Sem a chave, nada muda.
+    `furos` (id, E, N, cota_boca) validam o MDS corrigido fora do casco. Sem scipy ou sem o PDF, fica o MDS e o log diz
+    que a topografia não foi aplicada (pendência)."""
+    if not c or c.get("fonte") != "topografia_e_mds":
+        return
+    from . import topografia
+
+    t = c["topografia"]
+    if not Path(t["pdf"]).exists():
+        log(f"Terreno das cavas: PDF da topografia ausente ({t['pdf']}); fica o MDS (pendência)")
+        return
+    try:
+        curvas = _curvas_da_topografia(t, out)
+        topo = topografia.superficie(curvas, g)
+    except ImportError as erro:
+        log(f"Terreno das cavas: topografia NÃO aplicada, falta {erro.name} (pendência; fica o MDS)")
+        return
+    alta = g.get("vegetacao_alta", np.zeros(g["forma"], bool))
+    comp = topografia.compor_terreno(g, topo, alta, c.get("faixa_costura_m", topografia.FAIXA_COSTURA_PADRAO_M), furos)
+    g.update(terreno_mds=g["terreno"], terreno=comp["terreno"], origem_terreno=comp["origem"],
+             terreno_resumo={**comp["resumo"], "fonte": c.get("justificativa", ""), "plano_mds": comp["plano"]})
+    r = comp["resumo"]
+    log(f"Terreno das cavas: topografia no casco, MDS corrigido fora (plano {comp['plano']['coeficientes']}); "
+        f"m² por origem {r['area_m2']}; sem terreno {r['sem_terreno']}")
+    for aviso in r["alertas"]:
+        log(f"Terreno das cavas: ALERTA {aviso}")
+
+
 def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print,
           saida_gavetas: dict | None = None) -> dict | None:
     """Etapa da obra: lê as plantas de escavação (OCR com cache), calcula as cavas e devolve o pacote do HTML.
@@ -389,6 +449,7 @@ def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print
         bs += bases(tr, c["layer_base"], p["M"], c["cores_etapa"])
         cristas += linhas_utm(tr, c["layer_crista"], p["M"])
     g = grade(out / "sfm" / "ortofoto.jpg", out / "sfm" / "ortofoto_mds.png", vertical)
+    terreno_composto(g, c.get("terreno"), out, log, _furos_da_obra(cfg))
     r = calcular(bs, ms, cristas, g)
     if saida_gavetas is not None:
         _entregar_as_gavetas(saida_gavetas, ms, bs, cristas, g, r, lidas)
