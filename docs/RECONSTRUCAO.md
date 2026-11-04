@@ -220,7 +220,22 @@ Quase todo o cálculo e a leitura **ficam**: `pdf_cad`, `georef_prancha`, `pranc
 - `eap_painel`, `eap_html`, a conciliação e `eap_vista`;
 - as abas Obra, Camadas, Etapas & escopo e EAP do HTML atual, substituídas pela navegação da F5.
 
-## 5. Decisões do Caio antes da F0
+## 5. Decisões do Caio (04/11/2026: "pode seguir com as recomendações e começar a F0")
+
+Decidido:
+1. **EAP única**: o esqueleto da EAP padrão por etapa de execução (OP/OL), com os itens técnicos
+   (`UNIDADE.SISTEMA.ITEM`) como folhas. É um código só, e o `OL` dos códigos provisórios das gavetas sai na F3.
+2. **Uma frente só** até a F6: esta. As outras sessões precisam ser avisadas pelo Caio; a sessão não consegue
+   pará-las.
+3. **HTML principal só com a navegação da §2.2**: 3D, fotos oblíquas, conferências e inventário vão para o relatório
+   de conferência.
+4. **Prazo fora da quantificação**:
+   - o escoramento blindado em un/mês fica "a preencher (depende de prazo)";
+   - a produtividade, os dias úteis e os jogos de escoramento saem;
+   - a ALO fica só como "declarada";
+   - a DMT fica, porque m³×km é quantidade de transporte, não prazo.
+
+### Texto da proposta (para histórico)
 
 1. **Qual é a EAP única?**
    - Recomendo o **esqueleto da EAP padrão por etapa de execução** (OP/OL), que é como a planilha da Sanepar e o

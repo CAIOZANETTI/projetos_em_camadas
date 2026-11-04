@@ -1,5 +1,8 @@
 # Plano de implementação — Projetos em camadas
 
+> **Superado em 04/11/2026** por `docs/RECONSTRUCAO.md` (decisões e fases F0–F7). Mantido só como histórico; não use como plano.
+
+
 > Atualização (out/2026): as Fases 1–4 avançaram na obra de Foz — ver `docs/PLANO_FOZ.md` (3D/ortofoto verdadeira, pranchas vetoriais por layer, georreferência automática, escopo por etapa, sondagens, `camadas/obra.py`).
 
 ## 1. O que eu entendi

@@ -1,5 +1,8 @@
 # Plano de implementação — ETA Vila C / SAA Foz do Iguaçu (Sanepar LE 211/2026)
 
+> **Superado em 04/11/2026** por `docs/RECONSTRUCAO.md` (decisões e fases F0–F7). Mantido só como histórico; não use como plano.
+
+
 Entregável final: **HTML totalmente interativo** (`saida/foz/foz-vilac_camadas_v<versão>_<data>.html`, offline), com:
 - ortofoto verdadeira e modelo 3D do drone;
 - todas as pranchas possíveis em **vetor com os layers CAD**, georreferenciadas;

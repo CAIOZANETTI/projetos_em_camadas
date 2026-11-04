@@ -1,5 +1,8 @@
 # Visualizador v2 — pranchas vetoriais, etapas, escopo, sondagens e 3D
 
+> **Superado em 04/11/2026** por `docs/RECONSTRUCAO.md` (decisões e fases F0–F7). Mantido só como histórico; não use como plano.
+
+
 Contrato de dados entre o Python (`camadas/obra.py`) e o template
 (`camadas/templates/visualizador.html`). Tudo continua num HTML único e offline
 (`visualizador.gerar(..., "inline")`); para publicar como Artifact use `"cdn"`.

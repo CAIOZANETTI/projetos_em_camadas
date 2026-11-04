@@ -75,9 +75,39 @@ def conferir_base(base: dict) -> list[str]:
             erros.append(f"fatos {f.get('fato_id')}: evidência {f['evidencia_id']} não existe")
     erros += [f"superficies {s.get('superficie_id')}: evidência {s['evidencia_id']} não existe"
               for s in base.get("superficies", []) if s.get("evidencia_id") and s["evidencia_id"] not in evidencias]
+    erros += _conferir_documentos(base)
     for gav, g in REGRAS["gavetas"].items():
         ids = [r.get(g["chave"]) for r in base.get(gav, [])] if g["chave"] else []
         erros += [f"{gav}: {g['chave']} {i} repetido" for i in sorted({i for i in ids if ids.count(i) > 1})]
+    return erros
+
+
+def _localizador_com_pagina(loc) -> bool:
+    """Localizador v2: página do documento (PDF) ou aba e linha (planilha)."""
+    if isinstance(loc, str):
+        try:
+            loc = json.loads(loc)
+        except ValueError:
+            return False
+    if not isinstance(loc, dict):
+        return False
+    return isinstance(loc.get("pagina"), int) and loc["pagina"] >= 1 or (bool(loc.get("aba")) and loc.get("linha") is not None)
+
+
+def _conferir_documentos(base: dict) -> list[str]:
+    """v2: página aponta para documento existente e dentro do nº de páginas; evidência que cita um documento da gaveta
+    `documentos` traz a página (ou aba e linha) no localizador. Evidência de documento fora da gaveta segue a regra v1."""
+    docs = {d["documento_id"]: d for d in base.get("documentos", []) if d.get("documento_id")}
+    erros = []
+    for pg in base.get("paginas", []):
+        d = docs.get(pg.get("documento_id"))
+        if d is None:
+            erros.append(f"paginas {pg.get('pagina_id')}: documento {pg.get('documento_id')} não está em documentos")
+        elif isinstance(pg.get("pagina"), int) and isinstance(d.get("paginas"), int) and not 1 <= pg["pagina"] <= d["paginas"]:
+            erros.append(f"paginas {pg.get('pagina_id')}: página {pg['pagina']} fora de 1..{d['paginas']}")
+    for e in base.get("evidencias", []):
+        if e.get("documento") in docs and not _localizador_com_pagina(e.get("localizador")):
+            erros.append(f"evidencias {e.get('evidencia_id')}: documento {e['documento']} sem página (ou aba e linha) no localizador")
     return erros
 
 
