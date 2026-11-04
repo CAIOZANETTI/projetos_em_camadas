@@ -862,6 +862,22 @@ serviço) admitido que nenhuma folha cobre ("serviço fora do padrão"), exceto 
 orçamento de saneamento, em estado `premissa`, **a conferir com o MOS**; nenhum número de capítulo ou módulo do MOS é
 citado.
 
+#### Dados do painel da EAP padrão (`eap_padrao.tabelas_do_painel`, `scripts/painel_eap_padrao.py`)
+
+O painel publicado lê quatro JSON (`resumo`, `situacoes`, `etapas`, `folhas`), calculados em Python por
+`tabelas_do_painel` (função pura sobre a saída de `montar`; sem preço) e gerados pelo roteiro:
+
+```text
+uv run python scripts/painel_eap_padrao.py exemplos/foz/obra.json <saida/> [--planilha <xlsx>]
+```
+
+O roteiro roda a cadeia como a obra declara: **planilha do contrato + cadastro, sem pranchas**. A planilha vem de
+`escopo.itens_csv`, o cadastro de `escopo.catalogo` e os trechos lineares de `eap_padrao.trechos_lineares`; não entra
+nada de `dados["eap"]` (pranchas medidas), então as folhas mostram o que o contrato e o cadastro dizem, não o que as
+pranchas medem. Com `--planilha`, o csv de escopo é regerado por `orcamento_sanepar` em pasta temporária (use quando o csv
+do disco for de versão antiga, sem `titulo_etapa`). Ao fim imprime evidências, fatos, preenchidas/aplicáveis por tipo,
+recusadas, avisos e o sha256 do resultado de `montar` sem os avisos.
+
 ## 10. Próximos passos
 
 - [x] **Skill de leitura por IA** (`.claude/skills/eap-evidencias`, `evidencias.roteiro`, `evidencias.conferir_arquivo`):

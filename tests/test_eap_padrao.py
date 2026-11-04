@@ -663,3 +663,146 @@ def test_foz_declara_a_agua_potavel_da_u1_como_trecho_linear():
     assert not [
         a for a in mista["avisos"] if "trecho" in a.lower()
     ]  # declarada: obra mista, sem aviso
+
+
+# Tabelas do painel ------------------------------------------------------------------------------------------------
+def _montar_do_painel():
+    """Obra mista sintética: parcial, só menção, citada no contrato, não se aplica e fora do escopo."""
+    dados = {
+        "eap": {
+            "quantidades": [
+                _q("U1.A.CIV.EST.PIL", "quantidade", "un", 5.0, ["a", "b", "c"], 2),
+                _q("U2.AAT06.HID.TUB.RED", "extensão", "m", 1500.5, ["t1"]),
+            ]
+        },
+        "evidencias": {
+            "fatos": [_fato("U1.*.GER.PRE.TOP", None, "un", None, "sem valor")],
+            "titulos_etapa": [
+                {
+                    "unidade": "U1",
+                    "aba": "CUSTO CIVIL",
+                    "linha": 7,
+                    "titulo_etapa": "URBANIZAÇÃO",
+                    "descricao": "MURO DE ARRIMO",
+                    "item": None,
+                    "servico": "",
+                }
+            ],
+        },
+    }
+    cfg = {
+        "valas": [{}],
+        "estacas": [{}],
+        "eap_padrao": {
+            "nao_se_aplica": [{"id": "OL.06.01", "justificativa": "sem travessia"}]
+        },
+    }
+    return eap_padrao.montar(dados, cfg)
+
+
+def test_tabelas_do_painel_batem_com_o_resumo_de_cada_tipo():
+    resultado = _montar_do_painel()
+    tabelas = eap_padrao.tabelas_do_painel(resultado)
+    assert list(tabelas) == ["resumo", "situacoes", "etapas", "folhas"]
+    assert [r["tipo"] for r in tabelas["resumo"]] == [
+        t["tipo"] for t in resultado["tipos"]
+    ]
+    for linha, bloco in zip(tabelas["resumo"], resultado["tipos"]):
+        r = bloco["resumo"]
+        assert (
+            linha["folhas"]
+            == r["n_folhas"]
+            == len([f for e in bloco["etapas"] for f in e["folhas"]])
+        )
+        assert linha["aplicaveis"] == r["n_aplicaveis"]
+        assert linha["preenchidas"] == r["n_preenchidas"]
+        assert linha["calculadas"] == r["n_calculadas"]
+        assert linha["pct_txt"] == r["pct_txt"]
+        assert linha["obrigatorias_a_preencher"] == r["obrigatorias_a_preencher"]
+        assert linha["conflitos"] == r["conflitos"]
+        assert linha["pct_preenchida"] == round(
+            r["n_preenchidas"] / r["n_aplicaveis"], 4
+        )
+
+
+def test_tabelas_do_painel_situacoes_somam_as_folhas_e_so_tem_n_positivo():
+    resultado = _montar_do_painel()
+    tabelas = eap_padrao.tabelas_do_painel(resultado)
+    assert all(s["n"] > 0 for s in tabelas["situacoes"])
+    assert all(s["situacao"] in eap_padrao.SITUACOES for s in tabelas["situacoes"])
+    for resumo in tabelas["resumo"]:
+        soma = sum(s["n"] for s in tabelas["situacoes"] if s["tipo"] == resumo["tipo"])
+        assert soma == resumo["folhas"]
+    assert sum(s["n"] for s in tabelas["situacoes"]) == len(tabelas["folhas"])
+
+
+def test_tabelas_do_painel_uma_linha_por_folha_e_por_etapa_na_ordem_do_padrao():
+    resultado = _montar_do_painel()
+    tabelas = eap_padrao.tabelas_do_painel(resultado)
+    ids = [
+        f["id"] for b in resultado["tipos"] for e in b["etapas"] for f in e["folhas"]
+    ]
+    assert [f["folha"] for f in tabelas["folhas"]] == ids
+    assert len(set(ids)) == len(ids)
+    etapas = [e["id"] for b in resultado["tipos"] for e in b["etapas"]]
+    assert [e["etapa"] for e in tabelas["etapas"]] == etapas
+    for etapa in tabelas["etapas"]:
+        folhas = [f for f in tabelas["folhas"] if f["etapa"] == etapa["etapa"]]
+        assert etapa["folhas"] == len(folhas)
+        assert etapa["preenchidas"] == sum(
+            f["situacao"] == "preenchida" for f in folhas
+        )
+        assert etapa["mencao"] == sum(f["situacao"] == "só menção" for f in folhas)
+
+
+def test_tabelas_do_painel_situacao_constante_texto_parcial_e_valores():
+    tabelas = eap_padrao.tabelas_do_painel(_montar_do_painel())
+    folhas = {f["folha"]: f for f in tabelas["folhas"]}
+    parcial = folhas["OP.04.03"]
+    assert parcial["situacao"] == "preenchida"
+    assert parcial["situacao_txt"] == "preenchida (parcial: 2 sem valor)"
+    assert parcial["aponta"].startswith("CIV.EST.PIL")
+    assert "5 un" in parcial["quantidade"]
+    assert folhas["OL.04.02"]["quantidade"] == "1.500,50 m (extensão)"
+    assert folhas["OL.04.02"]["obrigatoria"] in ("sim", "não")
+    assert folhas["OL.06.01"]["situacao"] == "não se aplica"
+    assert folhas["OP.01.02"]["situacao"] == "só menção"
+    assert folhas["OL.04.02"]["evidencias"] == 1
+
+
+def test_tabelas_do_painel_etapa_citada_no_contrato_e_mencao():
+    tabelas = eap_padrao.tabelas_do_painel(_montar_do_painel())
+    etapas = {e["etapa"]: e for e in tabelas["etapas"]}
+    assert etapas["OP.10"]["citada_no_contrato"] == "sim"
+    assert etapas["OP.10"]["linhas_citadas"] == 1
+    assert etapas["OP.00"]["citada_no_contrato"] == "não"
+    assert etapas["OP.00"]["linhas_citadas"] == 0
+    assert etapas["OP.01"]["mencao"] == 1
+    folhas = {f["folha"]: f for f in tabelas["folhas"]}
+    assert (
+        folhas["OP.01.02"]["motivo"] == "citado sem valor"
+    )  # aceite do Fable: a razão da só menção aparece
+
+
+def test_tabelas_do_painel_percentual_com_zero_aplicaveis():
+    bloco = {
+        "tipo": "obra_linear",
+        "nome": "x",
+        "etapas": [],
+        "resumo": eap_padrao.resumir(
+            [{"situacao": "não se aplica", "destaque": False}]
+        ),
+    }
+    linha = eap_padrao.tabelas_do_painel({"tipos": [bloco]})["resumo"][0]
+    assert linha["aplicaveis"] == 0 and linha["pct_preenchida"] == 0
+    assert linha["pct_txt"] == "—"
+
+
+def test_tabelas_do_painel_nao_tem_preco_e_esta_nos_metadados():
+    tabelas = eap_padrao.tabelas_do_painel(_montar_do_painel())
+    chaves = {c for linhas in tabelas.values() for linha in linhas for c in linha}
+    assert not [
+        c for c in chaves if any(p in c for p in ("preco", "valor_unit", "custo"))
+    ]
+    assert "R$" not in json.dumps(tabelas, ensure_ascii=False)
+    assert "tabelas_do_painel" in eap_padrao.metadados()["funcoes"]
