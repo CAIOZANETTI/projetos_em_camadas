@@ -1,7 +1,28 @@
 # Changelog
 
 ## 0.68.0 — 2026-11-04 · Aba EAP legível e interativa: sub-abas, WBS em árvore, Contrato 211 por trecho, ligação com o mapa
-- (em andamento: build real na E3)
+- Pedido do Caio: "a wbs eap não [está] em formato legível e também não está interativa".
+- **Antes:** a aba EAP empilhava 10 seções numa coluna de 329 px, com 37 151 px de rolagem, 863 `<details>` e 26
+  tabelas. A quantidade e a situação do Contrato 211 só apareciam rolando para o lado.
+- **`camadas/eap_vista.py`** (novo): `dados["eap_vista"]` com seções, situações, a WBS e o Contrato 211. Contagens,
+  textos e o índice de busca (sem acento) já saem prontos do Python.
+  - WBS: tipo → etapa → folha, com as linhas do contrato penduradas.
+  - Contrato 211: UC → trecho → linha.
+  - `contrato_211.para_html` ganhou `id`, `redes` e `pranchas`, lidos das evidências.
+- **Aba EAP no template:**
+  - modo amplo: `min(1120px, 74vw)` no desktop e largura total no celular;
+  - sub-abas, uma seção por vez, com a última escolhida lembrada;
+  - WBS em árvore, com busca, chips por situação e expandir/recolher;
+  - Contrato 211 por UC e trecho, com Descrição, Calculada e Situação à vista e detalhe ao abrir a linha;
+  - links folha ↔ linha;
+  - **"ver no mapa"** destaca e enquadra o trecho de vala da linha (45 linhas em Foz);
+  - **"abrir prancha"** liga o desenho (49 linhas).
+- **Foz:** painel de 1 036 px numa tela de 1 400 px; a WBS recolhida tem 1 352 px de rolagem.
+  `testar_visualizador` passou de 274 para **331 verificações, 0 falha**. As novas medem a leitura: largura, altura
+  recolhida, colunas à vista, busca, filtros, detalhe, links, mapa e celular.
+- O golden do `obra.py` passa a ignorar `eap_vista`, que é de outro módulo e tem teste próprio, como `eap_padrao` e
+  `eap_painel`. Os JSON do golden não mudam.
+- Lição L066.
 
 ## 0.67.0 — 2026-11-04 · Dados do painel da EAP padrão reproduzíveis (frente WBS)
 - **`eap_padrao.tabelas_do_painel`** (pura, testada): achata a saída de `montar` em `resumo` (fração preenchida =
