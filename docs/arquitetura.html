@@ -445,7 +445,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
       <div class="eap-tipo" style="--c: var(--hum)"><h3>Obra linear · OL</h3><span class="nota">adutora, rede, emissário, coletor</span>
         <ol><li><b>OL.00</b>Administração local da obra</li><li><b>OL.01</b>Preliminares</li><li><b>OL.02</b>Remoção de pavimento</li><li><b>OL.03</b>Vala</li><li><b>OL.04</b>Assentamento</li><li><b>OL.05</b>Reaterro e compactação</li><li><b>OL.06</b>Travessias e MND</li><li><b>OL.07</b>PVs, caixas e peças especiais</li><li><b>OL.08</b>Recomposição de pavimento</li><li><b>OL.09</b>Testes</li><li><b>OL.10</b>Ligações</li><li><b>OL.11</b>Cadastro e desmobilização</li></ol></div>
     </div>
-    <p class="nota">Item acessório (mobilização, topografia, ensaios, cadastro…) só classifica a linha se nenhum item principal vier antes: "estaca…, inclusive mobilização" continua estaca. Os ajustes feitos com o dado real de Foz (PV vale para água, administração local como etapa 00, hidrômetro DN 200 como macromedidor) aguardam a sua confirmação.</p>
+    <p class="nota">Item acessório (mobilização, topografia, ensaios, cadastro…) só classifica a linha se nenhum item principal vier antes: "estaca…, inclusive mobilização" continua estaca. Os ajustes feitos com o dado real de Foz (PV vale para água, administração local como etapa 00, hidrômetro DN 200 como macromedidor) foram confirmados por você em 04/11 (D12), e lavagem de rede conta como desinfecção (D13).</p>
   </section>
 
   <section>
@@ -467,7 +467,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
       <thead><tr><th>Frente</th><th>Entrega na arquitetura</th><th>Estado em 04/11</th><th>Pendente de você</th></tr></thead>
       <tbody>
         <tr><td>Arquitetura (esta)</td><td>decisões D1–D9, dimensionador único, verificação noturna</td><td><span class="st feito">na main</span></td><td>leitor de laudo em Foz; repositórios do observatório</td></tr>
-        <tr><td>WBS · EAP padrão</td><td>EAP padrão, itens GER, etapa pelo título Sanepar</td><td><span class="st feito">na main</span></td><td>decisões 1 a 3 (PV, ALO, macromedidor; ancoragem e água potável na ETA; lavagem de rede)</td></tr>
+        <tr><td>WBS · EAP padrão</td><td>EAP padrão, itens GER, etapa pelo título Sanepar</td><td><span class="st feito">na main</span></td><td>nenhuma: respondidas (D10–D13); implementar D10, D11 e D13</td></tr>
         <tr><td>Geo Bd · memória espacial</td><td>gavetas, conferência das cavas, terreno opção D</td><td><span class="st piloto">em revisão</span></td><td>anexar a planilha com a aba Obras Lineares</td></tr>
         <tr><td>Giselle · obras lineares da ETA</td><td>origem do MOS e das premissas D1</td><td><span class="st fazer">parada</span></td><td>calibrar raio de influência e cor do pavimento</td></tr>
         <tr><td>Protótipo 211 · Foz</td><td>build de ponta a ponta</td><td><span class="st feito">concluída</span></td><td>geometria dos Actiflo, folha 10, escopo "a definir", 58 desenhos</td></tr>
@@ -534,7 +534,7 @@ tr.grupo td { background: var(--bg); font: 600 12px var(--f-mono); letter-spacin
         <tr><td>Fora da Tabela I: DE + 0,60 m numa regra só (D7); reaterro sem berço e envoltória (D8)</td><td><code>lineares.dimensionar_vala</code>, adaptador <code>dimensoes</code></td><td><span class="st feito">feito</span></td><td class="v">0.50.0</td></tr>
         <tr><td>DE no fallback, MND sem vala, bota-fora com berço e envoltória (D9)</td><td><code>lineares._diametro_externo_m</code>, adaptador <code>dimensoes</code></td><td><span class="st feito">feito</span></td><td class="v">0.51.0</td></tr>
         <tr><td>EAP padrão por tipo de obra (OP · OL), itens <code>GER</code>, etapa pelo título Sanepar</td><td><code>eap_padrao.py</code>, <code>conceitos/eap_padrao.json</code></td><td><span class="st feito">feito</span></td><td class="v">0.48–0.55</td></tr>
-        <tr><td>Conceitos ajustados com o dado real (PV para água, ALO etapa 00, macromedidor)</td><td><code>eap_geral.jsonl</code></td><td><span class="st conferir">conferir</span></td><td class="v">0.54.0</td></tr>
+        <tr><td>Conceitos ajustados com o dado real (PV para água, ALO etapa 00, macromedidor)</td><td><code>eap_geral.jsonl</code> · confirmados (D12)</td><td><span class="st feito">feito</span></td><td class="v">0.54.0</td></tr>
         <tr><td>Conferência das cavas por seções de corte e sequência executiva</td><td><code>secoes_corte.py</code>, <code>conferencia_cavas.py</code></td><td><span class="st feito">feito</span></td><td class="v">0.53.0</td></tr>
         <tr><td>Terreno das cavas: topografia no casco, MDS fora (opção D)</td><td><code>topografia.py</code> (ramo da Geo Bd)</td><td><span class="st piloto">em revisão</span></td><td class="v">—</td></tr>
         <tr><td>Interferências, travessias e MND</td><td>—</td><td><span class="st fazer">a fazer</span></td><td class="v">—</td></tr>
