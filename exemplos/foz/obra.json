@@ -258,11 +258,79 @@
    "layers_irma": "^"
   },
   {
+   "id": "f009",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/009-SAA-0017-7471-PBHI-DE-0001ETAVILACINTERLIGAÇOES-R2.pdf",
+   "nome": "Folha 09 · Interligações (planta, módulo 360 L/s)",
+   "disciplina": "Hidráulica",
+   "clip": [
+    180,
+    108,
+    1240,
+    464
+   ],
+   "M_absoluta": [
+    [
+     -0.035277768724,
+     -2.527395e-05,
+     745851.8382
+    ],
+    [
+     -2.527395e-05,
+     0.035277768724,
+     7182921.7431
+    ]
+   ],
+   "obs_georef": "CAD × CAD com escala fixa sobre a f004 (afim desta, escala verificada 0,0882 m/pt): escala = título 1:100 = 0,035278 m/pt (não ajustada); raster dos layers ALVENARIA|TUBULA|GUARDA|CONCRETO|PROJETADOS|COMPORTAS|EXISTENTES da vista a 5 cm/px contra o da f004; SIFT + RANSAC acham rotação e posição, e a afim é reajustada com a escala fixa (Kabsch) nas correspondências (georef_prancha.registrar_cad_escala_fixa). Planta 360 (vista 180,108–1240,464 pt; os cortes AA/BB não têm afim de planta e ficam fora do recorte): 18 correspondências de 66 pares, resíduo mediano 2,3 cm (máx. 9,6 cm); escala do SIFT 0,9989 × a do título; tubo DN500 com 15,1 pt = 0,533 m (DE 532 mm), DN700 20,9 pt = 0,737 m (DE 738), DN1000 29,8 pt = 1,051 m (DE 1048); emenda do DN1000 com a entrada da f004: extremos do eixo a 0,04 m e eixos a 0,02° (afastamento lateral 0,04 m). Conferido em imagem sobre a f004 (caixas, tubos e módulo coincidem); o encaixe por template (F1) concordou a 0,2 m."
+  },
+  {
+   "id": "f009_600",
+   "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/009-SAA-0017-7471-PBHI-DE-0001ETAVILACINTERLIGAÇOES-R2.pdf",
+   "nome": "Folha 09 · Interligações (planta, módulo 600 L/s)",
+   "disciplina": "Hidráulica",
+   "clip": [
+    216,
+    960,
+    1208,
+    1184
+   ],
+   "M_absoluta": [
+    [
+     -0.035277770338,
+     2.2911352e-05,
+     745847.0006
+    ],
+    [
+     2.2911352e-05,
+     0.035277770338,
+     7182836.0822
+    ]
+   ],
+   "obs_georef": "CAD × CAD com escala fixa sobre a f004 (afim desta, escala verificada 0,0882 m/pt): escala = título 1:100 = 0,035278 m/pt (não ajustada); raster dos layers ALVENARIA|TUBULA|GUARDA|CONCRETO|PROJETADOS|COMPORTAS|EXISTENTES da vista a 5 cm/px contra o da f004; SIFT + RANSAC acham rotação e posição, e a afim é reajustada com a escala fixa (Kabsch) nas correspondências (georef_prancha.registrar_cad_escala_fixa). Planta 600 da mesma folha (vista 216,960–1208,1184 pt; outra afim: o desenho fica noutro ponto da f004): 30 correspondências de 73 pares, resíduo mediano 2,7 cm (máx. 6,3 cm); escala do SIFT 0,9990 × a do título; tubo DN1000 com 29,6 pt = 1,044 m (DE 1048); o eixo longo do DN1000 (194 pt = 6,8 m) fica a 0,02 m do eixo DN1000 da f004. Conferido em imagem sobre a f004; o encaixe por template (F1) concordou a 0,04 m."
+  },
+  {
    "id": "f010",
    "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/1. PBHI/010-SAA-0017-7471-PBHI-DE-0001ETAVILACINTERLIGAÇOES-R3.pdf",
    "nome": "Folha 10 · Interligações",
    "disciplina": "Hidráulica",
-   "obs_georef": "Pendente (rodada 8): a planta da folha está em 1:100 (título 'ESCALA 1:100'; tubo DN500 com 15 pt entre as linhas = 0,53 m), mas a afim herdada da f008 (layout 1:250) dava 0,0884 m/pt — 2,5× grande. O encaixe automático da vista contra a urbanização não teve pico claro; falta uma referência com o módulo novo."
+   "obs_georef": "CAD × CAD com escala fixa sobre a f004 (afim desta, escala verificada 0,0882 m/pt): escala = título 1:100 = 0,035278 m/pt (não ajustada); raster dos layers ALVENARIA|TUBULA|GUARDA|CONCRETO|PROJETADOS|COMPORTAS|EXISTENTES da vista a 5 cm/px contra o da f004; SIFT + RANSAC acham rotação e posição, e a afim é reajustada com a escala fixa (Kabsch) nas correspondências (georef_prancha.registrar_cad_escala_fixa). Planta 360 / filtro existente (vista 268,160–1208,380 pt): 50 correspondências de 93 pares, resíduo mediano 2,4 cm (máx. 6,2 cm); escala do SIFT 1,0012 × a do título; tubo DN500 com 15,0 pt = 0,529 m (DE 532 mm); a tubulação (cotas 2,93 + 17,61 m, G.I.=241,650 nas duas pontas) cai sobre o trecho 'água decantada DN500' da f004. Conferido em imagem sobre a f004; o encaixe por template (F1) concordou a 0,04 m. PENDENTE a planta 600/filtros existentes (vista 236,824–680,1064 pt, título 'ESCALA 1:100' lido): sem afim confiável — o encaixe por template não tem pico (F1 0,701 × 0,700) e o SIFT dá no máximo 6 correspondências (mín. 15) numa região de baias repetidas dos filtros existentes, onde a posição é ambígua; falta um ponto homólogo inequívoco (a f004, em 1:250, tem pouco detalhe dessa região). Antes (rodada 8) a afim herdada da f008 (1:250) dava 0,0884 m/pt, 2,5× grande, e foi descartada.",
+   "clip": [
+    268,
+    160,
+    1208,
+    380
+   ],
+   "M_absoluta": [
+    [
+     -0.035277766052,
+     -2.8762982e-05,
+     745826.5253
+    ],
+    [
+     -2.8762982e-05,
+     0.035277766052,
+     7182939.3166
+    ]
+   ]
   },
   {
    "id": "ct1",

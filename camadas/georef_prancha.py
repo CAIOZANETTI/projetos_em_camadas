@@ -281,7 +281,7 @@ def registrar_imagem(movel: np.ndarray, referencia: np.ndarray, tipo: str = "sim
     M = geo.ajustar(pa[inl], pb[inl], tipo)
     r = geo.residuos(M, pa[inl], pb[inl])
     return {"M": M, "inliers": int(inl.sum()), "residuo_px": float(np.median(r)),
-            "pts_movel": pa[inl], "pts_ref": pb[inl]}
+            "pts_movel": pa[inl], "pts_ref": pb[inl], "pares_movel": pa, "pares_ref": pb}
 
 
 def registrar_cad(tracos, referencia: str | Path, M_base: np.ndarray, padrao_layers: str = "EXIST",
@@ -329,6 +329,111 @@ def registrar_cad(tracos, referencia: str | Path, M_base: np.ndarray, padrao_lay
     log(f"  CAD×CAD: {r['inliers']} correspondências, resíduo {d['residuo_mediano_m'] * 100:.0f} cm, "
         f"escala {esc:.4f} m/pt, rotação {rot:.1f}° -> {'OK' if ok else 'rejeitado'}")
     return {"M": M if ok else None, "ok": ok, "motivo": "CAD×CAD (SIFT)" if ok else "; ".join(falhas), **d}
+
+
+def ajustar_rigido(origem: np.ndarray, destino: np.ndarray) -> np.ndarray:
+    """Rotação própria + translação (escala 1 fixa) por mínimos quadrados (Kabsch), matriz 3x3.
+
+    Serve ao ajuste em que a escala já é conhecida (título da vista, tubo de DE conhecido): a escala não é
+    ajustada, só a rotação e a translação. Sem reflexão: o chamador põe as duas nuvens com a mesma orientação.
+    """
+    o = np.asarray(origem, float)
+    d = np.asarray(destino, float)
+    co, cd = o.mean(0), d.mean(0)
+    U, _, Vt = np.linalg.svd((o - co).T @ (d - cd))
+    S = np.diag([1.0, np.sign(np.linalg.det(Vt.T @ U.T))])
+    R = Vt.T @ S @ U.T
+    M = np.eye(3)
+    M[:2, :2] = R
+    M[:2, 2] = cd - R @ co
+    return M
+
+
+def registrar_cad_escala_fixa(tracos, referencia: str | Path, escala_m_pt: float, padrao_layers: str, janela_pt=None,
+                              min_inliers: int = 15, max_residuo_m: float = 0.15, tol_escala: float = 0.02, espessura: int = 2,
+                              lado_px: int = 6000, log=print) -> dict:
+    """CAD × CAD de uma vista de detalhe com a escala conhecida (título da vista, ex.: 1:100) contra o raster
+    georreferenciado de uma prancha base (`obra.referencia_cad`): variante de `registrar_cad` para folha cuja
+    escala de plotagem difere da base — `registrar_cad` aceita escala ±25 %, aqui ela é uma premissa a confirmar.
+
+    As linhas da vista (layers `padrao_layers`, só as de centro dentro de `janela_pt`) são rasterizadas na escala
+    declarada, na mesma resolução da referência; SIFT + RANSAC acham a similaridade imagem → imagem. Aceite:
+    a escala que o SIFT encontra tem de ser 1 ± `tol_escala` (senão a vista não está na escala declarada, ou não
+    é a mesma estrutura: rejeita); então a afim é REAJUSTADA com a escala fixa (`ajustar_rigido`) nas
+    correspondências, e o resíduo é medido nelas, em m. Retorna {"M" (pt -> UTM) | None, "ok", "motivo",
+    "inliers", "residuo_mediano_m", "residuo_max_m", "escala_m_pt" (a fixa), "escala_sift" (razão encontrada),
+    "rotacao_graus", "janela_pt"}. A afim final não herda escala da base: só a rotação e a posição.
+
+    Limite conhecido: a posição tem um viés do SIFT que depende da rotação entre as duas imagens (medido em teste
+    sintético a 10 cm/px: até 0,57 px; 0,01 px a 0°), isto é, ~3 cm a 5 cm/px — use `res` ≤ 0,05 m/px.
+    Uso: `ref = obra.referencia_cad(base, pasta, padrao, 0.05)`; `registrar_cad_escala_fixa(tr, ref, 100 * 0.0254 / 72,
+    padrao, janela_pt=vista)`. Confira sempre em imagem sobre a base.
+    """
+    import re
+    referencia = Path(referencia)
+    meta = json.loads(referencia.with_suffix(".json").read_text())
+    e0, n1 = meta["canto_sup_esq"]
+    res = meta["res_m_px"]
+    ref = cv2.imread(str(referencia), cv2.IMREAD_GRAYSCALE)
+    k = escala_m_pt / res                                 # px da referência por pt da folha
+    partes = []
+    for t in tracos:
+        if re.search(padrao_layers, t["layer"], re.IGNORECASE) is None:
+            continue
+        for q in t["partes"]:
+            q = np.asarray(q, float)
+            c = q.mean(0)
+            if len(q) >= 2 and (janela_pt is None or
+                                (janela_pt[0] <= c[0] <= janela_pt[2] and janela_pt[1] <= c[1] <= janela_pt[3])):
+                partes.append((q, bool(t.get("fechado"))))
+    if not partes:
+        return {"M": None, "ok": False, "motivo": f"sem traços nos layers '{padrao_layers}' na janela"}
+    todos = np.vstack([q for q, _ in partes])
+    origem_pt = todos.min(0) - 5.0
+    forma = np.ceil((todos.max(0) + 5.0 - origem_pt) * k).astype(int)[::-1] + 1
+    img = np.zeros(forma, np.uint8)
+    for q, fechado in partes:
+        cv2.polylines(img, [np.round((q - origem_pt) * k).astype(np.int32)], fechado, 255, espessura, cv2.LINE_AA)
+    try:
+        r = registrar_imagem(cv2.cvtColor(255 - img, cv2.COLOR_GRAY2BGR), cv2.cvtColor(ref, cv2.COLOR_GRAY2BGR),
+                             "similaridade", lado=lado_px)
+    except RuntimeError as e:
+        return {"M": None, "ok": False, "motivo": str(e)}
+    razao = float(np.sqrt(abs(np.linalg.det(r["M"][:2, :2]))))
+    # escala fixa: rotação + translação (px da referência, mesma unidade nas duas nuvens). Reajusta e reconta,
+    # entre TODOS os pares do SIFT, os que ficam a <= max_residuo_m, três vezes: o RANSAC de similaridade, com
+    # a escala solta, perde correspondências boas quando a vista tem poucas
+    Mpx = ajustar_rigido(r["pts_movel"], r["pts_ref"])
+    usados = np.ones(len(r["pares_movel"]), bool)
+    for _ in range(3):
+        dist = geo.residuos(Mpx, r["pares_movel"], r["pares_ref"]) * res
+        usados = dist <= max_residuo_m
+        if usados.sum() < 3:
+            break
+        Mpx = ajustar_rigido(r["pares_movel"][usados], r["pares_ref"][usados])
+    dif = geo.residuos(Mpx, r["pares_movel"][usados], r["pares_ref"][usados]) * res
+    if usados.sum() < 3:
+        return {"M": None, "ok": False, "motivo": f"{int(usados.sum())} correspondências na escala fixa"}
+    T = np.array([[res, 0, e0], [0, -res, n1], [0, 0, 1]])
+    M = T @ Mpx @ np.diag([k, k, 1.0]) @ np.array([[1, 0, -origem_pt[0]], [0, 1, -origem_pt[1]], [0, 0, 1.0]])
+    rot = float(np.degrees(np.arctan2(M[1, 0], M[0, 0])))
+    d = {"inliers": int(usados.sum()), "inliers_ransac": r["inliers"], "pares": len(r["pares_movel"]),
+         "residuo_mediano_m": float(np.median(dif)), "residuo_max_m": float(dif.max()),
+         "escala_m_pt": float(escala_m_pt), "escala_sift": razao, "rotacao_graus": rot, "frac_05m": None,
+         "janela_pt": None if janela_pt is None else [float(x) for x in janela_pt]}
+    falhas = []
+    if d["inliers"] < min_inliers:
+        falhas.append(f"{d['inliers']} correspondências (< {min_inliers})")
+    if abs(razao - 1) > tol_escala:
+        falhas.append(f"escala encontrada {razao:.3f} × a declarada ({escala_m_pt:.4f} m/pt), tolerância {tol_escala:.0%}")
+    if d["residuo_mediano_m"] > max_residuo_m:
+        falhas.append(f"resíduo {d['residuo_mediano_m']:.2f} m")
+    ok = not falhas
+    log(f"  CAD×CAD escala fixa: {d['inliers']} correspondências (de {d['pares']} pares), "
+        f"resíduo {d['residuo_mediano_m'] * 100:.1f} cm (máx. {d['residuo_max_m'] * 100:.1f}), escala SIFT {razao:.4f}, rotação {rot:.2f}° -> "
+        f"{'OK' if ok else 'rejeitado'}")
+    motivo = "CAD×CAD escala fixa (SIFT + Kabsch)" if ok else "; ".join(falhas)
+    return {"M": M if ok else None, "ok": ok, "motivo": motivo, **d}
 
 
 def linhas_da_malha(tracos, padrao_layer: str, min_compr_pt: float = 100.0, max_glifo_pt: float = 15.0) -> dict:
@@ -683,7 +788,7 @@ def metadados() -> dict:
                      "CAD × CAD por SIFT, busca global FFT",
         "funcoes": ["matriz_inicial", "registrar", "refinar", "registrar_cad", "registrar_imagem", "aceitavel",
                     "linhas_da_malha", "ler_rotulo", "registrar_malha", "hipoteses_malha", "geometria_do_layer",
-                    "escolher_por_continuidade"],
+                    "escolher_por_continuidade", "ajustar_rigido", "registrar_cad_escala_fixa"],
         "bibliografia": [
             {"obra": "Lowe — Distinctive Image Features from Scale-Invariant Keypoints (SIFT)", "ano": 2004,
              "editora": "IJCV", "aplicacao": {"registrar_imagem": ["SIFT_create(nfeatures=12000)", "razão 0,75"]}},
@@ -699,6 +804,12 @@ def metadados() -> dict:
         "premissas": [
             {"aplicacao": {"registrar_cad": ["min_inliers=50", "max_residuo_m=0,15", "escala ±25 %", "rotação ±5°"]},
              "fonte": "calibrado em Foz: aceitas com 58–1491 correspondências e 3–10 cm; rejeitadas degeneradas (escala ≈ 0)"},
+            {"aplicacao": {"registrar_cad_escala_fixa": ["min_inliers=15", "max_residuo_m=0,15", "tol_escala=0,02",
+                                                         "res 0,05 m/px", "lado_px=6000"]},
+             "fonte": "calibrado nas folhas 009 e 010 de Foz (vistas 1:100 sobre a f004, 1:250): aceitas com 18–50 "
+                      "correspondências de 66–93 pares, a 2–3 cm, escala do SIFT a 0,1–0,2 % da do título; a planta 600 "
+                      "da f010 (6 correspondências, região de baias repetidas) foi rejeitada. Com a escala fixa e a "
+                      "referência de ~36 000 m², 15 pares a ≤ 0,15 m de uma mesma rigidez não são acaso"},
             {"aplicacao": {"aceitavel": ["max_residuo_m=0,6", "min_frac=0,45", "tol_rot_graus=5", "tol_escala=0,12"]},
              "fonte": "calibrado em Foz contra a ortofoto (prancha 004: 30 cm de resíduo mediano)"},
             {"aplicacao": {"registrar_malha": ["max_residuo_m=0,5", "rótulo a ≤ 12 pt da linha", "7 dígitos = N",
@@ -720,5 +831,5 @@ def metadados() -> dict:
             {"aplicacao": {"mapa_bordas": ["min_compr_m=4", "sigma_m"]},
              "fonte": "bordas curtas = textura de grama/copa; média zero evita preferir escalas pequenas"},
         ],
-        "ultima_revisao": "2026-10-28",
+        "ultima_revisao": "2026-11-04",
     }
