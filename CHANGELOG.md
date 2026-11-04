@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.70.0 — 2026-11-04 · F1+F2 da reconstrução: todo o escopo de Foz nas gavetas, com documento e página
+- **`camadas/gavetas_documentos.py`** (F1): o inventário vai para as gavetas.
+  - Cada arquivo vira um documento (chave = sha256 do conteúdo; as cópias idênticas ficam em `copias`), com a classe,
+    o nº de páginas e o **destino**: o leitor e as gavetas que ele alimenta, ou o motivo de não alimentar.
+  - Cada página de PDF vira uma página, com a afim da prancha quando georreferenciada.
+- **`camadas/gavetas_construtivos.py`** (F2): os elementos (estacas, blocos, pilares, cavas, trechos) viram objetos,
+  geometria UTM e fatos.
+  - A evidência cita a página e o retângulo em pt da prancha, pela inversa da afim.
+  - O que não cabe numa propriedade vira pendência.
+- **`camadas/gavetas_contrato.py`** (F2): as linhas do contrato 211 e os itens da Relação de Materiais, citados por aba
+  e linha.
+  - Só as colunas de identificação e quantidade são lidas; uma sentinela de preço prova que o valor nunca entra.
+  - A linha sem quantidade declarada vira pendência "a calcular (F4)".
+- **`extrair_gavetas.completar_escopo`**: passo do build depois dos construtivos. Junta as três partes à base,
+  confere, regrava `base/` e grava o resumo em `gavetas_escopo.json`. O `dados` do HTML não muda.
+- **Foz, gavetas:** 324 documentos, 1 600 objetos e **7 327 fatos**, dos quais 5 987 citam a página ou a aba e
+  linha; 0 erros de conferência. **Antes:** 13 documentos, 82 objetos e 180 fatos.
+- **Golden das quantidades:** só mudam as 6 linhas de escoramento em un/mês (sem prazo, decisão do Caio).
+  Escavação, valas, EAP e elementos ficaram idênticos.
+- Lição L068.
+
 ## 0.69.0 — 2026-11-04 · F0 da reconstrução: decisões, gavetas v2, golden das quantidades e prazo fora do escopo
 - **`docs/RECONSTRUCAO.md`**: diagnóstico do repositório e o fluxo do Caio conferido passo a passo no código.
   - Fluxo: inventário → classificação → extração para as gavetas → EAP preenchida pelas gavetas → serviços
