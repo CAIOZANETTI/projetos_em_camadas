@@ -30,6 +30,7 @@ import numpy as np
 from shapely import geometry as sg
 
 from . import associados, dimensoes, eap, gavetas, gavetas_construtivos
+from .eap_preencher import _pasta_da_base, _unidade_e_sistema
 from .formulas import nomes, premissa
 
 TOLERANCIA = 1e-3
@@ -92,15 +93,6 @@ def _rastro(
     for nome, expressao in spec["calculos"].items():
         rastro[nome] = sorted({f for n in nomes(expressao) for f in rastro.get(n, [])})
     return rastro
-
-
-def _unidade_e_sistema(objeto: dict, fatos: dict) -> tuple[str | None, str | None]:
-    """(unidade, sistema `u1-ETA`) do objeto, pelo registro ou pelos fatos; None se faltar um dos dois."""
-    unidade = objeto.get("unidade") or fatos.get("unidade", {}).get("valor")
-    sistema = objeto.get("sistema") or fatos.get("sistema", {}).get("valor")
-    if not unidade or not sistema:
-        return None, None
-    return unidade, sistema if "-" in sistema else f"{unidade}-{sistema}"
 
 
 def _com_rastro(
@@ -343,21 +335,11 @@ def _identificadores(grupos: list[tuple]) -> list[str]:
     ]
 
 
-def complementares(base: dict, epsg: int) -> dict:
-    """Aplica as regras de `servicos_associados.jsonl` aos elementos das gavetas.
-
-    Devolve {servicos, evidencias, pendencias, resumo} nos formatos das gavetas (`conceitos/gavetas.json`):
-    - `servicos`: `servico_id` = `<objeto_id>.<regra>`, `regra` = `associado:<id>`, `versao_regra` (hash da regra),
-      `saida` (o serviço; a regra sem serviço usa o id da regra), `valor`, `unidade`, `fatos` (ids dos fatos de que o
-      valor depende), `codigo_eap` (item técnico completo `U.SISTEMA.DISC.PAC.ITEM`; None se o item não existe na EAP
-      instanciada), `servicos_eap` ([serviço], para casar com o `aponta.servico` do modelo), `chave` (superfície da
-      vala) e `evidencia_id`;
-    - `evidencias`: classe `associado`, com a memória de cálculo no `trecho` e as `premissas` citadas;
-    - `pendencias`: o que faltou (dimensão que não existe nas gavetas, objeto sem unidade e sistema, código fora da EAP).
-    Sem dimensão o serviço não sai (nunca zero inventado). A base devolvida por `com_complementares` passa em
-    `gavetas.conferir_base`."""
-    elementos_, pendencias = _montar(base, epsg)
-    validos = {n["codigo"] for n in eap.estrutura() if n["nivel"] == "item"}
+def _agrupar_servicos(
+    elementos_: list[dict], pendencias: list[dict]
+) -> dict[tuple, dict]:
+    """Aplica as regras a cada elemento e agrupa os serviços por (objeto, regra, superfície, código, saída); o que
+    ficou sem valor entra em `pendencias` (alterada no lugar)."""
     grupos: dict[tuple, dict] = {}
     for el in elementos_:
         evs, sem_valor, _ = associados.aplicar([el])
@@ -405,49 +387,75 @@ def complementares(base: dict, epsg: int) -> dict:
             g["premissas"] += [
                 p for p in _premissas(regra, el) if p not in g["premissas"]
             ]
+    return grupos
+
+
+def _registros_do_grupo(
+    sid: str, chave: tuple, g: dict, validos: set, pendencias: list[dict]
+) -> tuple[dict, dict]:
+    """O serviço e a evidência de um grupo; o código fora da EAP vira pendência (alterada no lugar)."""
+    objeto_id, regra_id, superficie, codigo, saida = chave
+    evidencia_id = f"EV-AS-{sid}"
+    valido = codigo if codigo in validos else None
+    if valido is None:
+        pendencias.append(
+            {
+                "objeto_id": objeto_id,
+                "motivo": "código fora da EAP instanciada: serviço sem codigo_eap",
+                "detalhe": codigo,
+            }
+        )
+    servico = {
+        "servico_id": sid,
+        "objeto_id": objeto_id,
+        "regra": f"associado:{regra_id}",
+        "versao_regra": VERSOES[regra_id],
+        "saida": saida,
+        "valor": round(g["valor"], 6),
+        "unidade": g["unidade"],
+        "fatos": sorted(g["fatos"]),
+        "codigo_eap": valido,
+        "servicos_eap": [g["servico"]] if g["servico"] else [],
+        **({"chave": superficie} if superficie else {}),
+        "evidencia_id": evidencia_id,
+    }
+    evidencia = {
+        "evidencia_id": evidencia_id,
+        "classe": "associado",
+        "documento": g["documento"],
+        "localizador": {"regra": regra_id, "objeto_id": objeto_id},
+        "trecho": " | ".join(g["trechos"]),
+        "metodo": "camadas.associados",
+        "executor": "código",
+        "premissas": g["premissas"],
+    }
+    return servico, evidencia
+
+
+def complementares(base: dict, epsg: int) -> dict:
+    """Aplica as regras de `servicos_associados.jsonl` aos elementos das gavetas.
+
+    Devolve {servicos, evidencias, pendencias, resumo} nos formatos das gavetas (`conceitos/gavetas.json`):
+    - `servicos`: `servico_id` = `<objeto_id>.<regra>`, `regra` = `associado:<id>`, `versao_regra` (hash da regra),
+      `saida` (o serviço; a regra sem serviço usa o id da regra), `valor`, `unidade`, `fatos` (ids dos fatos de que o
+      valor depende), `codigo_eap` (item técnico completo `U.SISTEMA.DISC.PAC.ITEM`; None se o item não existe na EAP
+      instanciada), `servicos_eap` ([serviço], para casar com o `aponta.servico` do modelo), `chave` (superfície da
+      vala) e `evidencia_id`;
+    - `evidencias`: classe `associado`, com a memória de cálculo no `trecho` e as `premissas` citadas;
+    - `pendencias`: o que faltou (dimensão que não existe nas gavetas, objeto sem unidade e sistema, código fora da EAP).
+    Sem dimensão o serviço não sai (nunca zero inventado). A base devolvida por `com_complementares` passa em
+    `gavetas.conferir_base`."""
+    elementos_, pendencias = _montar(base, epsg)
+    validos = {n["codigo"] for n in eap.estrutura() if n["nivel"] == "item"}
+    grupos = _agrupar_servicos(elementos_, pendencias)
     chaves = sorted(grupos)
     servicos, evidencias = [], []
     for sid, chave in zip(_identificadores(chaves), chaves, strict=True):
-        objeto_id, regra_id, superficie, codigo, saida = chave
-        g = grupos[chave]
-        evidencia_id = f"EV-AS-{sid}"
-        valido = codigo if codigo in validos else None
-        if valido is None:
-            pendencias.append(
-                {
-                    "objeto_id": objeto_id,
-                    "motivo": "código fora da EAP instanciada: serviço sem codigo_eap",
-                    "detalhe": codigo,
-                }
-            )
-        servicos.append(
-            {
-                "servico_id": sid,
-                "objeto_id": objeto_id,
-                "regra": f"associado:{regra_id}",
-                "versao_regra": VERSOES[regra_id],
-                "saida": saida,
-                "valor": round(g["valor"], 6),
-                "unidade": g["unidade"],
-                "fatos": sorted(g["fatos"]),
-                "codigo_eap": valido,
-                "servicos_eap": [g["servico"]] if g["servico"] else [],
-                **({"chave": superficie} if superficie else {}),
-                "evidencia_id": evidencia_id,
-            }
+        servico, evidencia = _registros_do_grupo(
+            sid, chave, grupos[chave], validos, pendencias
         )
-        evidencias.append(
-            {
-                "evidencia_id": evidencia_id,
-                "classe": "associado",
-                "documento": g["documento"],
-                "localizador": {"regra": regra_id, "objeto_id": objeto_id},
-                "trecho": " | ".join(g["trechos"]),
-                "metodo": "camadas.associados",
-                "executor": "código",
-                "premissas": g["premissas"],
-            }
-        )
+        servicos.append(servico)
+        evidencias.append(evidencia)
     return {
         "servicos": servicos,
         "evidencias": evidencias,
@@ -529,12 +537,6 @@ def paridade(servicos: list[dict], associados_csv) -> list[str]:
                 f"(diferença {obtido[chave] - esperado[chave]:+.3f})"
             )
     return problemas
-
-
-def _pasta_da_base(caminho: str) -> Path:
-    """`saida/foz` ou `saida/foz/base`: a pasta com as gavetas."""
-    pasta = Path(caminho)
-    return pasta / "base" if (pasta / "base").is_dir() else pasta
 
 
 def _epsg_da_base(base: dict, pasta: Path) -> int:

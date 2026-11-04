@@ -98,6 +98,42 @@ def _linhas_de_dados(xlsx, aba: str) -> list[tuple]:
         livro.close()
 
 
+def _linha_do_cabecalho(linhas: list) -> int:
+    """Número da linha do cabeçalho 'ITEM' (nas 15 primeiras); ValueError se não houver."""
+    inicio = next(
+        (n for n, a, *_ in linhas[:15] if _texto(a).upper() == "ITEM"),
+        None,
+    )
+    if inicio is None:
+        raise ValueError(
+            "cabeçalho 'ITEM' não encontrado nas 15 primeiras linhas da aba"
+        )
+    return inicio
+
+
+def _registro_de_servico(aba, numero, hierarquia, linha, marcas) -> dict:
+    """O dict de uma linha de serviço, com a hierarquia (unidade_obra, uc, trecho, trecho_linha, grupo)."""
+    unidade_obra, uc, trecho, trecho_linha, grupo = hierarquia
+    composicao, descricao, unidade, quantidade = linha
+    projeto, titulo_servico, eh_trecho = marcas
+    return {
+        "aba": aba,
+        "linha": numero,
+        "unidade_obra": unidade_obra,
+        "uc": uc,
+        "trecho": trecho,
+        "trecho_linha": trecho_linha,
+        "grupo": grupo,
+        "composicao": composicao or None,
+        "descricao": descricao,
+        "unidade": unidade or None,
+        "quantidade_declarada": _numero(quantidade),
+        "projeto": projeto,
+        "titulo_servico": titulo_servico,
+        "eh_trecho": eh_trecho,
+    }
+
+
 def ler_custo_civil(xlsx, aba: str = "CUSTO CIVIL") -> list[dict]:
     """Linhas de serviço da aba, cada uma com a sua hierarquia.
 
@@ -108,14 +144,7 @@ def ler_custo_civil(xlsx, aba: str = "CUSTO CIVIL") -> list[dict]:
     linha ou o herdado do trecho ou do grupo, até o próximo trecho, grupo ou UC.
     """
     linhas = _linhas_de_dados(xlsx, aba)
-    inicio = next(
-        (n for n, a, *_ in linhas[:15] if _texto(a).upper() == "ITEM"),
-        None,
-    )
-    if inicio is None:
-        raise ValueError(
-            "cabeçalho 'ITEM' não encontrado nas 15 primeiras linhas da aba"
-        )
+    inicio = _linha_do_cabecalho(linhas)
 
     unidade_obra = uc = grupo = trecho = None
     trecho_linha = None
@@ -141,7 +170,6 @@ def ler_custo_civil(xlsx, aba: str = "CUSTO CIVIL") -> list[dict]:
             continue
         if unidade.upper() == "SUBTOTAL:" or not (composicao or descricao or unidade):
             continue
-
         eh_trecho = not composicao and unidade.upper() == "M"
         titulo_servico = (
             not composicao
@@ -157,22 +185,13 @@ def ler_custo_civil(xlsx, aba: str = "CUSTO CIVIL") -> list[dict]:
             projeto_contexto = projeto_proprio
             continue
         servicos.append(
-            {
-                "aba": aba,
-                "linha": numero,
-                "unidade_obra": unidade_obra,
-                "uc": uc,
-                "trecho": trecho,
-                "trecho_linha": trecho_linha,
-                "grupo": grupo,
-                "composicao": composicao or None,
-                "descricao": descricao,
-                "unidade": unidade or None,
-                "quantidade_declarada": _numero(e),
-                "projeto": projeto_proprio or projeto_contexto,
-                "titulo_servico": titulo_servico,
-                "eh_trecho": eh_trecho,
-            }
+            _registro_de_servico(
+                aba,
+                numero,
+                (unidade_obra, uc, trecho, trecho_linha, grupo),
+                (composicao, descricao, unidade, e),
+                (projeto_proprio or projeto_contexto, titulo_servico, eh_trecho),
+            )
         )
     return servicos
 

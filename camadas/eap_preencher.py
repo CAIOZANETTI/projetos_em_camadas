@@ -387,6 +387,39 @@ def _completude(folhas: list[dict]) -> dict:
     }
 
 
+def _etapas_do_tipo(
+    tipo: str, modelo: dict, por_item: dict, declaradas: dict
+) -> tuple[list[dict], set, set]:
+    """As etapas preenchidas de um tipo de obra, as quantidades usadas (`item|grandeza`) e os ids das folhas."""
+    etapas, usadas, folhas_do_tipo = [], set(), set()
+    reservados = {
+        (a["item"], a["servico"])
+        for e in modelo["etapas"]
+        for f in e["folhas"]
+        for a in f["aponta"]
+        if a.get("servico")
+    }
+    for etapa in modelo["etapas"]:
+        folhas = [
+            _folha(
+                f,
+                VISTA_DO_TIPO[tipo],
+                por_item,
+                declaradas.get(f["id"], []),
+                reservados,
+            )
+            for f in etapa["folhas"]
+        ]
+        usadas |= {
+            q["codigo_eap"].split("/", 1)[1] + "|" + q["grandeza"]
+            for f in folhas
+            for q in f["quantidades"]
+        }
+        folhas_do_tipo |= {f["id"] for f in folhas}
+        etapas.append({"id": etapa["id"], "nome": etapa["nome"], "folhas": folhas})
+    return etapas, usadas, folhas_do_tipo
+
+
 def preencher(base: dict) -> dict:
     """Laço sobre o modelo `eap_padrao.json` (obra localizada e obra linear): cada folha soma as quantidades dos itens
     técnicos que aponta e traz as linhas do contrato como "declarada" (sem somar com o medido).
@@ -402,32 +435,11 @@ def preencher(base: dict) -> dict:
     declaradas = _declaradas(base)
     tipos, usadas, folhas_do_modelo = {}, set(), set()
     for tipo, modelo in PADRAO["tipos"].items():
-        etapas = []
-        reservados = {
-            (a["item"], a["servico"])
-            for e in modelo["etapas"]
-            for f in e["folhas"]
-            for a in f["aponta"]
-            if a.get("servico")
-        }
-        for etapa in modelo["etapas"]:
-            folhas = [
-                _folha(
-                    f,
-                    VISTA_DO_TIPO[tipo],
-                    por_item,
-                    declaradas.get(f["id"], []),
-                    reservados,
-                )
-                for f in etapa["folhas"]
-            ]
-            usadas |= {
-                q["codigo_eap"].split("/", 1)[1] + "|" + q["grandeza"]
-                for f in folhas
-                for q in f["quantidades"]
-            }
-            folhas_do_modelo |= {f["id"] for f in folhas}
-            etapas.append({"id": etapa["id"], "nome": etapa["nome"], "folhas": folhas})
+        etapas, usadas_do_tipo, folhas_do_tipo = _etapas_do_tipo(
+            tipo, modelo, por_item, declaradas
+        )
+        usadas |= usadas_do_tipo
+        folhas_do_modelo |= folhas_do_tipo
         todas = [f for e in etapas for f in e["folhas"]]
         tipos[tipo] = {
             "nome": modelo["nome"],
