@@ -57,6 +57,30 @@ CLASSE_MENCAO = "mencao_documento"
 # --------------------------------------------------------------------------------------------------------------------
 
 
+def _medida_da_mencao(
+    fatos: list[dict], pagina_e_trecho
+) -> tuple[dict | None, str | None]:
+    """A medida (quantidade com unidade, página e trecho) e o documento onde apareceu; (None, None) se não houver."""
+    quantidade = next((f for f in fatos if f["propriedade"] == "quantidade"), None)
+    unidade = next(
+        (f["valor"] for f in fatos if f["propriedade"] == "unidade_medida"), None
+    )
+    if not (
+        quantidade is not None
+        and isinstance(quantidade["valor"], (int, float))
+        and not isinstance(quantidade["valor"], bool)
+        and unidade
+    ):
+        return None, None
+    pagina_q, trecho_q, doc_q = pagina_e_trecho(quantidade)
+    return {
+        "quantidade": float(quantidade["valor"]),
+        "unidade_medida": unidade,
+        "pagina": pagina_q,
+        "trecho": trecho_q,
+    }, doc_q
+
+
 def _mencoes_por_item(base: dict) -> dict[str, list[dict]]:
     """{item técnico: menções}: cada objeto `mencao_documento` com seu fato `item_tecnico`. A menção traz documento_id,
     as páginas (um fato `mencao` por página, com o trecho) e, se o texto trouxe número com unidade, quantidade e unidade
@@ -92,25 +116,8 @@ def _mencoes_por_item(base: dict) -> dict[str, list[dict]]:
                 paginas.append(int(pagina))
             if trecho:
                 trechos.append(trecho)
-        quantidade = next((f for f in fatos if f["propriedade"] == "quantidade"), None)
-        unidade = next(
-            (f["valor"] for f in fatos if f["propriedade"] == "unidade_medida"), None
-        )
-        medida = None
-        if (
-            quantidade is not None
-            and isinstance(quantidade["valor"], (int, float))
-            and not isinstance(quantidade["valor"], bool)
-            and unidade
-        ):
-            pagina_q, trecho_q, doc_q = pagina_e_trecho(quantidade)
-            documento_id = documento_id or doc_q
-            medida = {
-                "quantidade": float(quantidade["valor"]),
-                "unidade_medida": unidade,
-                "pagina": pagina_q,
-                "trecho": trecho_q,
-            }
+        medida, doc_q = _medida_da_mencao(fatos, pagina_e_trecho)
+        documento_id = documento_id or doc_q
         saida.setdefault(item, []).append(
             {
                 "objeto_id": objeto["objeto_id"],
@@ -214,86 +221,106 @@ def ler_decisoes(caminho: str | Path | None) -> dict[str, dict]:
     }
 
 
+def _acao_de_codigo(itens_info: list[dict]) -> list[dict]:
+    """A ação de degrau código: as classes que alimentam os itens (lista vazia se não houver classe)."""
+    classes = sorted({c for i in itens_info for c in i["construtivos"] + i["layers"]})
+    if not classes:
+        return []
+    return [
+        {
+            "degrau": DEGRAU_CODIGO,
+            "destino": "objetos das classes do item",
+            "classes": classes,
+            "texto": "a folha aponta itens alimentados pelas classes "
+            + ", ".join(classes)
+            + ": nenhum objeto delas deu quantidade nas gavetas",
+        }
+    ]
+
+
+def _acoes_da_mencao(item: dict, m: dict, documentos: dict) -> list[dict]:
+    """As ações de degrau IA de uma menção: ler o documento e, se o texto trouxe medida, a candidata."""
+    arquivo = documentos.get(m["documento_id"], m["documento_id"])
+    acoes = [
+        {
+            "degrau": DEGRAU_IA,
+            "destino": MENCAO,
+            "item": item["codigo"],
+            "documento_id": m["documento_id"],
+            "documento": arquivo,
+            "paginas": m["paginas"],
+            "objeto_id": m["objeto_id"],
+            "texto": f"ler {arquivo} nas páginas {m['paginas'] or 'a localizar'}: quantidade e unidade da "
+            f"medição do item {item['codigo']}",
+        }
+    ]
+    if m["medida"]:
+        acoes.append(
+            {
+                "degrau": DEGRAU_IA,
+                "destino": CANDIDATA,
+                "item": item["codigo"],
+                "documento_id": m["documento_id"],
+                "documento": arquivo,
+                "paginas": [m["medida"]["pagina"]]
+                if m["medida"]["pagina"]
+                else m["paginas"],
+                "quantidade": m["medida"]["quantidade"],
+                "unidade_medida": m["medida"]["unidade_medida"],
+                "trecho": m["medida"]["trecho"],
+                "objeto_id": m["objeto_id"],
+                "texto": f"o texto traz {m['medida']['quantidade']:g} {m['medida']['unidade_medida']}: "
+                "candidata a declarada (documento), à espera da citação conferida",
+            }
+        )
+    return acoes
+
+
+def _acoes_do_esperado(item: dict, presentes: dict) -> list[dict]:
+    """As ações de degrau humano de um item: um documento esperado ausente cada."""
+    return [
+        {
+            "degrau": DEGRAU_HUMANO,
+            "destino": ESPERADO,
+            "item": item["codigo"],
+            "documento_esperado": falta["documento"],
+            "sistemas": falta["sistemas"],
+            "texto": f"documento esperado ausente: {falta['nome']} ({', '.join(falta['sistemas'])}); "
+            "pedir ao Caio",
+        }
+        for falta in _esperados_ausentes(item["codigo"], presentes)
+    ]
+
+
+def _acao_ausente(itens_info: list[dict]) -> dict:
+    """A ação humana de confirmar que a folha não se aplica (nenhuma menção e nenhum esperado)."""
+    codigos = ", ".join(i["codigo"] for i in itens_info) or "nenhum item"
+    return {
+        "degrau": DEGRAU_HUMANO,
+        "destino": AUSENTE,
+        "texto": f"ausente do projeto: nenhuma menção a {codigos} nos documentos lidos e nenhum documento "
+        "esperado faltando; confirmar que não se aplica",
+    }
+
+
 def _acoes(
     itens_info: list[dict], mencoes: dict, presentes: dict, documentos: dict
 ) -> list[dict]:
     """Ações da folha na ordem da escada: código (classes que alimentam os itens), IA (menções, com página), humano
     (documento esperado ausente ou confirmar que a folha não se aplica)."""
-    acoes = []
-    classes = sorted({c for i in itens_info for c in i["construtivos"] + i["layers"]})
-    if classes:
-        acoes.append(
-            {
-                "degrau": DEGRAU_CODIGO,
-                "destino": "objetos das classes do item",
-                "classes": classes,
-                "texto": "a folha aponta itens alimentados pelas classes "
-                + ", ".join(classes)
-                + ": nenhum objeto delas deu quantidade nas gavetas",
-            }
-        )
+    acoes = _acao_de_codigo(itens_info)
     achou_mencao = False
     for item in itens_info:
         for m in mencoes.get(item["codigo"], []):
             achou_mencao = True
-            arquivo = documentos.get(m["documento_id"], m["documento_id"])
-            acoes.append(
-                {
-                    "degrau": DEGRAU_IA,
-                    "destino": MENCAO,
-                    "item": item["codigo"],
-                    "documento_id": m["documento_id"],
-                    "documento": arquivo,
-                    "paginas": m["paginas"],
-                    "objeto_id": m["objeto_id"],
-                    "texto": f"ler {arquivo} nas páginas {m['paginas'] or 'a localizar'}: quantidade e unidade da "
-                    f"medição do item {item['codigo']}",
-                }
-            )
-            if m["medida"]:
-                acoes.append(
-                    {
-                        "degrau": DEGRAU_IA,
-                        "destino": CANDIDATA,
-                        "item": item["codigo"],
-                        "documento_id": m["documento_id"],
-                        "documento": arquivo,
-                        "paginas": [m["medida"]["pagina"]]
-                        if m["medida"]["pagina"]
-                        else m["paginas"],
-                        "quantidade": m["medida"]["quantidade"],
-                        "unidade_medida": m["medida"]["unidade_medida"],
-                        "trecho": m["medida"]["trecho"],
-                        "objeto_id": m["objeto_id"],
-                        "texto": f"o texto traz {m['medida']['quantidade']:g} {m['medida']['unidade_medida']}: "
-                        "candidata a declarada (documento), à espera da citação conferida",
-                    }
-                )
+            acoes.extend(_acoes_da_mencao(item, m, documentos))
     achou_esperado = False
     for item in itens_info:
-        for falta in _esperados_ausentes(item["codigo"], presentes):
-            achou_esperado = True
-            acoes.append(
-                {
-                    "degrau": DEGRAU_HUMANO,
-                    "destino": ESPERADO,
-                    "item": item["codigo"],
-                    "documento_esperado": falta["documento"],
-                    "sistemas": falta["sistemas"],
-                    "texto": f"documento esperado ausente: {falta['nome']} ({', '.join(falta['sistemas'])}); "
-                    "pedir ao Caio",
-                }
-            )
+        esperadas = _acoes_do_esperado(item, presentes)
+        achou_esperado = achou_esperado or bool(esperadas)
+        acoes.extend(esperadas)
     if not achou_mencao and not achou_esperado:
-        codigos = ", ".join(i["codigo"] for i in itens_info) or "nenhum item"
-        acoes.append(
-            {
-                "degrau": DEGRAU_HUMANO,
-                "destino": AUSENTE,
-                "texto": f"ausente do projeto: nenhuma menção a {codigos} nos documentos lidos e nenhum documento "
-                "esperado faltando; confirmar que não se aplica",
-            }
-        )
+        acoes.append(_acao_ausente(itens_info))
     return acoes
 
 
