@@ -63,9 +63,9 @@ etapas:
   agente: haiku
   estimativa_min: 20
   estimativa_tokens: 80000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T14:42:27Z'
-  fim: null
+  fim: '2026-11-04T14:48:58Z'
   forcado: null
 - id: E5
   nome: Build real, conferência de 5 linhas, balanço, PR e merge
