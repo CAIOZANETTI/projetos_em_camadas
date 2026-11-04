@@ -379,12 +379,21 @@ def _curvas_da_topografia(t: dict, out: Path) -> list[dict]:
     return cache["curvas"]
 
 
-def terreno_composto(g: dict, c: dict | None, out: Path, log=print) -> None:
+def _furos_da_obra(cfg: dict) -> list[dict]:
+    """Furos de sondagem (`sondagens` do obra.json) com E, N e cota_boca; vazio se o arquivo não existe."""
+    arq = Path(cfg.get("sondagens", ""))
+    if not arq.is_file():
+        return []
+    return [f for f in json.loads(arq.read_text(encoding="utf-8"))["furos"] if "cota_boca" in f]
+
+
+def terreno_composto(g: dict, c: dict | None, out: Path, log=print, furos: list[dict] | None = None) -> None:
     """Troca `g["terreno"]` pelo terreno composto quando o `obra.json` pede (`escavacao.terreno.fonte` =
     "topografia_e_mds"): topografia do projeto dentro do casco das curvas, MDS corrigido fora, costura de
     `faixa_costura_m` (`topografia.compor_terreno`). Guarda em `g` o MDS original (`terreno_mds`), a origem por célula
     (`origem_terreno`, índice em `topografia.ORIGENS_TERRENO`) e o resumo (`terreno_resumo`, m²). Sem a chave, nada muda.
-    Sem scipy ou sem o PDF, fica o MDS e o log diz que a topografia não foi aplicada (pendência)."""
+    `furos` (id, E, N, cota_boca) validam o MDS corrigido fora do casco. Sem scipy ou sem o PDF, fica o MDS e o log diz
+    que a topografia não foi aplicada (pendência)."""
     if not c or c.get("fonte") != "topografia_e_mds":
         return
     from . import topografia
@@ -400,12 +409,14 @@ def terreno_composto(g: dict, c: dict | None, out: Path, log=print) -> None:
         log(f"Terreno das cavas: topografia NÃO aplicada, falta {erro.name} (pendência; fica o MDS)")
         return
     alta = g.get("vegetacao_alta", np.zeros(g["forma"], bool))
-    comp = topografia.compor_terreno(g, topo, alta, c.get("faixa_costura_m", topografia.FAIXA_COSTURA_PADRAO_M))
+    comp = topografia.compor_terreno(g, topo, alta, c.get("faixa_costura_m", topografia.FAIXA_COSTURA_PADRAO_M), furos)
     g.update(terreno_mds=g["terreno"], terreno=comp["terreno"], origem_terreno=comp["origem"],
              terreno_resumo={**comp["resumo"], "fonte": c.get("justificativa", ""), "plano_mds": comp["plano"]})
     r = comp["resumo"]
     log(f"Terreno das cavas: topografia no casco, MDS corrigido fora (plano {comp['plano']['coeficientes']}); "
         f"m² por origem {r['area_m2']}; sem terreno {r['sem_terreno']}")
+    for aviso in r["alertas"]:
+        log(f"Terreno das cavas: ALERTA {aviso}")
 
 
 def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print,
@@ -437,7 +448,7 @@ def etapa(cfg: dict, pranchas: list, out: Path, vertical: dict | None, log=print
         bs += bases(tr, c["layer_base"], p["M"], c["cores_etapa"])
         cristas += linhas_utm(tr, c["layer_crista"], p["M"])
     g = grade(out / "sfm" / "ortofoto.jpg", out / "sfm" / "ortofoto_mds.png", vertical)
-    terreno_composto(g, c.get("terreno"), out, log)
+    terreno_composto(g, c.get("terreno"), out, log, _furos_da_obra(cfg))
     r = calcular(bs, ms, cristas, g)
     if saida_gavetas is not None:
         _entregar_as_gavetas(saida_gavetas, ms, bs, cristas, g, r, lidas)

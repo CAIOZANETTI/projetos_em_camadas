@@ -536,7 +536,7 @@
   "fonte": "PBGE ESCAVAÇÃO 1/2/3 (folhas 06-08/14, R2): base = estruturas projetadas, fundo = marcas de nível (OCR), crista = RETALUDAMENTO",
   "terreno": {
    "fonte": "topografia_e_mds",
-   "justificativa": "decisão do Caio (04/11/2026, opção D): o MDS herda a altitude das sondagens de 2022 e erra com copa, prédio e inclinação da reconstrução (RMS 1,15 m contra a topografia); dentro do casco das curvas da GEOPLANTA vale a topografia do projeto (RMS 0,16 m contra as seções); fora dele, o MDS menos o plano de inclinação medido contra a topografia no terreno aberto, sem edificação e vegetação alta; costura linear na borda. O terreno pode ter mudado de 2022 para 2026 (sem dado para separar). Relatório: docs/plano/2026-11-03_decisao_terreno.md",
+   "justificativa": "decisão do Caio (04/11/2026, opção D): o MDS herda a altitude das sondagens de 2022 e erra com copa, prédio e inclinação da reconstrução (RMS 1,15 m contra a topografia); dentro do casco das curvas da GEOPLANTA vale a topografia do projeto (RMS 0,16 m contra as seções); fora dele, o MDS menos o plano de inclinação medido contra a topografia no terreno aberto, sem edificação e vegetação alta; costura linear de faixa_costura_m FORA do casco (a topografia da borda cai a zero em 5 m); o plano é extrapolado e validado contra os furos de fora (campo validacao_fora_do_casco). O terreno pode ter mudado de 2022 para 2026 (sem dado para separar). Relatório: docs/plano/2026-11-03_decisao_terreno.md",
    "topografia": {
     "pdf": "dados/foz/projeto/UNIDADE 01/ANEXO C/2. PBGE/DE/R2/001-SAA-0017-8820-PBGE-DE-0000ETA01GEOPLANTA1-R1.pdf",
     "M": [
