@@ -1054,3 +1054,246 @@ def test_documento_com_obra_desconhecida_avisa_no_log(tmp_path):
         tmp_path, {"tipo": "memorial", "obra": "ponte"}, {"tipo": "memorial"}
     )
     assert any("obra 'ponte' desconhecida" in m for m in log)
+
+
+# caracterização (ciclo de complexidade): fixa a saída de `etapa` e dos avisos antes da refatoração ----------------------
+def _etapa_completa(tmp_path):
+    """`etapa` com documento ausente, recusado e lido, planilha Obras Lineares ausente, IA e decisões (uma de cada
+    inválida): devolve (resumo, log com o diretório temporário trocado por <tmp>)."""
+    from test_evidencias_ia import _linha
+
+    ia = tmp_path / "ia.jsonl"
+    ia.write_text("{nao json\n" + _linha() + "\n", encoding="utf-8")
+    decisao = evidencias.decisao(
+        "U1.*.GEO.FUN.EST", "", "un", 250.0, "caio", "revisão R2"
+    )
+    ruim = {**decisao, "codigo": "u1.*.geo.fun.est"}
+    (tmp_path / "dec.jsonl").write_text(
+        json.dumps(decisao) + "\n" + json.dumps(ruim) + "\n", encoding="utf-8"
+    )
+    documentos = [
+        {"pdf": str(tmp_path / "ausente.pdf"), "tipo": "memorial"},
+        {"pdf": _csv_vala(tmp_path, "a.csv"), "tipo": "relatorio"},
+        {
+            "pdf": _csv_vala(tmp_path, "b.csv"),
+            "tipo": "memorial",
+            "unidade": "U1",
+            "sistema": "AGUA_POTAVEL",
+        },
+        {"pdf": _csv_vala(tmp_path, "c.csv"), "tipo": "memorial"},
+    ]
+    cfg = {
+        **SEM_DECLARACAO,
+        "evidencias": {
+            "documentos": documentos,
+            "ia": str(ia),
+            "decisoes": str(tmp_path / "dec.jsonl"),
+        },
+        "obras_lineares": {"planilha": str(tmp_path / "nao.xlsx")},
+    }
+    saida = tmp_path / "saida"
+    saida.mkdir()
+    log = []
+    resumo = evidencias.etapa(cfg, saida, {"crs": {"epsg": 31982}}, log.append)
+    return resumo, [m.replace(str(tmp_path), "<tmp>") for m in log]
+
+
+def test_etapa_log_completo_na_ordem_com_ia_decisoes_e_planilha_ausente(tmp_path):
+    resumo, log = _etapa_completa(tmp_path)
+    assert log == [
+        "  evidências: <tmp>/ausente.pdf não está no disco",
+        "  evidências: planilha <tmp>/nao.xlsx ausente ou sem a aba 'Obras Lineares' (pendência)",
+        "  evidências: linha de IA recusada (schema inválido: a linha não é um objeto JSON)",
+        "  evidências: evidência recusada na leitura (documento inválido: tipo 'relatorio' inválido): documento a.csv (*.*.*)",
+        "  evidências: evidência recusada na leitura (decisão inválida: código 'u1.*.geo.fun.est' fora do padrão): u1.*.geo.fun.est 250.0 un",
+        "  evidências: evidência recusada na leitura (sistema de trecho linear não declarado na obra): U1.AGUA_POTAVEL.GEO.MOV.VAL 100.0 m³",
+        "  evidências: 3 · fatos 2 · conflitos 0",
+    ]  # fmt: skip
+    assert resumo["n_evidencias"] == 3
+    assert [(f["codigo"], f["status"]) for f in resumo["fatos"]] == [
+        ("*.*.GEO.MOV.VAL", "fonte única"),
+        ("U1.*.GEO.FUN.EST", "decidido"),
+    ]
+    assert [(r["documento"], r["motivo"]) for r in resumo["recusadas"]] == [
+        ("a.csv", "documento inválido: tipo 'relatorio' inválido"),
+        (
+            "decisao:caio",
+            "decisão inválida: código 'u1.*.geo.fun.est' fora do padrão",
+        ),
+        ("b.csv", "sistema de trecho linear não declarado na obra"),
+    ]
+    assert resumo["titulos_etapa"] == []
+    assert set(resumo) == {
+        "n_evidencias",
+        "fatos",
+        "cobertura",
+        "associados",
+        "dimensoes",
+        "calibracao",
+        "titulos_etapa",
+        "recusadas",
+    }
+
+
+def test_etapa_grava_os_arquivos_depois_dos_logs_de_recusa(tmp_path):
+    _etapa_completa(tmp_path)
+    saida = tmp_path / "saida"
+    assert sorted(p.name for p in saida.iterdir()) == [
+        "associados.csv",
+        "calibracao.csv",
+        "cobertura.csv",
+        "dimensoes.csv",
+        "evidencias.jsonl",
+        "fatos.csv",
+    ]
+    assert len(evidencias.ler(saida / "evidencias.jsonl")) == 3
+
+
+def test_etapa_so_com_recusa_de_ia_loga_devolve_none_e_nao_grava(tmp_path):
+    ia = tmp_path / "ia.jsonl"
+    ia.write_text("{nao json\n", encoding="utf-8")
+    saida = tmp_path / "saida"
+    saida.mkdir()
+    log = []
+    cfg = {
+        "evidencias": {"ia": str(ia), "decisoes": str(tmp_path / "sumiu.jsonl")},
+        "obras_lineares": {"planilha": str(tmp_path / "nao.xlsx")},
+    }
+    assert evidencias.etapa(cfg, saida, {"crs": {"epsg": 31982}}, log.append) is None
+    assert [m.replace(str(tmp_path), "<tmp>") for m in log] == [
+        "  evidências: planilha <tmp>/nao.xlsx ausente ou sem a aba 'Obras Lineares' (pendência)",
+        "  evidências: linha de IA recusada (schema inválido: a linha não é um objeto JSON)",
+    ]  # fmt: skip
+    assert list(saida.iterdir()) == []
+
+
+def test_etapa_com_arquivos_de_ia_e_decisoes_ausentes_equivale_a_listas_vazias(
+    tmp_path,
+):
+    cfg = {"evidencias": {"ia": str(tmp_path / "x.jsonl"), "decisoes": "nao/existe"}}
+    log = []
+    assert evidencias.etapa(cfg, tmp_path, {"crs": {"epsg": 31982}}, log.append) is None
+    assert log == [] and list(tmp_path.iterdir()) == []
+
+
+def _fato_aviso(**campos):
+    return {
+        "codigo": CODIGO_LINEAR,
+        "servico": "escavacao",
+        "valor": 100.0,
+        "unidade": "m",
+        "afirmacoes": [{"documento": "memorial.pdf"}],
+        "decisoes": [],
+        **campos,
+    }
+
+
+def _dados_de_avisos():
+    fato = _fato_aviso(
+        afirmacoes=[{"documento": "memorial.pdf"}, {"documento": "memorial.pdf"}],
+        decisoes=[{"autor": "caio"}],
+    )
+    vazio = _fato_aviso(
+        servico=None, valor=None, unidade="", afirmacoes=None, decisoes=None
+    )
+    outro_sistema = _fato_aviso(codigo="U1.ACT600.GEO.FUN.EST", unidade="un")
+    recusadas = [
+        {
+            "codigo": CODIGO_LINEAR,
+            "servico": "escavacao",
+            "valor": 100.0,
+            "unidade": "m",
+            "documento": "memorial.pdf",
+            "motivo": eap_padrao.MOTIVO_NAO_DECLARADO,
+        },
+        {
+            "codigo": "U1.AGUA_POTAVEL.GEO.MOV.SUP",
+            "servico": "",
+            "valor": 3.5,
+            "unidade": None,
+            "documento": None,
+            "motivo": eap_padrao.MOTIVO_NAO_DECLARADO,
+        },
+        {"codigo": "U1.ACT600.GEO.FUN.EST", "motivo": eap_padrao.MOTIVO_NAO_DECLARADO},
+        {"codigo": None, "motivo": "decisão inválida: x"},
+        {"codigo": "U1.ACT600.GEO.FUN.EST", "motivo": "documento inválido: y"},
+    ]
+    quantidades = [
+        {
+            "codigo": CODIGO_LINEAR,
+            "grandeza": "volume",
+            "quantidade": 12.5,
+            "unidade": "m³",
+            "evidencias": ["a", "b"],
+        },
+        {
+            "codigo": CODIGO_LINEAR,
+            "grandeza": "volume",
+            "quantidade": 12.5,
+            "unidade": "m³",
+        },
+        {
+            "codigo": "U1.ACT600.GEO.FUN.EST",
+            "grandeza": "n",
+            "quantidade": 1,
+            "unidade": "un",
+        },
+    ]
+    return {
+        "evidencias": {
+            "fatos": [
+                fato,
+                vazio,
+                outro_sistema,
+                _fato_aviso(),
+                fato,
+            ],
+            "recusadas": recusadas,
+        },
+        "eap": {"quantidades": quantidades},
+    }
+
+
+RODAPE_AVISO = "; o número fica fora das duas vistas da EAP padrão"
+PREFIXO_AVISO = "Sistema de trecho linear não declarado na obra: "
+
+
+def test_avisos_nao_declarados_lista_inteira_ordem_e_deduplicacao():
+    avisos = eap_padrao._avisos_nao_declarados(_dados_de_avisos(), set())
+    cod = CODIGO_LINEAR
+    assert avisos == [
+        # fatos, na ordem; o repetido e o da recusa de texto igual não duplicam
+        f"{PREFIXO_AVISO}{cod} (Escavação, 100,00 m; documento memorial.pdf, decisao:caio){RODAPE_AVISO}",
+        f"{PREFIXO_AVISO}{cod} (sem serviço, sem valor; documento não informado){RODAPE_AVISO}",
+        f"{PREFIXO_AVISO}{cod} (Escavação, 100,00 m; documento memorial.pdf){RODAPE_AVISO}",
+        # recusadas na leitura
+        f"{PREFIXO_AVISO}U1.AGUA_POTAVEL.GEO.MOV.SUP (sem serviço, 3,50; documento não informado){RODAPE_AVISO}",
+        "Recusada na leitura: sem código (decisão inválida: x)",
+        "Recusada na leitura: U1.ACT600.GEO.FUN.EST (documento inválido: y)",
+        # quantidades das pranchas
+        f"{PREFIXO_AVISO}{cod} (volume, 12,50 m³; documento pranchas medidas, 2 elemento(s)){RODAPE_AVISO}",
+        f"{PREFIXO_AVISO}{cod} (volume, 12,50 m³; documento pranchas medidas, 0 elemento(s)){RODAPE_AVISO}",
+    ]  # fmt: skip
+
+
+def test_avisos_nao_declarados_com_declaracao_nao_confere_e_formas_da_entrada():
+    dados = _dados_de_avisos()
+    recusas_de_texto = [
+        "Recusada na leitura: sem código (decisão inválida: x)",
+        "Recusada na leitura: U1.ACT600.GEO.FUN.EST (documento inválido: y)",
+    ]
+    declarado = {("u1", "agua_potavel")}
+    assert eap_padrao._avisos_nao_declarados(dados, declarado) == recusas_de_texto
+    assert eap_padrao._avisos_nao_declarados(dados, None) == recusas_de_texto
+    (so_fato,) = eap_padrao._avisos_nao_declarados(
+        {"evidencias": [_fato_aviso()], "eap": None}, set()
+    )
+    assert so_fato == (
+        f"{PREFIXO_AVISO}{CODIGO_LINEAR} (Escavação, 100,00 m; documento memorial.pdf){RODAPE_AVISO}"
+    )
+    vazios = {
+        "evidencias": {"fatos": None, "recusadas": None},
+        "eap": {"quantidades": None},
+    }
+    assert eap_padrao._avisos_nao_declarados({}, set()) == []
+    assert eap_padrao._avisos_nao_declarados(vazios, set()) == []
