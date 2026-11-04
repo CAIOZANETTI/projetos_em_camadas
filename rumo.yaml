@@ -7,7 +7,7 @@ criterio_de_pronto:
 - trechos das interligações em valas.redes com trecho_contrato; as 15 linhas do Contrato
   211 que dependiam deles saem de 'a preencher' (calculadas ou com motivo novo)
 - build real, interface 0 falha, balanço sem REVERTER, PR e merge
-base: fc53b2b
+base: a7d0b8d
 etapas:
 - id: E1
   nome: Afim das folhas 009 e 010 pela f004 (escala do título, pontos homólogos ou
@@ -50,16 +50,27 @@ etapas:
   - results/iteracoes/*
   - results/agentes/execucoes.csv
   - docs/plano/2026-11-04_georref_f009_f010.md
+  - camadas/obra.py
+  - tests/test_obra_sig.py
+  - docs/RASTREABILIDADE.md
   depende_de:
   - E2
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T16:47:43Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-04T17:30:02Z'
+  forcado: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract 5.3.4 do ambiente); balanço SEM_GANHO sem piora,
+    1359 testes passando
 historico:
+- data: '2026-11-04'
+  mudanca: base passa a a7d0b8d (a main no fim da rodada, 0.65.0 de outra sessão);
+    a versão da rodada passou a 0.66.0; E3 também entrega camadas/obra.py e tests/test_obra_sig.py
+    (assinatura do cache de georreferência, achado no build real) e docs/RASTREABILIDADE.md
+  motivo: 'o build real mostrou a f010 sem georreferência apesar da afim nova: o cache
+    das pranchas valia só por existir (L064)'
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: orçamento de Foz 211 (PR #74, 0.64.0)'
   motivo: 'o Caio pediu: ''pode georreferenciar as folhas 009 e 010 numa nova rodada'''
