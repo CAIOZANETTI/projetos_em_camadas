@@ -45,6 +45,12 @@ ROTULOS = {
         1.0,
         "inferido",
     ),  # repartida pela posição na janela da planta
+    "Escavação (m³)": (
+        "escavacao_m3",
+        1.0,
+        "inferido",
+    ),  # calculada pela topografia (camadas.escavacao)
+    "Reaterro (m³)": ("reaterro_m3", 1.0, "inferido"),
 }
 ATRIBUTOS_NA_GEOMETRIA = (
     "E (m)",
@@ -148,12 +154,12 @@ def _medidas(geometria: dict, utm: list[np.ndarray]) -> dict:
     if tipo == "Polygon":
         forma = sg.Polygon(utm[0], utm[1:])
         return {
-            "area_planta_m2": round(forma.area, 3),
-            "perimetro_m": round(forma.length, 3),
+            "area_planta_m2": round(forma.area, 6),
+            "perimetro_m": round(forma.length, 6),
         }
     if tipo in ("LineString", "MultiLineString"):
         return {
-            "comprimento_m": round(float(sum(sg.LineString(p).length for p in utm)), 3)
+            "comprimento_m": round(float(sum(sg.LineString(p).length for p in utm)), 6)
         }
     return {}
 

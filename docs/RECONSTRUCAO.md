@@ -38,6 +38,15 @@ O Caio definiu o fluxo (04/11/2026):
 
 As fases da §3 foram reorganizadas nesses passos.
 
+### 0.1 Andamento (atualizado a cada fase)
+
+| Fase | Versão | Situação | Números de Foz |
+|---|---|---|---|
+| F0 | 0.69.0 | feita (PR #79) | decisões registradas; gavetas v2; golden das quantidades |
+| F1+F2 | 0.70.0 | feita (PR #79) | 324 documentos, 1 483 páginas, 1 514 objetos, 7 327 fatos (5 987 com página), 0 erros |
+| F3 | 0.71.0 | feita (este PR) | EAP pelas gavetas: paridade 37/37; localizada 9/45 folhas preenchidas (+6 declaradas), linear 5/32 |
+| F4 | — | próxima | serviços complementares lendo e gravando nas gavetas |
+
 ## 1. Diagnóstico: o que temos (0.68.0)
 
 ### 1.1 Tamanho
