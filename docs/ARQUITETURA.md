@@ -568,6 +568,21 @@ diferenças explicadas; cada diferença vira pendência com o nível, o objeto e
 existir), gravando `conferencia_externa.json` e a seção correspondente em `pendencias.json`; a verificação noturna lê o
 resumo. A aba EAP mostra, por nó, quantos fatos foram confirmados pelas duas leituras.
 
+**Condições confirmadas pelo extrator (04/11, 85 perguntas, `main` 0.25.2 com a E8).**
+- Servem já (Parquet de hoje): `sha256` do conteúdo, estável, com `pai_sha256` e a cadeia `a!/b` (N1); páginas,
+  palavras, `alnum` e cobertura da auditoria pypdf × PyMuPDF (N2); blocos com caixa em pt do PDF, origem no canto
+  superior esquerdo (N3); planilhas completas, célula a célula, sem corte (N4); blocos e tabelas gravados uma vez por
+  `sha256` (N7).
+- Até a E12: manifesto (obra, commit, contagens, hash), versão de esquema, saída igual byte a byte, tamanho e rotação
+  da página, confiança do OCR por bloco. Até lá o N0 calcula o hash do nosso lado.
+- Do nosso lado: números das planilhas chegam como texto (até 12 algarismos), então N4–N6 convertem com tolerância
+  declarada; a chave do bloco não é estável entre versões do leitor (usar `sha256` + versão); o texto SHX das pranchas
+  quase não passa pelo OCR (lacuna conhecida, candidata a ciclo lá), então o N3 não reprova por falta dele; cotações e
+  abas de preço são filtradas pela pasta e pelo nome da aba, porque o extrator não interpreta conteúdo.
+- Retorno: o extrator aceita um JSON com `sha256` e o problema de cada arquivo como entrada do PDCA dele; é o formato
+  de saída das pendências do N7 que voltam para lá.
+- Decisão do Caio em aberto: a saída no Drive tem texto de cotações e dados pessoais em claro, sem separação.
+
 **Cuidados.** A extração externa também lê cotações e abas de preço (COMPOSIÇÕES, INSUMOS, Medição): a conferência só
 usa as abas e documentos de escopo. Arquivos repetidos dentro de zips são comparados pelo hash, não pelo caminho. Uma
 mudança de versão do extrator aparece no N0 e não muda nenhum número da EAP.
