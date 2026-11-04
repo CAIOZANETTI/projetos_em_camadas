@@ -16,6 +16,7 @@ Formato do obra.json: ver `exemplos/foz/obra.json` (comentado em docs/OBRA_JSON.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import time
@@ -173,11 +174,15 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
         cache = pasta / f"{p['id']}.json"
         if not cache.exists() and _pdf_ausente(p):
             continue
+        assinatura = _assinatura_georef(p)
         if cache.exists() and not refazer:
             r = json.loads(cache.read_text())
-            r["M"] = np.array(r["M"]) if r.get("M") else None
-            feitas[p["id"]] = {**p, **r}
-            continue
+            # cache vale se foi feito com a mesma configuração; o antigo, sem assinatura, só se a prancha não traz
+            # afim absoluta (ela muda no obra.json e o cache a ignorava em silêncio: a f010 ficou sem georreferência)
+            if r.get("assinatura") == assinatura or ("assinatura" not in r and not p.get("M_absoluta")):
+                r["M"] = np.array(r["M"]) if r.get("M") else None
+                feitas[p["id"]] = {**p, **r}
+                continue
         t = time.time()
         tr = pdf_cad.extrair(p["pdf"], clip=p.get("clip"))
         filtro_ref = p.get("layers_referencia", "EXIST")
@@ -214,13 +219,23 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
                     r, ok, motivo = r2, True, f"automático (ICP) sobre a prancha {p['irma']}"
         else:
             motivo = "sem pontos de controle nem prancha irmã"
-        info = {"ok": bool(ok), "motivo": motivo, "segundos": round(time.time() - t, 1)}
+        info = {"ok": bool(ok), "motivo": motivo, "segundos": round(time.time() - t, 1), "assinatura": assinatura}
         if r is not None:
             info.update({k: v for k, v in r.items() if k != "M"})
         georef_prancha.salvar({"M": r["M"] if (r is not None and ok) else None, **info}, cache)
         _log(f"Prancha {p['id']}: {'OK' if ok else 'PENDENTE'} ({motivo})")
         feitas[p["id"]] = {**p, **info, "M": r["M"] if (r is not None and ok) else None}
     return list(feitas.values())
+
+
+CHAVES_GEOREF = ("pdf", "clip", "M_absoluta", "malha", "escala", "continuidade", "pontos_controle", "irma",
+                 "layers_irma", "layers_referencia", "res_irma")
+
+
+def _assinatura_georef(p: dict) -> str:
+    """Hash das chaves do obra.json que decidem a georreferência da prancha (a do cache tem de ser igual)."""
+    base = json.dumps({k: p.get(k) for k in CHAVES_GEOREF}, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()[:16]
 
 
 def _malha_por_continuidade(p: dict, tr: list, feitas: dict, motivo_malha: str) -> dict:

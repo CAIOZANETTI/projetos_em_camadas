@@ -110,7 +110,8 @@ Situação conferida na `main` 0.58.0 (template e build), 04/11/2026.
 | Estrutura dos Actiflo que estava no Drive (30/10) | 0.18 | blocos dos Actiflo no mapa, no 3D e na decomposição; `camadas/drive.py` | mantido |
 | Unidades da Relação de Desenhos e desenhos não entregues (30/10) | 0.20 | aba Obra: desenhos citados × entregues, filtro de pendência | mantido |
 | Rastreabilidade do HTML e o HTML da main atual (04/11) | 0.58 | `docs/RASTREABILIDADE.md`; build com o terreno da 0.56 | novo |
-| Orçamento de Foz 211, sem preço: as quantidades do CUSTO CIVIL calculadas em código, mostradas na aba EAP (04/11) | 0.64 | aba EAP, bloco "Contrato 211"; `camadas/contrato_211.py`; trechos internos da f004 em `valas` | novo; 29 de 58 linhas vazias calculadas e 7 parciais |
+| Orçamento de Foz 211, sem preço: as quantidades do CUSTO CIVIL calculadas em código, mostradas na aba EAP (04/11) | 0.64 | aba EAP, bloco "Contrato 211"; `camadas/contrato_211.py`; trechos internos da f004 em `valas` | 29 de 58 linhas vazias calculadas e 7 parciais na 0.64; **51 de 58 na 0.66** |
+| Georreferenciar as folhas 009 e 010 (04/11) | 0.66 | pranchas f009, f009_600 e f010 no mapa; trechos de interligação nas valas e no Contrato 211 | novo; planta 600 da f010 pendente |
 
 ## 5. Decisões que mudaram o que tinha sido entregue
 

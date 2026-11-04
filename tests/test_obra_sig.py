@@ -328,3 +328,32 @@ def test_conferencias_geotecnia_formato_e_pendencias(tmp_path):
     assert pend["geotecnia"] == g
     obra._reavaliar({"itens": []}, out, {"inventario": {}})
     assert json.loads((out / "pendencias.json").read_text(encoding="utf-8"))["geotecnia"] is None
+
+
+def test_cache_da_prancha_refeito_quando_a_configuracao_muda():
+    """O cache de georreferência leva a assinatura da configuração: mudar a afim no obra.json muda a assinatura, e o
+    cache antigo (sem assinatura) de prancha com afim absoluta não vale (a f010 ficava sem georreferência)."""
+    from camadas import obra
+
+    p = {"id": "f010", "pdf": "x.pdf", "clip": [0, 0, 10, 10], "M_absoluta": [[1, 0, 0], [0, 1, 0]]}
+    a = obra._assinatura_georef(p)
+    assert a == obra._assinatura_georef(dict(p, nome="outro nome"))          # chave fora da georreferência não muda
+    assert a != obra._assinatura_georef(dict(p, M_absoluta=[[2, 0, 0], [0, 2, 0]]))
+    assert a != obra._assinatura_georef(dict(p, clip=[0, 0, 20, 10]))
+
+
+def test_cache_antigo_de_prancha_com_afim_absoluta_e_refeito(tmp_path, monkeypatch):
+    """Cache sem assinatura de prancha com `M_absoluta` é refeito com a afim do obra.json; o novo leva a assinatura."""
+    import json
+
+    from camadas import obra
+
+    monkeypatch.setattr(obra.pdf_cad, "extrair", lambda *a, **k: [])
+    (tmp_path / "pranchas").mkdir()
+    (tmp_path / "pranchas" / "f010.json").write_text(json.dumps({"M": None, "ok": False, "motivo": "antigo"}))
+    cfg = {"pranchas": [{"id": "f010", "pdf": "x.pdf", "M_absoluta": [[0.5, 0, 100], [0, -0.5, 200]]}]}
+    r = obra.etapa_pranchas(cfg, tmp_path, refazer=False)[0]
+    assert r["ok"] and r["M"][0][2] == 100
+    novo = json.loads((tmp_path / "pranchas" / "f010.json").read_text())
+    assert novo["assinatura"] == obra._assinatura_georef(cfg["pranchas"][0])
+    assert obra.etapa_pranchas(cfg, tmp_path, refazer=False)[0]["ok"]   # agora o cache vale

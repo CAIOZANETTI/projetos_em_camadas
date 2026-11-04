@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.66.0 — 2026-11-04 · Dados do painel da EAP padrão reproduzíveis (frente WBS)
+## 0.67.0 — 2026-11-04 · Dados do painel da EAP padrão reproduzíveis (frente WBS)
 - **`eap_padrao.tabelas_do_painel`** (pura, testada): achata a saída de `montar` em `resumo` (fração preenchida =
   preenchidas/aplicáveis do resumo, `pct_txt`), `situacoes`, `etapas` (folhas, preenchidas, só menção, citada no
   contrato) e `folhas` (situação e texto, item, quantidade e fonte, `motivo` da situação e `observacao` do padrão). Sem
@@ -18,8 +18,34 @@
 - `eap._recusa_das_evidencias` → `_recusa_por_evidencias` (opcional do aceite da 0.65).
 - Plano `docs/plano/2026-11-04_wbs_painel_eap_padrao.md` aprovado pelo Fable (com ajustes); entrega revisada uma vez
   (coluna `motivo`) e aceita.
-- Lição L063.
+- Lição L065.
 
+## 0.66.0 — 2026-11-04 · Folhas de interligação 009 e 010 georreferenciadas pela f004; os trechos de interligação no Contrato 211
+- **`georef_prancha.registrar_cad_escala_fixa`** (com `ajustar_rigido`, Kabsch): folha de detalhe sobre a folha de
+  layout com a **escala fixa do título**.
+  - O SIFT + RANSAC dá a rotação e a posição.
+  - A escala que o SIFT acha é prova: a vista só é aceita se ela ficar a 2 % da do título.
+  - Depois, reajuste rígido nos pares a até 0,15 m.
+- **Foz, três vistas georreferenciadas** (escala 1:100 exata nas três):
+  - f009, planta 360: resíduo mediano de 2,3 cm;
+  - f009_600, planta 600: 2,7 cm;
+  - f010, planta 360: 2,4 cm.
+- **Conferências:**
+  - largura do tubo a 1 % do DE em todas;
+  - emenda do DN 1000 da f009 com a f004 a 0,04 m e 0,02°.
+- **Pendente:** a planta 600 da f010. Só 6 correspondências, nas baias repetidas dos filtros existentes, onde a
+  posição fica ambígua. O contrato não depende dela.
+- **`valas`:** quatro redes de interligação com `trecho_contrato`. O recorte na janela (`recortar_janelas`,
+  Liang-Barsky) separa o enterrado da caixa e da laje.
+  - f009, DN 1000: 2,59 m;
+  - f009_600, DN 1000: 21,28 m, contra 22,1 m da relação (−3,7 %);
+  - f010: 15,6 m em DN 500 e 2,8 m em DN 600.
+- **Contrato 211:** das 58 linhas vazias, **51 calculadas** (antes 29), 0 parciais e 7 a preencher, com o motivo:
+  - sem regra: sondagem, interferências e caçambas;
+  - supressão da UC 3, que não tem trecho.
+- **Cache de georreferência das pranchas com assinatura da configuração.** A afim nova da f010 era ignorada em
+  silêncio pelo cache antigo: o primeiro build saiu com a folha "sem georreferência" e passou no teste de interface.
+- Lições L063 (escala fixa do título) e L064 (cache sem assinatura).
 ## 0.65.0 — 2026-11-04 · Complexidade das funções da frente WBS (refatoração sem mudança de saída)
 - **Quatro funções abaixo de 10 (radon)**, com saída idêntica: `eap.validar` 32 → 1 (um bloco de regra por função:
   códigos, itens, obra/escopo, referências, medições, pranchas), `eap._status` 18 → 9, `eap_padrao._avisos_nao_declarados`
