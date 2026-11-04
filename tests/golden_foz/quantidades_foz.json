@@ -80,10 +80,10 @@
         "unidade_calculada": "m2"
       },
       "CUSTO CIVIL|100": {
-        "calculada": "0,05",
+        "calculada": "",
         "declarada": "",
-        "situacao": "calculada",
-        "unidade_calculada": "un/mês"
+        "situacao": "a preencher",
+        "unidade_calculada": null
       },
       "CUSTO CIVIL|101": {
         "calculada": "0,00",
@@ -140,10 +140,10 @@
         "unidade_calculada": "m"
       },
       "CUSTO CIVIL|114": {
-        "calculada": "0,02",
+        "calculada": "",
         "declarada": "",
-        "situacao": "calculada",
-        "unidade_calculada": "un/mês"
+        "situacao": "a preencher",
+        "unidade_calculada": null
       },
       "CUSTO CIVIL|115": {
         "calculada": "0,00",
@@ -272,10 +272,10 @@
         "unidade_calculada": "m"
       },
       "CUSTO CIVIL|17": {
-        "calculada": "0,30",
+        "calculada": "",
         "declarada": "",
-        "situacao": "calculada",
-        "unidade_calculada": "un/mês"
+        "situacao": "a preencher",
+        "unidade_calculada": null
       },
       "CUSTO CIVIL|18": {
         "calculada": "0,00",
@@ -368,10 +368,10 @@
         "unidade_calculada": "m"
       },
       "CUSTO CIVIL|31": {
-        "calculada": "0,01",
+        "calculada": "",
         "declarada": "",
-        "situacao": "calculada",
-        "unidade_calculada": "un/mês"
+        "situacao": "a preencher",
+        "unidade_calculada": null
       },
       "CUSTO CIVIL|32": {
         "calculada": "0,00",
@@ -434,10 +434,10 @@
         "unidade_calculada": "m"
       },
       "CUSTO CIVIL|51": {
-        "calculada": "0,12",
+        "calculada": "",
         "declarada": "",
-        "situacao": "calculada",
-        "unidade_calculada": "un/mês"
+        "situacao": "a preencher",
+        "unidade_calculada": null
       },
       "CUSTO CIVIL|52": {
         "calculada": "0,00",
@@ -530,10 +530,10 @@
         "unidade_calculada": "m"
       },
       "CUSTO CIVIL|86": {
-        "calculada": "0,38",
+        "calculada": "",
         "declarada": "",
-        "situacao": "calculada",
-        "unidade_calculada": "un/mês"
+        "situacao": "a preencher",
+        "unidade_calculada": null
       },
       "CUSTO CIVIL|87": {
         "calculada": "0,00",

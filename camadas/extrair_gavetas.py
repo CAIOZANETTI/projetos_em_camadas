@@ -522,6 +522,67 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
             "servicos_eap": servicos}
 
 
+def _sem_os_que_ja_tem(registros: dict, base: dict) -> dict:
+    """Só os documentos e páginas que a base ainda não tem (o inventário prevalece sobre o registro mínimo de um leitor)."""
+    ja = {g: {r[gavetas.REGRAS["gavetas"][g]["chave"]] for r in base.get(g, [])} for g in ("documentos", "paginas")}
+    return {g: [r for r in registros.get(g, []) if r[gavetas.REGRAS["gavetas"][g]["chave"]] not in ja[g]]
+            for g in ("documentos", "paginas")}
+
+
+def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | None:
+    """F2 da reconstrução (docs/RECONSTRUCAO.md): completa a base das gavetas com todo o escopo extraído — documentos e
+    páginas do inventário (`gavetas_documentos`), linhas do contrato e itens de material (`gavetas_contrato`, sem preço) e
+    elementos construtivos (`gavetas_construtivos`) —, confere e regrava `base/`. Roda depois dos `construtivos`. Devolve
+    o resumo (gravado em `gavetas_escopo.json`); nada muda no `dados` do HTML. Sem inventário, planilha ou elementos, a
+    parte que falta só não entra (e o resumo diz)."""
+    from . import gavetas_construtivos, gavetas_contrato, gavetas_documentos, inventario
+
+    pasta = Path(out) / "base"
+    base = gavetas.ler(pasta) if (pasta / "objetos.parquet").exists() else _base_vazia()
+    partes, faltou = [], []
+    if cfg.get("inventario") and inventario.disponivel(cfg):
+        inv = inventario.inventario(cfg, Path(out) / "inventario_cache.json")
+        partes.append(gavetas_documentos.de_inventario(inv, Path(cfg["inventario"]["pasta"]),
+                                                       gavetas_documentos._pranchas_do_build(cfg)))
+    else:
+        faltou.append("inventário (sem a listagem do Drive)")
+    base = juntar(base, *partes)
+    planilha = Path((cfg.get("obras_lineares") or {}).get("planilha") or "")
+    if planilha.is_file():
+        doc = gavetas.id_documento(planilha)
+        base = juntar(base, gavetas_contrato.de_contrato(planilha, doc), gavetas_contrato.de_materiais(planilha, doc),
+                      _sem_os_que_ja_tem({"documentos": [{"documento_id": doc, "arquivo": planilha.name, "sha256": doc,
+                                                          "extensao": planilha.suffix, "classe": "planilha", "paginas": 1}]},
+                                         base))
+    else:
+        faltou.append("planilha do contrato")
+    tem_pdf = any(q.get("pdf") for q in cfg.get("pranchas", []))
+    if (dados.get("construtivos") or {}).get("geojson") and tem_pdf:
+        nomes = {Path(d["arquivo"]).name: d["documento_id"] for d in base["documentos"]}
+        ids, registros = gavetas_construtivos._documentos_citados(dados["construtivos"],
+                                                                  gavetas_construtivos._raiz_de_dados(cfg, Path.cwd() / "obra.json"))
+        base = juntar(base, gavetas_construtivos.de_construtivos(dados["construtivos"], dados.get("pranchas", []),
+                                                                 {**ids, **nomes}, dados["crs"]["epsg"]),
+                      _sem_os_que_ja_tem(registros, base))
+    else:
+        faltou.append("elementos construtivos" if tem_pdf else "elementos construtivos (sem PDF de prancha no obra.json)")
+    erros = gavetas.conferir_base(base)
+    gavetas.gravar(pasta, base)
+    ev = {e["evidencia_id"]: e for e in base["evidencias"]}
+    com_pagina = sum(1 for f in base["fatos"] if gavetas._localizador_com_pagina((ev.get(f["evidencia_id"]) or {}).get("localizador")))
+    resumo = {"gavetas": {g: len(base[g]) for g in gavetas.GAVETAS},
+              "objetos_por_classe": dict(sorted(Counter(o["classe"] for o in base["objetos"]).items())),
+              "fatos_com_pagina": com_pagina, "fatos": len(base["fatos"]),
+              "documentos_por_classe": dict(sorted(Counter(d.get("classe") for d in base["documentos"]).items())),
+              "faltou": faltou, "erros": erros}
+    (Path(out) / "gavetas_escopo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
+    log(f"Gavetas (escopo): {len(base['documentos'])} documentos, {len(base['paginas'])} páginas, "
+        f"{len(base['objetos'])} objetos, {len(base['fatos'])} fatos ({com_pagina} com página ou aba e linha), "
+        f"{len(base['pendencias'])} pendências, {len(erros)} erros de conferência"
+        + (f"; faltou: {', '.join(faltou)}" if faltou else ""))
+    return resumo
+
+
 def metadados() -> dict:
     """Rastreabilidade do método (regra 9 do estilo)."""
     return {

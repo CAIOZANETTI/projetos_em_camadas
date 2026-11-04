@@ -63,3 +63,16 @@ def test_id_documento_pelo_conteudo(tmp_path):
     assert gavetas.id_documento(a) == gavetas.id_documento(b) != gavetas.id_documento(c)
     assert len(gavetas.id_documento(a)) == 16
     assert gavetas.id_pagina("abc", 3) == "abc#p3"
+
+
+def test_completar_escopo_sem_insumos_diz_o_que_faltou(tmp_path):
+    """Obra sem inventário, planilha nem elementos: a base fica como está e o resumo diz o que não entrou."""
+    import json
+
+    from camadas import extrair_gavetas
+
+    r = extrair_gavetas.completar_escopo({"pranchas": []}, tmp_path, {"crs": {"epsg": 31982}}, log=lambda *a: None)
+    assert r["erros"] == [] and r["fatos"] == 0
+    assert r["faltou"] == ["inventário (sem a listagem do Drive)", "planilha do contrato",
+                           "elementos construtivos (sem PDF de prancha no obra.json)"]
+    assert json.loads((tmp_path / "gavetas_escopo.json").read_text(encoding="utf-8"))["faltou"] == r["faltou"]
