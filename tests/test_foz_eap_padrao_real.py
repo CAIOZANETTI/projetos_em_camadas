@@ -220,3 +220,71 @@ def test_titulos_sanepar_existem_em_toda_etapa_e_validar_confere_o_formato(monke
     monkeypatch.setattr(eap_padrao, "TIPOS", copia)
     erros = " | ".join(eap_padrao.validar()[0])
     assert erros.count("titulos_sanepar") == 2  # a ausência não é erro
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# D10: bloco de ancoragem e bloco de apoio são um item só, HID.TUB.ANC, em qualquer unidade
+# ----------------------------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("obra", [None, "localizada", "linear"])
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "BLOCO DE APOIO DE TUBULAÇÃO DN 300",
+        "BLOCOS DE APOIO PARA CURVA DN 400",
+        "Bloco de apoio para peça especial",
+        "BLOCOS DE APOIO E ANCORAGEM",
+        "BLOCO DE ANCORAGEM EM CONCRETO PARA CURVA DN 300",
+    ],
+)
+def test_d10_bloco_de_apoio_e_de_ancoragem_casam_o_mesmo_item(texto, obra):
+    assert _classificar(texto, obra)[0] == "HID.TUB.ANC"
+
+
+def test_d10_bloco_de_apoio_de_equipamento_nao_e_ancoragem_de_tubulacao():
+    assert _classificar("BLOCO DE APOIO DE EQUIPAMENTO")[0] != "HID.TUB.ANC"
+
+
+def test_d10_item_vale_nas_duas_obras_e_a_folha_localizada_existe():
+    item = eap.itens()["HID.TUB.ANC"]
+    assert item["obra"] == ["localizada", "linear"] and item["acessorio"] is True
+    assert "apoio" in item["nome"].lower()
+    folha = next(
+        f
+        for f in eap_padrao._folhas_do_tipo("obra_localizada")
+        if f["id"] == "OP.07.04"
+    )
+    assert (
+        folha["aponta"] == [{"item": "HID.TUB.ANC"}] and folha["obrigatoria"] is False
+    )
+    linear = next(
+        f for f in eap_padrao._folhas_do_tipo("obra_linear") if f["id"] == "OL.04.04"
+    )
+    assert linear["aponta"] == [{"item": "HID.TUB.ANC"}]  # continua
+    for titulo in ("BLOCOS DE ANCORAGEM", "BLOCOS DE APOIO"):
+        assert eap_padrao.etapas_do_titulo(titulo, "obra_localizada") == ["OP.07"]
+        assert eap_padrao.etapas_do_titulo(titulo, "obra_linear") == ["OL.04"]
+    assert eap_padrao.validar() == ([], [])
+
+
+def test_d10_linha_de_bloco_de_apoio_preenche_a_folha_na_u1_e_na_u2():
+    itens = pd.DataFrame(
+        {
+            "aba": ["CUSTO CIVIL"] * 2,
+            "descricao": ["BLOCO DE APOIO DE TUBULAÇÃO DN 300"] * 2,
+            "codigo": ["", ""],
+            "unidade": ["UN", "UN"],
+            "unidade_obra": ["UNIDADE 1 - ETA Vila C", "UNIDADE 2 - Adutora"],
+            "quantidade": [6.0, 14.0],
+            "linha_origem": [20, 310],
+        }
+    )
+    evs = evidencias.de_planilha(itens, {"id": "contrato.xlsx", "tipo": "planilha"})
+    assert [e["codigo"] for e in evs] == ["U1.*.HID.TUB.ANC", "U2.*.HID.TUB.ANC"]
+    fatos = evidencias.consolidar(evs).to_dict("records")
+    for tipo, folha, texto in (
+        ("obra_localizada", "OP.07.04", "6 un"),
+        ("obra_linear", "OL.04.04", "14 un"),
+    ):
+        bloco = eap_padrao.preencher(tipo, None, fatos)
+        f = next(f for e in bloco["etapas"] for f in e["folhas"] if f["id"] == folha)
+        assert f["situacao"] == "preenchida" and texto in f["quantidades_txt"][0]

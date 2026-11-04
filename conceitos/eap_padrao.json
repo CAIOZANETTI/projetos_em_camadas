@@ -48,10 +48,11 @@
     {"id": "OP.06.01", "nome": "Alvenaria e vedações", "aponta": [{"item": "CIV.EST.PAR", "servico": "alvenaria"}], "obrigatoria": false},
     {"id": "OP.06.02", "nome": "Revestimentos, esquadrias, cobertura e pintura", "aponta": [{"item": "CIV.ACA.ACB"}], "obrigatoria": false}
    ]},
-   {"id": "OP.07", "nome": "Instalações hidráulicas", "titulos_sanepar": ["MATERIAIS EQUIPAMENTOS"], "folhas": [
+   {"id": "OP.07", "nome": "Instalações hidráulicas", "titulos_sanepar": ["MATERIAIS EQUIPAMENTOS", "BLOCOS DE ANCORAGEM", "BLOCOS DE APOIO"], "folhas": [
     {"id": "OP.07.01", "nome": "Tubulações", "aponta": [{"item": "HID.TUB.RED"}], "obrigatoria": true},
     {"id": "OP.07.02", "nome": "Conexões, válvulas e peças especiais", "aponta": [{"item": "HID.TUB.VAL"}], "obrigatoria": true},
-    {"id": "OP.07.03", "nome": "Poços de visita e caixas", "aponta": [{"item": "HID.TUB.PVS"}], "obrigatoria": false}
+    {"id": "OP.07.03", "nome": "Poços de visita e caixas", "aponta": [{"item": "HID.TUB.PVS"}], "obrigatoria": false},
+    {"id": "OP.07.04", "nome": "Ancoragens, blocos de ancoragem e de apoio", "aponta": [{"item": "HID.TUB.ANC"}], "obrigatoria": false}
    ]},
    {"id": "OP.08", "nome": "Equipamentos", "titulos_sanepar": ["MATERIAIS EQUIPAMENTOS", "SISTEMA PNEUMÁTICO"], "folhas": [
     {"id": "OP.08.01", "nome": "Equipamentos hidromecânicos e de processo", "aponta": [{"item": "HID.EQP.EQU"}], "obrigatoria": true}

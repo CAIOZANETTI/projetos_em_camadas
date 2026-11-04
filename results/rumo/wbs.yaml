@@ -9,9 +9,10 @@ criterio_de_pronto:
 - 'cadeia real de Foz: água potável uma vez, na vista linear'
 - 'três verdes, vcm sem REVERTER e aceite do Fable'
 etapas:
-- {id: E1, nome: D10 no item, agente: sonnet, estimativa_min: 20, status: a_fazer}
-- {id: E2, nome: D10 na EAP padrão, agente: sonnet, estimativa_min: 15, status: a_fazer}
-- {id: E3, nome: D11 trecho linear em unidade localizada (antes do consolidar; vista por unidade e sistema), agente: sonnet, estimativa_min: 90, status: a_fazer}
-- {id: E4, nome: testes, agente: sonnet, estimativa_min: 45, status: a_fazer}
-- {id: E5, nome: cadeia real de Foz e relatório, agente: sonnet, estimativa_min: 20, status: a_fazer}
+- {id: E1, nome: D10 no item, agente: sonnet, estimativa_min: 20, status: feito, inicio: '2026-11-04T12:04:00Z', fim: '2026-11-04T12:08:00Z', real_min: 4}
+- {id: E2, nome: D10 na EAP padrão, agente: sonnet, estimativa_min: 15, status: feito, inicio: '2026-11-04T12:08:00Z', fim: '2026-11-04T12:09:00Z', real_min: 1}
+- {id: E3, nome: D11 trecho linear em unidade localizada (antes do consolidar; vista por unidade e sistema), agente: sonnet, estimativa_min: 90, status: feito, inicio: '2026-11-04T12:09:00Z', fim: '2026-11-04T12:12:00Z', real_min: 3}
+- {id: E4, nome: testes, agente: sonnet, estimativa_min: 45, status: feito, inicio: '2026-11-04T12:12:00Z', fim: '2026-11-04T12:15:00Z', real_min: 3}
+- {id: E5, nome: cadeia real de Foz e relatório, agente: sonnet, estimativa_min: 20, status: feito, inicio: '2026-11-04T12:15:00Z', fim: '2026-11-04T12:19:00Z', real_min: 4}
 - {id: E6, nome: aceite do Fable e merge, agente: fable, estimativa_min: 20, status: a_fazer}
+# horários reais reconstruídos dos arquivos da worktree ciclo-d10-d11 (executor Sonnet, 04/11/2026, UTC); E6 (aceite do Fable e merge) fica com o gerente
