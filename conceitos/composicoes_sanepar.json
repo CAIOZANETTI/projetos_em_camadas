@@ -5,6 +5,27 @@
   "data_referencia": "2026-11",
   "observacoes": "Cada regra declara o seu estado: confirmado (o texto da planilha ou da EAP basta), premissa (decisão de projeto a validar com o Caio) ou calibrar (depende de dado que a obra ainda não tem). A regra diz como a quantidade será calculada na etapa E2; este arquivo só liga a linha do contrato à folha da EAP e à grandeza. Linha sem de-para recebe regra sem_regra e o motivo; nada é inventado. 900506 (escoramento blindado) fica em OP.02.06 porque é a vala de tubulação interna; OP.02.02 (escoramento de cava) é para cava, não para vala. Medidor de vazão é instrumentação (OP.09.01), não bloco de ancoragem; a elétrica e a hidromecânica estão fora desta rodada, por isso sem_regra."
  },
+ "premissas": {
+ "dmt_bota_fora_km": {"valor": 10, "unidade": "km", "estado": "calibrar", "descricao": "distância média de transporte do bota-fora (041901)", "fonte": "premissa do gerente aprovada pelo Caio em 04/11/2026 ('deixa a premissa'); calibrar com o TR/licenciamento e a produtividade real"},
+ "produtividade_vala_escorada_m_por_dia": {"valor": 8, "unidade": "m/dia", "estado": "calibrar", "descricao": "avanço diário da vala escorada (900506)", "fonte": "premissa do gerente aprovada pelo Caio em 04/11/2026 ('deixa a premissa'); calibrar com o TR/licenciamento e a produtividade real"},
+ "dias_uteis_por_mes": {"valor": 22, "unidade": "dia/mês", "estado": "calibrar", "descricao": "dias úteis por mês de locação do escoramento (900506)", "fonte": "premissa do gerente aprovada pelo Caio em 04/11/2026 ('deixa a premissa'); calibrar com o TR/licenciamento e a produtividade real"},
+ "jogos_de_escoramento": {"valor": 1, "unidade": "un", "estado": "calibrar", "descricao": "jogos de escoramento blindado em uso simultâneo (900506)", "fonte": "premissa do gerente aprovada pelo Caio em 04/11/2026 ('deixa a premissa'); calibrar com o TR/licenciamento e a produtividade real"},
+ "folga_locacao_lateral_m": {"valor": 0, "unidade": "m", "estado": "calibrar", "descricao": "folga de cada lado da vala na área de locação (020223); 0 = a locação é a própria faixa da vala", "fonte": "premissa do gerente (E2, 04/11/2026): a locação cobre a faixa da vala; calibrar com o TR/licenciamento"}
+ },
+ "tolerancias": {
+  "unidade_percentual": "%",
+  "comprimento": 2,
+  "area": 5,
+  "volume": 5,
+  "unidade": 0,
+  "observacao": "tolerância relativa da conferência quantidade calculada × declarada, por grandeza; grandezas fora de comprimento, area e volume (contagem, prazo) usam 'unidade' (0: tem de ser igual)",
+  "estado": "calibrar"
+ },
+ "conferencia_declarada": {
+  "100207": {"chave_urbanizacao": "asfalto", "unidade": "m2", "observacao": "asfalto novo da urbanização (H01) contra o asfalto declarado pela Sanepar"},
+  "100224": {"chave_urbanizacao": "concreto", "unidade": "m2", "observacao": "pavimento de concreto desempenado da urbanização"},
+  "100229": {"chave_urbanizacao": "guia", "unidade": "m", "observacao": "guia pré-moldada: só confere se a urbanização trouxer o comprimento (m) da guia"}
+ },
  "composicoes": {
   "DI": {"descricao": "Administração local da obra", "folha_eap": "OP.00.01", "grandeza": "prazo", "unidade": "mês", "regra": "declarada", "estado": "confirmado"},
   "020223": {"descricao": "Locação da obra com auxílio de equipamento topográfico", "folha_eap": "OP.01.02", "grandeza": "area", "unidade": "m2", "regra": "area_da_uc", "estado": "premissa"},
