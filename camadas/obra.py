@@ -27,6 +27,7 @@ import numpy as np
 from . import (
     conferencia_cavas,
     construtivos,
+    contrato_211,
     eap,
     eap_html,
     eap_padrao,
@@ -828,6 +829,35 @@ def _eap_padrao_no_build(dados: dict, cfg: dict, out: Path) -> None:
         _log(f"EAP padrão pulada (pendência: {type(erro).__name__}: {erro})")
 
 
+def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | None) -> dict | None:
+    """Quantidades do CUSTO CIVIL da planilha 211 (`camadas.contrato_211`), sem preço, para `dados["contrato_211"]`.
+    Sem planilha vira pendência; qualquer falha também, e o contrato nunca derruba o build."""
+    planilha = cfg.get("obras_lineares", {}).get("planilha")
+    if not planilha or not Path(planilha).is_file():
+        _log("Contrato 211: planilha ausente (pendência)")
+        return None
+    try:
+        linhas = contrato_211.classificar(contrato_211.ler_custo_civil(planilha))
+        furos = escavacao._furos_da_obra(cfg)
+        ortofoto, mds = out / "sfm" / "ortofoto.jpg", out / "sfm" / "ortofoto_mds.png"
+        sup = None
+        if cfg.get("supressao") and ortofoto.is_file() and mds.is_file():
+            sup = contrato_211.supressao_por_uc(redes_vala, ortofoto, mds, cfg["supressao"]["faixa_m"],
+                                                cfg["supressao"]["folga_unidades_m"], linhas)
+        urb = (vala or {}).get("urbanizacao_m2")
+        resultados = contrato_211.quantificar(linhas, contrato_211.contexto_do_build(redes_vala, furos, sup, urb))
+        resumo = contrato_211.resumo_quantidades(resultados)
+        _log(f"Contrato 211: {resumo['linhas']} linha(s); " + ", ".join(
+            f"{situacao} {n}" for situacao, n in resumo["por_situacao"].items() if n))
+        premissas = [f"{nome}: {p['descricao']} = {str(p['valor']).replace('.', ',')} {p['unidade']} ({p['estado']})"
+                     for nome, p in contrato_211.DE_PARA["premissas"].items()]
+        return {"resumo": resumo, "linhas": contrato_211.para_html(resultados), "premissas": premissas,
+                "fonte": "aba CUSTO CIVIL da planilha 211 (colunas A–E e I; sem preço)"}
+    except Exception as erro:  # noqa: BLE001 - o contrato nunca derruba o build
+        _log(f"Contrato 211: não concluído (pendência; {type(erro).__name__}: {erro})")
+        return None
+
+
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict,
                  redes_vala: list | None = None, cavas: dict | None = None) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
@@ -947,6 +977,9 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "info": _info(cfg, crs, rel, desloc, orto, vertical, lista),
     }
     _sondagens_no_build(dados, cfg, furos, esc, epsg, vertical)
+    contrato = _contrato_211(cfg, out, redes_vala, vala)
+    if contrato is not None:
+        dados["contrato_211"] = contrato
     _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala}, redes_vala, cavas_gavetas)
     return _gravar(cfg, out, dados, pranchas, epsg)
 

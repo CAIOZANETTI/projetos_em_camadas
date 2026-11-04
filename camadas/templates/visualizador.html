@@ -216,6 +216,21 @@ aside.larga{width:min(560px,46vw)}
 .st-conflito{color:#b91c1c}.st-so-mencao{color:var(--aberta)}.st-fonte-unica{color:var(--mut)}.st-convergente,.st-decidido{color:var(--ok)}
 .eap-aff{margin:0 0 6px 28px;padding:4px 8px;border-left:2px solid var(--linha);font-size:12px;overflow-wrap:anywhere}
 .eap-aff .nota-l{display:block}
+/* Contrato 211 (D.contrato_211): quantidades do CUSTO CIVIL, sem preço; a rolagem fica dentro do bloco, a página não rola */
+.ctr211-rolagem{overflow-x:auto;max-width:100%;min-width:0;margin:6px 0 12px}
+table.ctr211{width:100%;min-width:980px;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+table.ctr211 th{font:600 10.5px var(--f-ui);color:var(--mut);text-align:left;padding:3px 6px;border-bottom:1px solid var(--linha);white-space:nowrap}
+table.ctr211 td{padding:5px 6px;border-bottom:1px solid var(--linha);vertical-align:top}
+table.ctr211 td.num{font-family:var(--f-dado);white-space:nowrap}
+table.ctr211 td.cod{font:500 11.5px var(--f-dado);white-space:nowrap}
+table.ctr211 .ctr211-motivo{min-width:260px;max-width:420px;overflow-wrap:anywhere}
+table.ctr211 .ctr211-motivo .nota-l{display:block;margin-top:2px}
+table.ctr211 .st{white-space:nowrap}
+table.ctr211 .st[data-situacao="calculada"],table.ctr211 .st[data-situacao="declarada · confere"]{color:var(--ok)}
+table.ctr211 .st[data-situacao="parcial"]{color:var(--aberta)}
+table.ctr211 .st[data-situacao="a preencher"]{color:var(--aberta);font-weight:700;border-style:solid;border-width:2px}
+table.ctr211 .st[data-situacao="declarada · diverge"]{color:#b91c1c;font-weight:700;border-style:solid;border-width:2px}
+.ctr211-prem{margin:4px 0 10px;padding-left:18px;font-size:11.5px;color:var(--mut);overflow-wrap:anywhere}
 table.eap-assoc{width:100%;border-collapse:collapse;font-size:12px}
 table.eap-assoc th,table.eap-assoc td{padding:5px 6px 5px 0;border-bottom:1px solid var(--linha);text-align:left;vertical-align:top}
 table.eap-assoc td.num{text-align:right;font-family:var(--f-dado);white-space:nowrap}
@@ -2401,6 +2416,43 @@ function htmlEapPadrao(Q) {
   return `<h2>EAP padrão (a preencher)</h2><p class="nota-l" style="margin-left:0" id="eapPadAviso">${esc(Q.aviso)}</p><p class="nota-l" style="margin-left:0">${esc(Q.regra_tipo)}</p>
     <div id="eapPadrao">${(Q.tipos || []).map(tipo).join("")}</div>${fora ? `<p class="nota-l" style="margin-left:0">Itens da EAP fora do padrão: ${esc(fora)}</p>` : ""}${(Q.avisos || []).map(a => `<p class="nota-l eap-pad-aviso" style="margin-left:0">Aviso: ${esc(a)}</p>`).join("")}`;
 }
+/* Contrato 211 (D.contrato_211): camadas/contrato_211.py já calcula, classifica e formata tudo; aqui só se exibe, uma tabela
+   por folha da EAP, na ordem em que as linhas vêm. Os números do resumo chegam crus e só ganham a vírgula decimal. */
+function htmlContrato211(C) {
+  const RS = C.resumo || {};
+  const num = v => esc(typeof v === "number" ? v.toLocaleString("pt-BR") : v);
+  const pares = [["Linhas", RS.linhas], ...Object.entries(RS.por_situacao || {}).map(([k, v]) => [`situação: ${k}`, v]),
+    ["Linhas sem declarada", RS.vazias], ["Sem declarada, calculadas", RS.vazias_calculadas],
+    ["Sem declarada, calculadas (%)", RS.pct_vazias_calculadas]];
+  const folhas = new Map();
+  for (const l of C.linhas || []) {
+    const chave = l.folha_eap ?? "";
+    if (!folhas.has(chave)) folhas.set(chave, []);
+    folhas.get(chave).push(l);
+  }
+  const traco = v => esc(v || "—");
+  const linha = l => {
+    const detalhe = [l.motivo, ...(l.evidencias || []), ...(l.premissas || [])].filter(Boolean);
+    return `<tr>
+      <td class="cod">${esc(l.aba)}:${esc(l.linha)}</td>
+      <td>${esc([l.uc, l.trecho].filter(Boolean).join(" / "))}</td>
+      <td class="cod">${esc(l.composicao)}</td>
+      <td>${esc(l.descricao)}</td>
+      <td>${esc(l.unidade)}</td>
+      <td class="num">${traco(l.declarada)}</td>
+      <td class="num">${traco(l.calculada)}${l.unidade_calculada ? ` ${esc(l.unidade_calculada)}` : ""}</td>
+      <td><span class="st" data-situacao="${esc(l.situacao)}">${esc(l.situacao)}</span></td>
+      <td class="ctr211-motivo" title="${esc(detalhe.join("\n"))}">${l.motivo ? esc(l.motivo) : ""}${(l.evidencias || []).map(e => `<span class="nota-l">${esc(e)}</span>`).join("")}${(l.premissas || []).map(p => `<span class="nota-l">${esc(p)}</span>`).join("")}</td>
+      <td>${esc(l.projeto)}</td></tr>`;
+  };
+  const tabela = ls => `<div class="ctr211-rolagem" role="region" aria-label="Quantidades do Contrato 211" tabindex="0"><table class="ctr211"><thead><tr><th>Linha</th><th>UC / trecho</th><th>Composição</th><th>Descrição</th><th>Unid.</th><th>Declarada</th><th>Calculada</th><th>Situação</th><th>Motivo / evidência</th><th>Projeto</th></tr></thead><tbody>${ls.map(linha).join("")}</tbody></table></div>`;
+  const grupos = [...folhas].map(([folha, ls]) => `<h3>Folha ${folha ? `<span class="cod">${esc(folha)}</span>` : "sem folha"}</h3>${tabela(ls)}`).join("");
+  return `<h2>Contrato 211: quantidades do CUSTO CIVIL (sem preço)</h2>
+    <p class="nota-l" style="margin-left:0">${esc(C.fonte)}</p>
+    <div class="eap-res">${pares.map(([k, v]) => `<span>${esc(k)}</span><b>${num(v)}</b>`).join("")}</div>
+    <h3>Premissas</h3><ul class="ctr211-prem">${(C.premissas || []).map(p => `<li>${esc(p)}</li>`).join("")}</ul>
+    ${grupos}`;
+}
 /* "ver no mapa" de um nó: liga a camada dos elementos construtivos (aba Obra), enquadra e destaca a lista pronta de ids e esmaece
    os demais elementos (OBRA.filtroEap, lido por estiloObra: sobrevive a aplicarEscopoMapa) até "limpar filtro EAP".
    Item: abre a ficha do primeiro elemento e, com vários, enquadra e destaca todos. */
@@ -2477,7 +2529,7 @@ function filtrarFatosEap(status) {
 }
 function montarEap() {
   const P = D.eap_painel, aba = $("#aba-eap");
-  aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (D.conferencia_cavas ? htmlConferenciaCavas(D.conferencia_cavas) : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "") + (D.eap_padrao ? htmlEapPadrao(D.eap_padrao) : "");
+  aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (D.conferencia_cavas ? htmlConferenciaCavas(D.conferencia_cavas) : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "") + (D.contrato_211 ? htmlContrato211(D.contrato_211) : "") + (D.eap_padrao ? htmlEapPadrao(D.eap_padrao) : "");
   if (!P) return;
   document.addEventListener("click", e => { if (e.target.closest("[data-eap-limpar]")) limparFiltroEap(); });   // botões da aba EAP e da aba Obra
   aba.addEventListener("change", e => {
@@ -2496,7 +2548,7 @@ function montarEap() {
    ==================================================================== */
 window.__viz = {PR, D, FV, ESTACAS, INTERV, map, camadasMapa, marcaSnd, get anot() { return anot; }, get ARV() { return ARV; }, indexar, consultaPrancha, abrirFolha, ligarPranchaMapa, definirEtapa, abrir3D, abrirFoto, htmlSondagem, pt2ll, snapMapa, identificarPranchas};   // ganchos para scripts/testar_visualizador.py
 function iniciarV2() {
-  if (D.eap_gavetas || D.eap_painel || D.eap_padrao || D.conferencia_cavas) { $("#t-eap").hidden = false; montarEap(); }
+  if (D.eap_gavetas || D.eap_painel || D.eap_padrao || D.conferencia_cavas || D.contrato_211) { $("#t-eap").hidden = false; montarEap(); }
   if (PR.length) { $("#t-pranchas").hidden = false; montarSelecaoPranchas(); }
   if (PR.length || ESC.length || ETAPAS.length) { $("#t-escopo").hidden = !(ESC.length || ETAPAS.length); montarEscopo(); }
   new ResizeObserver(() => { map.invalidateSize(); document.documentElement.style.setProperty("--mapa-h", map.getSize().y + "px"); }).observe($("#mapa"));   // a aba Escopo alarga o painel
