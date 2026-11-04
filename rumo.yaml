@@ -1,46 +1,53 @@
-objetivo: Georreferenciar as folhas de interligação 009 e 010 (detalhes 1:100) pela
-  f004, para medir os trechos de interligação e completar as linhas do Contrato 211
+objetivo: 'Aba EAP legível e interativa: WBS em árvore navegável, Contrato 211 agrupado
+  por trecho, seções em sub-abas e clique que leva ao mapa e à prancha'
 criterio_de_pronto:
-- 'f009 e f010 com afim no obra.json: escala do título (1:100) conferida pela largura
-  do tubo (par de linhas ≈ DE) e resíduo ≤ 0,15 m nos pontos homólogos com a f004'
-- o DN1000 da f009 continua o DN1000 da entrada na f004 (folga ≤ 0,5 m na emenda)
-- trechos das interligações em valas.redes com trecho_contrato; as 15 linhas do Contrato
-  211 que dependiam deles saem de 'a preencher' (calculadas ou com motivo novo)
-- build real, interface 0 falha, balanço sem REVERTER, PR e merge
-base: a7d0b8d
+- a aba EAP abre larga no desktop (≥ 900 px a 1400 px de tela) e em largura total
+  no celular, sem rolagem horizontal da página
+- uma seção por vez (sub-abas); a WBS recolhida cabe em menos de 3 000 px de rolagem
+  (hoje 37 151 px numa coluna de 329 px)
+- 'WBS: etapa → folha → quantidades e linhas do contrato, com selo de situação e contagens
+  vindas do Python; busca e filtro por situação'
+- 'Contrato 211: UC → trecho → linhas com Descrição, Calculada e Situação à vista;
+  detalhe (motivo, evidência, premissas) ao abrir a linha; ''ver no mapa'' destaca
+  o trecho e ''abrir prancha'' liga a prancha'
+- o HTML só apresenta (textos, contagens e índice de busca prontos no Python); build
+  real, interface 0 falha, balanço sem REVERTER, PR e merge
+base: bd5bd8b
 etapas:
 - id: E1
-  nome: Afim das folhas 009 e 010 pela f004 (escala do título, pontos homólogos ou
-    CAD × CAD com escala fixa)
+  nome: 'Vista da aba EAP montada em Python (camadas/eap_vista.py): seções, árvore
+    da WBS com as linhas do contrato, contrato por UC e trecho, contagens e índice
+    de busca'
   entregaveis:
-  - camadas/georef_prancha.py
-  - exemplos/foz/obra.json
-  - tests/test_georef_prancha.py
+  - camadas/eap_vista.py
+  - camadas/contrato_211.py
+  - camadas/obra.py
+  - tests/test_eap_vista.py
   depende_de: []
-  agente: sonnet
-  estimativa_min: 45
-  estimativa_tokens: 250000
-  status: feito
-  inicio: '2026-11-04T16:16:06Z'
-  fim: '2026-11-04T16:40:04Z'
-  forcado: null
-- id: E2
-  nome: Trechos das interligações em valas.redes (trecho_contrato) e saída de valas.fora
-  entregaveis:
-  - exemplos/foz/obra.json
-  - camadas/valas.py
-  - tests/test_valas.py
-  depende_de:
-  - E1
   agente: sonnet
   estimativa_min: 30
   estimativa_tokens: 200000
   status: feito
-  inicio: '2026-11-04T16:40:06Z'
-  fim: '2026-11-04T16:47:41Z'
+  inicio: '2026-11-04T17:48:03Z'
+  fim: '2026-11-04T17:54:07Z'
+  forcado: null
+- id: E2
+  nome: 'Aba EAP no template: modo largo, sub-abas, árvore interativa, busca, filtros
+    e ligação com o mapa e a prancha; verificações de interface'
+  entregaveis:
+  - camadas/templates/visualizador.html
+  - scripts/testar_visualizador.py
+  depende_de:
+  - E1
+  agente: sonnet
+  estimativa_min: 60
+  estimativa_tokens: 300000
+  status: feito
+  inicio: '2026-11-04T17:54:08Z'
+  fim: '2026-11-04T18:33:23Z'
   forcado: null
 - id: E3
-  nome: Build real, contrato 211 conferido, balanço, PR e merge
+  nome: Build real, capturas, balanço, PR e merge
   entregaveis:
   - CHANGELOG.md
   - camadas/__init__.py
@@ -49,22 +56,34 @@ etapas:
   - rumo.yaml
   - results/iteracoes/*
   - results/agentes/execucoes.csv
-  - docs/plano/2026-11-04_georref_f009_f010.md
-  - camadas/obra.py
-  - tests/test_obra_sig.py
+  - results/rumo.md
+  - results/rumo.html
+  - docs/plano/2026-11-04_aba_eap_legivel.md
   - docs/RASTREABILIDADE.md
+  - tests/test_obra_caracterizacao.py
   depende_de:
   - E2
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
   status: feito
-  inicio: '2026-11-04T16:47:43Z'
-  fim: '2026-11-04T17:30:02Z'
+  inicio: '2026-11-04T18:33:24Z'
+  fim: '2026-11-04T18:53:49Z'
   forcado: o único teste falhando no balanço é tests/test_lineares.py::test_ler_perfil_ocr,
     que já falha na main (tesseract 5.3.4 do ambiente); balanço SEM_GANHO sem piora,
-    1359 testes passando
+    1374 testes passando, interface 331/0
 historico:
+- data: '2026-11-04'
+  mudanca: base passa a bd5bd8b (a main no fim da rodada, 0.67.0 de outra sessão);
+    versão da rodada 0.68.0; E3 também entrega tests/test_obra_caracterizacao.py (eap_vista
+    na lista de blocos de outros módulos do golden)
+  motivo: os 2 golden do obra.py falharam no checkout com a chave nova eap_vista (na
+    worktree da E1 foram pulados); os JSON do golden não mudam
+- data: '2026-11-04'
+  mudanca: 'objetivo anterior concluído: folhas 009 e 010 georreferenciadas (PR #76,
+    0.66.0)'
+  motivo: 'o Caio pediu: ''pode melhorar a tabela na aba EAP numa nova rodada [...]
+    a wbs eap não em formato legível e também não está interativa'''
 - data: '2026-11-04'
   mudanca: base passa a a7d0b8d (a main no fim da rodada, 0.65.0 de outra sessão);
     a versão da rodada passou a 0.66.0; E3 também entrega camadas/obra.py e tests/test_obra_sig.py

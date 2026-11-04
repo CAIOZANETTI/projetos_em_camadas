@@ -11,7 +11,7 @@
   --papel:#eef0ec; --painel:#fafbf8; --tinta:#1b211e; --mut:#5d6762; --linha:#d5dad4; --realce:#e6eae4;
   --acento:#c2410c; --acento-tinta:#ffffff; --medida:#0f766e;
   --civil:#ea580c; --hidro:#0284c7; --eletrica:#ca8a04; --geral:#0f766e; --mec:#7c3aed;
-  --ok:#15803d; --aberta:#b45309; --sombra:0 1px 2px rgb(20 30 25 / .12), 0 4px 14px rgb(20 30 25 / .10);
+  --ok:#15803d; --aberta:#b45309; --ruim:#b91c1c; --sombra:0 1px 2px rgb(20 30 25 / .12), 0 4px 14px rgb(20 30 25 / .10);
   --f-ui:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-titulo:"IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-dado:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -20,12 +20,12 @@
   --papel:#121614; --painel:#181d1b; --tinta:#e4e8e5; --mut:#97a19c; --linha:#2b3330; --realce:#222a27;
   --acento:#f97316; --acento-tinta:#1b0d03; --medida:#2dd4bf;
   --civil:#fb923c; --hidro:#38bdf8; --eletrica:#facc15; --geral:#2dd4bf; --mec:#a78bfa;
-  --ok:#4ade80; --aberta:#fbbf24; --sombra:0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .35); color-scheme:dark}}
+  --ok:#4ade80; --aberta:#fbbf24; --ruim:#f87171; --sombra:0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .35); color-scheme:dark}}
 :root[data-theme="dark"]{
   --papel:#121614; --painel:#181d1b; --tinta:#e4e8e5; --mut:#97a19c; --linha:#2b3330; --realce:#222a27;
   --acento:#f97316; --acento-tinta:#1b0d03; --medida:#2dd4bf;
   --civil:#fb923c; --hidro:#38bdf8; --eletrica:#facc15; --geral:#2dd4bf; --mec:#a78bfa;
-  --ok:#4ade80; --aberta:#fbbf24; --sombra:0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .35); color-scheme:dark}
+  --ok:#4ade80; --aberta:#fbbf24; --ruim:#f87171; --sombra:0 1px 2px rgb(0 0 0 / .4), 0 4px 14px rgb(0 0 0 / .35); color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -146,6 +146,7 @@ dialog textarea{height:260px;font:11.5px var(--f-dado)}
 /* ---------- v2: pranchas vetoriais, escopo, sondagens, 3D ---------- */
 aside{transition:width .15s}
 aside.larga{width:min(560px,46vw)}
+aside.ampla{width:min(1120px,74vw)}   /* aba EAP: árvores e contrato precisam de largura; o mapa segue à direita */
 .btn.mini{padding:2px 7px;font-size:11.5px}
 .btn:disabled{opacity:.5;cursor:default}
 .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid var(--linha);flex:none;vertical-align:-1px}
@@ -231,6 +232,78 @@ table.ctr211 .st[data-situacao="parcial"]{color:var(--aberta)}
 table.ctr211 .st[data-situacao="a preencher"]{color:var(--aberta);font-weight:700;border-style:solid;border-width:2px}
 table.ctr211 .st[data-situacao="declarada · diverge"]{color:#b91c1c;font-weight:700;border-style:solid;border-width:2px}
 .ctr211-prem{margin:4px 0 10px;padding-left:18px;font-size:11.5px;color:var(--mut);overflow-wrap:anywhere}
+/* aba EAP com vista (D.eap_vista): sub-abas, barra de busca e filtros, WBS em árvore e Contrato 211 por UC e trecho */
+.eap-sub{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;gap:6px;margin:0 -16px 8px;padding:8px 16px;background:var(--painel);border-bottom:1px solid var(--linha)}
+.eap-sub button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 10px;border:1px solid var(--linha);border-radius:6px;background:var(--papel);cursor:pointer;text-align:left;min-width:0}
+.eap-sub button:hover{border-color:var(--mut)}
+.eap-sub button b{font:600 12.5px var(--f-titulo);letter-spacing:.01em}
+.eap-sub button small{color:var(--mut);font:11px var(--f-dado);overflow-wrap:anywhere}
+.eap-sub button[aria-selected="true"]{border-color:var(--acento);box-shadow:inset 0 -3px 0 var(--acento)}
+.eap-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px}
+.eap-bar input[type=search]{flex:1 1 220px;min-width:0;width:auto;padding:6px 9px;border-radius:6px}
+.eap-chips{display:flex;flex-wrap:wrap;gap:6px}
+.eap-bar .btns{margin-left:auto}
+.eap-vazio{margin:10px 0}
+.sel{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border-radius:9px;border:1px solid var(--c,var(--mut));background:color-mix(in srgb,var(--c,var(--mut)) 16%,transparent);color:var(--tinta);font:500 11px/17px var(--f-dado);white-space:nowrap}
+.sel::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c,var(--mut));flex:none}
+.sel[data-sit="preenchida"],.sel[data-sit="preenchida (manual)"],.sel[data-sit="calculada"],.sel[data-sit="declarada · confere"]{--c:var(--ok)}
+.sel[data-sit="a preencher"],.sel[data-sit="parcial"],.sel[data-sit="só menção"]{--c:var(--aberta)}
+.sel[data-sit="declarada · diverge"],.sel[data-sit="conflito"]{--c:var(--ruim)}
+.eap-sec details>summary{list-style:none;cursor:pointer}
+.eap-sec details>summary::-webkit-details-marker{display:none}
+.eap-sec details>summary::before{content:"";width:6px;height:6px;border-right:1.5px solid var(--mut);border-bottom:1.5px solid var(--mut);transform:rotate(-45deg);flex:none;transition:transform .15s}
+.eap-sec details[open]>summary::before{transform:rotate(45deg)}
+.eap-sec table{display:block;max-width:100%;overflow-x:auto}   /* tabelas largas (cavas, conciliação) rolam dentro de si, não o painel */
+.eap-sec :is(.eap-n,.eap-s,.eap-f)>summary{flex-wrap:wrap}   /* EAP codificada e gavetas: o resumo quebra linha em vez de alargar o painel */
+.eap-sec :is(.eap-n,.eap-s,.eap-f)>summary>span{min-width:0;overflow-wrap:anywhere}
+.eap-sec .eap-v{white-space:normal}
+.eap-sec .rot{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.eap-sec details.pisca{animation:eap-pisca 1.8s ease-out}
+@keyframes eap-pisca{0%,40%{background:color-mix(in srgb,var(--acento) 22%,transparent)}100%{background:transparent}}
+.wbs-tipo>h3{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:16px 0 6px;font:600 14px var(--f-titulo)}
+.wbs-et,.ctr-uc{border:1px solid var(--linha);border-radius:6px;margin:0 0 6px;background:var(--papel)}
+.wbs-et>summary,.ctr-uc>summary{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center;padding:8px 10px}
+.wbs-et>summary .nota-l,.ctr-uc>summary .nota-l,.ctr-tr>summary .nota-l{margin-left:auto}
+.wbs-fo,.ctr-tr{border-top:1px solid var(--linha)}
+.wbs-fo>summary{display:grid;grid-template-columns:8px minmax(0,1fr) auto auto;gap:4px 10px;align-items:center;padding:6px 10px 6px 22px}
+.wbs-corpo{padding:2px 12px 10px 46px;font-size:12px}
+.wbs-q,.wbs-ct{margin:4px 0 6px;padding:0;list-style:none}
+.wbs-q li{color:var(--mut);padding:1px 0;overflow-wrap:anywhere}
+.wbs-ct li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:2px 10px;align-items:center;padding:3px 0;border-top:1px dotted var(--linha)}
+.lnk{background:none;border:0;padding:0;color:var(--medida);text-decoration:underline;cursor:pointer;text-align:left;overflow-wrap:anywhere}
+.ctr-res{margin:4px 0 10px;border:1px solid var(--linha);border-radius:6px;padding:0 10px}
+.ctr-res>summary{display:flex;align-items:center;gap:8px;padding:7px 0;font-weight:600}
+.ctr-res .eap-res{max-width:520px}
+.ctr-cab,.ctr-l>summary{display:grid;grid-template-columns:minmax(0,1fr) 150px 170px auto;gap:2px 12px;align-items:center}
+.ctr-cab{padding:2px 10px 4px 36px;color:var(--mut);font:600 10.5px var(--f-ui);text-transform:uppercase;letter-spacing:.06em}
+.ctr-tr>summary{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:center;padding:6px 10px 6px 20px}
+.ctr-l{border-top:1px dotted var(--linha)}
+.ctr-l>summary{padding:6px 10px 6px 36px}
+.ctr-l>summary::before{display:none}
+.ctr-d{display:flex;flex-direction:column;min-width:0}
+.ctr-c{font:12px var(--f-dado);text-align:right;overflow-wrap:anywhere}
+.ctr-a{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;min-height:1px}
+.ctr-det{margin:0;padding:4px 12px 10px 36px;display:grid;grid-template-columns:130px minmax(0,1fr);gap:3px 12px;font-size:12px}
+.ctr-det dt{color:var(--mut)}
+.ctr-det dd{margin:0;overflow-wrap:anywhere}
+.ctr-det ul{margin:0;padding-left:16px}
+@media (max-width:760px){
+  .eap-bar .btns{margin-left:0}
+  .eap-sub{position:static;flex-wrap:nowrap;overflow-x:auto;padding-block:6px}   /* uma faixa só: o espaço do celular é do conteúdo */
+  .eap-sub button{flex:none}
+  .eap-sub button small{display:none}
+  .ctr-cab{display:none}
+  .ctr-l>summary{grid-template-columns:minmax(0,1fr) auto;padding-left:16px}
+  .ctr-d{grid-column:1/-1}
+  .ctr-c{text-align:left}
+  .ctr-a{grid-column:1/-1;justify-content:flex-start}
+  .ctr-tr>summary{padding-left:12px}
+  .wbs-fo>summary{grid-template-columns:8px minmax(0,1fr) auto;padding-left:12px}
+  .wbs-fo>summary .nota-l{grid-column:2/-1}
+  .wbs-corpo{padding-left:16px}
+  .wbs-ct li{grid-template-columns:minmax(0,1fr) auto}
+  .ctr-det{padding-left:16px;grid-template-columns:96px minmax(0,1fr)}
+}
 table.eap-assoc{width:100%;border-collapse:collapse;font-size:12px}
 table.eap-assoc th,table.eap-assoc td{padding:5px 6px 5px 0;border-bottom:1px solid var(--linha);text-align:left;vertical-align:top}
 table.eap-assoc td.num{text-align:right;font-family:var(--f-dado);white-space:nowrap}
@@ -456,7 +529,7 @@ table.esc select{width:auto;max-width:100%;padding:2px 4px;margin-top:4px;font-s
 .ob-des-res label{display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:4px}
 
 @media (max-width:760px){
-  aside.larga{width:auto}
+  aside.larga,aside.ampla{width:auto}
   .fbarra,.barra3d{flex-wrap:nowrap;gap:5px;padding:6px}
   .painel3d{top:46px;width:210px}
   .chips{display:none}
@@ -2523,9 +2596,149 @@ function filtrarFatosEap(status) {
   document.querySelectorAll("#eapFatos .eap-fato").forEach(d => { d.hidden = status !== "" && d.dataset.status !== status; });
   document.querySelectorAll("#eapFiltro [data-eap-status]").forEach(b => b.setAttribute("aria-pressed", b.dataset.eapStatus === status));
 }
+/* ---- aba EAP com vista (D.eap_vista, camadas/eap_vista.py): textos, contagens, selos e o índice de busca (`busca`) vêm prontos
+   do Python; aqui só se desenha, se mostra/esconde (sub-aba, busca, filtro por situação), se abre/fecha e se liga ao mapa e às pranchas ---- */
+const EAPV = {sec: null, f: {wbs: {q: "", sit: ""}, contrato: {q: "", sit: ""}}, idx: new Map(), destaque: null};
+const selo = (situacao, texto) => `<span class="sel" data-sit="${esc(situacao)}">${esc(texto ?? situacao)}</span>`;
+const normBusca = t => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();   // só o que o usuário digitou
+function htmlEapBarra(nome, V) {
+  const chip = (sit, rot, n) => `<button class="chip-e" data-eap-sit="${esc(sit)}" aria-pressed="${sit === "" ? "true" : "false"}">${esc(rot)}${n == null ? "" : ` <span class="n">${esc(n)}</span>`}</button>`;
+  return `<div class="eap-bar" data-barra="${nome}">
+    <input type="search" data-eap-q="${nome}" placeholder="${nome === "wbs" ? "Buscar folha, quantidade ou linha do contrato" : "Buscar descrição, composição, trecho ou motivo"}" aria-label="Buscar na ${nome === "wbs" ? "WBS" : "tabela do Contrato 211"}" autocomplete="off">
+    <div class="eap-chips" role="group" aria-label="Filtrar por situação">${chip("", "todas")}${(V.situacoes[nome] || []).map(s => chip(s.rotulo, s.rotulo, s.n)).join("")}</div>
+    <div class="btns"><button class="btn mini" data-eap-exp="1">expandir tudo</button><button class="btn mini" data-eap-exp="0">recolher tudo</button></div>
+  </div><p class="aviso eap-vazio" hidden>Nada encontrado com esse filtro.</p>`;
+}
+function htmlWbsVista(W) {
+  const folha = f => `<details class="wbs-fo" data-id="${esc(f.id)}" data-sit="${esc(f.situacao)}" data-busca="${esc(f.busca)}"><summary><span class="rot">${esc(f.rotulo)}${f.obrigatoria ? ' <span class="badge">obrigatória</span>' : ""}</span>${selo(f.situacao, f.situacao_txt)}<span class="nota-l">${esc(f.n_contrato_txt)}</span></summary>
+    <div class="wbs-corpo">${(f.quantidades_txt || []).length ? `<ul class="wbs-q">${f.quantidades_txt.map(q => `<li>${esc(q)}</li>`).join("")}</ul>` : ""}${(f.contrato || []).length ? `<ul class="wbs-ct">${f.contrato.map(l => `<li><button class="lnk" data-ir-linha="${esc(l.id)}" title="Abrir a linha no Contrato 211">${esc(l.descricao)}</button><span class="ctr-c">${esc(l.calculada_txt)}</span>${selo(l.situacao)}</li>`).join("")}</ul>` : ""}</div></details>`;
+  const etapa = e => `<details class="wbs-et" data-id="${esc(e.id)}"><summary><span class="rot">${esc(e.rotulo)}</span><span class="nota-l">${esc(e.contagens_txt)}</span></summary>${e.folhas.map(folha).join("")}</details>`;
+  const tipo = t => `<section class="wbs-tipo" data-tipo="${esc(t.id)}"><h3>${esc(t.rotulo)} <span class="nota-l">${esc(t.contagens_txt)}</span></h3>${t.etapas.map(etapa).join("")}</section>`;
+  return W.tipos.map(tipo).join("");
+}
+function htmlContratoVista(C, fonte) {
+  const par = ([k, v]) => `<span>${esc(k)}</span><b>${esc(v)}</b>`;
+  const botoes = l => (l.redes.length ? `<button class="btn mini" data-ver-redes="${esc(l.redes.join("\n"))}" title="Destacar no mapa: ${esc(l.redes.join(", "))}">ver no mapa</button>` : "")
+    + l.pranchas.map(p => `<button class="btn mini" data-abrir-prancha="${esc(p)}" title="Prancha ${esc(p)}">abrir prancha${l.pranchas.length > 1 ? " " + esc(p) : ""}</button>`).join("");
+  const linha = l => {
+    const det = [["Motivo", l.motivo ? esc(l.motivo) : ""], ["Evidências e premissas", l.detalhe.length ? `<ul>${l.detalhe.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""],
+      ["Projeto", l.projeto ? esc(l.projeto) : ""], ["Declarada", esc(l.declarada) + (l.unidade ? " " + esc(l.unidade) : "")],
+      ["Folha da EAP", l.folha_eap ? `<button class="lnk" data-ir-folha="${esc(l.folha_eap)}" title="Voltar à folha na WBS">${esc(l.folha_eap)}</button>` : ""]];
+    return `<details class="ctr-l" data-id="${esc(l.id)}" data-sit="${esc(l.situacao)}" data-busca="${esc(l.busca)}"><summary>
+      <span class="ctr-d"><span class="rot">${esc(l.descricao)}</span><span class="nota-l">${esc([l.composicao, l.linha_txt].filter(Boolean).join(" · "))}</span></span>
+      <span class="ctr-c">${esc(l.calculada_txt)}</span><span>${selo(l.situacao)}</span><span class="ctr-a">${botoes(l)}</span></summary>
+      <dl class="ctr-det">${det.filter(d => d[1]).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></details>`;
+  };
+  const trecho = (t, aberto) => `<details class="ctr-tr"${aberto ? " open" : ""}><summary><span class="rot">${esc(t.rotulo)}</span>${t.projeto ? `<span class="nota-l">${esc(t.projeto)}</span>` : ""}<span class="nota-l">${esc(t.contagens_txt)}</span></summary>${t.linhas.map(linha).join("")}</details>`;
+  const uc = u => `<details class="ctr-uc" open><summary><span class="rot">${esc(u.rotulo)}</span><span class="nota-l">${esc(u.contagens_txt)}</span></summary>${u.trechos.map(t => trecho(t, u.trechos.length === 1)).join("")}</details>`;
+  return `<details class="ctr-res"><summary>Resumo e premissas</summary>${fonte ? `<p class="nota-l" style="margin:0 0 6px">${esc(fonte)}</p>` : ""}
+      <div class="eap-res">${(C.resumo_txt || []).map(par).join("")}</div><ul class="ctr211-prem">${(C.premissas || []).map(p => `<li>${esc(p)}</li>`).join("")}</ul></details>
+    <div class="eap-vista" id="eapMapaAviso" role="status" hidden></div>
+    ${htmlEapBarra("contrato", D.eap_vista)}
+    <div class="ctr-cab" aria-hidden="true"><span>Descrição</span><span style="text-align:right">Calculada</span><span>Situação</span><span></span></div>
+    ${C.unidades.map(uc).join("")}`;
+}
+function htmlAbaEapVista(V, P) {
+  const corpo = {
+    wbs: () => htmlEapBarra("wbs", V) + htmlWbsVista(V.wbs),
+    contrato: () => htmlContratoVista(V.contrato, D.contrato_211?.fonte),
+    codificada: () => (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P),
+    gavetas: () => htmlEapGavetas(),
+    cavas: () => htmlConferenciaCavas(D.conferencia_cavas),
+  };
+  const secoes = V.secoes.filter(s => corpo[s.id]);
+  return `<div class="eap-sub" role="tablist" aria-label="Seções da EAP">${secoes.map(s => `<button role="tab" data-eap-sec="${esc(s.id)}" id="eap-t-${esc(s.id)}" aria-controls="eap-s-${esc(s.id)}" aria-selected="false" title="${esc(s.n_txt)}"><b>${esc(s.rotulo)}</b><small>${esc(s.n_txt)}</small></button>`).join("")}</div>`
+    + secoes.map(s => `<div class="eap-sec" role="tabpanel" id="eap-s-${esc(s.id)}" data-sec="${esc(s.id)}" aria-labelledby="eap-t-${esc(s.id)}" hidden>${corpo[s.id]()}</div>`).join("");
+}
+function selecionarSecaoEap(id) {
+  const aba = $("#aba-eap"), ids = [...aba.querySelectorAll(".eap-sec")].map(s => s.dataset.sec);
+  if (!ids.includes(id)) id = ids[0];
+  EAPV.sec = id;
+  aba.querySelectorAll(".eap-sec").forEach(s => s.hidden = s.dataset.sec !== id);
+  aba.querySelectorAll("[data-eap-sec]").forEach(b => b.setAttribute("aria-selected", b.dataset.eapSec === id));
+  try { localStorage.setItem("camadas:eap:secao:" + D.id, id); } catch (e) { /* sem armazenamento: só não lembra */ }
+}
+/* esconde o que não passa na busca/situação; pais sem filho visível somem; busca ou filtro ativo abre os pais com resultado */
+function aplicarFiltroEap(nome) {
+  const raiz = porId("eap-s-" + nome); if (!raiz) return;
+  const f = EAPV.f[nome], termos = f.q.split(" ").filter(Boolean), ativo = termos.length > 0 || f.sit !== "";
+  const folha = nome === "wbs" ? ".wbs-fo" : ".ctr-l", pais = nome === "wbs" ? [".wbs-et", ".wbs-tipo"] : [".ctr-tr", ".ctr-uc"];
+  raiz.querySelectorAll(folha).forEach(el => { el.hidden = !(termos.every(t => el.dataset.busca.includes(t)) && (!f.sit || el.dataset.sit === f.sit)); });
+  for (const seletor of pais) raiz.querySelectorAll(seletor).forEach(p => {
+    const tem = !!p.querySelector(folha + ":not([hidden])");
+    p.hidden = !tem;
+    if (p.tagName !== "DETAILS") return;
+    if (ativo && tem && !p.open) { p.open = true; p.dataset.auto = "1"; }
+    else if (!ativo && p.dataset.auto) { p.open = false; delete p.dataset.auto; }
+  });
+  raiz.querySelector(".eap-vazio").hidden = !!raiz.querySelector(folha + ":not([hidden])");
+  raiz.querySelectorAll("[data-eap-sit]").forEach(b => b.setAttribute("aria-pressed", b.dataset.eapSit === f.sit));
+}
+function irParaEap(sec, id) {
+  selecionarSecaoEap(sec);
+  const el = EAPV.idx.get(id); if (!el) return;
+  if (el.hidden) { EAPV.f[sec] = {q: "", sit: ""}; porId("eap-s-" + sec).querySelector("[data-eap-q]").value = ""; aplicarFiltroEap(sec); }   // o filtro escondia o destino
+  for (let p = el.parentElement; p && p.id !== "aba-eap"; p = p.parentElement) if (p.tagName === "DETAILS") { p.open = true; delete p.dataset.auto; }
+  el.open = true; delete el.dataset.auto;
+  el.scrollIntoView({block: "center"});
+  el.classList.add("pisca"); setTimeout(() => el.classList.remove("pisca"), 1900);
+}
+/* "ver no mapa": liga a camada das valas, destaca os traços cuja propriedade `rede` está na lista e esmaece o resto */
+function limparDestaqueRedes() {
+  const c = EAPV.destaque; EAPV.destaque = null;
+  if (c) c.layer.eachLayer(l => c.layer.resetStyle(l));
+  const aviso = porId("eapMapaAviso"); if (aviso) { aviso.hidden = true; aviso.innerHTML = ""; }
+}
+function verRedesNoMapa(redes) {
+  limparDestaqueRedes();
+  const c = camadasMapa.valas, aviso = porId("eapMapaAviso"), conj = new Set(redes), achados = [];
+  const dizer = txt => { aviso.innerHTML = `<span>${esc(txt)}</span><button class="btn mini" data-redes-limpar>limpar</button>`; aviso.hidden = false; };
+  if (c) c.layer.eachLayer(l => { if (conj.has(l.feature?.properties?.rede)) achados.push(l); });
+  if (!achados.length) return dizer(`Sem traços de vala para ${redes.join(", ")} neste mapa.`);
+  c.on = true; sincCamada(c);
+  const cb = porId("v-valas"); if (cb) cb.checked = true;
+  const cor = getComputedStyle(document.documentElement).getPropertyValue("--acento").trim() || "#c2410c";
+  c.layer.eachLayer(l => l.setStyle(conj.has(l.feature?.properties?.rede) ? {color: cor, weight: 7, opacity: 1, fillOpacity: .85} : {opacity: .25, fillOpacity: .06}));
+  achados.forEach(l => l.bringToFront());
+  EAPV.destaque = c;
+  if (vista !== "mapa") mostrarVista("mapa");
+  map.fitBounds(L.featureGroup(achados).getBounds(), {padding: [60, 60], maxZoom: 20});
+  dizer(`Destacado no mapa: ${redes.join(", ")}`);
+}
+async function abrirPranchaEap(id) {
+  const P = prPorId(id); if (!P) return;
+  if (!P.M) return abrirFolha(id);   // sem georreferência: só a folha inteira, na aba Pranchas
+  if (vista !== "mapa") mostrarVista("mapa");
+  const cb = porId("v-prancha-" + id); if (cb) cb.checked = true;
+  await alternarPrancha(P, true);
+  if (P.mapa.on) map.flyToBounds(limitesMapa(P), {padding: [30, 30], duration: .6});
+}
+function ligarEapVista(aba, V) {
+  aba.querySelectorAll("[data-id]").forEach(el => EAPV.idx.set(el.dataset.id, el));
+  let salvo = null;
+  try { salvo = localStorage.getItem("camadas:eap:secao:" + D.id); } catch (e) { /* ignora */ }
+  selecionarSecaoEap(salvo || (V.secoes[0] || {}).id);
+  aba.addEventListener("input", e => {
+    const q = e.target.closest("[data-eap-q]"); if (!q) return;
+    EAPV.f[q.dataset.eapQ].q = normBusca(q.value); aplicarFiltroEap(q.dataset.eapQ);   // o campo mantém o texto digitado; o filtro usa a forma normalizada
+  });
+  aba.addEventListener("click", e => {
+    const t = e.target, sec = t.closest("[data-eap-sec]"), sit = t.closest("[data-eap-sit]"), exp = t.closest("[data-eap-exp]");
+    if (sec) return selecionarSecaoEap(sec.dataset.eapSec);
+    if (sit) { const nome = sit.closest(".eap-sec").dataset.sec; EAPV.f[nome].sit = EAPV.f[nome].sit === sit.dataset.eapSit ? "" : sit.dataset.eapSit; return aplicarFiltroEap(nome); }
+    if (exp) { aba.querySelectorAll(`#eap-s-${EAPV.sec} details:not([hidden]):not(.ctr-res)`).forEach(d => { d.open = exp.dataset.eapExp === "1"; delete d.dataset.auto; }); return; }
+    const linha = t.closest("[data-ir-linha]"), folha = t.closest("[data-ir-folha]"), rede = t.closest("[data-ver-redes]"), pr = t.closest("[data-abrir-prancha]");
+    if (linha) irParaEap("contrato", linha.dataset.irLinha);
+    else if (folha) irParaEap("wbs", folha.dataset.irFolha);
+    else if (rede) { e.preventDefault(); verRedesNoMapa(rede.dataset.verRedes.split("\n")); }
+    else if (pr) { e.preventDefault(); abrirPranchaEap(pr.dataset.abrirPrancha); }
+    else if (t.closest("[data-redes-limpar]")) limparDestaqueRedes();
+  });
+}
 function montarEap() {
   const P = D.eap_painel, aba = $("#aba-eap");
-  aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (D.conferencia_cavas ? htmlConferenciaCavas(D.conferencia_cavas) : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "") + (D.contrato_211 ? htmlContrato211(D.contrato_211) : "") + (D.eap_padrao ? htmlEapPadrao(D.eap_padrao) : "");
+  if (D.eap_vista) { aba.innerHTML = htmlAbaEapVista(D.eap_vista, P); ligarEapVista(aba, D.eap_vista); }   // sub-abas; sem eap_vista, a pilha de seções de antes
+  else aba.innerHTML = (P && OB ? '<div class="eap-vista" id="eapVista" hidden></div>' : "") + (D.eap_gavetas ? htmlEapGavetas() : "") + (D.conferencia_cavas ? htmlConferenciaCavas(D.conferencia_cavas) : "") + (P ? htmlEapArvore(P) + htmlEapFatos(P) + htmlEapAssociados(P) : "") + (D.contrato_211 ? htmlContrato211(D.contrato_211) : "") + (D.eap_padrao ? htmlEapPadrao(D.eap_padrao) : "");
   if (!P) return;
   document.addEventListener("click", e => { if (e.target.closest("[data-eap-limpar]")) limparFiltroEap(); });   // botões da aba EAP e da aba Obra
   aba.addEventListener("change", e => {
@@ -3394,6 +3607,8 @@ function abrirAba(a) {
   ["camadas", "obra", "pranchas", "escopo", "eap", "anotacoes", "info"].forEach(x => $("#aba-" + x).hidden = x !== a);
   if (a === "obra") sincObraCheck();   // a camada pode ter sido ligada em Camadas
   document.querySelector("aside").classList.toggle("larga", a === "escopo");   // a tabela de escopo precisa de largura
+  document.querySelector("aside").classList.toggle("ampla", a === "eap" && !!D.eap_vista);   // a aba EAP com vista abre ainda mais larga
+  if (a !== "eap") limparDestaqueRedes();   // o destaque das valas só vale enquanto se olha o contrato
   // a folha inteira só aparece enquanto a aba Pranchas está aberta; as outras abas voltam ao mapa
   if (a === "pranchas" && FV.P) mostrarVista("folha"); else if (vista === "folha") mostrarVista("mapa");
 }

@@ -916,32 +916,70 @@ def _evidencia_curta(e: dict) -> str:
     return " · ".join(p for p in partes if p)
 
 
+_TIPOS_SEM_REDE = (
+    "trecho_da_uc",
+    "supressao_ortofoto",
+    "urbanizacao",
+)  # evidências cujo `id` não é de rede de vala
+
+
+def _redes_e_pranchas(evidencias: list[dict]) -> tuple[list[str], list[str]]:
+    """Ids das redes de vala e das pranchas citadas nas evidências originais (dicts), sem repetir, em ordem alfabética."""
+    redes = {
+        str(e["id"])
+        for e in evidencias
+        if e.get("id") and "furo" not in e and e.get("tipo") not in _TIPOS_SEM_REDE
+    }
+    pranchas = {
+        p.strip()
+        for e in evidencias
+        for p in (e.get("prancha") or "").split(",")
+        if p.strip()
+    }
+    return sorted(redes), sorted(pranchas)
+
+
+def _id_da_linha(aba: str, linha: int) -> str:
+    """`c211-custo-civil-15`: identificador estável da linha da planilha."""
+    return (
+        "c211-"
+        + re.sub(r"[^a-z0-9]+", "-", _sem_acento(aba).lower()).strip("-")
+        + f"-{linha}"
+    )
+
+
+def _linha_html(r: dict) -> dict:
+    redes, pranchas = _redes_e_pranchas(r["evidencias"])
+    return {
+        "id": _id_da_linha(r["aba"], r["linha"]),
+        "redes": redes,
+        "pranchas": pranchas,
+        "folha_eap": r.get("folha_eap"),
+        "aba": r["aba"],
+        "linha": r["linha"],
+        "uc": r.get("uc"),
+        "trecho": r.get("trecho"),
+        "composicao": r.get("composicao"),
+        "descricao": r["descricao"],
+        "unidade": r.get("unidade"),
+        "declarada": _ptbr(r.get("quantidade_declarada")),
+        "calculada": _ptbr(r.get("quantidade_calculada")),
+        "unidade_calculada": r.get("unidade_calculada"),
+        "situacao": r["situacao"],
+        "motivo": r.get("motivo"),
+        "projeto": r.get("projeto"),
+        "evidencias": [_evidencia_curta(e) for e in r["evidencias"]],
+        "premissas": [
+            f"{p['nome']} = {_ptbr(p['valor'])} {p['unidade']} ({p['estado']})"
+            for p in r["premissas"]
+        ],
+    }
+
+
 def para_html(resultados: list[dict]) -> list[dict]:
-    """Lista enxuta para o HTML (agrupável por `folha_eap`), com os números já formatados em pt-BR."""
-    return [
-        {
-            "folha_eap": r.get("folha_eap"),
-            "aba": r["aba"],
-            "linha": r["linha"],
-            "uc": r.get("uc"),
-            "trecho": r.get("trecho"),
-            "composicao": r.get("composicao"),
-            "descricao": r["descricao"],
-            "unidade": r.get("unidade"),
-            "declarada": _ptbr(r.get("quantidade_declarada")),
-            "calculada": _ptbr(r.get("quantidade_calculada")),
-            "unidade_calculada": r.get("unidade_calculada"),
-            "situacao": r["situacao"],
-            "motivo": r.get("motivo"),
-            "projeto": r.get("projeto"),
-            "evidencias": [_evidencia_curta(e) for e in r["evidencias"]],
-            "premissas": [
-                f"{p['nome']} = {_ptbr(p['valor'])} {p['unidade']} ({p['estado']})"
-                for p in r["premissas"]
-            ],
-        }
-        for r in resultados
-    ]
+    """Lista enxuta para o HTML (agrupável por `folha_eap`), com os números já formatados em pt-BR.
+    `id`, `redes` e `pranchas` saem das evidências originais (dicts), não do texto."""
+    return [_linha_html(r) for r in resultados]
 
 
 FUNCOES = (

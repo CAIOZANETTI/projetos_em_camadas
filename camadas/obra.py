@@ -33,6 +33,7 @@ from . import (
     eap_html,
     eap_padrao,
     eap_painel,
+    eap_vista,
     escavacao,
     escopo_obra,
     evidencias,
@@ -923,6 +924,12 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     _conciliar_eaps(dados, servicos_gavetas, out)  # gavetas × codificada × documento: `conciliacao_eap.json` e o resumo
     dados["eap_painel"] = eap_painel.montar(dados.get("eap"), dados.get("evidencias"))   # aba EAP, já em texto
     _eap_padrao_no_build(dados, cfg, out)          # esqueleto por etapa de execução, a preencher
+    try:
+        vista = eap_vista.montar(dados)                # aba EAP legível: seções, WBS × contrato, filtros e busca
+        if vista is not None:
+            dados["eap_vista"] = vista
+    except Exception as erro:  # noqa: BLE001 - a vista da EAP nunca derruba o build
+        _log(f"Vista da EAP: não concluída (pendência; {type(erro).__name__}: {erro})")
 
 
 # 5 ---------------------------------------------------------------------------
