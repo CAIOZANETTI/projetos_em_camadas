@@ -14,6 +14,12 @@ códigos da EAP codificada: não cria quantificação nova. Cada folha diz se a 
     fora do escopo      folha de esgoto em obra só de água (ou o contrário); fora do denominador
     conflito            declarada não se aplica, mas há quantidade; fica no denominador, em destaque
 
+Trecho linear dentro de unidade localizada (D11): a obra declara em `eap_padrao.trechos_lineares` ({unidade,
+titulo_etapa, sistema, justificativa}) que as linhas da unidade sob aquele título da planilha são trecho de obra linear
+(ex.: a água potável da U1). A declaração age antes do `consolidar` (no código da evidência, `evidencias.de_planilha`) e a
+vista de cada código é decidida por (unidade, sistema) com `vista_eap_padrao` em `unidades_construtivas.json`
+(`eap.vista_do_codigo`): o mesmo número nunca entra nas duas vistas.
+
 Numeração e nomes das etapas são premissa a conferir com o MOS Sanepar (que não está no repositório).
 Determinístico: o Python soma, conta e formata (pt-BR); o HTML só apresenta `dados["eap_padrao"]`.
 """
@@ -93,6 +99,7 @@ AVISO_PREMISSA = (
 )
 CAMPOS_DECLARACAO = "{id, justificativa, autor}"
 CAMPOS_MANUAL = "{id, quantidade, unidade, documento, autor}"
+CAMPOS_TRECHO = "{unidade, titulo_etapa, sistema, justificativa}"
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -415,6 +422,71 @@ def separar_manuais(lista) -> tuple[list[dict], list[str]]:
     return _separar(lista, "preenchimento_manual", CAMPOS_MANUAL, _conferir_manual)
 
 
+def _sistema_de_trecho_linear(unidade: str, sistema) -> str | None:
+    """Código registrado do sistema (sem diferença de caixa) se ele é da unidade e tem `vista_eap_padrao` linear."""
+    for codigo, s in eap.UNIDADES["sistemas"].items():
+        if isinstance(sistema, str) and codigo.lower() == sistema.lower():
+            return (
+                codigo
+                if s["unidade"] == unidade and s.get("vista_eap_padrao") == "linear"
+                else None
+            )
+    return None
+
+
+def _problema_do_trecho(d, rotulo: str, vistos: set) -> str | None:
+    """Problema de um trecho linear declarado: não é objeto, unidade que não é de obra localizada, título que não é de
+    etapa, sistema que não é de vista linear da unidade, sem justificativa ou repetido."""
+    if not isinstance(d, dict):
+        return f"{rotulo} deve ser um objeto {CAMPOS_TRECHO}; veio {type(d).__name__}"
+    unidade = str(d.get("unidade") or "").lower()
+    if OBRA_DA_UNIDADE.get(unidade) != "localizada":
+        return f"{rotulo}: unidade '{d.get('unidade')}' não é de obra localizada"
+    if not eh_titulo_de_etapa(d.get("titulo_etapa")):
+        return f"{rotulo}: '{d.get('titulo_etapa')}' não é título de etapa do padrão"
+    if _sistema_de_trecho_linear(unidade, d.get("sistema")) is None:
+        return f"{rotulo}: sistema '{d.get('sistema')}' não é de vista linear da unidade {d['unidade']}"
+    if not str(d.get("justificativa") or "").strip():
+        return f"{rotulo}: sem justificativa (obrigatória para declarar trecho linear)"
+    if (unidade, normalizar(d["titulo_etapa"])) in vistos:
+        return f"{rotulo}: declaração duplicada para a unidade e o título '{d['titulo_etapa']}'"
+    return None
+
+
+def separar_trechos_lineares(lista) -> tuple[list[dict], list[str]]:
+    """(válidos, problemas) de `eap_padrao.trechos_lineares` ({unidade, titulo_etapa, sistema, justificativa}): a unidade
+    localizada cujas linhas sob o título da planilha são trecho de obra linear (D11). Válido sai com unidade em maiúsculas
+    e o sistema com o código registrado. Lista malformada ou registro inválido vira problema; os válidos seguem."""
+    if lista is None:
+        return [], []
+    if not isinstance(lista, list):
+        return [], [
+            f"eap_padrao.trechos_lineares deve ser uma lista de objetos {CAMPOS_TRECHO}; veio {type(lista).__name__}"
+        ]
+    validos, problemas, vistos = [], [], set()
+    for k, d in enumerate(lista):
+        problema = _problema_do_trecho(d, f"eap_padrao.trechos_lineares[{k}]", vistos)
+        if problema:
+            problemas.append(problema)
+            continue
+        unidade = str(d["unidade"]).lower()
+        vistos.add((unidade, normalizar(d["titulo_etapa"])))
+        validos.append(
+            {
+                "unidade": unidade.upper(),
+                "titulo_etapa": d["titulo_etapa"].strip(),
+                "sistema": _sistema_de_trecho_linear(unidade, d["sistema"]),
+                "justificativa": d["justificativa"].strip(),
+            }
+        )
+    return validos, problemas
+
+
+def trechos_do_cfg(cfg: dict) -> list[dict]:
+    """Trechos lineares válidos de `eap_padrao.trechos_lineares` do obra.json (os inválidos viram aviso em `montar`)."""
+    return separar_trechos_lineares(_padrao_do_cfg(cfg).get("trechos_lineares"))[0]
+
+
 def _so_dos_tipos(
     registros: list[dict], tipos: list[str], chave: str, avisos: list[str]
 ) -> list[dict]:
@@ -459,11 +531,12 @@ def _numero(valor: float, unidade: str | None) -> str:
 
 
 def _separar_por_unidade(registros: list[dict], tipo: str) -> tuple[list[dict], int]:
-    """(registros da unidade do tipo de obra, nº de unidade não atribuível). O código com `*` ou unidade desconhecida
-    não é atribuível a nenhum tipo e não soma; o de unidade do outro tipo de obra fica de fora."""
+    """(registros da vista do tipo de obra, nº de unidade não atribuível). A vista do código é decidida por (unidade,
+    sistema) (`eap.vista_do_codigo`: o trecho linear declarado dentro de unidade localizada vai para a linear). O código
+    com `*` na unidade ou unidade desconhecida não é atribuível a nenhum tipo e não soma; o de outra vista fica de fora."""
     do_tipo, indefinidas = [], 0
     for r in registros:
-        obra = OBRA_DA_UNIDADE.get(str(r["codigo"]).split(".")[0].lower())
+        obra = eap.vista_do_codigo(r["codigo"])
         if obra is None:
             indefinidas += 1
         elif obra == OBRA_DO_TIPO[tipo]:
@@ -708,13 +781,16 @@ def _nova_citacao() -> dict:
 
 def _citacoes_por_etapa(tipo: str, linhas: list[dict] | None) -> dict[str, dict]:
     """Linhas da planilha sob título de etapa, por etapa do `tipo` (id → {sem_item, fora}). Só vale a linha de unidade
-    do mesmo tipo de obra, sob título que alguma etapa do tipo lista. Regra: (a) item apontado por folha da etapa do
+    da mesma vista (a linha de trecho linear declarado, com `sistema`, vale na vista linear), sob título que alguma etapa
+    do tipo lista. Regra: (a) item apontado por folha da etapa do
     título (ou de uma das etapas que o título nomeia): nada muda; (b) sem item: a etapa foi citada no contrato; (c) item
     que nenhuma folha dessas etapas aponta: aviso 'item fora da etapa do título'."""
     itens = {e["id"]: _itens_da_etapa(e) for e in TIPOS[tipo]["etapas"]}
     por_etapa: dict[str, dict] = {}
     for linha in linhas or []:
-        obra = OBRA_DA_UNIDADE.get(str(linha.get("unidade", "")).lower())
+        obra = eap.vista_do_codigo(
+            f"{linha.get('unidade', '')}.{linha.get('sistema', '*')}"
+        )
         if obra != OBRA_DO_TIPO[tipo]:
             continue
         etapas = etapas_do_titulo(linha.get("titulo_etapa"), tipo)
@@ -766,6 +842,57 @@ def _contrato_da_etapa(etapa: dict, citacao: dict | None) -> dict:
         ),
         "avisos_titulo": _avisos_fora_da_etapa(citacao["fora"]),
     }
+
+
+def _folha_linear_recebe(item: str, servico: str | None) -> bool:
+    """Alguma folha da obra linear aponta o item (sem serviço, ou com o mesmo serviço do fato)."""
+    return any(
+        alvo["item"] == item and (not alvo.get("servico") or alvo["servico"] == servico)
+        for folha in _folhas_do_tipo("obra_linear")
+        for alvo in folha["aponta"]
+    )
+
+
+def _avisos_dos_trechos(
+    trechos: list[dict], linhas: list[dict] | None, tipos: list[str]
+) -> list[str]:
+    """Avisos de `eap_padrao.trechos_lineares`: obra sem o tipo linear, declaração sem linha na planilha e linha
+    declarada com item e serviço que nenhuma folha linear recebe (o número sumiria das duas vistas)."""
+    if not trechos:
+        return []
+    avisos = []
+    if "obra_linear" not in tipos:
+        avisos.append(
+            "eap_padrao.trechos_lineares: a obra não tem o tipo obra_linear; o trecho declarado não aparece em nenhuma vista"
+        )
+    if linhas is None:
+        return avisos
+    declaradas = [linha for linha in linhas if linha.get("sistema")]
+    avisos += [
+        f"eap_padrao.trechos_lineares: nenhuma linha da unidade {t['unidade']} sob o título «{t['titulo_etapa']}» na planilha; a declaração não teve efeito"
+        for t in trechos
+        if not any(
+            linha["unidade"].upper() == t["unidade"]
+            and normalizar(linha["titulo_etapa"]) == normalizar(t["titulo_etapa"])
+            for linha in declaradas
+        )
+    ]
+    grupos: dict[tuple, int] = {}
+    for linha in declaradas:
+        if linha["item"] and not _folha_linear_recebe(linha["item"], linha["servico"]):
+            chave = (
+                linha["descricao"],
+                linha["item"],
+                linha["servico"],
+                linha["titulo_etapa"],
+            )
+            grupos[chave] = grupos.get(chave, 0) + 1
+    avisos += [
+        f"Trecho linear declarado sem folha linear que o receba: «{descricao}» classificada em {item}"
+        f" ({servico or 'sem serviço'}), título «{titulo}» ({n} linha{'s' if n > 1 else ''}); o número não aparece em nenhuma vista"
+        for (descricao, item, servico, titulo), n in grupos.items()
+    ]
+    return avisos
 
 
 def _levantar(problemas: list[str]) -> None:
@@ -833,9 +960,9 @@ def preencher(
 
 def _configuracao(
     cfg: dict, avisos: list[str]
-) -> tuple[list[str], list[dict], list[dict]]:
-    """(tipos, declarações, manuais) do obra.json. Bloco malformado, registro inválido e registro de folha de tipo que a
-    obra não tem viram aviso; o resto segue."""
+) -> tuple[list[str], list[dict], list[dict], list[dict]]:
+    """(tipos, declarações, manuais, trechos lineares) do obra.json. Bloco malformado, registro inválido e registro de
+    folha de tipo que a obra não tem viram aviso; o resto segue."""
     if cfg.get("eap_padrao") is not None and not isinstance(cfg["eap_padrao"], dict):
         avisos.append(
             f"eap_padrao do obra.json deve ser um objeto; veio {type(cfg['eap_padrao']).__name__}"
@@ -844,23 +971,31 @@ def _configuracao(
     tipos = tipo_da_obra(cfg, avisos)
     declaracoes, p1 = separar_declaracoes(padrao.get("nao_se_aplica"))
     manuais, p2 = separar_manuais(padrao.get("preenchimento_manual"))
-    avisos += p1 + p2
+    trechos, p3 = separar_trechos_lineares(padrao.get("trechos_lineares"))
+    avisos += p1 + p2 + p3
     return (
         tipos,
         _so_dos_tipos(declaracoes, tipos, "nao_se_aplica", avisos),
         _so_dos_tipos(manuais, tipos, "preenchimento_manual", avisos),
+        trechos,
     )
 
 
 def montar(dados: dict, cfg: dict, out: Path | None = None) -> dict:
     """`dados["eap_padrao"]`: um bloco por tipo da obra (`tipo_da_obra`), tudo em texto pt-BR, mais o aviso de premissa,
     os itens fora do padrão e os `avisos` (declaração inválida ou de tipo ausente, tipo vazio, itens e serviços fora do
-    padrão). Declaração inválida não derruba a seção: vira aviso e o resto é preenchido. Grava `eap_padrao.json` em
+    padrão, trecho linear declarado sem efeito). Declaração inválida não derruba a seção: vira aviso e o resto é preenchido. Grava `eap_padrao.json` em
     `out`. Levanta ValueError só se o próprio conceito `eap_padrao.json` for inválido."""
     erros, avisos = validar()
     if erros:
         raise ValueError("eap_padrao.json inválido: " + "; ".join(erros))
-    tipos, declaracoes, manuais = _configuracao(cfg, avisos)
+    tipos, declaracoes, manuais, trechos = _configuracao(cfg, avisos)
+    evidencias = dados.get("evidencias")
+    avisos += _avisos_dos_trechos(
+        trechos,
+        evidencias.get("titulos_etapa") if isinstance(evidencias, dict) else None,
+        tipos,
+    )
     resultado = {
         "fonte": PADRAO["metadata"]["fonte"],
         "estado": PADRAO["metadata"]["estado"],
@@ -903,6 +1038,8 @@ def metadados() -> dict:
             "escopos_do_tipo",
             "separar_declaracoes",
             "separar_manuais",
+            "separar_trechos_lineares",
+            "trechos_do_cfg",
             "preencher",
             "resumir",
             "montar",

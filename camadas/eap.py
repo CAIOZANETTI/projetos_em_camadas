@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import re
+from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -68,9 +69,47 @@ def validar() -> list[str]:
         for m in it["medicoes"]:
             if m["regra"] not in REGRAS["regras_medicao"] or (m["regra"] == "soma") != ("atributo" in m):
                 problemas.append(f"{codigo}: medição {m} inválida")
+    problemas += _problemas_de_vista()
     for sub, alvos in REGRAS["pranchas"].items():
         problemas += [f"pranchas: subgrupo '{sub}' fora de disciplinas.json"] if sub not in subgrupos else []
         problemas += [f"pranchas: pacote '{a}' inexistente" for a in alvos if a not in pacotes]
+    return problemas
+
+
+VISTAS_DO_SISTEMA = ("linear",)
+"""Valores admitidos para `vista_eap_padrao` de um sistema em `unidades_construtivas.json`."""
+
+
+@lru_cache(maxsize=1)
+def _vistas_dos_sistemas() -> dict[tuple[str, str], str]:
+    """{(unidade, sistema em minúsculas): vista} dos sistemas com `vista_eap_padrao`."""
+    return {(s["unidade"], c.lower()): s["vista_eap_padrao"]
+            for c, s in UNIDADES["sistemas"].items() if s.get("vista_eap_padrao")}
+
+
+def vista_do_codigo(codigo: str) -> str | None:
+    """Vista da EAP padrão (localizada | linear) de um código `U1.SISTEMA.ITEM`: o sistema com `vista_eap_padrao` da
+    própria unidade manda; senão vale a obra da unidade. None se a unidade é desconhecida (`U*`). Função só do código:
+    o mesmo número nunca cai em duas vistas."""
+    partes = (str(codigo).lower().split(".") + ["*"])[:2]
+    return _vistas_dos_sistemas().get(tuple(partes)) or UNIDADES["unidades"].get(partes[0], {}).get("obra")
+
+
+def eh_trecho_linear(codigo: str) -> bool:
+    """O código é de sistema com vista linear dentro de unidade localizada (trecho declarado, D11)."""
+    unidade = str(codigo).split(".")[0].lower()
+    return vista_do_codigo(codigo) != UNIDADES["unidades"].get(unidade, {}).get("obra")
+
+
+def _problemas_de_vista() -> list[str]:
+    """Sistemas com `vista_eap_padrao` desconhecida ou em unidade inexistente."""
+    problemas = []
+    for codigo, s in UNIDADES["sistemas"].items():
+        vista = s.get("vista_eap_padrao")
+        if vista is not None and vista not in VISTAS_DO_SISTEMA:
+            problemas.append(f"sistema {codigo}: vista_eap_padrao '{vista}' desconhecida; use {list(VISTAS_DO_SISTEMA)}")
+        if vista is not None and s["unidade"] not in UNIDADES["unidades"]:
+            problemas.append(f"sistema {codigo}: unidade '{s['unidade']}' inexistente")
     return problemas
 
 

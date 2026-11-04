@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from openpyxl import Workbook
 
-from camadas import eap_padrao, evidencias, orcamento_sanepar
+from camadas import eap, eap_padrao, evidencias, orcamento_sanepar
 
 PRECO_F, PRECO_G = 12345.67, 99999.0
 CABECALHO = [
@@ -362,9 +362,7 @@ def test_linha_de_unidade_do_outro_tipo_ou_titulo_sem_etapa_no_tipo_nao_conta():
         _linha(
             "URBANIZAÇÃO", "GUIA", None, unidade="U2"
         ),  # U2 é linear: o padrão localizado a ignora
-        _linha(
-            "BLOCOS DE ANCORAGEM", "BLOCOS", None
-        ),  # só a obra linear lista esse título
+        _linha("ÁGUA POTÁVEL", "VALA", None),  # só a obra linear lista esse título
         _linha("ENTRADA DA ADUTORA", "GUIA", None),  # não é título de etapa
     ]
     localizada = eap_padrao.preencher(
@@ -374,12 +372,9 @@ def test_linha_de_unidade_do_outro_tipo_ou_titulo_sem_etapa_no_tipo_nao_conta():
     linear = eap_padrao.preencher(
         "obra_linear", None, {"fatos": [], "titulos_etapa": linhas}
     )
-    assert not any(
-        e["citada_no_contrato"] for e in linear["etapas"] if e["id"] != "OL.04"
-    )
-    assert (
-        _etapas(linear)["OL.04"]["citada_no_contrato"] is False
-    )  # a linha dele é U1 (localizada)
+    assert not any(e["citada_no_contrato"] for e in linear["etapas"])
+    # a linha de ÁGUA POTÁVEL é da U1 (localizada) e sem declaração de trecho linear não conta na vista linear
+    assert eap_padrao.etapas_do_titulo("ÁGUA POTÁVEL", "obra_localizada") == []
 
 
 def test_montar_apresenta_o_texto_pronto_e_serializa():
@@ -408,3 +403,242 @@ def test_template_do_visualizador_so_apresenta_os_textos_do_python():
     ).read_text(encoding="utf-8")
     assert "e.citada_txt" in html and "e.avisos_titulo" in html
     assert "n_linhas_citadas" not in html  # nenhuma conta ou texto montado em JS
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# D11: trecho linear declarado dentro de unidade localizada (água potável da U1)
+# ----------------------------------------------------------------------------------------------------------------
+VALA = (
+    "ESCAVAÇÃO, ESCORAMENTO, ASSENTAMENTO, REATERRO E REMOÇÃO DE PAVIMENTOS - PVC DN 25"
+)
+TRECHO = {
+    "unidade": "U1",
+    "titulo_etapa": "ÁGUA POTÁVEL",
+    "sistema": "AGUA_POTAVEL",
+    "justificativa": "D11: a água potável conta uma vez, como trecho linear dentro da U1",
+}
+
+
+def _vala(*linhas) -> pd.DataFrame:
+    """escopo mínimo com quantidade em metro: (linha, título de etapa, quantidade)."""
+    return pd.DataFrame(
+        {
+            "aba": "CUSTO CIVIL",
+            "codigo": "",
+            "descricao": VALA,
+            "unidade": "M",
+            "quantidade": [float(q) for _, _, q in linhas],
+            "unidade_obra": U1,
+            "linha_origem": [n for n, _, _ in linhas],
+            "titulo_etapa": [t for _, t, _ in linhas],
+        }
+    )
+
+
+def _texto_da_folha(bloco, folha):
+    return next(f for e in bloco["etapas"] for f in e["folhas"] if f["id"] == folha)
+
+
+def _vistas(itens, trechos):
+    evs = evidencias.de_planilha(itens, DOC, None, trechos)
+    dados = {
+        "fatos": evidencias._registros(evidencias.consolidar(evs)),
+        "titulos_etapa": evidencias.titulos_da_planilha(itens, None, trechos),
+    }
+    return evs, {
+        t: eap_padrao.preencher(t, None, dados)
+        for t in ("obra_localizada", "obra_linear")
+    }
+
+
+def test_d11_fusao_de_fatos_duas_linhas_iguais_so_uma_declarada():
+    itens = _vala((10, "ÁGUA POTÁVEL", 100), (11, "", 22))
+    evs, sem = _vistas(itens, None)
+    assert {e["codigo"] for e in evs} == {"U1.*.GEO.MOV.VAL"}
+    antigo = _texto_da_folha(sem["obra_localizada"], "OP.02.06")
+    assert (
+        "122,00 m" in antigo["quantidades_txt"][0]
+    )  # sem declaração: um fato só, na localizada
+    assert _texto_da_folha(sem["obra_linear"], "OL.03.01")["situacao"] == "a preencher"
+
+    trechos, problemas = eap_padrao.separar_trechos_lineares([TRECHO])
+    assert problemas == []
+    evs, com = _vistas(itens, trechos)
+    assert sorted(e["codigo"] for e in evs) == [
+        "U1.*.GEO.MOV.VAL",
+        "U1.AGUA_POTAVEL.GEO.MOV.VAL",
+    ]
+    loc = _texto_da_folha(com["obra_localizada"], "OP.02.06")
+    lin = _texto_da_folha(com["obra_linear"], "OL.03.01")
+    assert [t.split(" · ")[0] for t in loc["quantidades_txt"]] == ["Escavação 22,00 m"]
+    assert [t.split(" · ")[0] for t in lin["quantidades_txt"]] == ["Escavação 100,00 m"]
+    assert loc["codigos"] == ["U1.*.GEO.MOV.VAL"]
+    assert lin["codigos"] == ["U1.AGUA_POTAVEL.GEO.MOV.VAL"]
+    assert 100.0 + 22.0 == 122.0  # a soma das duas vistas é a do fato antigo
+    # cada número em uma vista só: o fato da linear não entra como parcela do fato da localizada
+    fato_loc = next(
+        f
+        for f in evidencias.consolidar(evs).to_dict("records")
+        if f["codigo"] == "U1.*.GEO.MOV.VAL"
+    )
+    assert fato_loc["valor"] == 22.0 and len(fato_loc["afirmacoes"]) == 1
+
+
+def test_d11_derivadas_nao_cruzam_vistas():
+    def ev(codigo, doc, valor):
+        return evidencias.evidencia(
+            codigo=codigo, servico="escavacao", unidade="m", valor=valor, parcela=True,
+            documento={"id": doc, "tipo": "edital"}, localizador="", trecho=codigo,
+            metodo="planilha", regra="t",
+        )  # fmt: skip
+
+    base = [ev("U1.*.GEO.MOV.VAL", "a.pdf", 10.0)]
+    rede_eta = evidencias.consolidar(
+        base + [ev("U1.AB_ENTRADA.GEO.MOV.VAL", "b.pdf", 5.0)]
+    )
+    linear = evidencias.consolidar(
+        base + [ev("U1.AGUA_POTAVEL.GEO.MOV.VAL", "b.pdf", 5.0)]
+    )
+
+    def fato(df):
+        return next(
+            f for f in df.to_dict("records") if f["codigo"] == "U1.*.GEO.MOV.VAL"
+        )
+
+    assert {a["documento"] for a in fato(rede_eta)["afirmacoes"]} == {"a.pdf", "b.pdf"}
+    assert {a["documento"] for a in fato(linear)["afirmacoes"]} == {"a.pdf"}
+
+
+def test_d11_citacao_do_titulo_declarado_vale_nas_etapas_lineares():
+    linha = _linha("ÁGUA POTÁVEL", "VALA EM PVC", None)
+    declarada = {**linha, "sistema": "AGUA_POTAVEL"}
+
+    def dados(l):
+        return {"fatos": [], "titulos_etapa": [l]}
+
+    for tipo, ids in (
+        ("obra_localizada", []),
+        ("obra_linear", ["OL.03", "OL.04", "OL.05"]),
+    ):
+        sem = eap_padrao.preencher(tipo, None, dados(linha))
+        assert not any(e["citada_no_contrato"] for e in sem["etapas"])
+        com = eap_padrao.preencher(tipo, None, dados(declarada))
+        assert [e["id"] for e in com["etapas"] if e["citada_no_contrato"]] == ids
+    assert eap_padrao.etapas_do_titulo("ÁGUA POTÁVEL", "obra_localizada") == []
+
+
+def test_d11_sem_declaracao_o_comportamento_antigo_nao_muda():
+    itens = _vala((10, "ÁGUA POTÁVEL", 100), (11, "", 22))
+    assert evidencias.de_planilha(itens, DOC) == evidencias.de_planilha(
+        itens, DOC, None, []
+    )
+    assert evidencias.titulos_da_planilha(itens) == evidencias.titulos_da_planilha(
+        itens, None, []
+    )
+    assert all("sistema" not in l for l in evidencias.titulos_da_planilha(itens))
+    # declaração de outra unidade ou de outro título não toca nas linhas
+    outro = [{**TRECHO, "titulo_etapa": "MATERIAIS EQUIPAMENTOS"}]
+    assert evidencias.de_planilha(itens, DOC, None, outro) == evidencias.de_planilha(
+        itens, DOC
+    )
+
+
+def test_d11_declaracao_valida_e_recusas():
+    validos, problemas = eap_padrao.separar_trechos_lineares(
+        [
+            {
+                **TRECHO,
+                "unidade": "u1",
+                "titulo_etapa": " água potável ",
+                "sistema": "agua_potavel",
+            }
+        ]
+    )
+    assert problemas == [] and validos == [{**TRECHO, "titulo_etapa": "água potável"}]
+    ruins = [
+        ("lista", "deve ser uma lista"),
+        (["x"], "deve ser um objeto"),
+        ([{**TRECHO, "unidade": "U2"}], "não é de obra localizada"),
+        ([{**TRECHO, "titulo_etapa": "TRECHO QUALQUER"}], "não é título de etapa"),
+        ([{**TRECHO, "sistema": "AB_ENTRADA"}], "não é de vista linear"),
+        ([{**TRECHO, "sistema": "ETA"}], "não é de vista linear"),
+        ([{**TRECHO, "justificativa": " "}], "sem justificativa"),
+        ([TRECHO, TRECHO], "duplicada"),
+    ]
+    for lista, texto in ruins:
+        _, problemas = eap_padrao.separar_trechos_lineares(lista)
+        assert len(problemas) == 1 and texto in problemas[0], (lista, problemas)
+    assert eap_padrao.separar_trechos_lineares(None) == ([], [])
+    assert eap_padrao.trechos_do_cfg({}) == []
+    assert eap_padrao.trechos_do_cfg(
+        {"eap_padrao": {"trechos_lineares": [TRECHO]}}
+    ) == [TRECHO]
+
+
+def test_d11_vista_so_do_sistema_marcado_e_valor_desconhecido_e_recusado(monkeypatch):
+    assert eap.vista_do_codigo("U1.AGUA_POTAVEL.GEO.MOV.VAL") == "linear"
+    assert eap.eh_trecho_linear("U1.AGUA_POTAVEL.GEO.MOV.VAL")
+    for codigo in (
+        "U1.LINEARES.GEO.MOV.VAL",
+        "U1.AB_ENTRADA.GEO.MOV.VAL",
+        "U1.LODO_SAIDA.X",
+        "U1.*.X",
+    ):
+        assert eap.vista_do_codigo(codigo) == "localizada" and not eap.eh_trecho_linear(
+            codigo
+        )
+    assert eap.vista_do_codigo("U2.AAT00.X") == "linear" and not eap.eh_trecho_linear(
+        "U2.AAT00.X"
+    )
+    assert (
+        eap.vista_do_codigo("U2.AGUA_POTAVEL.X") == "linear"
+    )  # sistema de outra unidade não vale
+    assert eap.vista_do_codigo("U*.*.X") is None
+    assert eap.validar() == []
+    monkeypatch.setitem(
+        eap.UNIDADES["sistemas"]["AGUA_POTAVEL"], "vista_eap_padrao", "mista"
+    )
+    assert any("vista_eap_padrao 'mista' desconhecida" in p for p in eap.validar())
+
+
+def test_d11_linha_declarada_sem_servico_que_folha_linear_receba_gera_aviso():
+    cfg = {
+        "eap_padrao": {
+            "tipo": ["obra_localizada", "obra_linear"],
+            "trechos_lineares": [TRECHO],
+        }
+    }
+    declarada = {
+        **_linha("ÁGUA POTÁVEL", VALA, "GEO.MOV.VAL"),
+        "sistema": "AGUA_POTAVEL",
+    }
+
+    def avisos(linhas, cfg=cfg):
+        dados = {"evidencias": {"fatos": [], "titulos_etapa": linhas}}
+        return [
+            a for a in eap_padrao.montar(dados, cfg)["avisos"] if "trecho" in a.lower()
+        ]
+
+    assert avisos([{**declarada, "servico": "escavacao"}]) == []
+    [aviso] = avisos(
+        [declarada]
+    )  # servico vazio: nenhuma folha linear aponta GEO.MOV.VAL sem serviço
+    assert (
+        "sem folha linear" in aviso
+        and "sem serviço" in aviso
+        and "nenhuma vista" in aviso
+    )
+    assert (
+        avisos([{**declarada, "item": None}]) == []
+    )  # sem item não há número que sumir
+    [sem_linha] = avisos([_linha("MATERIAIS EQUIPAMENTOS", "X", None)])
+    assert "nenhuma linha da unidade U1" in sem_linha
+    so_localizada = {
+        "eap_padrao": {"tipo": "obra_localizada", "trechos_lineares": [TRECHO]}
+    }
+    assert any(
+        "não tem o tipo obra_linear" in a
+        for a in avisos([{**declarada, "servico": "escavacao"}], so_localizada)
+    )
+    ruim = {"eap_padrao": {"trechos_lineares": [{**TRECHO, "sistema": "AB_ENTRADA"}]}}
+    assert any("não é de vista linear" in a for a in avisos([], ruim))
