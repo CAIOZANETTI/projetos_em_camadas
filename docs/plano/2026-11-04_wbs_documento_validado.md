@@ -29,13 +29,27 @@ uma segunda origem de recusa (documento), o texto tem de ser genérico, senão r
 
 - `evidencia()` continua levantando `ValueError` (contrato da construção); a recusa acontece antes, na entrada.
 - CLI `conferir` (documentos da linha de comando não têm unidade/sistema declarados).
-- Foz: documentos sem `sistema` ou com sistema válido; cadeia real idêntica (hash c5c2d5cd…).
+- Foz: `exemplos/foz/obra.json` não tem `evidencias.documentos`, então E1 não age em Foz; cadeia real idêntica (hash c5c2d5cd…).
 
 ## Verificação
 
 - `uv run pytest -q` e a suíte como o vcm roda: 0 falhas; nenhum golden regenerado.
 - `camadas.referencia` 0602c637…; `scripts/afericao.py` ok; ruff limpo; roteiros de ataque idênticos; Foz idêntica.
 - `vcm balanco` sem REVERTER; aceite do Fable antes do PR.
+
+## Parecer do Fable sobre o plano: APROVA COM AJUSTES
+
+Obrigatórios (incorporados ao contrato):
+1. E1 confere também `tipo` (ausente ou fora do enum do schema derruba `evidencia()`) e `escopo` (fora de
+   `{agua, esgoto}` grava evidência fora do schema), pelo mesmo mecanismo do schema, sem regex nova. `obra`
+   desconhecida não levanta: só `log`.
+2. O `codigo` da recusa é o prefixo `{unidade}.{sistema}.*`; o item de teste serve só para conferir o padrão.
+3. `_documentos(cfg, log, recusadas)` recebe a mesma lista de `loop` em `etapa`; teste confere em
+   `resumo["recusadas"]` o `documento` = id e o `codigo` = prefixo.
+
+Opcionais aceitos: uma linha de log só por recusa; CHANGELOG ajustado ao texto genérico em E5; teste trava
+`{"pares_declarados", "sistema_linear_nao_declarado"} <= set(metadados()["funcoes"])`; teste de `etapa` com CSV
+em `tmp_path`.
 
 ## Agentes
 
