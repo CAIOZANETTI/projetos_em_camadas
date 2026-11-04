@@ -122,3 +122,89 @@ def test_montar_poda_a_arvore_aos_nos_com_elementos():
     assert all(isinstance(q["evidencias"], list) and q["evidencias"] for q in pacote["quantidades"])
     json.dumps(pacote)                                              # vai para o dados.json do HTML
     assert eap.montar({"crs": {"epsg": EPSG}}, {}) is None
+
+
+# caracterização (ciclo de complexidade): fixa a saída de `validar` e de `verificar` antes da refatoração ---------------
+def _item_quebrado(codigo, **campos):
+    """Item da EAP geral válido (molde: o primeiro do eap_geral.jsonl) com o código e os campos trocados."""
+    return {**eap.GERAL[0], "codigo": codigo, "nome": codigo, **campos}
+
+
+def test_validar_lista_inteira_e_ordem_de_um_modelo_quebrado_em_cada_bloco(monkeypatch):
+    import copy
+
+    regras = copy.deepcopy(eap.REGRAS)
+    regras["pranchas"]["Subgrupo fantasma"] = ["GEO.FUN", "ZZZ.NAO"]
+    regras["pranchas"]["Adutoras"] = ["GEO.MOV", "HID.NAO"]
+    unidades = copy.deepcopy(eap.UNIDADES)
+    unidades["sistemas"]["SISBAD"] = {"unidade": "u9", "nome": "x", "vista_eap_padrao": "diagonal"}
+    geral = [
+        _item_quebrado("GEO.MOV.ESC"),
+        _item_quebrado("GEO.FUN.EST",
+                       obra=["localizada", "subterranea"], escopo=["agua", "ar"], servicos=["escavacao", "fantasma"],
+                       construtivos=["cava", "classe_x"], layers=["escavacao", "layer_x"],
+                       medicoes=[{"grandeza": "n", "unidade": "un", "regra": "contagem"},
+                                 {"grandeza": "v", "unidade": "m³", "regra": "soma"},
+                                 {"grandeza": "n", "unidade": "un", "regra": "contagem", "atributo": "a"},
+                                 {"grandeza": "n", "unidade": "un", "regra": "inexistente"}]),
+        _item_quebrado("GEO.MOV.ESC"),
+        _item_quebrado("XXX.YYY.ZZZ"),
+    ]
+    monkeypatch.setattr(eap, "GERAL", geral)
+    monkeypatch.setattr(eap, "REGRAS", regras)
+    monkeypatch.setattr(eap, "UNIDADES", unidades)
+    assert eap.validar() == [
+        "código repetido: GEO.MOV.ESC",
+        "XXX.YYY.ZZZ: pacote fora de eap.json",
+        "GEO.FUN.EST: obra 'subterranea' desconhecida",
+        "GEO.FUN.EST: escopo 'ar' desconhecido",
+        "GEO.FUN.EST: serviço 'fantasma' fora de servicos.jsonl",
+        "GEO.FUN.EST: classe construtiva 'classe_x' fora de unidades_construtivas",
+        "GEO.FUN.EST: layer 'layer_x' fora de elementos.json",
+        "GEO.FUN.EST: medição {'grandeza': 'v', 'unidade': 'm³', 'regra': 'soma'} inválida",
+        "GEO.FUN.EST: medição {'grandeza': 'n', 'unidade': 'un', 'regra': 'contagem', 'atributo': 'a'} inválida",
+        "GEO.FUN.EST: medição {'grandeza': 'n', 'unidade': 'un', 'regra': 'inexistente'} inválida",
+        "sistema SISBAD: vista_eap_padrao 'diagonal' desconhecida; use ['linear']",
+        "sistema SISBAD: unidade 'u9' inexistente",
+        "pranchas: pacote 'HID.NAO' inexistente",                       # Adutoras vem antes no eap.json
+        "pranchas: subgrupo 'Subgrupo fantasma' fora de disciplinas.json",
+        "pranchas: pacote 'ZZZ.NAO' inexistente",
+    ]
+
+
+def test_validar_le_os_globais_na_chamada(monkeypatch):
+    assert eap.validar() == []
+    monkeypatch.setattr(eap, "GERAL", [*eap.GERAL, _item_quebrado("GEO.FUN.EST")])
+    assert eap.validar() == ["código repetido: GEO.FUN.EST"]
+
+
+def _proposta_e_status(linha):
+    c = _construtivos()
+    return eap.verificar([linha], c, EPSG).loc[0]
+
+
+def test_status_da_verificacao_na_ordem_dos_retornos_antecipados():
+    estaca = "u1-ACT600-estaca-ACT600-031"
+    base = {"codigo": "U1.ACT600.GEO.FUN.EST", "unidade": "un", "quantidade": 1, "evidencias": [estaca]}
+    casos = [
+        ({**base, "codigo": "U1.ACT600.GEO.FUN"}, "código inexistente"),            # nó que não é item
+        ({**base, "codigo": None}, "código inexistente"),
+        ({**base, "unidade": "kg"}, "medição não prevista no item"),
+        ({**base, "grandeza": "volume"}, "medição não prevista no item"),
+        ({**base, "evidencias": []}, "sem evidência"),
+        ({**base, "evidencias": None}, "sem evidência"),
+        ({**base, "evidencias": ["inexistente"]}, "evidência inválida"),
+        ({**base, "evidencias": ["u1-FILTROS-pilar-P5"]}, "evidência inválida"),    # elemento de outro item
+        ({**base, "quantidade": 7}, "quantidade diverge das evidências"),
+        (base, "confere"),
+    ]
+    for linha, esperado in casos:
+        assert _proposta_e_status(linha)["status"] == esperado, linha
+    assert _proposta_e_status({**base, "quantidade": 7})["calculado"] == 1.0
+    assert _proposta_e_status({**base, "evidencias": []})["calculado"] is None
+
+
+def test_status_sem_quantidade_proposta_nao_diverge_porque_nan_nao_compara():
+    linha = {"codigo": "U1.ACT600.GEO.FUN.EST", "unidade": "un", "evidencias": ["u1-ACT600-estaca-ACT600-031"]}
+    r = _proposta_e_status(linha)
+    assert r["status"] == "confere" and r["aceito"] and r["calculado"] == 1.0
