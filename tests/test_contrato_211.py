@@ -721,3 +721,14 @@ def test_faixa_dos_trechos_tem_area(linhas_e2, redes, monkeypatch):
     monkeypatch.setattr(supressao, "estimar", estimar_falso)
     c211.supressao_por_uc(redes, "orto.jpg", "mds.png", 4.0, 2.0, linhas_e2)
     assert faixas and all(f is not None and f.area > 0 for f in faixas.values())
+
+
+def test_supressao_parcial_quando_falta_trecho_da_uc(linhas_e2, redes):
+    """A faixa só cobre os trechos medidos: UC com trecho sem rede dá supressão parcial, com o trecho no motivo."""
+    por_uc = {"UC 1 - UC A": {"arvores_m2": 120.5, "rasteira_m2": 300.0, "faixa_m": 4.0}}
+    todas = [*redes, _rede("R3", "TRECHO TRES", 150, ["calcada"] * 10, origem=(0.0, 80.0))]  # os 3 trechos da UC A
+    completo = _linha(_quant(linhas_e2, todas, supressao_por_uc=por_uc), "CSUPVEG")
+    assert completo["situacao"] == "calculada"
+    so_um = [r for r in redes if r["trecho_contrato"] == "TRECHO UM"]
+    linha = _linha(_quant(linhas_e2, so_um, supressao_por_uc=por_uc), "CSUPVEG")
+    assert linha["situacao"] == "parcial" and "TRECHO DOIS" in linha["motivo"]

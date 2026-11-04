@@ -704,17 +704,23 @@ def _regra_supressao(chave: str):
         if dados is None or dados.get(chave) is None:
             return _calculo(motivo=f"UC sem supressão estimada: {linha.get('uc')!r}")
         premissas = [
-            {"nome": nome, "valor": dados[nome], "unidade": "m", "estado": "calibrar"}
-            for nome in ("faixa_m", "folga_m")
-            if dados.get(nome) is not None
-        ]
+            {"nome": "faixa_m", "valor": dados["faixa_m"], "unidade": "m", "estado": "calibrar"}
+        ] if dados.get("faixa_m") is not None else []   # a folga não se aplica: a faixa dos trechos vai pronta
         evidencia = {
             "tipo": "supressao_ortofoto",
             "id": linha.get("uc"),
             "valor": round(float(dados[chave]), _CASAS_DECIMAIS),
             "unidade": "m2",
         }
-        return _calculo(dados[chave], evidencias=[evidencia], premissas=premissas)
+        trechos = amb.trechos_da_uc.get((linha.get("unidade_obra"), linha.get("uc"))) or []
+        faltam = [t for t in trechos if not amb.redes(t)]     # a faixa só cobre os trechos medidos
+        return _calculo(
+            dados[chave],
+            motivo=("faixa só dos trechos medidos; sem rede: " + "; ".join(faltam)) if faltam else None,
+            parcial=bool(faltam),
+            evidencias=[evidencia],
+            premissas=premissas,
+        )
 
     return regra
 
