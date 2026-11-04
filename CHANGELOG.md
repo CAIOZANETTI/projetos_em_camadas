@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.65.0 — 2026-11-04 · Folhas de interligação 009 e 010 georreferenciadas pela f004; os trechos de interligação no Contrato 211
+## 0.66.0 — 2026-11-04 · Folhas de interligação 009 e 010 georreferenciadas pela f004; os trechos de interligação no Contrato 211
 - **`georef_prancha.registrar_cad_escala_fixa`** (com `ajustar_rigido`, Kabsch): folha de detalhe sobre a folha de
   layout com a **escala fixa do título**.
   - O SIFT + RANSAC dá a rotação e a posição.
@@ -25,7 +25,19 @@
   - supressão da UC 3, que não tem trecho.
 - **Cache de georreferência das pranchas com assinatura da configuração.** A afim nova da f010 era ignorada em
   silêncio pelo cache antigo: o primeiro build saiu com a folha "sem georreferência" e passou no teste de interface.
-- Lições L062 (escala fixa do título) e L063 (cache sem assinatura).
+- Lições L063 (escala fixa do título) e L064 (cache sem assinatura).
+## 0.65.0 — 2026-11-04 · Complexidade das funções da frente WBS (refatoração sem mudança de saída)
+- **Quatro funções abaixo de 10 (radon)**, com saída idêntica: `eap.validar` 32 → 1 (um bloco de regra por função:
+  códigos, itens, obra/escopo, referências, medições, pranchas), `eap._status` 18 → 9, `eap_padrao._avisos_nao_declarados`
+  22 → 3 (um gerador por origem: fatos, recusadas, quantidades) e `evidencias.etapa` 20 → 6 (leitura das fontes, registro
+  das recusas e gravação em funções próprias). 15 funções novas, privadas, todas ≤ 9.
+- **Caracterização antes da refatoração** (10 testes novos, commit próprio): lista inteira e ordem dos erros de
+  `validar`, log completo de `etapa`, ordem e deduplicação dos avisos, retornos de `_status`. Passam no código antigo e
+  derrubam mutações de ordem, dedup e log. Nenhum teste existente alterado.
+- Referência, roteiros de ataque da leitura por IA e Foz (hash c5c2d5cd) idênticos; cobertura de ramos não caiu.
+- `eap_html.valor_txt` (20) fica fora: formata propriedades de `gavetas.json` (frente Geo Bd).
+- Plano `docs/plano/2026-11-04_wbs_complexidade.md` aprovado pelo Fable (com ajustes) e entrega aceita.
+- Lição L062.
 
 ## 0.64.0 — 2026-11-04 · Orçamento de Foz 211: as quantidades do CUSTO CIVIL calculadas em código, sem preço
 - **`camadas/contrato_211.py`** + `conceitos/composicoes_sanepar.json`: a aba CUSTO CIVIL da planilha 211, lida **só

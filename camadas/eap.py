@@ -48,30 +48,69 @@ def itens() -> dict:
 
 def validar() -> list[str]:
     """Problemas do modelo (vazio = coerente): código repetido, regra, classe, layer ou subgrupo desconhecidos."""
-    problemas = []
+    problemas = _problemas_de_codigos()
+    problemas += _problemas_dos_itens()
+    problemas += _problemas_de_vista()
+    problemas += _problemas_de_pranchas()
+    return problemas
+
+
+def _problemas_de_codigos() -> list[str]:
+    """Códigos repetidos na EAP geral (em ordem alfabética) e códigos cujo pacote não está em eap.json (na ordem do
+    eap_geral.jsonl)."""
     codigos = [it["codigo"] for it in GERAL]
-    problemas += [f"código repetido: {c}" for c in sorted({c for c in codigos if codigos.count(c) > 1})]
-    problemas += [f"{c}: pacote fora de eap.json" for c in codigos if c not in itens()]
+    problemas = [f"código repetido: {c}" for c in sorted({c for c in codigos if codigos.count(c) > 1})]
+    modelo = itens()
+    problemas += [f"{c}: pacote fora de eap.json" for c in codigos if c not in modelo]
+    return problemas
+
+
+def _problemas_dos_itens() -> list[str]:
+    """Problemas de cada item da hierarquia (obra, escopo, serviço, classe, layer, medição), item a item, na ordem
+    de `itens()`; lê servicos.jsonl e elementos.json na chamada."""
     servicos = {json.loads(linha)["id"] for linha in (CONCEITOS / "servicos.jsonl").read_text(encoding="utf-8").splitlines()
                 if linha.strip()}
     classes = set(UNIDADES["classes"])
     layers = {c["id"] for c in json.loads((CONCEITOS / "elementos.json").read_text(encoding="utf-8"))["classes"]}
+    problemas = []
+    for codigo, it in itens().items():
+        problemas += _problemas_de_obra_e_escopo(codigo, it)
+        problemas += _problemas_de_referencias(codigo, it, servicos, classes, layers)
+        problemas += _problemas_de_medicoes(codigo, it)
+    return problemas
+
+
+def _problemas_de_obra_e_escopo(codigo: str, it: dict) -> list[str]:
+    """Tipo de obra fora de localizada | linear e escopo fora de `REGRAS["escopos"]`, nessa ordem."""
+    problemas = [f"{codigo}: obra '{o}' desconhecida" for o in it["obra"] if o not in ("localizada", "linear")]
+    problemas += [f"{codigo}: escopo '{e}' desconhecido" for e in it["escopo"] if e not in REGRAS["escopos"]]
+    return problemas
+
+
+def _problemas_de_referencias(codigo: str, it: dict, servicos: set, classes: set, layers: set) -> list[str]:
+    """Serviço, classe construtiva e layer do item que não existem nos conceitos, nessa ordem."""
+    problemas = [f"{codigo}: serviço '{v}' fora de servicos.jsonl" for v in it["servicos"] if v not in servicos]
+    problemas += [f"{codigo}: classe construtiva '{c}' fora de unidades_construtivas" for c in it["construtivos"]
+                  if c not in classes]
+    problemas += [f"{codigo}: layer '{c}' fora de elementos.json" for c in it["layers"] if c not in layers]
+    return problemas
+
+
+def _problemas_de_medicoes(codigo: str, it: dict) -> list[str]:
+    """Medições com regra desconhecida ou com `atributo` incoerente (só a regra `soma` leva atributo)."""
+    return [f"{codigo}: medição {m} inválida" for m in it["medicoes"]
+            if m["regra"] not in REGRAS["regras_medicao"] or (m["regra"] == "soma") != ("atributo" in m)]
+
+
+def _problemas_de_pranchas() -> list[str]:
+    """Subgrupos de prancha fora de disciplinas.json e pacotes-alvo inexistentes, subgrupo a subgrupo."""
     subgrupos = {s for g in json.loads((CONCEITOS / "disciplinas.json").read_text(encoding="utf-8"))["grupos"].values()
                  for s in g}
     pacotes = {f"{d['codigo']}.{p['codigo']}" for d in REGRAS["disciplinas"] for p in d["pacotes"]}
-    for codigo, it in itens().items():
-        problemas += [f"{codigo}: obra '{o}' desconhecida" for o in it["obra"] if o not in ("localizada", "linear")]
-        problemas += [f"{codigo}: escopo '{e}' desconhecido" for e in it["escopo"] if e not in REGRAS["escopos"]]
-        problemas += [f"{codigo}: serviço '{v}' fora de servicos.jsonl" for v in it["servicos"] if v not in servicos]
-        problemas += [f"{codigo}: classe construtiva '{c}' fora de unidades_construtivas" for c in it["construtivos"]
-                      if c not in classes]
-        problemas += [f"{codigo}: layer '{c}' fora de elementos.json" for c in it["layers"] if c not in layers]
-        for m in it["medicoes"]:
-            if m["regra"] not in REGRAS["regras_medicao"] or (m["regra"] == "soma") != ("atributo" in m):
-                problemas.append(f"{codigo}: medição {m} inválida")
-    problemas += _problemas_de_vista()
+    problemas = []
     for sub, alvos in REGRAS["pranchas"].items():
-        problemas += [f"pranchas: subgrupo '{sub}' fora de disciplinas.json"] if sub not in subgrupos else []
+        if sub not in subgrupos:
+            problemas.append(f"pranchas: subgrupo '{sub}' fora de disciplinas.json")
         problemas += [f"pranchas: pacote '{a}' inexistente" for a in alvos if a not in pacotes]
     return problemas
 
@@ -293,8 +332,9 @@ def sem_item(construtivos: dict) -> list[str]:
             if not codigos_do_elemento(f["properties"]) and f["properties"]["classe"] not in REGRAS["so_evidencia"]]
 
 
-def _status(linha: dict, nos: dict, por_id: dict, quant: pd.DataFrame, epsg: int, tol: float) -> tuple[str, float | None]:
-    """Status de uma linha da proposta e o valor refeito pelas evidências citadas."""
+def _medicao_prevista(linha: dict, nos: dict) -> tuple[str | None, dict | None]:
+    """(recusa, medição): o item da linha na estrutura e a medição (unidade e grandeza) que ele prevê; a recusa é o
+    status se o código não é item ou se o item não prevê a medição."""
     item = nos.get(linha.get("codigo"))
     if item is None or item["nivel"] != "item":
         return "código inexistente", None
@@ -302,12 +342,28 @@ def _status(linha: dict, nos: dict, por_id: dict, quant: pd.DataFrame, epsg: int
                     and m["grandeza"] == linha.get("grandeza", m["grandeza"])), None)
     if medicao is None:
         return "medição não prevista no item", None
+    return None, medicao
+
+
+def _recusa_das_evidencias(linha: dict, por_id: dict) -> str | None:
+    """Status de recusa se a linha não cita evidência ou cita elemento que não existe ou não é do item; senão None."""
     ids = linha.get("evidencias") or []
     if not ids:
-        return "sem evidência", None
+        return "sem evidência"
     if any(i not in por_id or linha["codigo"] not in codigos_do_elemento(por_id[i]["properties"]) for i in ids):
-        return "evidência inválida", None
-    valores = [medir(por_id[i], medicao, epsg) for i in ids]
+        return "evidência inválida"
+    return None
+
+
+def _status(linha: dict, nos: dict, por_id: dict, quant: pd.DataFrame, epsg: int, tol: float) -> tuple[str, float | None]:
+    """Status de uma linha da proposta e o valor refeito pelas evidências citadas."""
+    recusa, medicao = _medicao_prevista(linha, nos)
+    if recusa:
+        return recusa, None
+    recusa = _recusa_das_evidencias(linha, por_id)
+    if recusa:
+        return recusa, None
+    valores = [medir(por_id[i], medicao, epsg) for i in linha["evidencias"]]
     refeito = float(sum(v for v in valores if v is not None))
     if abs(refeito - float(linha.get("quantidade", np.nan))) > tol * max(1.0, abs(refeito)):
         return "quantidade diverge das evidências", refeito
