@@ -1,59 +1,47 @@
 ## Rumo do desenvolvimento
 
-**Objetivo:** Conferir as cavas da memória espacial de Foz por testemunhas independentes do cálculo pelo MDS: área e fundo de cada seção das pranchas de corte e cotas da sequência executiva
+**Objetivo:** Decidir com evidência qual terreno vale para as cavas de Foz (MDS do drone ou topografia do projeto) e aplicar a decisão
 
 `▓▓▓▓▓▓▓▓▓▓ 100%`
 
-**Tempo:** Início 03/11/2026 18:32 UTC · fim 03/11/2026 20:59 · 0,10 dias corridos (2,5 h de calendário) · IA trabalhando: 2,2 h de relógio · 2,9 h de agente · paralelismo 1,3×
+**Tempo:** Início 03/11/2026 21:34 UTC · fim 04/11/2026 12:08 · 0,61 dias corridos (14,6 h de calendário) · IA trabalhando: 1,5 h de relógio · 1,7 h de agente · paralelismo 1,1×
 
 | Etapa | Nome | Status | Agente | Est. min | Est. tokens | Real min | IA h | Real tokens | Razão |
 |---|---|---|---|--:|--:|--:|--:|--:|--:|
-| E1 | Reingestão do Drive de Foz (o contêiner novo não tem dados/) | ✅ feito | haiku | 30 | 500.000 | 9 | 0,1 | 272.591 | 0,5× |
-| E2 | Leitor das seções de corte (área de corte e cota de fundo por seção) | ✅ feito | sonnet | 60 | 250.000 | 29 | 0,4 | 151.293 | 0,6× |
-| E3 | Seções no modelo e conferência (área, fundo, cotas da sequência executiva, seções médias) | ✅ feito | sonnet | 60 | 250.000 | 42 | 0,5 | 336.466 | 1,3× |
-| E4 | Build real, relatório, balanço, aceite do Fable e PR | ✅ feito | opus | 60 | 200.000 | 73 | 0,4 | 94.069 | 1,2× |
-| E5 | Talude por cava a partir das seções do projeto (decisão do Caio, 03/11) | ✖ cancelado | sonnet | 60 | 250.000 | — | — | — | — |
+| E1 | Superfície topográfica do projeto (curvas de nível) e comparação com sondagens, seções e MDS | ✅ feito | sonnet | 90 | 300.000 | 34 | 0,5 | 499.084 | 1,7× |
+| E2 | Relatório da evidência e decisão do humano | ✅ feito | opus | 30 | 80.000 | 770 | 0,0 | 8.140 | 25,7× |
+| E3 | Aplicar a decisão ao terreno das cavas e recalcular a conferência | ✅ feito | sonnet | 60 | 250.000 | 15 | 0,2 | 240.755 | 1,0× |
+| E4 | Build real, balanço, aceite do Fable, PR e merge | ✅ feito | opus | 60 | 200.000 | 56 | 0,4 | 94.601 | 0,9× |
 
-**Desvios (35)**
+**Desvios (24)**
 - fora do plano: CHANGELOG.md alterado sem pertencer a nenhum entregável
 - fora do plano: camadas/__init__.py alterado sem pertencer a nenhum entregável
-- fora do plano: camadas/dimensoes.py alterado sem pertencer a nenhum entregável
+- fora do plano: camadas/eap_padrao.py alterado sem pertencer a nenhum entregável
 - fora do plano: camadas/evidencias.py alterado sem pertencer a nenhum entregável
-- fora do plano: camadas/geotecnia.py alterado sem pertencer a nenhum entregável
-- fora do plano: camadas/inventario.py alterado sem pertencer a nenhum entregável
-- fora do plano: camadas/lineares.py alterado sem pertencer a nenhum entregável
-- fora do plano: camadas/obra.py alterado sem pertencer a nenhum entregável
+- fora do plano: camadas/extrair_gavetas.py alterado sem pertencer a nenhum entregável
+- fora do plano: camadas/orcamento_sanepar.py alterado sem pertencer a nenhum entregável
 - fora do plano: camadas/templates/visualizador.html alterado sem pertencer a nenhum entregável
-- fora do plano: camadas/valas.py alterado sem pertencer a nenhum entregável
-- fora do plano: camadas/vocabulario.py alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/dimensoes.json alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/eap.json alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/eap_geral.jsonl alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/eap_padrao.json alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/geotecnia.json alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/lineares.json alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/servicos.jsonl alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/sinonimos.json alterado sem pertencer a nenhum entregável
-- fora do plano: conceitos/valas.json alterado sem pertencer a nenhum entregável
 - fora do plano: docs/ARQUITETURA.md alterado sem pertencer a nenhum entregável
 - fora do plano: docs/EAP.md alterado sem pertencer a nenhum entregável
 - fora do plano: docs/MEMORIA_ESPACIAL.md alterado sem pertencer a nenhum entregável
 - fora do plano: docs/arquitetura.html alterado sem pertencer a nenhum entregável
+- fora do plano: docs/plano/2026-11-03_foz_eap_padrao_real.md alterado sem pertencer a nenhum entregável
+- fora do plano: docs/plano/2026-11-03_mapa_erro_mds.png alterado sem pertencer a nenhum entregável
 - fora do plano: exemplos/foz/obra.json alterado sem pertencer a nenhum entregável
 - fora do plano: pdca/afericao.jsonl alterado sem pertencer a nenhum entregável
 - fora do plano: pdca/agentes.jsonl alterado sem pertencer a nenhum entregável
 - fora do plano: pdca/licoes.jsonl alterado sem pertencer a nenhum entregável
-- fora do plano: tests/test_dimensoes.py alterado sem pertencer a nenhum entregável
-- fora do plano: tests/test_eap_itens_gerais.py alterado sem pertencer a nenhum entregável
-- fora do plano: tests/test_eap_padrao.py alterado sem pertencer a nenhum entregável
-- fora do plano: tests/test_evidencias.py alterado sem pertencer a nenhum entregável
-- fora do plano: tests/test_geotecnia.py alterado sem pertencer a nenhum entregável
-- fora do plano: tests/test_obra_eap_gavetas.py alterado sem pertencer a nenhum entregável
+- fora do plano: pyproject.toml alterado sem pertencer a nenhum entregável
+- fora do plano: scripts/verificacao_noturna.py alterado sem pertencer a nenhum entregável
+- fora do plano: tests/test_escavacao_terreno.py alterado sem pertencer a nenhum entregável
+- fora do plano: tests/test_titulos_etapa.py alterado sem pertencer a nenhum entregável
 - fora do plano: tests/test_visualizador_eap_padrao.py alterado sem pertencer a nenhum entregável
+- estouro: E1: tokens real é 1,7× o estimado
+- estouro: E2: tempo real é 25,7× o estimado
 
 **Próxima etapa:** nenhuma disponível
 
-Mudanças de objetivo: 15
+Mudanças de objetivo: 19
 
 ### Correções sugeridas
 
@@ -61,38 +49,27 @@ Mudanças de objetivo: 15
 |---|---|---|---|
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: CHANGELOG.md alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/__init__.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/dimensoes.py alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/eap_padrao.py alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/evidencias.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/geotecnia.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/inventario.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/lineares.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/obra.py alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/extrair_gavetas.py alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/orcamento_sanepar.py alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/templates/visualizador.html alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/valas.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: camadas/vocabulario.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/dimensoes.json alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/eap.json alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/eap_geral.jsonl alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/eap_padrao.json alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/geotecnia.json alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/lineares.json alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/servicos.jsonl alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/sinonimos.json alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: conceitos/valas.json alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: docs/ARQUITETURA.md alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: docs/EAP.md alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: docs/MEMORIA_ESPACIAL.md alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: docs/arquitetura.html alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: docs/plano/2026-11-03_foz_eap_padrao_real.md alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: docs/plano/2026-11-03_mapa_erro_mds.png alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: exemplos/foz/obra.json alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: pdca/afericao.jsonl alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: pdca/agentes.jsonl alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: pdca/licoes.jsonl alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_dimensoes.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_eap_itens_gerais.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_eap_padrao.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_evidencias.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_geotecnia.py alterado sem pertencer a nenhum entregável | humano |
-| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_obra_eap_gavetas.py alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: pyproject.toml alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: scripts/verificacao_noturna.py alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_escavacao_terreno.py alterado sem pertencer a nenhum entregável | humano |
+| média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_titulos_etapa.py alterado sem pertencer a nenhum entregável | humano |
 | média | registrar a mudança como etapa nova no rumo.yaml ou reverter o arquivo | fora do plano: tests/test_visualizador_eap_padrao.py alterado sem pertencer a nenhum entregável | humano |
+| média | dividir a etapa em partes menores ou recalibrar a estimativa | estouro: tokens real é 1,7× o estimado | opus |
+| média | dividir a etapa em partes menores ou recalibrar a estimativa | estouro: tempo real é 25,7× o estimado | opus |
 
 _Sugestões geradas pelo vcm a partir das medições; nada foi alterado. Aplicar exige aprovação humana._
