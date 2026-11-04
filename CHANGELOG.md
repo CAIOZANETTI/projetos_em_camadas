@@ -26,7 +26,14 @@
   - **portão: EAP aberta**, com 20 obrigatórias travando (10 da localizada e 10 da linear). **Todas têm menção em
     documento**, com quantidade candidata. O próximo passe tem 955 leituras de documento para a IA com citação
     conferida.
-- Lição L071.
+- **Aferição recuperada:**
+  - a verificação noturna (PR #82) apontou que a aferição estava reprovada desde o PR #74: 3 duplicatas e longas
+    6 → 19, quase todas desta reconstrução;
+  - 13 funções foram quebradas em auxiliares, sem mudar o comportamento;
+  - as duplicatas viraram uma função só: `gavetas.base_vazia`, e `_unidade_e_sistema` e `_pasta_da_base` em
+    `eap_preencher`;
+  - **aferição ok** (0 duplicatas, as 6 longas herdadas) e registrada em `pdca/afericao.jsonl`; determinismo ok.
+- Lição L071 e L072.
 
 ## 0.72.0 — 2026-11-04 · F4 da reconstrução: os serviços complementares calculados das gavetas
 - **`camadas/gavetas_servicos.py`** (novo): o passo 7 do fluxo do Caio.
