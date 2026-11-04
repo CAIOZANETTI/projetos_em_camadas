@@ -877,15 +877,186 @@ def _perfil(linhas: list[str]) -> dict:
     }
 
 
-def _montar_furo(coord: dict | None, trecho: dict | None, fonte: str) -> dict:
+def _inteiro_ou_none(palavra: str) -> int | None:
+    """Inteiro da célula; '-' ou qualquer texto não inteiro vira None (ilegível, nada é inventado)."""
+    return int(palavra) if re.fullmatch(r"\d{1,3}", palavra) else None
+
+
+def _geometria_da_tabela(palavras: list) -> dict | None:
+    """Âncoras da tabela de ensaio da folha: colunas dos 3 segmentos, de INI./FIN. e linhas (uma por metro).
+
+    Layout Geoazimute: cabeçalhos 'INI.' e 'FIN.' (resistência), rótulos de profundidade '1,00'...'20,00' à esquerda
+    das colunas de golpes/penetração. A linha de cada rótulo começa na altura (y) do rótulo; a primeira linha (0,00
+    m, sem rótulo) começa logo abaixo do cabeçalho. Devolve None se faltar alguma âncora.
+    """
+    ini = next((w for w in palavras if w[4] == "INI."), None)
+    fin = next((w for w in palavras if w[4] == "FIN."), None)
+    if ini is None or fin is None:
+        return None
+    topo = max(ini[3], fin[3])
+    centro_ini, centro_fin = (ini[0] + ini[2]) / 2, (fin[0] + fin[2]) / 2
+    palavras_rotulo = [
+        w
+        for w in palavras
+        if re.fullmatch(r"\d{1,2},00", w[4]) and w[0] < ini[0] - 60 and w[1] > topo
+    ]
+    if not palavras_rotulo:
+        return None
+    rotulos = sorted((w[1], _para_float(w[4])) for w in palavras_rotulo)
+    ancoras = [(topo, rotulos[0][1] - 1.0)] + rotulos
+    return {
+        "centro_ini": centro_ini,
+        "centro_fin": centro_fin,
+        "x_min_segmentos": max(w[2] for w in palavras_rotulo) + 8,
+        "ancoras_y": np.array([a for a, _ in ancoras]),
+        "profundidades_m": [d for _, d in ancoras],
+    }
+
+
+def _colunas_dos_segmentos(centros_x: np.ndarray) -> list[float] | None:
+    """Centros das 3 colunas de segmento (agrupa centros x com folga > 8 pt); None se não forem exatamente 3."""
+    if centros_x.size == 0:
+        return None
+    ordem = np.sort(centros_x)
+    grupos = np.split(ordem, np.where(np.diff(ordem) > 8)[0] + 1)
+    return [float(g.mean()) for g in grupos] if len(grupos) == 3 else None
+
+
+def _celulas_da_folha(palavras: list, geometria: dict) -> tuple[dict, list[str]]:
+    """Distribui as palavras da tabela em {(linha, campo): token}; campos: g0..g2, p0..p2, ini, fin."""
+    ancoras = geometria["ancoras_y"]
+    fim_y = (
+        ancoras[-1] + 12
+    )  # a legenda ('LEGENDAS:', no rodapé) começa logo abaixo da última linha
+    candidatas = [
+        w
+        for w in palavras
+        if ancoras[0] - 1 <= w[1] < fim_y
+        and geometria["x_min_segmentos"]
+        <= (w[0] + w[2]) / 2
+        < geometria["centro_ini"] - 12
+    ]
+    colunas = _colunas_dos_segmentos(np.array([(w[0] + w[2]) / 2 for w in candidatas]))
+    alertas = []
+    if colunas is None:
+        return {}, ["colunas dos 3 segmentos não identificadas"]
+    celulas = {}
+    campos = [(w, "seg") for w in candidatas] + [
+        (w, "res")
+        for w in palavras
+        if ancoras[0] - 1 <= w[1] < fim_y
+        and (w[0] + w[2]) / 2 >= geometria["centro_ini"] - 12
+        and (w[0] + w[2]) / 2 <= geometria["centro_fin"] + 12
+    ]
+    for w, tipo in campos:
+        centro_x, linha = (w[0] + w[2]) / 2, int(np.argmin(np.abs(ancoras - w[1])))
+        if tipo == "seg":
+            coluna = int(np.argmin(np.abs(np.array(colunas) - centro_x)))
+            campo = f"{'g' if w[1] - ancoras[linha] < 4.5 else 'p'}{coluna}"
+        else:
+            campo = (
+                "ini"
+                if centro_x < (geometria["centro_ini"] + geometria["centro_fin"]) / 2
+                else "fin"
+            )
+            if (
+                w[1] - ancoras[linha] >= 6
+            ):  # penetração (cm) impressa sob o valor de um ensaio interrompido
+                campo += "_pen"
+        if (linha, campo) in celulas:
+            alertas.append(f"célula duplicada na linha {linha} ({campo})")
+        celulas[(linha, campo)] = w[4]
+    return celulas, alertas
+
+
+def _linha_do_ensaio(
+    celulas: dict, linha: int, prof_m: float
+) -> tuple[dict | None, list[str]]:
+    """Ensaio de uma linha (metro) da tabela ou None, com os alertas. O NSPT impresso (INI./FIN.) prevalece."""
+    rotulo = "prof. " + f"{prof_m:.2f}".replace(".", ",") + " m"
+    ini = _inteiro_ou_none(celulas.get((linha, "ini"), "-"))
+    fim = _inteiro_ou_none(celulas.get((linha, "fin"), "-"))
+    golpes = [_inteiro_ou_none(celulas.get((linha, f"g{i}"), "-")) for i in range(3)]
+    pen = [_inteiro_ou_none(celulas.get((linha, f"p{i}"), "-")) for i in range(3)]
+    if fim is None:
+        sem_dado = all(c is None for c in golpes) and ini is None
+        motivo = "traço, sem ensaio" if sem_dado else "sem NSPT final legível"
+        if golpes[0] is not None and pen[0] is not None and pen[0] < 15:
+            motivo = f"ensaio interrompido ({golpes[0]} golpes em {pen[0]} cm), sem NSPT final"
+        return None, [f"{rotulo}: {motivo}, linha fora"]
+    alertas = []
+    if None not in golpes[1:] and golpes[1] + golpes[2] != fim:
+        alertas.append(
+            f"{rotulo}: final impresso {fim} difere de g2+g3 = {golpes[1] + golpes[2]} (prevalece o impresso)"
+        )
+    if ini is not None and None not in golpes[:2] and golpes[0] + golpes[1] != ini:
+        alertas.append(
+            f"{rotulo}: inicial impresso {ini} difere de g1+g2 = {golpes[0] + golpes[1]} (prevalece o impresso)"
+        )
+    detalhe = {
+        "prof": prof_m,
+        "golpes": golpes,
+        "penetracao_cm": pen,
+        "inicial": ini,
+        "final": fim,
+    }
+    return detalhe, alertas
+
+
+def nspt_da_folha(pagina) -> dict:
+    """NSPT da folha de perfil (layout em bloco Geoazimute) pela POSIÇÃO de cada número (`get_text("words")`).
+
+    Cada linha da tabela é um ensaio que começa na profundidade do rótulo (a primeira linha, sem rótulo, em 0,00 m).
+    Devolve {"nspt": [[prof_m, golpes_finais]], "nspt_detalhe": [{prof, golpes[3], penetracao_cm[3], inicial,
+    final}], "alertas": [str]}. NSPT = o valor impresso na coluna FIN. (últimos 30 cm); conferido contra g2+g3 (e
+    INI. contra g1+g2). Linha ilegível ou '-' fica fora, com alerta; nada é inventado.
+    """
+    palavras = pagina.get_text("words")
+    geometria = _geometria_da_tabela(palavras)
+    if geometria is None:
+        return {
+            "nspt": [],
+            "nspt_detalhe": [],
+            "alertas": ["tabela de ensaio não encontrada"],
+        }
+    celulas, alertas = _celulas_da_folha(palavras, geometria)
+    detalhes = []
+    linhas_com_dado = sorted({linha for linha, _ in celulas})
+    for linha in linhas_com_dado:
+        detalhe, avisos = _linha_do_ensaio(
+            celulas, linha, geometria["profundidades_m"][linha]
+        )
+        alertas += avisos
+        if detalhe:
+            detalhes.append(detalhe)
+    return {
+        "nspt": [[d["prof"], d["final"]] for d in detalhes],
+        "nspt_detalhe": detalhes,
+        "alertas": alertas,
+    }
+
+
+def _montar_furo(
+    coord: dict | None, trecho: dict | None, fonte: str, folha: dict | None = None
+) -> dict:
+    """Furo canônico. `folha` (de `nspt_da_folha`) só existe no layout em bloco e prevalece sobre o NSPT por texto."""
     perfil = _perfil(trecho["linhas"]) if trecho else {"camadas": [], "nspt": []}
+    if folha is not None:
+        perfil["nspt"] = folha["nspt"]
+        perfil["nspt_detalhe"] = folha["nspt_detalhe"]
     achou_na, na = _nivel_dagua(trecho["linhas"]) if trecho else (False, None)
     furo = {"id": (coord or trecho)["id"], "E": coord["E"], "N": coord["N"]}
     cota = coord.get("cota_boca", perfil.get("cota_boca"))
     if cota is not None:
         furo["cota_boca"] = cota
     furo["na_m"] = na if achou_na else None
-    for campo in ("profundidade_m", "impenetravel", "camadas", "nspt"):
+    for campo in (
+        "profundidade_m",
+        "impenetravel",
+        "camadas",
+        "nspt",
+        "nspt_detalhe",
+    ):
         if perfil.get(campo) not in (None, []):
             furo[campo] = perfil[campo]
     furo["fonte"] = fonte
@@ -898,10 +1069,24 @@ def _coord_do_trecho(trecho: dict | None) -> dict | None:
     return {"id": trecho["id"], **coord} if coord else None
 
 
+def _folhas_em_bloco(doc) -> dict[str, dict]:
+    """NSPT por posição de cada folha em bloco (com 'TÉRMINO' e um só furo): {chave: resultado de nspt_da_folha}."""
+    folhas = {}
+    for pagina in doc:
+        linhas = pagina.get_text().splitlines()
+        ids = {_chave(i) for i in map(_cabecalho, linhas) if i}
+        em_bloco = any(
+            _sem_acento(x).upper().strip().startswith("TERMINO") for x in linhas
+        )
+        if em_bloco and len(ids) == 1:
+            folhas.setdefault(ids.pop(), nspt_da_folha(pagina))
+    return folhas
+
+
 def ler_laudo(caminho_pdf) -> dict:
     """Lê um laudo de sondagem em PDF pelo texto.
 
-    Devolve {"furos": [...], "nao_lidos": [{"id", "motivo"}], "paginas_lidas": n}. Nada é inventado: furo sem
+    Devolve {"furos": [...], "nao_lidos": [{"id", "motivo"}], "paginas_lidas": n, "alertas": [{"id", "motivo"}]}. Nada é inventado: furo sem
     coordenada, sem camadas ou reprovado em `validar_furos` vai para `nao_lidos` com o motivo.
     """
     import pymupdf
@@ -910,6 +1095,7 @@ def ler_laudo(caminho_pdf) -> dict:
     with pymupdf.open(caminho) as doc:
         texto = "\f".join(pagina.get_text() for pagina in doc)
         paginas = len(doc)
+        folhas = _folhas_em_bloco(doc)
     coordenadas, trechos = _coordenadas(texto), _trechos_por_furo(texto)
     candidatos, nao_lidos = [], []
     for chave in sorted(set(coordenadas) | set(trechos)):
@@ -926,13 +1112,27 @@ def ler_laudo(caminho_pdf) -> dict:
         elif not trecho or not _perfil(trecho["linhas"])["camadas"]:
             nao_lidos.append({"id": rotulo, "motivo": "sem camadas no perfil"})
         else:
-            candidatos.append(_montar_furo(coord, trecho, caminho.name))
+            candidatos.append(
+                _montar_furo(coord, trecho, caminho.name, folhas.get(chave))
+            )
     furos, erros = validar_furos(candidatos)
     nao_lidos += [
         {"id": e["id"], "motivo": f"reprovado na validação: {e['motivo']}"}
         for e in erros
     ]
-    return {"furos": furos, "nao_lidos": nao_lidos, "paginas_lidas": paginas}
+    ids_validos = {f["id"] for f in furos}
+    alertas = [
+        {"id": c["id"], "motivo": f"NSPT {motivo}"}
+        for chave, c in ((k, coordenadas.get(k) or trechos.get(k)) for k in folhas)
+        if c["id"] in ids_validos
+        for motivo in folhas[chave]["alertas"]
+    ]
+    return {
+        "furos": furos,
+        "nao_lidos": nao_lidos,
+        "paginas_lidas": paginas,
+        "alertas": alertas,
+    }
 
 
 def main(argv=None):
@@ -964,6 +1164,7 @@ def main(argv=None):
             "fonte": Path(a.laudo).name,
             "nao_lidos": r["nao_lidos"],
             "paginas_lidas": r["paginas_lidas"],
+            "alertas": r["alertas"],
         }
         Path(a.saida).write_text(
             json.dumps(
