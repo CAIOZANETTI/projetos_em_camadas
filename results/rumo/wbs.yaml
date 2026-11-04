@@ -1,49 +1,14 @@
 frente: wbs
 conversa: '[WBS] estrutura de projetos'
-objetivo: 'Aplicar D10 a D13 na EAP padrão: ancoragem e apoio em HID.TUB.ANC (D10), água potável da U1 como trecho linear (D11), conceitos do dado real de Foz confirmados (D12) e lavagem de rede como desinfecção (D13)'
-plano: docs/plano/2026-11-04_wbs_d10_d11.md
-base: 4090759
+objetivo: 'Travas da vista linear: sistema linear só com declaração na obra e declaração recusada em obra sem tipo linear'
+plano: docs/plano/2026-11-04_wbs_travas_vista_linear.md
+base: 531b666
 criterio_de_pronto:
-- 'HID.TUB.ANC vale em obra localizada e linear e casa bloco de apoio'
-- 'trecho linear declarado dentro de unidade localizada conta só na vista linear'
-- 'cadeia real de Foz: água potável uma vez, na vista linear'
-- 'lavagem de rede vira GER.CTL.DSF também na ETA, sem capturar unidades de tratamento'
-- 'três verdes, vcm sem REVERTER e aceite do Fable'
+- 'evidência com código de sistema linear sem declaração na obra é recusada na EAP padrão, com aviso'
+- 'declaração em obra sem tipo linear é recusada e a linha fica na localizada'
+- 'Foz inalterada; três verdes; vcm sem REVERTER; aceite do Fable'
 etapas:
-- id: E1
-  nome: D10 no item
-  entregaveis: [conceitos/eap_geral.jsonl]
-  agente: sonnet
-  estimativa_min: 20
-  status: feito
-- id: E2
-  nome: D10 na EAP padrão
-  entregaveis: [conceitos/eap_padrao.json]
-  agente: sonnet
-  estimativa_min: 15
-  status: feito
-- id: E3
-  nome: D11 trecho linear em unidade localizada (antes do consolidar; vista por unidade e sistema)
-  entregaveis: [camadas/eap.py, camadas/eap_padrao.py, camadas/evidencias.py, conceitos/unidades_construtivas.json, exemplos/foz/obra.json, camadas/templates/visualizador.html]
-  agente: sonnet
-  estimativa_min: 90
-  status: feito
-- id: E4
-  nome: testes
-  entregaveis: [tests/test_eap_padrao.py, tests/test_foz_eap_padrao_real.py, tests/test_titulos_etapa.py]
-  agente: sonnet
-  estimativa_min: 45
-  status: feito
-- id: E5
-  nome: cadeia real de Foz e relatório
-  entregaveis: [docs/plano/2026-11-03_foz_eap_padrao_real.md, docs/EAP.md]
-  agente: sonnet
-  estimativa_min: 20
-  status: feito
-- id: E6
-  nome: plano, aceite do Fable (plano, entrega e adendo D12/D13) e merge
-  entregaveis: [docs/plano/2026-11-04_wbs_d10_d11.md, CHANGELOG.md, camadas/__init__.py, pdca/licoes.jsonl, pdca/afericao.jsonl, results/agentes/execucoes.csv, results/rumo/wbs.yaml]
-  agente: opus
-  estimativa_min: 20
-  status: feito
-  nota: 'Fable: plano REVISAR → APROVA; entrega ACEITA; adendo ACEITA. Merge PR #65, versão 0.57.0'
+- {id: E1, nome: sistema linear só com declaração, entregaveis: [camadas/eap.py, camadas/eap_padrao.py], agente: sonnet, estimativa_min: 30, status: a_fazer}
+- {id: E2, nome: declaração em obra sem tipo linear recusada, entregaveis: [camadas/evidencias.py], agente: sonnet, estimativa_min: 20, status: a_fazer}
+- {id: E3, nome: testes, entregaveis: [tests/test_titulos_etapa.py], agente: sonnet, estimativa_min: 30, status: a_fazer}
+- {id: E4, nome: registro, plano, aceite e merge, entregaveis: [docs/EAP.md, docs/plano/2026-11-04_wbs_travas_vista_linear.md, results/rumo/wbs.yaml, CHANGELOG.md, camadas/__init__.py, pdca/licoes.jsonl, results/agentes/execucoes.csv], agente: opus, estimativa_min: 20, status: a_fazer}
