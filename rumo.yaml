@@ -74,9 +74,9 @@ etapas:
   agente: sonnet
   estimativa_min: 40
   estimativa_tokens: 200000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T19:45:34Z'
-  fim: null
+  fim: '2026-11-04T19:52:34Z'
   forcado: null
 - id: E5
   nome: 'F2: elementos construtivos (estacas, blocos, pilares, trechos) nas gavetas
