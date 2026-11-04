@@ -345,6 +345,89 @@ def test_contrato_em_folha_fora_do_modelo_e_listado(base):
     assert ep.preencher(base)["contrato_sem_folha"] == ["OP.99.99"]
 
 
+def test_folha_so_com_servico_calculado_e_calculada_e_conta_a_parte():
+    b = _base()
+    _servico(b, "s1", "demolicao_m2", 100.0, "U2.AAT00.CIV.PAV.REC", ["demolicao"])
+    resultado = ep.preencher(b)
+    folha = _folha(resultado, "OL.02.02")
+    assert (
+        folha["situacao"] == "calculada"
+        and folha["quantidades"][0]["origem"] == "servico"
+    )
+    c = resultado["completude"]["obra_linear"]
+    assert c["calculada"] == 1 and c["preenchida"] == 0
+    assert (
+        c["pct_calculadas"] == round(100.0 / c["folhas"], 1)
+        and c["pct_preenchidas"] == 0.0
+    )
+
+
+def test_folha_com_medida_de_documento_e_servico_segue_preenchida(base):
+    _servico(
+        base,
+        "s1",
+        "assentamento",
+        750.5,
+        "U2.AAT00.HID.TUB.RED",
+        ["assentamento"],
+        unidade="m",
+    )
+    folha = _folha(ep.preencher(base), "OL.04.02")
+    assert folha["situacao"] == "preenchida"
+    assert {q["origem"] for q in folha["quantidades"]} == {"fatos", "servico"}
+
+
+def test_servico_com_nome_de_item_medido_pelos_fatos_entra_porque_e_outra_grandeza(
+    base,
+):
+    _servico(base, "s1", "forma", 12.0, "U1.ACT600.GEO.FUN.BLO", ["forma"])
+    _servico(
+        base, "s2", "escavacao_cava", 5.0, "U1.ACT600.GEO.MOV.ESC", [], unidade="m³"
+    )
+    resultado = ep.preencher(base)
+    assert [d["servico_id"] for d in resultado["servicos_descartados"]] == ["s2"]
+    forma = _folha(resultado, "OP.04.05")
+    assert forma["situacao"] == "calculada" and forma["totais"] == [
+        {"grandeza": "forma", "unidade": "m²", "quantidade": 12.0}
+    ]
+
+
+def test_complementar_paralelo_a_regra_primaria_fica_descartado_com_o_motivo():
+    b = _base()
+    _servico(
+        b, "primario", "demolicao_m2", 100.0, "U2.AAT00.CIV.PAV.REC", ["demolicao"]
+    )
+    _servico(
+        b, "complementar", "demolicao", 90.0, "U2.AAT00.CIV.PAV.REC", ["demolicao"]
+    )
+    b["servicos"][1]["regra"] = "associado:demolicao_pavimento"
+    _servico(
+        b,
+        "so_complementar",
+        "recomposicao",
+        80.0,
+        "U2.AAT00.CIV.PAV.REC",
+        ["recomposicao"],
+    )
+    b["servicos"][2]["regra"] = "associado:recomposicao_pavimento"
+    resultado = ep.preencher(b)
+    assert resultado["servicos_descartados"] == [
+        {
+            "servico_id": "complementar",
+            "codigo": "U2.AAT00.CIV.PAV.REC",
+            "valor": 90.0,
+            "unidade": "m²",
+            "motivo": "o código e o serviço já são calculados por outra regra das gavetas",
+        }
+    ]
+    assert [t["grandeza"] for t in _folha(resultado, "OL.02.02")["totais"]] == [
+        "demolicao_m2"
+    ]
+    assert [t["grandeza"] for t in _folha(resultado, "OL.08.01")["totais"]] == [
+        "recomposicao"
+    ]
+
+
 def test_servico_pedido_pelo_nome_nao_conta_de_novo_na_folha_do_item_inteiro():
     b = _base()
     _servico(b, "s1", "demolicao_m2", 100.0, "U2.AAT00.CIV.PAV.REC", ["demolicao"])
@@ -364,6 +447,7 @@ def test_completude_conta_folhas_por_tipo(base):
     assert (
         localizada["folhas"]
         == localizada["preenchida"]
+        + localizada["calculada"]
         + localizada["declarada"]
         + localizada["a preencher"]
     )
