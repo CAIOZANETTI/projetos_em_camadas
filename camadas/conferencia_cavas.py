@@ -1145,6 +1145,15 @@ def _pct(valor) -> str:
     return "—" if valor is None else f"{valor:+.0%}".replace(".", ",")
 
 
+def _terreno_da_secao_txt(fracao: float | None) -> str:
+    """De onde vem o terreno do modelo ao longo da seção: MDS puro, ou a parte que é topografia do projeto."""
+    return (
+        "MDS"
+        if fracao is None
+        else f"{fracao:.0%} topografia do projeto".replace(".", ",")
+    )
+
+
 def formatar_secao(r: dict) -> dict:
     """Linha de seção da conferência com os números já em texto (o HTML só mostra)."""
     return {
@@ -1162,6 +1171,7 @@ def formatar_secao(r: dict) -> dict:
         "fundo_modelo_txt": _txt(r.get("fundo_modelo_m")),
         "dif_fundo_txt": _txt(r.get("dif_fundo_m"), 2, True),
         "dif_terreno_txt": _txt(r.get("dif_terreno_m"), 2, True),
+        "terreno_modelo_txt": _terreno_da_secao_txt(r.get("fracao_terreno_topografia")),
         "talude_projeto_txt": _txt(r.get("talude_projeto_h_v"), 2),
     }
 
@@ -1289,7 +1299,79 @@ def _terreno_do_modelo(g: dict) -> dict | None:
         "circular_na_comparacao_de_terreno": True,
         "area_m2": resumo["area_m2"],
         "sem_terreno": resumo["sem_terreno"],
+        "faixa_costura_m": resumo.get("faixa_costura_m"),
+        "limite_extrapolacao_m": resumo.get("limite_extrapolacao_m"),
+        "validacao_fora_do_casco": resumo.get("validacao_fora_do_casco"),
+        "alertas": resumo.get("alertas", []),
         "aviso": AVISO_TERRENO_CIRCULAR,
+    }
+
+
+NOMES_DAS_ORIGENS = {
+    "topografia": "topografia do projeto (dentro do casco)",
+    "costura": "costura (faixa fora do casco)",
+    "mds_corrigido": "MDS corrigido pelo plano",
+    "mds_corrigido_extrapolado": "MDS corrigido, plano extrapolado",
+    "sem_terreno": "sem terreno (pendência)",
+}
+NOMES_DOS_MOTIVOS = {
+    "fora_do_levantamento_m2": "fora do levantamento do MDS",
+    "edificacao_m2": "edificação",
+    "vegetacao_alta_m2": "vegetação alta",
+}
+
+
+def formatar_terreno_do_modelo(t: dict) -> dict:
+    """Terreno composto do modelo já em texto para a aba: área por origem, pendência "sem terreno" por motivo, validação
+    fora do casco (resíduo por distância à borda e furos) e os avisos. O HTML só mostra."""
+    v = t.get("validacao_fora_do_casco") or {}
+    topo_bocas = v.get("topografia_menos_boca_dentro_do_casco") or {}
+    return {
+        "fonte": t["fonte"],
+        "aviso": t["aviso"],
+        "areas": [
+            {"origem": NOMES_DAS_ORIGENS.get(k, k), "area_txt": f"{_txt(m2, 0)} m²"}
+            for k, m2 in t["area_m2"].items()
+        ],
+        "sem_terreno": [
+            {
+                "motivo": NOMES_DOS_MOTIVOS[k],
+                "area_txt": f"{_txt(t['sem_terreno'][k], 0)} m²",
+            }
+            for k in NOMES_DOS_MOTIVOS
+        ],
+        "sem_terreno_total_txt": f"{_txt(t['sem_terreno']['total_m2'], 0)} m²",
+        "topografia_x_bocas_txt": (
+            f"topografia − boca dos furos dentro do casco: n {topo_bocas.get('n', 0)}, "
+            f"média {_txt(topo_bocas.get('media_m'), 2, True)} m, rms {_txt(topo_bocas.get('rms_m'), 2)} m"
+        ),
+        "faixas_borda": [
+            {
+                "faixa": nome,
+                "n": e["n"],
+                "media_txt": _txt(e["media_m"], 2, True),
+                "mediana_txt": _txt(e["mediana_m"], 2, True),
+            }
+            for nome, e in (
+                v.get("residuo_dentro_do_casco_por_distancia_a_borda") or {}
+            ).items()
+        ],
+        "furos_fora": [
+            {
+                "furo": f["id"],
+                "distancia_txt": _txt(f["distancia_ao_casco_m"], 1),
+                "mds_txt": _txt(f["mds_menos_boca_m"], 2, True),
+                "corrigido_txt": _txt(f["mds_corrigido_menos_boca_m"], 2, True),
+                "composto_txt": _txt(f["composto_menos_boca_m"], 2, True),
+            }
+            for f in v.get("furos_fora_do_casco", [])
+        ],
+        "plano_melhora_txt": {
+            True: "sim",
+            False: "NÃO",
+            None: "sem furos fora do casco",
+        }[v.get("plano_melhora_furos_de_fora")],
+        "alertas": list(t.get("alertas", [])),
     }
 
 
@@ -1312,7 +1394,7 @@ def conferir(projeto: list, linhas: list, notas: list, saida: dict) -> dict:
     medias = secoes_medias(retas, secoes, saida["contornos"], g, corte)
     terreno_do_modelo = _terreno_do_modelo(g)
     if terreno_do_modelo:
-        alertas = [*alertas, AVISO_TERRENO_CIRCULAR]
+        alertas = [*alertas, AVISO_TERRENO_CIRCULAR, *terreno_do_modelo["alertas"]]
     return {
         **({"terreno_do_modelo": terreno_do_modelo} if terreno_do_modelo else {}),
         "secoes": secoes,
@@ -1366,7 +1448,7 @@ def para_html(r: dict) -> dict:
         "placar": placar(r["secoes"]),
         "placar_sequencia": placar_sequencia(r["sequencia"]),
         **(
-            {"terreno_do_modelo": r["terreno_do_modelo"]}
+            {"terreno_do_modelo": formatar_terreno_do_modelo(r["terreno_do_modelo"])}
             if r.get("terreno_do_modelo")
             else {}
         ),

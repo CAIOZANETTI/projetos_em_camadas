@@ -87,6 +87,8 @@ INFERENCIA_RODADAS = 3  # inferência em cascata: curva datada ajuda a datar a v
 ESPACAMENTO_PONTOS_M = (
     1.0  # a curva entra no TIN com pontos a cada 1 m (o PDF dá ~0,5 m)
 )
+TOLERANCIA_CONTINUACAO_M = 0.05  # pontas de duas curvas a menos disso são a mesma linha (o PDF quebra a curva em peças)
+PECA_CURTA_M = 5.0  # peça menor que isto com rótulo discordante da curva que ela continua herda a cota da curva
 PASSO_PERFIL_M = 0.25  # amostragem do perfil de seção (a mesma res do MDS)
 LIMITE_MAPA_M = 1.0  # escala de cor do mapa do erro: ±1 m
 ESCALA_TENDENCIA_M = (
@@ -529,6 +531,70 @@ def _pontos_da_curva(c: dict) -> np.ndarray:
     return np.c_[xy, np.full(len(xy), float(c["cota_m"]))]
 
 
+def _vizinhos_por_ponta(curvas: list[dict], tolerancia_m: float) -> list[list[int]]:
+    """Para cada curva, as outras cujo ponto inicial ou final coincide (até `tolerancia_m`) com uma ponta dela."""
+    pontas = np.array(
+        [[c["coords_utm"][0], c["coords_utm"][-1]] for c in curvas], float
+    )
+    plano = pontas.reshape(-1, 2)
+    dist = np.linalg.norm(plano[:, None, :] - plano[None, :, :], axis=2)
+    dono = np.repeat(np.arange(len(curvas)), 2)
+    perto = (dist <= tolerancia_m) & (dono[:, None] != dono[None, :])
+    return [
+        sorted({int(j) for j in dono[perto[2 * i : 2 * i + 2].any(axis=0)]})
+        for i in range(len(curvas))
+    ]
+
+
+def _herda(c: dict, cotas_vizinhas: set, so_pecas_curtas: bool) -> bool:
+    """A curva herda a cota única das vizinhas? Peça curta com rótulo discordante, ou (na outra passada) curva sem cota."""
+    if so_pecas_curtas:
+        return (
+            c["origem"] == "rotulo"
+            and _comprimento(c) < PECA_CURTA_M
+            and c["cota_m"] not in cotas_vizinhas
+        )
+    return c["cota_m"] is None
+
+
+def propagar_continuacoes(
+    curvas: list[dict], tolerancia_m: float = TOLERANCIA_CONTINUACAO_M
+) -> list[dict]:
+    """Curva que continua outra (ponta com ponta, até `tolerancia_m`) tem a mesma cota. Curva sem cota herda a das
+    vizinhas datadas, se concordam (`origem` 'continuacao' e alerta); peça curta (< `PECA_CURTA_M`) com rótulo que
+    discorda da cota única das vizinhas também herda: o rótulo vizinho caiu nela. Repete até não mudar mais (a cota
+    anda de peça em peça). Roda antes da inferência pelo TIN."""
+    if len(curvas) < 2:
+        return curvas
+    vizinhos = _vizinhos_por_ponta(curvas, tolerancia_m)
+    for _ in range(len(curvas)):
+        mudou = False
+        for so_pecas_curtas in (
+            True,
+            False,
+        ):  # primeiro corrige as peças curtas: não podem espalhar o rótulo errado
+            for i, c in enumerate(curvas):
+                cotas = {
+                    curvas[j]["cota_m"]
+                    for j in vizinhos[i]
+                    if curvas[j]["cota_m"] is not None
+                }
+                if len(cotas) != 1 or not _herda(c, cotas, so_pecas_curtas):
+                    continue
+                nova = next(iter(cotas))
+                antes = (
+                    "sem cota" if c["cota_m"] is None else f"rótulo {c['cota_m']:g} m"
+                )
+                c["alertas"].append(
+                    f"cota {nova:g} m herdada da curva de que é continuação (antes: {antes})"
+                )
+                c.update(cota_m=nova, origem="continuacao")
+                mudou = True
+        if not mudou:
+            break
+    return curvas
+
+
 def inferir_cotas(curvas: list[dict], passo_m: float | None) -> list[dict]:
     """Curva sem rótulo: cota = mediana da interpolação (TIN das datadas) arredondada ao passo, aceita se a mediana
     e o desvio ficam a até `INFERENCIA_TOLERANCIA_REL` × passo. Repete `INFERENCIA_RODADAS` vezes. `origem` 'inferida'
@@ -586,6 +652,7 @@ def curvas_dos_tracos(
     atribuir_cotas(curvas, rotulos)
     for c in curvas:
         c["coords_utm"] = _para_utm(c["pontos_pt"], M).round(3).tolist()
+    propagar_continuacoes(curvas)
     inferir_cotas(curvas, passo)
     for c in curvas:
         c.pop("pontos_pt")
@@ -1177,10 +1244,19 @@ ORIGENS_TERRENO = (
     "topografia",
     "mds_corrigido",
     "costura",
+    "mds_corrigido_extrapolado",
 )  # código = posição na tupla
-FAIXA_COSTURA_PADRAO_M = (
-    5.0  # largura (para dentro do casco) em que a topografia entra aos poucos
-)
+FAIXA_COSTURA_PADRAO_M = 5.0  # largura (para FORA do casco) em que a topografia da borda se mistura ao MDS corrigido
+LIMITE_EXTRAPOLACAO_M = 30.0  # além desta distância ao casco o plano de correção é extrapolação demais (casco com ~100 m de lado)
+FAIXAS_BORDA_M = (
+    0.0,
+    2.0,
+    5.0,
+    10.0,
+    20.0,
+    np.inf,
+)  # distância à borda do casco, para o resíduo do MDS corrigido
+LIMITE_ALERTA_FURO_M = 1.0  # MDS corrigido a mais disto da boca de um furo fora do casco: alerta (provável copa)
 
 
 def _plano_de_correcao(g: dict, topografia: np.ndarray, excluir: np.ndarray) -> dict:
@@ -1211,16 +1287,35 @@ def _valor_do_plano(plano: dict, g: dict) -> np.ndarray:
     )
 
 
-def _peso_da_topografia(dentro: np.ndarray, res: float, faixa_m: float) -> np.ndarray:
-    """Peso (0 a 1) da topografia: 0 na borda do casco, cresce linear com a distância à borda e vale 1 a `faixa_m` dela;
-    0 fora do casco."""
-    dist_m = (
-        cv2.distanceTransform(
-            dentro.astype(np.uint8), cv2.DIST_L2, cv2.DIST_MASK_PRECISE
-        )
-        - 0.5
-    ) * res
-    return np.where(dentro, np.clip(dist_m / faixa_m, 0.0, 1.0), 0.0)
+def _distancia_ao_casco(dentro: np.ndarray, res: float) -> np.ndarray:
+    """Distância (m) de cada célula à borda do casco: positiva dentro (até o exterior), positiva fora (até o casco).
+    A célula vizinha da borda fica a meia célula."""
+    dentro_u8 = dentro.astype(np.uint8)
+    a_dentro = cv2.distanceTransform(dentro_u8, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+    a_fora = cv2.distanceTransform(1 - dentro_u8, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+    return (np.where(dentro, a_dentro, a_fora) - 0.5) * res
+
+
+def _topografia_da_borda(topografia: np.ndarray, dentro: np.ndarray) -> np.ndarray:
+    """Topografia estendida para fora do casco pelo valor da célula do casco mais próxima (só serve de ponta da costura)."""
+    _, rotulos = cv2.distanceTransformWithLabels(
+        1 - dentro.astype(np.uint8),
+        cv2.DIST_L2,
+        cv2.DIST_MASK_PRECISE,
+        labelType=cv2.DIST_LABEL_PIXEL,
+    )
+    li, ci = np.nonzero(
+        dentro
+    )  # o rótulo k (1, 2, ...) é a k-ésima célula zero, em ordem de linha
+    indice = np.clip(rotulos - 1, 0, max(len(li) - 1, 0))
+    return np.where(dentro, topografia, topografia[li[indice], ci[indice]])
+
+
+def _peso_da_topografia(
+    dentro: np.ndarray, distancia_m: np.ndarray, faixa_m: float
+) -> np.ndarray:
+    """Peso (0 a 1) da topografia: 1 no casco e na sua borda, cai linear a 0 a `faixa_m` fora dela."""
+    return np.where(dentro, 1.0, np.clip(1.0 - distancia_m / faixa_m, 0.0, 1.0))
 
 
 def _pendencias_sem_terreno(g: dict, sem: np.ndarray, alta: np.ndarray) -> dict:
@@ -1237,34 +1332,165 @@ def _pendencias_sem_terreno(g: dict, sem: np.ndarray, alta: np.ndarray) -> dict:
     }
 
 
+def _estatistica_curta(valores: np.ndarray) -> dict:
+    """n, média, mediana e rms (m) dos valores finitos; None onde não há amostra."""
+    v = np.asarray(valores, float)
+    v = v[np.isfinite(v)]
+    if not v.size:
+        return {"n": 0, "media_m": None, "mediana_m": None, "rms_m": None}
+    return {
+        "n": int(v.size),
+        "media_m": round(float(v.mean()), 3),
+        "mediana_m": round(float(np.median(v)), 3),
+        "rms_m": round(float(np.sqrt((v**2).mean())), 3),
+    }
+
+
+def _residuo_por_faixa(
+    erro: np.ndarray, dentro: np.ndarray, distancia_m: np.ndarray
+) -> dict:
+    """Resíduo do MDS corrigido (MDS − plano − topografia) dentro do casco, por faixa de distância à borda dele."""
+    saida = {}
+    for a, b in itertools.pairwise(FAIXAS_BORDA_M):
+        nome = f"{a:g}–{b:g} m" if np.isfinite(b) else f"{a:g} m ou mais"
+        saida[nome] = _estatistica_curta(
+            erro[dentro & (distancia_m > a) & (distancia_m <= b)]
+        )
+    return saida
+
+
+def _furos_unicos(furos: list[dict]) -> list[dict]:
+    """Furos sem as repetições de sufixo (SP13A é a repetição de SP13, mesma boca)."""
+    ids = {f["id"] for f in furos}
+    return [f for f in furos if not (f["id"][-1:].isalpha() and f["id"][:-1] in ids)]
+
+
+def _comparar_furos(
+    furos: list[dict],
+    g: dict,
+    topografia: np.ndarray,
+    corrigido: np.ndarray,
+    terreno: np.ndarray,
+    distancia_m: np.ndarray,
+) -> dict:
+    """Bocas dos furos contra a topografia (dentro do casco) e contra o MDS bruto, o corrigido e o composto (fora)."""
+    dentro_m, fora = [], []
+    for f in _furos_unicos(furos):
+        c, l = int((f["E"] - g["e0"]) // g["res"]), int((g["n1"] - f["N"]) // g["res"])
+        if not (0 <= l < g["forma"][0] and 0 <= c < g["forma"][1]):
+            continue
+        boca = float(f["cota_boca"])
+        if np.isfinite(topografia[l, c]):
+            dentro_m.append(float(topografia[l, c]) - boca)
+            continue
+        fora.append(
+            {
+                "id": f["id"],
+                "distancia_ao_casco_m": round(float(distancia_m[l, c]), 1),
+                "cota_boca_m": boca,
+                "mds_menos_boca_m": round(float(g["terreno"][l, c]) - boca, 2),
+                "mds_corrigido_menos_boca_m": None
+                if np.isnan(corrigido[l, c])
+                else round(float(corrigido[l, c]) - boca, 2),
+                "composto_menos_boca_m": None
+                if np.isnan(terreno[l, c])
+                else round(float(terreno[l, c]) - boca, 2),
+            }
+        )
+    return {
+        "topografia_menos_boca_dentro_do_casco": _estatistica_curta(np.array(dentro_m)),
+        "fora": fora,
+    }
+
+
+def validar_fora_do_casco(
+    g: dict,
+    topografia: np.ndarray,
+    correcao: np.ndarray,
+    util: np.ndarray,
+    terreno: np.ndarray,
+    furos: list[dict] | None,
+) -> dict:
+    """Quanto o MDS corrigido erra fora do casco, declarado (nunca escondido): (a) resíduo MDS − plano − topografia por
+    faixa de distância à borda, dentro do casco (o que o plano não corrige perto da borda); (b) furos fora do casco:
+    MDS bruto, corrigido e composto contra a cota de boca, com `plano_melhora_furos_de_fora` (rms do corrigido < rms do
+    bruto; None sem furos); (c) alertas (furo a mais de `LIMITE_ALERTA_FURO_M` da boca mesmo corrigido: provável copa
+    que a máscara de vegetação alta não pegou)."""
+    dentro = np.isfinite(topografia)
+    distancia_m = _distancia_ao_casco(dentro, g["res"])
+    corrigido = np.where(util, g["terreno"].astype(np.float64) - correcao, np.nan)
+    erro = np.where(dentro & util, corrigido - topografia, np.nan)
+    saida = {
+        "residuo_dentro_do_casco_por_distancia_a_borda": _residuo_por_faixa(
+            erro, dentro, distancia_m
+        )
+    }
+    comparacao = _comparar_furos(
+        furos or [], g, topografia, corrigido, terreno, distancia_m
+    )
+    fora = comparacao.pop("fora")
+    saida.update(comparacao, furos_fora_do_casco=fora)
+    brutos = np.array([f["mds_menos_boca_m"] for f in fora], float)
+    corrigidos = np.array(
+        [
+            np.nan
+            if f["mds_corrigido_menos_boca_m"] is None
+            else f["mds_corrigido_menos_boca_m"]
+            for f in fora
+        ],
+        float,
+    )
+    ok = np.isfinite(corrigidos)
+    saida["rms_bruto_m"], saida["rms_corrigido_m"] = (
+        (round(float(np.sqrt((x[ok] ** 2).mean())), 3) for x in (brutos, corrigidos))
+        if ok.any()
+        else (None, None)
+    )
+    saida["plano_melhora_furos_de_fora"] = (
+        bool(saida["rms_corrigido_m"] < saida["rms_bruto_m"]) if ok.any() else None
+    )
+    saida["alertas"] = [
+        f"furo {f['id']}: o MDS corrigido fica {f['mds_corrigido_menos_boca_m']:+.2f} m da boca, a máscara de vegetação "
+        "alta não o pegou (provável copa): terreno pouco confiável ao redor"
+        for f in fora
+        if f["mds_corrigido_menos_boca_m"] is not None
+        and abs(f["mds_corrigido_menos_boca_m"]) > LIMITE_ALERTA_FURO_M
+    ]
+    return saida
+
+
 def compor_terreno(
     g: dict,
     topografia: np.ndarray,
     vegetacao_alta: np.ndarray,
     faixa_costura_m: float = FAIXA_COSTURA_PADRAO_M,
+    furos: list[dict] | None = None,
 ) -> dict:
-    """Terreno das cavas: topografia do projeto dentro do casco das curvas; fora dele, o MDS (`g["terreno"]`) menos o
-    plano de inclinação medido contra a topografia no terreno aberto, sem edificação (`g["edificacao"]`) nem vegetação
-    alta (viram NaN, "sem terreno"); costura linear de `faixa_costura_m` para dentro da borda do casco. Devolve
-    {terreno (float32), origem (uint8, índice em `ORIGENS_TERRENO`), plano, resumo}. Nada é inventado: onde nenhuma das
-    fontes vale, a célula fica NaN."""
+    """Terreno das cavas: dentro do casco das curvas (e na borda dele) é exatamente a topografia do projeto; fora, o MDS
+    (`g["terreno"]`) menos o plano de inclinação medido contra a topografia no terreno aberto, sem edificação
+    (`g["edificacao"]`) nem vegetação alta (NaN, "sem terreno"). A costura fica FORA do casco: nos `faixa_costura_m`
+    seguintes à borda o peso da topografia (a da borda) cai linear de 1 a 0. Além de `LIMITE_EXTRAPOLACAO_M` do casco o
+    MDS corrigido é extrapolação e leva a origem própria. Devolve {terreno (float32), origem (uint8, índice em
+    `ORIGENS_TERRENO`), plano, resumo}; o resumo traz a validação fora do casco (`validar_fora_do_casco`, com os `furos`:
+    id, E, N, cota_boca). Nada é inventado: onde nenhuma fonte vale, a célula fica NaN."""
     if faixa_costura_m <= 0:
         raise ValueError("a faixa de costura deve ser positiva")
     dentro = np.isfinite(topografia)
     plano = _plano_de_correcao(g, topografia, g["edificacao"] | vegetacao_alta)
     mds = g["terreno"].astype(np.float64)
     util = g["valido"] & ~g["edificacao"] & ~vegetacao_alta & np.isfinite(mds)
-    mds_corrigido = np.where(util, mds - _valor_do_plano(plano, g), np.nan)
-    peso = _peso_da_topografia(dentro, g["res"], faixa_costura_m)
-    topo = np.where(dentro, topografia, np.nan)
-    misturado = peso * topo + (1 - peso) * mds_corrigido
-    terreno = np.where(
-        dentro, np.where(np.isfinite(mds_corrigido), misturado, topo), mds_corrigido
-    )
+    correcao = _valor_do_plano(plano, g)
+    corrigido = np.where(util, mds - correcao, np.nan)
+    distancia_m = _distancia_ao_casco(dentro, g["res"])
+    peso = _peso_da_topografia(dentro, distancia_m, faixa_costura_m)
+    mistura = peso * _topografia_da_borda(topografia, dentro) + (1 - peso) * corrigido
+    terreno = np.where(dentro, topografia, mistura)
     origem = np.select(
-        [~np.isfinite(terreno), dentro & ((peso >= 1) | ~util), dentro, True],
-        [0, 1, 3, 2],
+        [~np.isfinite(terreno), dentro, peso > 0, distancia_m > LIMITE_EXTRAPOLACAO_M],
+        [0, 1, 3, 4],
+        default=2,
     ).astype(np.uint8)
+    validacao = validar_fora_do_casco(g, topografia, correcao, util, terreno, furos)
     area = g["res"] ** 2
     return {
         "terreno": terreno.astype(np.float32),
@@ -1276,6 +1502,30 @@ def compor_terreno(
                 for k, nome in enumerate(ORIGENS_TERRENO)
             },
             "faixa_costura_m": faixa_costura_m,
+            "limite_extrapolacao_m": LIMITE_EXTRAPOLACAO_M,
             "sem_terreno": _pendencias_sem_terreno(g, origem == 0, vegetacao_alta),
+            "validacao_fora_do_casco": validacao,
+            "alertas": _alertas_da_composicao(origem, area, validacao),
         },
     }
+
+
+def _alertas_da_composicao(
+    origem: np.ndarray, area_celula_m2: float, validacao: dict
+) -> list[str]:
+    """Avisos do terreno composto: extrapolação do plano, plano que não melhora os furos de fora e furos de copa."""
+    alertas = list(validacao["alertas"])
+    extrapolado = float(
+        (origem == ORIGENS_TERRENO.index("mds_corrigido_extrapolado")).sum()
+        * area_celula_m2
+    )
+    if extrapolado > 0:
+        alertas.append(
+            f"{extrapolado:.0f} m² de MDS corrigido a mais de {LIMITE_EXTRAPOLACAO_M:g} m do casco: o plano é extrapolação"
+        )
+    if validacao["plano_melhora_furos_de_fora"] is False:
+        alertas.append(
+            f"o plano NÃO melhora os furos fora do casco (rms {validacao['rms_bruto_m']} m do MDS bruto contra "
+            f"{validacao['rms_corrigido_m']} m do corrigido)"
+        )
+    return alertas
