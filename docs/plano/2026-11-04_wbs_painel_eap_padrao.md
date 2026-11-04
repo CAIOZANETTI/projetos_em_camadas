@@ -60,3 +60,18 @@ E4 (renomeação) em commit separado.
 | plano e integração | Opus (gerente) |
 | aprovação do plano e aceite | Fable |
 | implementação com testes | Sonnet, em worktree a partir da `main` |
+
+## Aceite
+
+1º parecer do Fable sobre a entrega (401f28f, 7070c01): REVISAR — a razão da "só menção" (`motivo`, "citado sem valor")
+saía vazia nas tabelas (lacuna do contrato). Corrigido pelo gerente em 687e6e8 (coluna `motivo`, asserção) com o
+opcional do aviso no roteiro quando o csv não tem `titulo_etapa`.
+
+Aceite Fable 04/11/2026: ACEITA 687e6e8 — "tabelas do painel puras e testadas (com `motivo`), roteiro reproduz a cadeia
+planilha+cadastro (ac51cc5a…), c5c2d5cd… e 0602c637… inalterados; bug a registrar em outra camada: cadastro 304469
+(conjunto de boca de lobo) com subcategoria motobomba leva OP.08.01/OP.10.03 ao item errado."
+
+Referência do painel: `scripts/painel_eap_padrao.py exemplos/foz/obra.json <saida> --planilha
+dados/foz/orcamento/principal.xlsx` → hash ac51cc5ae7b72703bb89667f4bf3e405f17662e00ca2820a7fc53f09c5512910 (784
+evidências, 39 fatos, localizada 8/45, linear 8/31). Opcionais registrados: tornar públicas `_registros` e
+`_titulos_do_contrato`; hidrômetro DN200 (318560) como macromedidor na EAP.

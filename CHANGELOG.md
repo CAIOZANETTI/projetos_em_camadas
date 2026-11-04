@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.66.0 — 2026-11-04 · Dados do painel da EAP padrão reproduzíveis (frente WBS)
+- **`eap_padrao.tabelas_do_painel`** (pura, testada): achata a saída de `montar` em `resumo` (fração preenchida =
+  preenchidas/aplicáveis do resumo, `pct_txt`), `situacoes`, `etapas` (folhas, preenchidas, só menção, citada no
+  contrato) e `folhas` (situação e texto, item, quantidade e fonte, `motivo` da situação e `observacao` do padrão). Sem
+  preço. O painel publicado só apresenta essas tabelas.
+- **`scripts/painel_eap_padrao.py <obra.json> <saida/> [--planilha xlsx]`**: roda a cadeia como a obra declara
+  (planilha do contrato **com o cadastro Sanepar** e trechos lineares declarados; sem pranchas) reaproveitando
+  `evidencias.planilha_do_contrato` (agora pública), grava as quatro tabelas e imprime o hash. Avisa quando o csv é
+  antigo (sem `titulo_etapa`) e a declaração de trecho linear não teria efeito.
+- **A conferência de Foz dos ciclos 0.61–0.65 rodava sem o cadastro** (achado do Fable no plano). Com o cadastro, Foz
+  tem localizada 8/45 e linear 8/31 preenchidas (antes 9/45 e 7/32), 784 evidências, 39 fatos, hash ac51cc5a… — a
+  nova referência do painel. O hash só planilha (c5c2d5cd…) segue como invariante de regressão, inalterado.
+- **Defeito registrado (outra camada)**: o cadastro classifica o material 304469 (conjunto de boca de lobo
+  pré-moldada) como motobomba, e a linha (55 pç) cai em `HID.EQP.EQU` em vez de `CIV.PAV.URB` (drenagem). O hidrômetro
+  DN200 (318560) cai em `HID.TUB.LIG`: coerente com o cadastro, mas é macromedidor (refinar a EAP).
+- `eap._recusa_das_evidencias` → `_recusa_por_evidencias` (opcional do aceite da 0.65).
+- Plano `docs/plano/2026-11-04_wbs_painel_eap_padrao.md` aprovado pelo Fable (com ajustes); entrega revisada uma vez
+  (coluna `motivo`) e aceita.
+- Lição L063.
+
 ## 0.65.0 — 2026-11-04 · Complexidade das funções da frente WBS (refatoração sem mudança de saída)
 - **Quatro funções abaixo de 10 (radon)**, com saída idêntica: `eap.validar` 32 → 1 (um bloco de regra por função:
   códigos, itens, obra/escopo, referências, medições, pranchas), `eap._status` 18 → 9, `eap_padrao._avisos_nao_declarados`

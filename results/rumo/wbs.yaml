@@ -10,4 +10,4 @@ etapas:
 - {id: E1, nome: tabelas do painel, entregaveis: [camadas/eap_padrao.py], agente: sonnet, estimativa_min: 20, status: feito}
 - {id: E2, nome: roteiro do painel, entregaveis: [scripts/painel_eap_padrao.py], agente: sonnet, estimativa_min: 20, status: feito}
 - {id: E3, nome: testes e renomeação, entregaveis: [tests/test_eap_padrao.py, camadas/eap.py], agente: sonnet, estimativa_min: 20, status: feito}
-- {id: E4, nome: registro, aceite e merge, entregaveis: [docs/EAP.md, docs/plano/2026-11-04_wbs_painel_eap_padrao.md, results/rumo/wbs.yaml, CHANGELOG.md, camadas/__init__.py, pdca/licoes.jsonl, results/agentes/execucoes.csv], agente: opus, estimativa_min: 20, status: a_fazer}
+- {id: E4, nome: registro, aceite e merge, entregaveis: [docs/EAP.md, docs/plano/2026-11-04_wbs_painel_eap_padrao.md, results/rumo/wbs.yaml, CHANGELOG.md, camadas/__init__.py, pdca/licoes.jsonl, results/agentes/execucoes.csv], agente: opus, estimativa_min: 20, status: feito}
