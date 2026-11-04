@@ -1,79 +1,66 @@
-objetivo: 'Conferir as cavas da memória espacial de Foz por testemunhas independentes do cálculo pelo MDS: área e fundo de cada seção das pranchas de corte e cotas da sequência executiva'
+objetivo: 'Decidir com evidência qual terreno vale para as cavas de Foz (MDS do drone ou topografia do projeto) e aplicar a decisão'
 criterio_de_pronto:
-- "seções das pranchas de corte (009 e 010) lidas em código: área de corte (m²) e cota de fundo por seção, com método e tolerância declarados"
-- "as mesmas seções medidas no modelo (terreno do MDS × fundo da cava) pela linha de seção da planta"
-- "cotas de fundo e de reaterro da sequência executiva (planta 02) conferidas contra o modelo, com tolerância absoluta"
-- "volume por seções médias só onde duas ou mais seções paralelas cortam a mesma cava; o resto fica declarado como não conferível"
-- "build real de Foz refeito; relatório em docs/plano com o que bateu e o que diferiu"
-base: 7f7ab41
+- "superfície topográfica do projeto montada em código a partir das curvas de nível das plantas de escavação, com cotas lidas e resíduo declarado"
+- "topografia × cotas de boca das sondagens, topografia × TERRENO ORIGINAL das seções e MDS × topografia em toda a área, com o mapa do erro e a classe de cobertura"
+- "relatório com a evidência e uma recomendação; o humano decide"
+- "a decisão aplicada ao terreno das cavas, com a conferência das cavas recalculada e o build real refeito"
+base: 023c544
 etapas:
 - id: E1
-  nome: Reingestão do Drive de Foz (o contêiner novo não tem dados/)
+  nome: Superfície topográfica do projeto (curvas de nível) e comparação com sondagens, seções e MDS
   entregaveis:
-  - dados/foz/projeto/_baixados.csv
-  depende_de: []
-  agente: haiku
-  estimativa_min: 30
-  estimativa_tokens: 500000
-  status: feito
-  inicio: '2026-11-03T18:32:00Z'
-  fim: '2026-11-03T18:41:00Z'
-- id: E2
-  nome: Leitor das seções de corte (área de corte e cota de fundo por seção)
-  entregaveis:
-  - camadas/secoes_corte.py
-  - tests/test_secoes_corte.py
+  - camadas/topografia.py
+  - tests/test_topografia.py
   depende_de: []
   agente: sonnet
-  estimativa_min: 60
-  estimativa_tokens: 250000
+  estimativa_min: 90
+  estimativa_tokens: 300000
   status: feito
-  inicio: '2026-11-03T18:36:00Z'
-  fim: '2026-11-03T19:05:14Z'
-- id: E3
-  nome: Seções no modelo e conferência (área, fundo, cotas da sequência executiva, seções médias)
+  inicio: '2026-11-03T21:34:01Z'
+  fim: '2026-11-03T22:07:50Z'
+- id: E2
+  nome: Relatório da evidência e decisão do humano
   entregaveis:
+  - docs/plano/2026-11-03_decisao_terreno.md
+  depende_de:
+  - E1
+  agente: opus
+  estimativa_min: 30
+  estimativa_tokens: 80000
+  status: feito
+  inicio: '2026-11-03T22:07:50Z'
+  fim: '2026-11-04T10:57:32Z'
+- id: E3
+  nome: Aplicar a decisão ao terreno das cavas e recalcular a conferência
+  entregaveis:
+  - camadas/escavacao.py
   - camadas/conferencia_cavas.py
-  - tests/test_conferencia_cavas.py
   depende_de:
   - E2
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
   status: feito
-  inicio: '2026-11-03T19:05:14Z'
-  fim: '2026-11-03T19:46:57Z'
+  inicio: '2026-11-04T10:57:32Z'
+  fim: '2026-11-04T11:12:59Z'
 - id: E4
-  nome: Build real, relatório, balanço, aceite do Fable e PR
+  nome: Build real, balanço, aceite do Fable, PR e merge
   entregaveis:
-  - docs/plano/2026-11-03_conferencia_cavas.md
   - rumo.yaml
   - results/iteracoes/*
   - results/agentes/execucoes.csv
   depende_de:
-  - E1
   - E3
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 200000
   status: feito
-  inicio: '2026-11-03T19:46:57Z'
-  fim: '2026-11-03T20:59:38Z'
-- id: E5
-  nome: Talude por cava a partir das seções do projeto (decisão do Caio, 03/11)
-  entregaveis:
-  - camadas/escavacao.py
-  - camadas/conferencia_cavas.py
-  - tests/test_conferencia_cavas.py
-  depende_de:
-  - E3
-  agente: sonnet
-  estimativa_min: 60
-  estimativa_tokens: 250000
-  status: cancelado
-  inicio: null
-  fim: null
+  inicio: '2026-11-04T11:12:59Z'
+  fim: '2026-11-04T12:08:58Z'
 historico:
+- data: '2026-11-03'
+  mudanca: 'objetivo anterior concluído: conferência das cavas por seções (PR #56, 0.53.0)'
+  motivo: 'Caio pediu a decisão do terreno; a conferência mostrou que a diferença de área vem do terreno (MDS até 0,6 m abaixo da topografia no trecho do corte)'
 - data: '2026-11-03'
   mudanca: 'objetivo anterior concluído: build real de Foz (PR #46, 0.45.0)'
   motivo: 'Caio pediu a conferência das cavas; a planilha do contrato e as pranchas não declaram volume de cava, e ele escolheu a conferência por cortes e cotas'
@@ -133,3 +120,12 @@ historico:
 - data: '2026-11-03'
   mudanca: horários de E2, E3 e E4 corrigidos pelas horas dos commits
   motivo: os horários escritos à mão estavam adiantados em relação ao relógio da máquina (a E4 saía com −6 min)
+- data: '2026-11-04'
+  mudanca: 'decisão do Caio: opção D (topografia do projeto no casco das curvas, MDS corrigido fora, sem edificação e copa, costura suavizada)'
+  motivo: 'topografia × seções rms 0,16 m e × sondagens 0,25 m; MDS +0,54 m em média, 21 % da área com erro > 1 m por copa e prédio, inclinação ~1 m/100 m'
+- data: '2026-11-04'
+  mudanca: 'E4 com dois aceites do Fable (REVISAR, REVISAR pontual) e um achado do gerente (cache das curvas sem a versão da leitura); volume final 7 905 m³'
+  motivo: 'os aceites acharam curvas de continuação, costura do lado errado, validação fora do casco e o furo de copa; o build só reproduziu o executor depois de versionar o cache'
+- data: '2026-11-04'
+  mudanca: horários das etapas pelas horas dos commits
+  motivo: os horários escritos à mão estavam errados em relação ao relógio da máquina
