@@ -115,11 +115,49 @@ Observações que a passada deixou, sem mudar nada (candidatos para decisão hum
   "LAVAGEM DE REDE" (serviços finais; parece desinfecção e limpeza da rede, `GER.CTL.DSF`, mas o termo exige tubulação ou
   adutora e não cobre "lavagem de rede") não têm item na EAP. Não foi alterado: "lavagem de rede" não é erro claro.
 
+## D10 e D11 na cadeia real (ciclo de 04/11/2026)
+
+Plano: `docs/plano/2026-11-04_wbs_d10_d11.md`. Mesma planilha, `escopo_itens.csv` regenerado em pasta temporária (o de
+`dados/` não foi tocado), sem preço. Antes = `main` 4090759; depois = esta entrega, com a declaração
+`eap_padrao.trechos_lineares` (U1, "ÁGUA POTÁVEL", sistema `AGUA_POTAVEL`) no `exemplos/foz/obra.json`. Os números abaixo
+vêm do caminho real (`evidencias._registros`, que torna NaN em `null`): as tabelas das seções anteriores deste relatório
+usaram `to_dict` direto, que tratava o valor vazio dos fatos "só menção" como número e inflava as folhas preenchidas
+(14 e 6 contra 10 e 6 aqui); a comparação desta seção é consistente entre antes e depois.
+
+| Medida | Antes (4090759) | Depois |
+|---|---|---|
+| Evidências · fatos | 651 · 35 (fonte única 31 · só menção 4) | 655 · 37 (fonte única 31 · só menção 6) |
+| Obra localizada: folhas | 43 (10 preenchidas · 4 só menção · 29 a preencher; 23,3 %) | 44 (9 preenchidas · 6 só menção · 29 a preencher; 20,5 %) |
+| Obra linear: folhas | 32 (6 preenchidas · 25 a preencher · 1 fora do escopo; 19,4 %) | 32 (7 preenchidas · 24 a preencher · 1 fora do escopo; 22,6 %) |
+| Água potável (622 m) | `OP.02.06`, fato `U1.*.GEO.MOV.VAL` | `OL.03.01`, fato `U1.AGUA_POTAVEL.GEO.MOV.VAL`; uma vez só, na vista linear |
+| `OP.02.06` (valas internas da U1) | preenchida: Escavação 622,00 m | só menção (sem quantidade na planilha) |
+| `OP.07.04` (D10, folha nova) | não existia | só menção (4 linhas de bloco de ancoragem sem quantidade) |
+| Avisos de `montar` (fora o aviso de premissa) | nenhum | nenhum (nenhuma linha declarada sem folha linear que a receba) |
+| Etapas citadas no contrato | OP.01 (4) · OP.07 (1) · OP.08 (1) · OP.10 (1) · OP.12 (1) | OP.01 (4) · OP.07 (4) · OP.08 (1) · OP.10 (1) · OP.12 (1); obra linear: nenhuma |
+| Itens fora do padrão (`validar`) | 0 | 0 |
+
+- **D11.** A linha 127 do CUSTO CIVIL (ÁGUA POTÁVEL, vala em PVC DN 25, 622 m) foi a única que a declaração tocou: o código
+  passou de `U1.*.GEO.MOV.VAL` para `U1.AGUA_POTAVEL.GEO.MOV.VAL` antes do `consolidar`, e a folha `OL.03.01` (serviço
+  `escavacao`) recebe os 622 m. Os 622 m aparecem uma vez só: nenhum outro fato de Foz leva esse valor. As outras 7 linhas de
+  vala da U1 (FD DN 1000 nas linhas 16, 30 e 50, DN 200, DN 300 e DN 150 nas linhas 99 e 113) continuam na vista localizada,
+  em `OP.02.06`, todas sem quantidade na planilha. O pedido do ciclo falava em "8 linhas FD DN 150": na planilha são 7 linhas
+  de FD (DN 1000, 200, 300 e 150) e 1 de PVC DN 25; as de DN 150 são as linhas 99 e 113.
+- **D10.** As 4 linhas "BLOCOS DE ANCORAGEM" (linhas 23, 92, 106 e 120) passaram a ter item (`HID.TUB.ANC`, serviço
+  `bloco_ancoragem`) e, sem quantidade, formam o fato "só menção" que deixa `OP.07.04` em "só menção". As 3 linhas
+  "BLOCOS DE APOIO" (linhas 43, 63 e 77) continuam sem item (a descrição é só o título, sem tubulação, curva ou peça), e agora
+  contam como etapa `OP.07` citada no contrato, porque o título está em `titulos_sanepar` dela. Isto resolve a primeira
+  observação da seção "Etapa pelo título" (título sem etapa equivalente na obra localizada) para ANCORAGEM e APOIO; a
+  ÁGUA POTÁVEL ficou resolvida pela D11, e não por título na obra localizada.
+- **Não mudou.** Os sistemas `rede_eta` da U1 (AB_ENTRADA, LODO_*) e `U1.LINEARES.*` seguem na vista localizada; PV para
+  água, ALO, macromedidor e "lavagem de rede" (decisões pendentes) não foram tocados.
+
 ## Verificações
 
 - Roteiros de ataque da IA (`ataques`, `r3_ataques`, `r3_b`, `rev_bloco`, `rev_bloco2`): saída idêntica antes e depois
   (nenhuma conferência de citação mudou).
 - Hash de `camadas.referencia` inalterado (0602c637…ac6de).
+- Ciclo D10/D11 (04/11/2026): os mesmos cinco roteiros de ataque com saída idêntica entre 4090759 e esta entrega; hash de
+  `camadas.referencia` inalterado; nenhum golden regenerado.
 
 ## O que falta
 
