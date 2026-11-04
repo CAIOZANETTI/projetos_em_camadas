@@ -517,6 +517,7 @@ O repositório é trabalhado por várias conversas em paralelo. Cada uma é uma 
 | Geo Bd · memória espacial | §13 gavetas, §15 cavas, terreno opção D | 0.53 na `main`; opção D em revisão | nenhuma bloqueante; anexar a planilha com a aba Obras Lineares |
 | Giselle · obras lineares da ETA | origem do MOS e das premissas D1 | parada (ramo 407 commits atrás) | calibrar raio de influência e cor do pavimento |
 | Protótipo 211 · Foz | build de ponta a ponta | concluída | geometria dos Actiflo, folha 10, escopo "a definir", 58 desenhos |
+| Extrator redundante · `ialocal.extrair.dados` (outro Mac, outro código) | §17: segunda leitura de todos os arquivos, sem IA de linguagem, entregue num SQLite único | em andamento lá (0.25.0; contrato de saída na E12) | nenhuma |
 
 **Alinhamentos necessários** (1 e 2 confirmados pelo Caio em 04/11: D10 e D11):
 1. **Blocos de ancoragem e de apoio (D10):** o Protótipo os tratava como unidade "a definir" e a WBS como itens da
@@ -536,4 +537,38 @@ O repositório é trabalhado por várias conversas em paralelo. Cada uma é uma 
    Giselle pede muda esse arquivo, por decisão registrada.
 8. **Cronograma e 4D:** fora do sistema por decisão do Caio (28 e 30/10, §1). O Protótipo pediu confirmação: está
    confirmada nos princípios.
+
+## 17. Conferência por extração redundante (`ialocal.extrair.dados`)
+
+Outro repositório, em outro Mac e com outro código, lê os mesmos arquivos da obra sem IA de linguagem. Ele entrega
+uma segunda leitura completa: inventário por hash, texto por bloco com página e posição na folha, tabelas célula a
+célula e metadados. O contrato de saída será um **arquivo único, provavelmente SQLite**, com manifesto (etapa E12 de
+lá). Aqui ele entra só como **testemunha**: confere, nunca substitui, e nenhum número da EAP passa a depender dele.
+
+**Por que vale.** Duas leituras independentes que concordam aumentam a confiança; onde discordam, aponta exatamente o
+arquivo, a página ou a célula a olhar. Teste de 04/11 em Foz: a planilha principal remontada só com as células da
+extração externa e passada pelos nossos leitores (`orcamento_sanepar`) deu **1.002** linhas de escopo, **79** itens
+do CUSTO CIVIL e **36** com título de etapa, os mesmos números da leitura direta do xlsx (0.54.0 e 0.55.0).
+
+**A escada de conferência, do geral para o específico.** Cada nível só roda se o anterior passou ou teve as
+diferenças explicadas; cada diferença vira pendência com o nível, o objeto e o motivo.
+
+| Nível | O que confere | Como (determinístico, tolerância declarada) |
+|---|---|---|
+| N0 · Contrato | o arquivo da extração externa é da mesma obra e de uma versão conhecida | manifesto: obra, versão do código, data, contagens; hash do próprio arquivo |
+| N1 · Inventário | a mesma quantidade de arquivos, por pasta e por tipo, e os mesmos arquivos | conjunto de `sha256` dos dois lados; o que só um lado tem, ou com estado diferente (lido × sem texto), vira pendência |
+| N2 · Leitura | cada arquivo foi lido por inteiro | páginas, palavras e letras+números por arquivo; nossa leitura abaixo de 90 % da deles sobe um degrau na escada (ex.: OCR) |
+| N3 · Projetos | as mesmas pranchas, disciplinas e séries | carimbo pelo bloco no canto inferior direito (a posição vem da extração externa): título, folha n/m, revisão; Relação de Desenhos e aba "Projetos" × arquivos |
+| N4 · Tabelas | as mesmas abas, linhas e células | abas remontadas das células externas passam pelos nossos leitores e dão as mesmas contagens; tabelas de prancha (relação de materiais) linha a linha |
+| N5 · Materiais | o mesmo material, código Sanepar e quantidade por etapa | relação de materiais e MATS E EQUIP: código, unidade, quantidade de 1ª e 2ª etapa |
+| N6 · Itens relevantes da EAP | as grandezas que mais pesam são as mesmas | concreto (m³), tubulação (m por material e DN), escavação, aço, estacas: total por nó da EAP, com tolerância por grandeza |
+| N7 · Laço de evidências | **tudo o que o `projetos_em_camadas` viu, o extrator também viu**, e o contrário | para cada fato das gavetas, o trecho citado (arquivo, página) é procurado nos blocos externos; achado = fato confirmado por duas leituras; não achado = pendência. No sentido inverso, menções de itens da EAP nos blocos externos sem fato correspondente aqui viram candidatas a lacuna |
+
+**Onde roda.** Depois do build, como etapa própria (`scripts/conferir_extracao_externa.py`, a fazer quando o SQLite
+existir), gravando `conferencia_externa.json` e a seção correspondente em `pendencias.json`; a verificação noturna lê o
+resumo. A aba EAP mostra, por nó, quantos fatos foram confirmados pelas duas leituras.
+
+**Cuidados.** A extração externa também lê cotações e abas de preço (COMPOSIÇÕES, INSUMOS, Medição): a conferência só
+usa as abas e documentos de escopo. Arquivos repetidos dentro de zips são comparados pelo hash, não pelo caminho. Uma
+mudança de versão do extrator aparece no N0 e não muda nenhum número da EAP.
 
