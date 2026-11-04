@@ -954,8 +954,103 @@ def test_recusa_leitura_decisao_invalida_vira_aviso_proprio_e_nao_o_de_nao_decla
         _, recusadas = _ler_com(
             eap_padrao.trechos_do_cfg(cfg), documentos=[], decisoes=[ruim]
         )
-        resumo = {"fatos": [], "recusadas": [evidencias._resumo_da_recusa(r) for r in recusadas]}
+        resumo = {
+            "fatos": [],
+            "recusadas": [evidencias._resumo_da_recusa(r) for r in recusadas],
+        }
         avisos = eap_padrao.montar({"evidencias": resumo}, cfg)["avisos"]
         assert not [a for a in avisos if "não declarado" in a]
-        [aviso] = [a for a in avisos if a.startswith("Decisão recusada na leitura: ")]
+        [aviso] = [a for a in avisos if a.startswith("Recusada na leitura: ")]
         assert CODIGO_LINEAR.lower() in aviso and "decisão inválida" in aviso
+
+
+# documento do obra.json validado na entrada ---------------------------------------------------------------------------------
+
+
+def _csv_vala(tmp_path, nome):
+    arquivo = tmp_path / nome
+    arquivo.write_text("Descrição;Un;Qtd\nEscavação de vala;m³;100\n", encoding="utf-8")
+    return str(arquivo)
+
+
+def _etapa_com_documentos(tmp_path, *documentos, cfg=SEM_DECLARACAO):
+    cfg = {**cfg, "evidencias": {"documentos": [
+        {"pdf": _csv_vala(tmp_path, f"{i}.csv"), **d} for i, d in enumerate(documentos)
+    ]}}  # fmt: skip
+    log = []
+    resumo = evidencias.etapa(cfg, tmp_path, {"crs": {"epsg": 31982}}, log.append)
+    return resumo, log
+
+
+@pytest.mark.parametrize(
+    "invalido, prefixo",
+    [
+        ({"tipo": "memorial", "unidade": "U1", "sistema": "agua_potavel"}, "U1.agua_potavel.*"),
+        ({"tipo": "memorial", "unidade": "u1"}, "u1.*.*"),
+        ({"tipo": "memorial", "escopo": "pluvial"}, "*.*.*"),
+        ({"tipo": "relatorio"}, "*.*.*"),
+        ({}, "*.*.*"),
+        ({"tipo": "memorial", "unidade": "U1", "sistema": "AB.CDE"}, "U1.AB.CDE.*"),
+        ({"tipo": "memorial", "unidade": "U1.ABC", "sistema": "DEF"}, "U1.ABC.DEF.*"),
+    ],
+)  # fmt: skip
+def test_documento_invalido_e_recusado_com_motivo_e_os_outros_seguem_lidos(
+    tmp_path, invalido, prefixo
+):
+    resumo, log = _etapa_com_documentos(tmp_path, invalido, {"tipo": "memorial"})
+    [r] = resumo["recusadas"]
+    assert r["documento"] == "0.csv" and r["codigo"] == prefixo
+    assert r["motivo"].startswith("documento inválido: ")
+    assert len([m for m in log if "0.csv" in m or "recusada" in m]) == 1
+    assert resumo["n_evidencias"] >= 1  # o documento válido da mesma obra segue lido
+    assert {f["codigo"] for f in resumo["fatos"]}
+    avisos = eap_padrao.montar({"evidencias": resumo}, SEM_DECLARACAO)["avisos"]
+    [aviso] = [a for a in avisos if a.startswith("Recusada na leitura: ")]
+    assert prefixo in aviso and "documento inválido" in aviso
+
+
+def test_documento_valido_nao_muda(tmp_path):
+    resumo, _ = _etapa_com_documentos(
+        tmp_path,
+        {
+            "tipo": "memorial",
+            "unidade": "U1",
+            "sistema": "AGUA_POTAVEL",
+            "escopo": "agua",
+        },
+        cfg=MISTA,
+    )
+    assert resumo["recusadas"] == [] and resumo["n_evidencias"] >= 1
+    sem_campos, _ = _etapa_com_documentos(tmp_path, {"tipo": "memorial"})
+    assert sem_campos["recusadas"] == []
+
+
+def test_documentos_sem_lista_de_recusas_registram_no_log(tmp_path):
+    cfg = {
+        "evidencias": {
+            "documentos": [
+                {
+                    "pdf": _csv_vala(tmp_path, "x.csv"),
+                    "tipo": "memorial",
+                    "sistema": "ab",
+                }
+            ]
+        }
+    }
+    log = []
+    assert evidencias._documentos(cfg, log.append) == []
+    assert len(log) == 1 and "documento inválido" in log[0]
+
+
+def test_metadados_listam_as_funcoes_publicas_da_declaracao():
+    assert {"pares_declarados", "sistema_linear_nao_declarado"} <= set(
+        eap_padrao.metadados()["funcoes"]
+    )
+
+
+def test_documento_com_obra_desconhecida_avisa_no_log(tmp_path):
+    # aceite do Fable (opcional): obra fora de localizada/linear não levanta, mas não pode zerar em silêncio
+    _, log = _etapa_com_documentos(
+        tmp_path, {"tipo": "memorial", "obra": "ponte"}, {"tipo": "memorial"}
+    )
+    assert any("obra 'ponte' desconhecida" in m for m in log)
