@@ -15,9 +15,9 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T12:32:23Z'
-  fim: null
+  fim: '2026-11-04T13:05:00Z'
 - id: E2
   nome: Build real, conferência, balanço, aceite do Fable, PR e merge
   entregaveis:
@@ -30,9 +30,9 @@ etapas:
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 150000
-  status: a_fazer
-  inicio: null
-  fim: null
+  status: feito
+  inicio: '2026-11-04T13:05:00Z'
+  fim: '2026-11-04T13:28:05Z'
 historico:
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: terreno das cavas (PR #63, 0.56.0); plano da memória espacial gravado em docs/plano/2026-11-04_plano_memoria_espacial.md'
@@ -108,3 +108,6 @@ historico:
 - data: '2026-11-04'
   mudanca: horários das etapas pelas horas dos commits
   motivo: os horários escritos à mão estavam errados em relação ao relógio da máquina
+- data: '2026-11-04'
+  mudanca: 'A4 fechada: HH e LL conferem; FF não (235,97 não está na planta; TOPO a 90° não é lido); a troca do método do fundo (+12,6 %) mantida pelo aceite do Fable; envoltória para rodada própria'
+  motivo: 'critério de aceite atingido em parte; o resto depende de entrada ausente ou de mudança de modelo com hash novo'
