@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.60.0 — 2026-11-04 · A5: NSPT do laudo Geoazimute lido em código
+- **`geotecnia.nspt_da_folha`** lê a tabela de golpes pela posição de cada número: colunas INI., FIN. e 3 segmentos;
+  linhas pelos rótulos de profundidade.
+  - Confere g2 + g3 = NSPT final e g1 + g2 = inicial.
+  - Linha "-" e ensaio interrompido ficam fora, com alerta.
+  - O furo ganha `nspt` e `nspt_detalhe`. Só na folha em bloco; o layout antigo não muda.
+- **Foz:** 23 furos, 305 metros, 0 somas que não fecham, 24 alertas. Dois ensaios interrompidos são no impenetrável
+  (SP15 e SP16) e dois no meio do furo (SP11 e SP12). Seis furos foram conferidos à mão contra o PDF.
+
+  Relatório em `docs/plano/2026-11-04_a5_nspt.md`.
+- Lição L056.
+
 ## 0.59.0 — 2026-11-04 · A4: o fundo de cada cava pela marca de cota da própria estrutura
 - **`escavacao.ligar_marcas`**: cada base de escavação recebe o fundo nesta ordem: marca interna; cota escrita sem
   símbolo (lida por OCR, com cache versionado); só então a marca vizinha a até 3 m, com alerta. A origem fica

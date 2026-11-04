@@ -14,9 +14,9 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T13:41:10Z'
-  fim: null
+  fim: '2026-11-04T14:05:00Z'
 - id: E2
   nome: Build real, aceite do Fable, balanço, PR e merge
   entregaveis:
@@ -29,9 +29,9 @@ etapas:
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: a_fazer
-  inicio: null
-  fim: null
+  status: feito
+  inicio: '2026-11-04T14:05:00Z'
+  fim: '2026-11-04T13:58:50Z'
 historico:
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: A4 (PR #68, 0.59.0)'
