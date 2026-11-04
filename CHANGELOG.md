@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.61.0 — 2026-11-04 · Orçamento de Foz 211: as quantidades do CUSTO CIVIL calculadas em código, sem preço
+- (em andamento: números do build real na E5)
+
 ## 0.60.0 — 2026-11-04 · A5: NSPT do laudo Geoazimute lido em código
 - **`geotecnia.nspt_da_folha`** lê a tabela de golpes pela posição de cada número: colunas INI., FIN. e 3 segmentos;
   linhas pelos rótulos de profundidade.
