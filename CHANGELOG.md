@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.65.0 — 2026-11-04 · Folhas de interligação 009 e 010 georreferenciadas pela f004; os trechos de interligação no Contrato 211
+- (em andamento: build real na E3)
+
 ## 0.64.0 — 2026-11-04 · Orçamento de Foz 211: as quantidades do CUSTO CIVIL calculadas em código, sem preço
 - **`camadas/contrato_211.py`** + `conceitos/composicoes_sanepar.json`: a aba CUSTO CIVIL da planilha 211, lida **só
   pelas colunas A–E e I**. Um teste prova que VALOR UNITÁRIO e VALOR TOTAL nunca são lidos (sentinela de preço). Cada

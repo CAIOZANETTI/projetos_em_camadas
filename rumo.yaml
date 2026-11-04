@@ -35,9 +35,9 @@ etapas:
   agente: sonnet
   estimativa_min: 30
   estimativa_tokens: 200000
-  status: fazendo
+  status: feito
   inicio: '2026-11-04T16:40:06Z'
-  fim: null
+  fim: '2026-11-04T16:47:41Z'
   forcado: null
 - id: E3
   nome: Build real, contrato 211 conferido, balanço, PR e merge
@@ -55,8 +55,8 @@ etapas:
   agente: opus
   estimativa_min: 45
   estimativa_tokens: 120000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-04T16:47:43Z'
   fim: null
   forcado: null
 historico:
