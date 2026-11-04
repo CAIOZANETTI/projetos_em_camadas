@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.73.0 — 2026-11-04 · F5 da reconstrução: o texto dos documentos nas gavetas e o laço até a EAP completa
+- **`camadas/gavetas_texto.py`** (novo): editais, memoriais, laudos e listas são lidos por código, página a página,
+  sem IA e sem OCR.
+  - As menções aos itens técnicos (regex dos `termos` de `eap_geral.jsonl`, com o `vocabulario` do projeto) vão para
+    as gavetas: o objeto `mencao_documento` leva um fato `mencao` por página, com a evidência citando a página e o
+    trecho.
+  - A quantidade só entra quando o trecho traz número + unidade. Ela é **ruidosa**, por exemplo "6 HORAS" de prazo, e
+    nunca preenche a EAP: serve só de candidata para o passe de IA com citação conferida.
+  - Página sem texto vira pendência para OCR.
+- **`camadas/eap_laco.py`** (novo): o passo 8 do fluxo do Caio.
+  - Para cada folha a preencher (obrigatórias primeiro), o destino, nos degraus da escada:
+    - código;
+    - IA com citação conferida, com o roteiro para a skill `eap-evidencias`;
+    - candidata a declarada;
+    - documento esperado ausente;
+    - ausente do projeto.
+  - O **portão "EAP completa"**: toda obrigatória preenchida, calculada ou declarada, ou "ausente do projeto"
+    confirmada pelo Caio no arquivo de `cfg["decisoes_eap"]`.
+- **No build**: `eap_laco.json` (portão e destinos) e `proximo_passe.jsonl` (o roteiro).
+- **Foz**:
+  - 158 documentos de texto e 1 318 páginas lidos em cerca de 26 s;
+  - 2 506 menções, e 119 páginas sem texto viraram pendência;
+  - gavetas: 2 285 objetos e 11 074 fatos (9 734 com página), 0 erros;
+  - **portão: EAP aberta**, com 20 obrigatórias travando (10 da localizada e 10 da linear). **Todas têm menção em
+    documento**, com quantidade candidata. O próximo passe tem 955 leituras de documento para a IA com citação
+    conferida.
+- Lição L071.
+
 ## 0.72.0 — 2026-11-04 · F4 da reconstrução: os serviços complementares calculados das gavetas
 - **`camadas/gavetas_servicos.py`** (novo): o passo 7 do fluxo do Caio.
   - Os elementos (estaca, bloco, pilar, a cava derivada do bloco e a vala de cada trecho, por superfície) são
