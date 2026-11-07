@@ -1,0 +1,212 @@
+{
+ "janela": "253d4e5 (0.71.0, alvo da verificação anterior) → origin/main 396b337 (0.72.0); 2 merges first-parent, 9 commits, 23 arquivos, +2 683/−73 linhas; uma frente só: #81 (0.72.0, reconstrução F4 do ramo intelligent-dijkstra: camadas/gavetas_servicos.py novo +630, eap_preencher +45/−14, extrair_gavetas +23/−2, gavetas_construtivos +31/−1, obra.py +2/−2, conceitos/gavetas.json +5, docs/RECONSTRUCAO.md §0.1, tests/test_gavetas_servicos.py novo +562, tests/test_eap_preencher.py +84, L070, cartão 253d4e5_4ae20f8) e #82 (o relatório da verificação de 04/11, só results/verificacoes). Nenhum merge das frentes WBS, Geo Bd ou extrator; ARQUITETURA.md, visualizador.html, vcm.yml, vcm.yaml, docs/plano/ e conceitos/servicos_associados.jsonl não mudaram",
+ "verdes": "uv run pytest -q: 1311 passed, 94 skipped (57 s; eram 1282/94 em 04/11; +29 testes: 25 em tests/test_gavetas_servicos.py e 4 em tests/test_eap_preencher.py; os 94 pulos são os mesmos extras ausentes: pymupdf, rasterio, scipy, tesseract/pytesseract, playwright, dados de Foz); python -m camadas.referencia: hash 0602c637b4b6e18271f78df964927123c045db2f70598dfddc58e5b2971ac6de (igual ao de 0.31.0, 0.45.0, 0.55.0 e 0.71.0), 54,8 ms, 140,6 MB; VERSAO 0.72.0 = topo do CHANGELOG (72 cabeçalhos únicos); scripts/afericao.py SEM --registrar: REPROVADA — 1 588 funções, 0 órfãs, 3 duplicatas (eram 1), longas 6 → 16 contra o último registro (04/11 15:15, 0.63.0; eram 14 em 04/11); scripts/determinismo.py: ok; uv run ruff check .: 3 avisos (scripts/bancada_calculo.py:88 I001 e :99 DTZ011, scripts/bancada_gavetas.py:239 DTZ011), arquivos fora da janela",
+ "itens": [
+  {
+   "grupo": "Regras",
+   "item": "Python em português no módulo novo (gavetas_servicos) e nas alterações de eap_preencher, extrair_gavetas e gavetas_construtivos",
+   "estado": "OK",
+   "evidencia": "camadas/gavetas_servicos.py: 25 funções, todas em português (complementares, com_complementares, paridade, somas, ler_associados, versao_da_regra, _elementos_da_vala, _elemento_construtivo, _unidade_e_sistema, _rastro, _identificadores, _pasta_da_base, _epsg_da_base, _imprimir_completude); docstrings e mensagens em português ('sem diâmetro (dn_mm): a vala não sai', 'código fora da EAP instanciada: serviço sem codigo_eap', 'a geometria dos elementos precisa de um CRS só'); constantes com docstring (TOLERANCIA, PROPRIEDADE_GEOMETRICA, MAPA_DE_DIMENSOES, VERSOES). Em extrair_gavetas, `_complementares`; em gavetas_construtivos, SUPERFICIES e os fatos `pavimentos`, `material`, `eixo_partes`; em eap_preencher a situação `calculada` e `pct_calculadas`. `metadados()` cumpre a regra 9 do estilo (funções, conceitos, tolerância). `uv run ruff check .`: 3 avisos em scripts/bancada_calculo.py e scripts/bancada_gavetas.py, arquivos sem commit na janela."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Python calcula; HTML/JS só apresentam",
+   "estado": "OK",
+   "evidencia": "Sem mudança no HTML na janela: camadas/templates/visualizador.html e scripts/testar_visualizador.py têm 0 commits entre 253d4e5 e 396b337. Toda a F4 é Python: regras aplicadas por camadas.associados, soma por grupo e arredondamento (round 6) em gavetas_servicos.complementares, completude (contagens, pct_preenchidas e a nova pct_calculadas) pronta em eap_preencher._completude. A EAP única e a situação `calculada` ainda não chegam ao HTML (a navegação é a F7 da RECONSTRUCAO §3); o build grava eap_unica.json e gavetas_escopo.json (com `complementares` e `paridade_associados`)."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Exceção documentada do visualizador (medir, ll2utm) sem a conferência JS × Python prometida",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança na janela: CLAUDE.md ('Decisões do mantenedor', 31/10) promete a conferência JS × Python (área, comprimento e UTM de um polígono conhecido, tolerância absoluta) em scripts/testar_visualizador.py; o roteiro continua sem comparar número nenhum com o Python (0 commits no arquivo e no template). Quarta verificação seguida com o mesmo estado."
+  },
+  {
+   "grupo": "Regras",
+   "item": "SI com unidade como sufixo do nome",
+   "estado": "ATENÇÃO",
+   "evidencia": "O módulo novo segue a regra: dn_mm, de_mm, extensao_m, area_planta_m2, perimetro_m, comprimento_m (gavetas_servicos.py:37-41, :150-182); o conceito novo `eixo_partes` em conceitos/gavetas.json:254 declara unidade 'm'; a tolerância é 'unidade da própria quantidade' (TOLERANCIA, :35-36). Mas gavetas_servicos.py:236 filtra os furos por `f[\"E\"]` e `f[\"N\"]` — mais um consumidor escrito sobre as chaves sem sufixo do furo canônico (camadas/geotecnia.py:5, E, N e cota_boca), que segue inalterado, assim como conceitos/de_para_extracao.json:69-71 (cota_boca_m e 'módulo geotecnia a fazer') e conceitos/dimensoes.json (A_escoramento, V_bota): 0 commits nesses três arquivos na janela. Pendência das três verificações anteriores, sem rodada que a toque."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Sem preço: complementares pelas gavetas sem valor, regras sem preço",
+   "estado": "OK",
+   "evidencia": "gavetas_servicos.py:11-12 'Sem preço e sem prazo'; a gaveta `servicos` (conceitos/gavetas.json) tem como obrigatórios servico_id, objeto_id, regra, versao_regra, saida, valor, unidade, fatos — nenhum campo de preço; grep por R$/preco/valor_unit em gavetas_servicos.py, eap_preencher.py e test_gavetas_servicos.py: só a frase 'sem preço'. conceitos/servicos_associados.jsonl (26 regras) não mudou na janela (0 commits) e não contém preço, prazo, dias ou produtividade. O módulo não lê planilha de contrato (entrada = gavetas), então a sentinela de preço de contrato_211 e gavetas_contrato não precisa repetir-se aqui; a conferência das gavetas (gavetas.conferir_base) passa na base com os complementares (test_com_complementares_passa_na_conferencia_das_gavetas_e_nao_altera_a_original)."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Sem prazo (§1)",
+   "estado": "OK",
+   "evidencia": "Sem mudança na janela: a decisão do Caio da F0 (0.69.0, prazo fora da quantificação) segue em vigor; as 26 regras de servicos_associados.jsonl não têm produtividade, dias úteis nem jogos (grep: 0); as premissas citadas na evidência de cada serviço (`_premissas`, gavetas_servicos.py:306-315) vêm da regra e das dimensões, com estado e fonte. O escoramento em un/mês continua 'a preencher (depende de prazo)' no golden."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Nenhuma IA no caminho do número (complementares só de fatos, geometria e regra; rastro até o fato)",
+   "estado": "OK",
+   "evidencia": "gavetas_servicos monta os elementos só dos fatos e da geometria das gavetas (`_elemento_construtivo`, `_trecho`), cada dimensão com `rastro` = ids dos fatos de que depende (`_rastro`, :80-94); cada serviço grava `fatos` usados, `versao_regra` (sha1 do JSON da regra, :296-299) e `codigo_eap`; a evidência é classe 'associado' com `metodo` 'camadas.associados' e `executor` 'código' (:439-450), memória de cálculo e premissas citadas; 'Sem dimensão o serviço não sai (nunca zero inventado)' (:357) com a pendência dizendo a cadeia do que faltou (`_falta`). Os três fatos novos da extração (pavimentos e material 'inferido', eixo_partes 'projetado') vêm de código (gavetas_construtivos). Ressalva mantida para a F5: nem gavetas_servicos nem eap_preencher filtram fato por natureza ou método (grep metodo/natureza em eap_preencher.py: 0; em gavetas_servicos só o método da vala); quando a IA passar a escrever fatos (F5, escada código → IA com citação → humano), a regra 'fato que só a IA afirmou não alimenta cálculo' (ARQUITETURA §13) precisa virar trava nesses dois consumidores."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Sem nomes de modelo fixos no código",
+   "estado": "OK",
+   "evidencia": "grep por claude-, fable-5, sonnet-5, haiku- em camadas/ e scripts/ (py e html): nenhuma ocorrência; os nomes só aparecem em dados (results/agentes/execucoes.csv, pdca/agentes.jsonl, rumo.yaml 'agente: sonnet' / 'opus')."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Reprodutibilidade e testes verdes, tolerância declarada",
+   "estado": "OK",
+   "evidencia": "python -m camadas.referencia: hash 0602c637b4b6e18271f78df964927123c045db2f70598dfddc58e5b2971ac6de, igual ao de 0.31.0, 0.45.0, 0.55.0 e 0.71.0 (54,8 ms, 140,6 MB); o cartão 253d4e5_4ae20f8 mede frac_execucoes_identicas = 1 e a troca de ordem em obra.py (evidencias.etapa antes de extrair_gavetas.completar_escopo, :923-927) não mexeu no hash. uv run pytest -q: 1311 passed, 94 skipped, 57 s (+29). Tolerância da paridade declarada e testada: TOLERANCIA = 1e-3 absoluta (gavetas_servicos.py:35), test_paridade_tolera_o_arredondamento_do_csv, test_paridade_aponta_falta_sobra_e_diferenca; determinismo coberto por test_complementares_e_deterministico, chaves ordenadas (sorted em grupos, fatos e chaves) e round(valor, 6). Os testes novos são sintéticos (sem dado de Foz) e rodam aqui e no CI."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Os verdes dependem de extras ausentes; o teste vermelho do vcm agora é 'forçado' no rumo",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança nos extras (94 pulos iguais; .github/workflows/vcm.yml e vcm.yaml com 0 commits). O cartão 253d4e5_4ae20f8 traz de novo testes_falhando = 1 (vermelho, eliminatória) e a recomendação 'corrigir os testes que falham antes do merge (a decisão do balanço é REVERTER)'; rumo.yaml marca E1 e E2 como feitas com `forcado: o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr, que já falha na main`, e results/rumo.md lista dois desvios 'feito sem prova'. O teste (tests/test_lineares.py:316-319) faz importorskip('pytesseract') e pula sem o binário do tesseract — aqui pula, no ambiente do vcm falha; 0 commits em tests/test_lineares.py na janela. 16 dos 61 cartões do repositório carregam esse vermelho e nenhuma rodada o atacou: ou se corrige o ambiente do vcm (tesseract) ou se pula o teste pelo binário também lá; enquanto isso o portão REVERTER do balanço está vazio na frente da reconstrução."
+  },
+  {
+   "grupo": "Regras",
+   "item": "Volume das cavas depende do SfM, que não é bit a bit",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança na janela: pdca/determinismo.json e vcm.yaml não declaram tolerância para a reconstrução (0 commits); a rodada C4 do plano da memória espacial ('variação declarada (hoje +0,3 %)') segue a fazer; a RECONSTRUCAO §1.5 continua listando sfm/sfm.json, ortofoto.jpg e ajuste_absoluto.json entre os caches que 'valem só por existir'. Pendência (6) de 04/11 sem decisão."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "docs/ARQUITETURA.md atualizada com o entregue",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança na janela (0 commits): o título segue 'estado do código em 0.55.0' com a main em 0.72.0; zero menções a gavetas_servicos, eap_preencher, gavetas_documentos/construtivos/contrato, contrato_211, eap_vista ou 'EAP única'; §16 ainda lista as frentes como ativas depois da decisão 'uma frente só'; a tabela de decisões não tem as quatro de 04/11 (RECONSTRUCAO §5). A fonte viva é docs/RECONSTRUCAO.md §0.1, que foi atualizada no PR (F3 'feita (PR #80)', F4 '0.72.0 feita (este PR)', F5 'próxima'). O cabeçalho de 04/11 ('onde divergir, vale a RECONSTRUCAO') evita a contradição, mas ARQUITETURA §10 e §13 continuam sendo citados como norma (aceite do Fable, três verdes, IA fora do cálculo) por um documento que se declara 17 versões atrasado."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Reconstrução F4: complementares calculados só das gavetas, com rastro, versão da regra e paridade",
+   "estado": "OK",
+   "evidencia": "camadas/gavetas_servicos.py (630 linhas) fecha o passo 7 do fluxo do Caio pelo eixo da RECONSTRUCAO: gavetas → elementos (estaca, bloco, pilar, cava derivada, vala por superfície pelo dimensionador único `dimensoes.dimensionar_vala` → `lineares.dimensionar_vala`) → 26 regras de servicos_associados.jsonl → gaveta `servicos` com codigo_eap `U.SISTEMA.DISC.PAC.ITEM`, fatos usados e versao_regra; evidência 'associado' com memória e premissas; pendência com a cadeia do que faltou. No build (extrair_gavetas._complementares) roda antes de gavetas.conferir_base, é idempotente (`_substituir`) e grava a paridade contra o associados.csv do mesmo build. Foz (build real do gerente, registrado no CHANGELOG e no rumo): paridade 25 de 25 linhas do associados.csv com 1 698 serviços; EAP única × codificada 0 diferença; golden 0; interface 331/0; completude localizada 6 preenchidas + 8 calculadas + 6 declaradas de 45, linear 1 + 10 de 32; OP.04.06 Armadura, OP.04.07 Concreto, OL.05.01 Reaterro e OL.05.03 Bota-fora saíram de 'a preencher'. Três lacunas da extração fechadas com conceito (pavimentos, material, eixo_partes em conceitos/gavetas.json). eap_preencher distingue 'calculada' (só serviço de regra) de 'preenchida' (medida de documento), contada à parte (test_folha_so_com_servico_calculado_e_calculada_e_conta_a_parte). L070 nomeia o que a F4 expôs. Ressalvas pequenas: gavetas_servicos.py:135 chama `dimensoes._derivados` (função privada de outro módulo); a paridade 25/25 e o golden só se medem no build real (test_golden_quantidades pula aqui e no CI)."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Caminhos paralelos continuam vivos; a F4 acrescentou mais um consumidor e duas duplicatas",
+   "estado": "ATENÇÃO",
+   "evidencia": "Como em 04/11, a F4 somou um caminho novo sem desligar os antigos: evidencias/associados (dados['construtivos'] → associados.csv), eap.py, eap_painel, eap_html/gavetas, conciliação, eap_padrao.montar, contrato_211 e eap_vista seguem no build; camadas/contrato_211.py tem 0 commits na janela, embora o portão da F4 diga 'o contrato_211 deixa de refazer a vala'. A paridade é feita contra o caminho antigo do mesmo build (associados.csv), e a aferição agora acusa 3 duplicatas, duas delas entre os dois módulos novos da própria reconstrução: eap_preencher._unidade_e_sistema (:38) = gavetas_servicos._unidade_e_sistema (:97) e eap_preencher._pasta_da_base (:477) = gavetas_servicos._pasta_da_base (:534), além de extrair_gavetas._base_vazia (:32) = gavetas_contrato._base_vazia (:42). O desligamento está prometido para a F7 ('o HTML antigo e os módulos sem uso saem', RECONSTRUCAO §4), mas as duplicatas são coisa de 10 linhas para a F5 resolver antes."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Terreno das cavas pela opção D (0.56.0)",
+   "estado": "OK",
+   "evidencia": "Sem mudança na janela (camadas/topografia.py, camadas/escavacao.py e docs/plano/2026-11-03_decisao_terreno.md sem commits); decisão do Caio, dois aceites do Fable e cartão DECISAO_HUMANA registrados como em 04/11; hash da referência igual."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Caches sem assinatura",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança na janela: a RECONSTRUCAO §1.5 segue listando sfm/sfm.json, ortofoto.jpg, ajuste_absoluto.json, pranchas/_ref_*.png, escavacao_cache e conferencia_cavas_cache como caches que 'valem só por existir'; nenhuma rodada de assinatura genérica. Ponto positivo da F4 no mesmo espírito: cada serviço leva `versao_regra` (sha1 do JSON da regra, test_versao_da_regra_e_o_hash_do_json), de modo que mudar fórmula, premissa ou destino muda a versão gravada — é a regra 6 da linha ('todo cache leva a assinatura do que o decide') aplicada às regras, não ainda aos caches."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Geotecnia (A5) e vala pelo dimensionador único; gavetas.eixo × lineares.eixo segue",
+   "estado": "OK",
+   "evidencia": "camadas/geotecnia.py e camadas/gavetas.py sem commits na janela. A F4 usa a sondagem mais próxima da própria base (`dimensoes.sondagem_proxima`, gavetas_servicos.py:206) e o dimensionador único da vala (`dimensoes.dimensionar_vala` → `lineares.dimensionar_vala`, docstring :195), citando os fatos do furo nos serviços da vala — a vala pelo MOS continua com uma só implementação. Pendência antiga mantida: gavetas.eixo (gavetas.py:561) ainda não usa lineares.eixo."
+  },
+  {
+   "grupo": "Arquitetura",
+   "item": "Georreferência das folhas 009/010 pela escala fixa do título",
+   "estado": "OK",
+   "evidencia": "Sem mudança na janela (camadas/georef_prancha.py sem commits); planta 600 da f010 segue pendente (L063)."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Frente WBS: plano em docs/plano e aceite do Fable em cada ciclo",
+   "estado": "OK",
+   "evidencia": "Sem mudança na janela: nenhum merge da frente WBS (nifty-meitner) entre 253d4e5 e 396b337; o acordo cumprido nos seis ciclos de 04/11 permanece registrado (docs/plano/2026-11-04_wbs_*.md, 14 linhas de revisor em execucoes.csv)."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Frente da reconstrução entrou na main sem aceite do Fable — sétimo merge seguido (F4, 0.72.0)",
+   "estado": "DESVIO",
+   "evidencia": "Persiste e a pendência (1) de 04/11 não foi decidida. O PR #81 (0.72.0, F4) foi aberto e mesclado pelo Caio às 21:56:04Z, quatro minutos depois do fim da E2 (rumo.yaml fim '2026-11-04T21:52:08Z'), sem nenhuma review nem comentário (API REST: 0 reviews, 0 comments); o corpo do PR cita o balanço ('vcm balanco origin/main HEAD: SEM_GANHO') e uma 'Decisão pendente do Caio (não bloqueia)', nada de aceite. results/agentes/execucoes.csv ganhou uma linha só (executor sonnet, 280 258 tokens, 74 ferramentas, 1 397 s, aprovado) e pdca/agentes.jsonl a mesma; nenhuma linha de revisor para 'Reconstrução F4' — as 7 linhas da reconstrução (F0–F2 cinco, F3 uma, F4 uma) são todas de executor. Não há docs/plano para a F4 (docs/plano com 0 commits) nem seção de aceite na RECONSTRUCAO (grep aceite/Fable: só a linha 129, que registra a contradição 'o gerente é Opus no CLAUDE.md e Fable na ARQUITETURA'); CLAUDE.md:20 e ARQUITETURA.md:345/352 não mudaram. ARQUITETURA §10 ('Uma entrega só vai para a main com os três verdes e o aceite do Fable') e §16.5 ('Plano e Fable para toda frente') seguem como norma escrita; a RECONSTRUCAO §3:220 fala em 'revisão do gerente (com captura, se houver tela)' e o rumo registra a E2 (ligação, build real, PR, merge) com agente opus, início = fim e 0 tokens. São agora sete PRs (0.58, 0.64, 0.66, 0.68, 0.69–0.70, 0.71, 0.72) e todo o eixo novo da arquitetura sem revisor independente; esta verificação noturna é a única leitura de fora, e chega depois do merge."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Portão de saída da F4 não atingido, mas a F4 foi marcada 'feita' e a F5 'próxima'",
+   "estado": "DESVIO",
+   "evidencia": "RECONSTRUCAO §3:198 fixa a regra: 'Cada fase só começa quando a anterior passa no portão de saída'. O portão da F4 (§3:210) é verificável: 'cada serviço cita as dimensões e a premissa; paridade com o golden; 0 caminho paralelo (teste)', com a entrega 'um só caminho por grandeza (o contrato_211 deixa de refazer a vala)'. Do portão, cumpriu-se o rastro (fatos e premissas em cada serviço) e a paridade (golden 0, associados.csv 25/25). Não se cumpriu o terceiro item nem a entrega: o próprio CHANGELOG 0.72.0 declara 'a vala tem dois caminhos com números diferentes, a vala_rede (por metro de eixo) e a vala do trecho (serviços complementares). Exemplo: demolição da AAT00 de 3 413 m² × 2 149 m². Por ora vale a vala_rede'; contrato_211.py segue refazendo a vala (0 commits); não existe teste '0 caminho paralelo' — o que existe é eap_preencher descartando o complementar paralelo 'com o motivo' (test_complementar_paralelo_a_regra_primaria_fica_descartado_com_o_motivo), isto é, o caminho paralelo registrado e silenciado, não eliminado. Mesmo assim a tabela §0.1 marca F4 'feita (este PR)' e F5 'próxima', e o PR classifica a divergência como 'não bloqueia'. A diferença é de 59 % numa quantidade de engenharia (demolição de pavimento), e a escolha de qual caminho vale foi corretamente levada ao Caio (L070) — o desvio é de processo: o portão que a própria reconstrução escreveu foi passado por declaração, uma rodada depois de a RECONSTRUCAO §1.6 ter diagnosticado exatamente isso ('o plano aprovado não foi seguido')."
+  },
+  {
+   "grupo": "Plano",
+   "item": "'Uma frente só' cumprida na janela; rumo com 3 arquivos fora do plano e 2 etapas 'feito sem prova'",
+   "estado": "ATENÇÃO",
+   "evidencia": "Resolvido em parte: entre 253d4e5 e 396b337 só a frente da reconstrução entrou (#81) além do relatório noturno (#82) — a decisão 'uma frente só até a F6' (RECONSTRUCAO §5.2) foi respeitada nesta janela. Mas results/rumo.md (gerado por vcm rumo) registra 5 desvios na rodada F4: 'fora do plano' camadas/gavetas_construtivos.py, camadas/obra.py e conceitos/gavetas.json (alterados sem pertencer a entregável — o rumo listou tests/test_gavetas_v2.py como entregável da E2 e ele não mudou) e E1 e E2 'marcadas como feitas à força' pelo teste OCR; 34 mudanças de objetivo acumuladas. docs/plano/2026-11-04_plano_memoria_espacial.md continua sem a marca de superado (docs/plano 0 commits) e ARQUITETURA §16 segue listando as frentes como ativas (pendência (9) de 04/11)."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Decisões D10–D13 registradas com a decisão citada nos conceitos",
+   "estado": "OK",
+   "evidencia": "Sem mudança na janela (conceitos/unidades_construtivas.json, eap_padrao.json, eap_geral.jsonl sem commits); registro de 04/11 mantido."
+  },
+  {
+   "grupo": "Plano",
+   "item": "Pendências antigas e novas",
+   "estado": "ATENÇÃO",
+   "evidencia": "Fechadas na janela: três lacunas de extração do trecho (metros por superfície → `pavimentos`, 'Item do contrato' → `material`, eixo multipartes → `eixo_partes`); quatro folhas obrigatórias (OP.04.06, OP.04.07, OL.05.01, OL.05.03) saíram de 'a preencher' como calculadas. Abertas das verificações anteriores, todas sem mudança na janela: furo com sufixo SI (geotecnia.py:5, agora com mais um consumidor em gavetas_servicos.py:236), de_para_extracao.json:69-71, dimensoes.json A_escoramento/V_bota, gavetas.eixo × lineares.eixo, CI sem extras, dimensoes.de_fatos aceitando 'fonte única' sem olhar o método, tolerância do SfM, etapas da EAP padrão × MOS, 23 furos pelo Caio, f010 planta 600, cota FF 235,97, cadastro 304469/hidrômetro DN 200, 7 linhas do Contrato 211 sem regra, ARQUITETURA em 0.55.0, plano da memória espacial sem marca, as duas trocas DECISAO_HUMANA sem registro (0.57, 0.70), conferência JS × Python do visualizador. Novas nesta janela: vala_rede × vala do trecho com números diferentes (demolição AAT00 3 413 × 2 149 m²; 'por ora vale a vala_rede', decisão do Caio); 2 duplicatas novas entre eap_preencher e gavetas_servicos; `dimensoes._derivados` privado importado por outro módulo; a situação 'calculada' da EAP única ainda não chega ao HTML; o teste OCR vermelho no vcm agora 'forçado' no rumo; _fatos_do_elemento cresceu de 71 para 87 linhas (complexidade 34, E no cartão)."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "tests/test_obras_lineares.py, test_dimensionar_vala.py, test_lineares.py, test_cavas_gavetas.py, test_gavetas.py, test_dimensoes.py, test_evidencias.py, test_valas.py, test_escavacao.py, test_geotecnia.py, test_eap_padrao.py, test_titulos_etapa.py; golden_foz; datasets/ground_truth, *gabarito*, *avaliador*",
+   "estado": "OK",
+   "evidencia": "git diff --numstat 253d4e5 396b337 -- tests/: só dois arquivos, ambos sem remoção — tests/test_eap_preencher.py +84/−0 (4 testes novos: folha só com serviço calculado conta à parte; folha com medida de documento e serviço segue preenchida; serviço com nome de item medido pelos fatos entra porque é outra grandeza; complementar paralelo à regra primária fica descartado com o motivo — nenhum assert existente mudou) e tests/test_gavetas_servicos.py novo +562 (25 testes). Nenhum dos gabaritos listados aparece no diff (0 linhas); tests/golden_foz/quantidades_foz.json e conceitos/servicos_associados.jsonl (26 regras) sem commits. O padrão '*gabarito*', '*avaliador*' e datasets/ground_truth continua sem casar com arquivo nenhum. Os gabaritos da vala (planilha da Giselle, quadro MOS) e da geotecnia (D5/D6) estão intactos, como em 03/11 e 04/11."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "Golden das quantidades de Foz e paridade 25/25: regressão, não verdade",
+   "estado": "OK",
+   "evidencia": "Sem mudança no golden na janela; o rumo e o CHANGELOG registram 'golden 0 diferença' e 'EAP única × codificada 0' no build real do gerente. A paridade nova (25 de 25 linhas do associados.csv, tolerância 1e-3) é da mesma natureza: compara as gavetas com o caminho antigo do mesmo build, prova que a reconstrução não perde o que já se calculava, não que os números estão certos — e o próprio PR mostra que o caminho antigo e o novo discordam onde medem a mesma vala (AAT00). O gabarito real continua sendo a F6 (o Caio confere 10 quantidades do número à prancha)."
+  },
+  {
+   "grupo": "Gabaritos",
+   "item": "Testes novos da F4: sintéticos, com tolerância declarada e determinismo testado",
+   "estado": "OK",
+   "evidencia": "tests/test_gavetas_servicos.py: 25 testes sobre base sintética (sem dado de Foz; rodam aqui e no CI): mapa de dimensões segue os rótulos da extração; elemento sem dimensão fica com `faltando`; sem dimensão o serviço não sai e a pendência diz o que faltou; objeto sem unidade/sistema e geometria em outro CRS viram pendência; evidência traz memória e premissas; versão da regra é o hash do JSON; com_complementares passa na conferência das gavetas e não altera a original; complementares é determinístico; codigo_eap é item técnico da EAP instanciada; vala por superfície com demolição e recomposição por pavimento; trecho sem material não inventa a largura; trecho sem diâmetro não gera vala; eixo de várias partes; paridade sem diferença / aponta falta, sobra e diferença / tolera o arredondamento do csv; cada serviço cita fatos que existem na base; metadados citam as funções e o mapa."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Aferição reprovada na main desde o PR #74 e piorando de novo: longas 14 → 16, duplicatas 1 → 3, 9 versões sem registro",
+   "estado": "DESVIO",
+   "evidencia": "scripts/afericao.py (sem --registrar) hoje: REPROVADA — 1 588 funções, 0 órfãs, 3 duplicatas (eap_preencher._unidade_e_sistema = gavetas_servicos._unidade_e_sistema; eap_preencher._pasta_da_base = gavetas_servicos._pasta_da_base; extrair_gavetas._base_vazia = gavetas_contrato._base_vazia) e 'longas piorou: 6 → 16' — as duas novas são gavetas_servicos.complementares (111 linhas) e eap_preencher.preencher. A última linha de pdca/afericao.jsonl continua a de 04/11 15:15 (6 longas, 0.63.0): nove versões (0.64 a 0.72) entraram sem registro. Toda a piora da janela vem da F4; o cartão 253d4e5_4ae20f8 marca complexidade_media 6,048 (amarelo) e sugere refatorar extrair_gavetas.etapa (35, E) e gavetas_construtivos._fatos_do_elemento (34, E) — esta última cresceu na janela (71 → 87 linhas) para acolher pavimentos e eixo_partes. Nem o PR, nem o CHANGELOG, nem o rumo citam a aferição; o criterio_de_pronto do rumo.yaml pede 'balanço sem REVERTER' e não os 'três verdes (testes, aferição, determinismo)' de ARQUITETURA §10. A pendência (2) de 04/11 ('exigir a volta ao verde antes da F4 ou aceitar e registrar') não foi decidida e a F4 entrou. Duplicata reprova sempre (afericao.julgar). determinismo.py: ok."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Balanço vcm por PR; as duas trocas DECISAO_HUMANA antigas seguem sem registro",
+   "estado": "ATENÇÃO",
+   "evidencia": "O merge com bump da janela tem cartão (results/iteracoes/253d4e5_4ae20f8.md/.html/.parquet): SEM_GANHO, nenhuma troca de métricas (sloc +2,8 % e testes +2,0 % informativas; cobertura 0,824 → 0,825; complexidade +0,2 %), logo sem .decisao.md a exigir; o PR anexa o balanço, como o CLAUDE.md pede; gasto registrado 19,0 M tokens (US$ 4,46 equivalentes). Sem mudança nas duas trocas de 04/11 sem registro humano (4090759_531b666, 0.57: cobertura −1,3 %; 91ec281_ae87ef2, 0.70: sloc_por_funcao +2,1 %): nenhum .decisao.md novo na janela (pendência (3)). O cartão repete o vermelho eliminatório testes_falhando = 1 (ver item dos verdes)."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Portão REVERTER do vcm no CI",
+   "estado": "ATENÇÃO",
+   "evidencia": "Sem mudança na janela: .github/workflows/vcm.yml sem commits (último b19bd35, 31/10); docs/arquitetura.html segue dizendo 'Ainda aberto: o portão REVERTER do vcm no CI'. O balanço do #81 foi rodado à mão pelo gerente ('vcm balanco origin/main HEAD' no corpo do PR). A API de check-runs do commit 4ae20f8 devolveu vazio e a de status 403 (sem acesso), então esta verificação não consegue confirmar que o CI rodou no PR."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Versão só no merge, CHANGELOG, lição por versão, andamento",
+   "estado": "OK",
+   "evidencia": "Uma versão num merge: 0.71.0 → 0.72.0 (#81), camadas/__init__.py VERSAO = topo do CHANGELOG (72 cabeçalhos únicos). O CHANGELOG 0.72.0 é honesto: declara os dois caminhos da vala com o exemplo numérico e a decisão pendente, a tabela de completude e as lacunas fechadas. pdca/licoes.jsonl ganhou L070 com 'antes', 'formalizada_em' (camadas/gavetas_servicos.py), 'teste' (tests/test_gavetas_servicos.py) e estado 'formalizada' — lição de método boa: 'levar os complementares para as gavetas expôs o que a duplicação escondia'. RECONSTRUCAO §0.1 atualizada (F3 PR #80, F4 0.72.0, F5 próxima); rumo.yaml com histórico e results/rumo.md regenerado."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Registro das execuções de agentes: espelhos iguais nesta janela, mas as duplicatas de A5 e o modelo misto persistem; E2 do rumo sem tempo",
+   "estado": "ATENÇÃO",
+   "evidencia": "results/agentes/execucoes.csv e pdca/agentes.jsonl ganharam uma linha cada (F4 E1, sonnet, 280 258 tokens, 74 ferramentas, 1 397 s, aprovado, 'paridade 25/25 com o associados.csv; 1 698 serviços') — desta vez espelhados. Sem mudança no resto: as linhas 'A5 NSPT, E1' e 'A5 NSPT, aceite da A5' seguem duplicadas (sort | uniq -d), o campo modelo alterna 'sonnet' e 'claude-sonnet-5-5' (contra 'sem nomes de modelo fixos': o repertório deveria dar o id), as 29 linhas da frente WBS continuam fora do jsonl. No rumo, a E2 (ligação no build, build real, balanço, PR e merge; agente opus) tem início = fim = 21:52:08Z e 0 tokens registrados, enquanto o cartão contabiliza 8 chamadas e 6,1 M tokens do gerente — o custo do gerente não entra na linha do rumo. Vale o teste do csv sugerido em 04/11 (chave única, modelo pelo repertório, espelho no jsonl)."
+  },
+  {
+   "grupo": "Processo",
+   "item": "Extração redundante (§17): testemunha, nunca fonte",
+   "estado": "OK",
+   "evidencia": "Sem mudança na janela (docs/ARQUITETURA.md §17 e scripts/ sem commits); a decisão do Caio sobre a saída no Drive com cotações e dados pessoais em claro segue em aberto (pendência (7))."
+  }
+ ],
+ "decisoes_do_caio": [
+  "04/11 (PR #81, 0.72.0; 'vai interagindo até a entrega final', rumo.yaml): a F4 segue a F3 no plano; o PR foi aberto e mesclado pelo Caio às 21:56Z, sem review.",
+  "04/11 (CHANGELOG 0.72.0, 'Para o Caio decidir'; L070): a vala tem dois caminhos com números diferentes — vala_rede (por metro de eixo) e vala do trecho (serviços complementares), exemplo demolição da AAT00 3 413 m² × 2 149 m²; 'por ora vale a vala_rede' (eap_preencher descarta o complementar paralelo com o motivo). Decisão ainda não tomada.",
+  "Decisões de 04/11 em vigor e sem mudança: opção D do terreno (0.56), D10–D13 (0.57), EAP única / uma frente só / HTML só navegação / prazo fora (RECONSTRUCAO §5, 0.69).",
+  "Pendentes para o Caio, herdadas de 04/11 e sem decisão na janela: (1) quem revisa a frente da reconstrução — Opus (CLAUDE.md:20) ou Fable (ARQUITETURA §10:345)? Já são sete PRs (0.58 a 0.72) sem aceite independente; (2) a aferição reprovada na main (agora 16 longas, 3 duplicatas, 9 versões sem registro): exigir a volta ao verde antes da F5 ou aceitar e registrar; (3) as duas trocas DECISAO_HUMANA sem registro (0.57 cobertura −1,3 %; 0.70 sloc +2,1 %); (4) conferir as etapas da EAP padrão com o MOS Sanepar; (5) a F6: 10 quantidades ao acaso, do número à prancha; (6) tolerância aceitável para a reconstrução SfM (+0,3 %); (7) a saída do extrator redundante no Drive com cotações e dados pessoais em claro; (8) os 23 furos de Foz (6 conferidos pelo Fable na A5); (9) marcar docs/plano/2026-11-04_plano_memoria_espacial.md como superado ou reencaixar B/C/D nas fases F4–F7.",
+  "Novas para o Caio: (10) qual caminho vale para a vala — vala_rede ou vala do trecho — e se o contrato_211 deixa de refazer a vala, como o portão da F4 exige; (11) se a F4 fica 'feita' com o portão de saída não atingido ('0 caminho paralelo (teste)') ou se volta a 'em andamento' até o teste existir; (12) o teste tests/test_lineares.py::test_ler_perfil_ocr vermelho no ambiente do vcm (16 de 61 cartões): corrigir o ambiente (tesseract) ou pular pelo binário também lá, para o portão REVERTER voltar a valer."
+ ],
+ "resumo": "Entre 0.71.0 e 0.72.0 entrou uma frente só, a F4 da reconstrução (+2 683 linhas em 23 arquivos): camadas/gavetas_servicos.py calcula os serviços complementares só dos fatos e da geometria das gavetas, aplica as 26 regras de servicos_associados.jsonl e grava cada serviço com codigo_eap, fatos usados, versão da regra (sha1) e evidência com memória de cálculo — paridade 25/25 com o associados.csv (1 698 serviços), golden 0, EAP única × codificada 0, quatro folhas obrigatórias saíram de 'a preencher', hash da referência inalterado (0602c637…), 1311 testes verdes (+29, sintéticos, com tolerância 1e-3 declarada) e nenhum teste ou gabarito existente alterado. As regras do mantenedor seguem respeitadas no módulo novo (português, SI com sufixo, sem preço nem prazo, método 'código' e rastro até o fato, sem nomes de modelo). Dos 32 itens de 04/11 nenhum DESVIO se resolveu e um novo apareceu: (a) a frente da reconstrução continua sem aceite do Fable — o PR #81 foi aberto e mesclado pelo Caio em quatro minutos, sem review nem comentário, com uma linha só de executor em execucoes.csv e sem plano ou aceite para a F4, sétimo merge seguido nessa condição, com a contradição Opus × Fable (CLAUDE.md × ARQUITETURA §10) intacta; (b) a aferição está reprovada e piorou de novo (longas 14 → 16, duplicatas 1 → 3 — duas delas entre eap_preencher e gavetas_servicos —, nove versões sem registro em pdca/afericao.jsonl), e o critério de pronto do rumo pede só 'balanço sem REVERTER', não os três verdes; (c) novo: o portão de saída da F4 escrito pela própria RECONSTRUCAO ('um só caminho por grandeza; 0 caminho paralelo (teste)') não foi atingido — o CHANGELOG declara dois caminhos para a vala com números 59 % diferentes (demolição AAT00 3 413 × 2 149 m²) e contrato_211 segue refazendo a vala — mas a F4 foi marcada 'feita' e a F5 'próxima'. Em atenção, quase tudo sem mudança na janela (ARQUITETURA em 0.55.0, SI do furo, caches sem assinatura, SfM, CI sem extras e sem portão, trocas DECISAO_HUMANA antigas, linhas duplicadas do csv, exceção do visualizador sem contraprova), mais o teste OCR vermelho no vcm agora registrado como 'forçado' no rumo (duas etapas 'feito sem prova') e três arquivos fora do plano. Resolvido em parte: 'uma frente só' foi cumprida nesta janela, e três lacunas de extração do trecho fecharam. Contagem: 33 itens — 18 OK, 12 ATENÇÃO, 3 DESVIO (04/11: 18/12/2)."
+}
