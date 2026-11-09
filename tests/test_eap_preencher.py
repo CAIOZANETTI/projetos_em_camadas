@@ -392,7 +392,9 @@ def test_servico_com_nome_de_item_medido_pelos_fatos_entra_porque_e_outra_grande
     ]
 
 
-def test_complementar_paralelo_a_regra_primaria_fica_descartado_com_o_motivo():
+def test_servico_de_regras_diferentes_no_mesmo_codigo_entra_sem_descarte():
+    """Não há mais descarte entre regras: a vala sai só da `vala_rede` (a `gavetas_servicos` nem calcula o que ela já
+    dá), então dois serviços do mesmo código e serviço seriam dois caminhos e entram os dois, à vista."""
     b = _base()
     _servico(
         b, "primario", "demolicao_m2", 100.0, "U2.AAT00.CIV.PAV.REC", ["demolicao"]
@@ -411,18 +413,13 @@ def test_complementar_paralelo_a_regra_primaria_fica_descartado_com_o_motivo():
     )
     b["servicos"][2]["regra"] = "associado:recomposicao_pavimento"
     resultado = ep.preencher(b)
-    assert resultado["servicos_descartados"] == [
-        {
-            "servico_id": "complementar",
-            "codigo": "U2.AAT00.CIV.PAV.REC",
-            "valor": 90.0,
-            "unidade": "m²",
-            "motivo": "o código e o serviço já são calculados por outra regra das gavetas",
-        }
-    ]
-    assert [t["grandeza"] for t in _folha(resultado, "OL.02.02")["totais"]] == [
-        "demolicao_m2"
-    ]
+    assert resultado["servicos_descartados"] == []
+    assert {
+        t["grandeza"]: t["quantidade"] for t in _folha(resultado, "OL.02.02")["totais"]
+    } == {
+        "demolicao_m2": 100.0,
+        "demolicao": 90.0,
+    }
     assert [t["grandeza"] for t in _folha(resultado, "OL.08.01")["totais"]] == [
         "recomposicao"
     ]

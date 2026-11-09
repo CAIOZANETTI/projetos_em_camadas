@@ -649,12 +649,15 @@ def _complementares(base: dict, dados: dict, out: Path, log=print) -> dict:
     r = gavetas_servicos.complementares(base, dados["crs"]["epsg"])
     nova = _substituir(base, {g: r.get(g, []) for g in ("servicos", "evidencias", "pendencias")})
     csv = Path(out) / "associados.csv"
-    difs = gavetas_servicos.paridade([s for s in nova["servicos"] if str(s.get("regra", "")).startswith("associado:")], csv) \
-        if csv.exists() else None
+    associados = [s for s in nova["servicos"] if str(s.get("regra", "")).startswith("associado:")]
+    difs = gavetas_servicos.paridade(associados, csv) if csv.exists() else None
+    vala = gavetas_servicos.paridade_da_vala(associados, csv) if csv.exists() else None   # vala: da rede, muda por decisão
     log(f"Complementares (pelas gavetas): {len(r.get('servicos', []))} serviços, {len(r.get('pendencias', []))} pendências; "
-        + (f"paridade com o associados.csv: {len(difs)} diferença(s)" if difs is not None else "sem associados.csv no build"))
+        + (f"paridade com o associados.csv (fora a vala): {len(difs)} diferença(s); vala da rede: {len(vala)} serviço(s) "
+           f"mudaram" if difs is not None else "sem associados.csv no build"))
     return {"base": nova, "servicos": len(r.get("servicos", [])), "pendencias": len(r.get("pendencias", [])),
-            "paridade_associados": len(difs) if difs is not None else None, "diferencas": (difs or [])[:20]}
+            "paridade_associados": len(difs) if difs is not None else None, "diferencas": (difs or [])[:20],
+            "vala_mudou": len(vala) if vala is not None else None}
 
 
 def _eap_unica(base: dict, dados: dict, out: Path, log=print) -> dict:
