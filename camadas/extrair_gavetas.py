@@ -463,6 +463,24 @@ def _anotar_codigo_eap(base: dict, servicos: list[dict], cfg: dict, por_servico:
     return sem_codigo
 
 
+def _base_da_etapa(cfg: dict, furos: list[dict], out: Path, trechos: list[dict], aba: str | None,
+                   redes_vala: list[dict] | None, cavas: dict | None, epsg: int | None) -> dict:
+    """As gavetas da etapa juntas: trechos da planilha, sondagens, decisões, redes de vala, cavas e setores, com a EPSG
+    da obra na geometria (sem ela, o padrão de cada `de_*`)."""
+    c = cfg.get("obras_lineares")
+    doc_sond = cfg["sondagens"] if isinstance(cfg.get("sondagens"), str) else "sondagens"
+    executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
+    setores = (cfg.get("gavetas") or {}).get("setores")
+    crs = {"crs_h": f"EPSG:{epsg}"} if epsg else {}
+    caminho = str(cfg.get("_caminho", "obra.json"))
+    return juntar(de_obras_lineares(trechos, str(c["planilha"]) if c else "", aba or "Obras Lineares"),
+                  de_sondagens(furos, doc_sond, executor, **crs),
+                  de_decisoes((c or {}).get("metodo") or {}, trechos, caminho),
+                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg", **crs),
+                  _base_das_cavas(cfg, out, Path(out) / "base", cavas) if cavas else _base_vazia(),
+                  de_setores(setores or [], caminho, **crs))
+
+
 def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[dict] | None = None,
           cavas: dict | None = None, epsg: int | None = None) -> dict | None:
     """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
@@ -481,17 +499,9 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     trechos = ol.ler_obras_lineares(c["planilha"], aba) if tem_planilha else []
     escolha = {ol.norm(k): v for k, v in ((c or {}).get("metodo") or {}).items()}
     aplicados = [{**t, "metodo": escolha.get(ol.norm(t["local"]), t["metodo"])} for t in trechos]
-    doc_sond = cfg["sondagens"] if isinstance(cfg.get("sondagens"), str) else "sondagens"
-    executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
     pasta = Path(out) / "base"
     setores = (cfg.get("gavetas") or {}).get("setores")
-    crs = {"crs_h": f"EPSG:{epsg}"} if epsg else {}
-    base = juntar(de_obras_lineares(trechos, str(c["planilha"]) if c else "", aba or "Obras Lineares"),
-                  de_sondagens(furos, doc_sond, executor, **crs),
-                  de_decisoes((c or {}).get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))),
-                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg", **crs),
-                  _base_das_cavas(cfg, out, pasta, cavas) if cavas else _base_vazia(),
-                  de_setores(setores or [], str(cfg.get("_caminho", "obra.json")), **crs))
+    base = _base_da_etapa(cfg, furos, out, trechos, aba, redes_vala, cavas, epsg)
     if (Path(out) / "retornos_gavetas").is_dir():                       # fatos da IA: inferidos, com executor e trecho
         base = juntar(base, _conciliar_com_a_base(de_retornos(Path(out) / "retornos_gavetas"), base))
     erros = gavetas.conferir_base(base)
