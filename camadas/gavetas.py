@@ -995,13 +995,22 @@ def _sistemas_do_local(local: str) -> list[str]:
     return [c for c in UNIDADES_CONSTRUTIVAS["sistemas"] if escopo_obra._casa(c, texto)]
 
 
+def _sistemas_pelo_nome(fatos: dict) -> list[str]:
+    """Sistemas cujas chaves casam com o `local`; sem nenhum, com o `trecho_contrato` (o trecho da planilha do contrato
+    a que a rede de vala pertence)."""
+    for propriedade in ("local", "trecho_contrato"):
+        if propriedade in fatos and (achados := _sistemas_do_local(fatos[propriedade]["valor"])):
+            return achados
+    return []
+
+
 def _par_do_objeto(fatos: dict, fatos_setor: dict, padrao: dict | None) -> tuple[tuple[str, str] | None, str | None]:
-    """((unidade, sistema), None) ou (None, motivo). Ordem: (a) fatos do setor, (b) `local` com as chaves,
-    (c) padrão do obra.json (já filtrado pela classe em `unidade_sistema`). Achado o par em uma fonte, as seguintes não
+    """((unidade, sistema), None) ou (None, motivo). Ordem: (a) fatos do setor, (b) `local` com as chaves (sem achado, o
+    `trecho_contrato` da rede de vala), (c) padrão do obra.json (já filtrado pela classe em `unidade_sistema`). Achado o par em uma fonte, as seguintes não
     são consultadas."""
     if fatos_setor.get("unidade") and fatos_setor.get("sistema"):
         par = (str(fatos_setor["unidade"]["valor"]), str(fatos_setor["sistema"]["valor"]))
-    elif "local" in fatos and (achados := _sistemas_do_local(fatos["local"]["valor"])):
+    elif achados := _sistemas_pelo_nome(fatos):
         if len(achados) > 1:
             return None, f"mais de um sistema pelo local: {', '.join(achados)}"
         par = (UNIDADES_CONSTRUTIVAS["sistemas"][achados[0]]["unidade"], achados[0])

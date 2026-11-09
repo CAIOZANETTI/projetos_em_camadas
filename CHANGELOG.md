@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.74.0 — 2026-11-09 · F4b da reconstrução: vala única pela vala_rede (fecha o portão da F4)
+Decisão do Caio (09/11): "usar só a vala_rede". A verificação noturna de 05/11 mostrou a F4 marcada como feita com
+dois caminhos para a vala; esta rodada fecha o portão "um só caminho por grandeza".
+- **`gavetas_servicos`**: a vala dos serviços complementares sai das 15 redes de vala (`RV-*`), não mais dos trechos.
+  - Um elemento por (classe da superfície, furo mais próximo de cada amostra): a sondagem é lida a cada metro, não um
+    furo por trecho de ~500 m.
+  - Demolição, recomposição e escavação vêm só da regra `vala_rede`; as regras associadas que as repetiriam não são
+    aplicadas aos elementos de vala (`associados.aplicar(ignorar=)`): nada é calculado para ser descartado.
+  - Trecho sem rede vira pendência "sem rede de vala (vala_rede): a vala não sai".
+  - `eap_preencher` perdeu o descarte do caminho paralelo; teste "0 caminho paralelo".
+- **`contrato_211`** não refaz mais a vala: escavação, bota-fora, transporte, recomposição e rebaixamento vêm dos
+  serviços das gavetas (a evidência cita o `servico_id`); o dimensionador saiu do módulo e a chamada no build passou
+  para depois do `completar_escopo`.
+- **Uma largura só por rede** (o build real mostrou três):
+  - o material sai da mesma linha do contrato que dá o DE (`valas.material_do_escopo`) e vira fato da RV; sem ele, a
+    premissa FD é a mesma nos dois cálculos (`valas.material_da_rede`); `valas` normaliza o texto pelo
+    `dimensoes.material_mos` ("TUBO POLIETILENO PE 100" → PEAD);
+  - o DN nominal (Tabela I do MOS) vai à regra `vala_rede` e aos complementares (fato `dn_mm`); antes, a rede de lodo
+    DE 326 / DN 300 tinha 0,926 m num caminho e 0,75 m no outro;
+  - em Foz, as 15 redes têm a mesma largura no quadro do HTML, na `vala_rede` e nos complementares.
+- **CRS da obra nas gavetas**: furos, redes e setores eram gravados com a EPSG 31982 fixa; Foz é 31981.
+- **Rede sem sistema pelo nome usa o trecho do contrato** (fato `trecho_contrato`): entrada de água bruta DN1000,
+  interligações DN1000 com os Actiflo 360 e 600 e a drenagem do Actiflo 600 (sistema ACT600, como o contrato agrupa).
+- **Foz, antes → depois** (golden atualizado de propósito, 25 diferenças, todas daqui):
+  - volume de vala das adutoras (material do contrato, PEAD, no lugar do FD de premissa): AAT00 4 055 → 3 345 m³,
+    AAT01 837 → 751, AAT02 433 → 356, AAT06 6 304 → 5 535; demolição AAT00 3 445 → 3 017 m²;
+  - complementares das adutoras sem a demolição/recomposição paralelas; berço, envoltória, reaterro, bota-fora e
+    escoramento total iguais (±0,2); o escoramento contínuo da AAT00 cai de 730 para 68 m² (sondagem por metro);
+  - as 11 redes internas da ETA ganham escoramento, reaterro, bota-fora, berço e corte de pavimento;
+  - contrato 211: as mesmas 52 linhas calculadas; escavação ±1 %; bota-fora e transporte sobem (ex.: linha 21,
+    54,0 → 67,8 m³) porque seguem a decisão D9 (o solo deslocado pelo berço e pela envoltória importados também vai a
+    bota-fora), que o contrato_211 antigo não aplicava;
+  - paridades: gavetas × `valas.rede` 0; complementares × `associados.csv` fora da vala 0; EAP única × codificada 0
+    (37/37); interface 331/0; 0 caminho paralelo.
+- Lição L073.
+
 ## 0.73.0 — 2026-11-04 · F5 da reconstrução: o texto dos documentos nas gavetas e o laço até a EAP completa
 - **`camadas/gavetas_texto.py`** (novo): editais, memoriais, laudos e listas são lidos por código, página a página,
   sem IA e sem OCR.

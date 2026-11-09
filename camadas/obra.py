@@ -852,8 +852,10 @@ def _eap_padrao_no_build(dados: dict, cfg: dict, out: Path) -> None:
         _log(f"EAP padrão pulada (pendência: {type(erro).__name__}: {erro})")
 
 
-def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | None) -> dict | None:
+def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | None,
+                  servicos: list | None = None) -> dict | None:
     """Quantidades do CUSTO CIVIL da planilha 211 (`camadas.contrato_211`), sem preço, para `dados["contrato_211"]`.
+    A vala vem dos `servicos` das gavetas (`base["servicos"]`, objetos `RV-<id>`), nunca recalculada aqui.
     Sem a chave `obras_lineares.planilha` nada muda (obra sem contrato Sanepar); com a chave e sem o arquivo, ou com
     qualquer falha, vira pendência, e o contrato nunca derruba o build."""
     planilha = cfg.get("obras_lineares", {}).get("planilha")
@@ -871,7 +873,7 @@ def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | No
             sup = contrato_211.supressao_por_uc(redes_vala, ortofoto, mds, cfg["supressao"]["faixa_m"],
                                                 cfg["supressao"]["folga_unidades_m"], linhas)
         urb = (vala or {}).get("urbanizacao_m2")
-        resultados = contrato_211.quantificar(linhas, contrato_211.contexto_do_build(redes_vala, furos, sup, urb))
+        resultados = contrato_211.quantificar(linhas, contrato_211.contexto_do_build(redes_vala, furos, sup, urb, servicos))
         resumo = contrato_211.resumo_quantidades(resultados)
         _log(f"Contrato 211: {resumo['linhas']} linha(s); " + ", ".join(
             f"{situacao} {n}" for situacao, n in resumo["por_situacao"].items() if n))
@@ -891,6 +893,19 @@ def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | No
         return None
 
 
+def _contrato_no_build(dados: dict, cfg: dict, out: Path, redes_vala: list | None, vala: dict | None) -> None:
+    """`dados["contrato_211"]` com os serviços da base gravada em `out/base` (depois do `completar_escopo`, para a vala
+    sair só das gavetas); sem base, o contrato não recalcula a vala e as linhas ficam "a preencher"."""
+    servicos = None
+    try:
+        servicos = gavetas.ler(out / "base")["servicos"] if (out / "base").exists() else None
+    except Exception as erro:  # noqa: BLE001 - base ilegível vira pendência, nunca derruba o build
+        _log(f"Contrato 211: base das gavetas ilegível (pendência; {type(erro).__name__}: {erro})")
+    contrato = _contrato_211(cfg, out, redes_vala, vala, servicos)
+    if contrato is not None:
+        dados["contrato_211"] = contrato
+
+
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict,
                  redes_vala: list | None = None, cavas: dict | None = None) -> None:
     """Aba Projeto: fichas dos pilotos (e blocos no 3D), escavação, valas, obras lineares e inventário com a ficha em
@@ -902,7 +917,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     servicos_gavetas = None
     try:                                                       # a base das gavetas não pode derrubar o build
         dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log, redes_vala=redes_vala,
-                                                cavas=cavas)
+                                                cavas=cavas, epsg=(dados.get("crs") or {}).get("epsg"))
         if dados["gavetas"]:                                    # aba EAP das gavetas: só apresenta o que o Python montou
             dados["eap_gavetas"] = dados["gavetas"].pop("eap_html")   # chave própria: `dados["eap"]` é a EAP codificada
             servicos_gavetas = dados["gavetas"].pop("servicos_eap", None)   # com o código completo, para a conciliação
@@ -932,6 +947,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         extrair_gavetas.completar_escopo(cfg, out, dados, log=_log)
     except Exception as erro:  # noqa: BLE001 - nunca derruba o build
         _log(f"Gavetas (escopo): não concluído (pendência; {type(erro).__name__}: {erro})")
+    _contrato_no_build(dados, cfg, out, redes_vala, pacotes.get("valas"))   # depois das gavetas: a vala vem dos serviços
     _conciliar_eaps(dados, servicos_gavetas, out)  # gavetas × codificada × documento: `conciliacao_eap.json` e o resumo
     dados["eap_painel"] = eap_painel.montar(dados.get("eap"), dados.get("evidencias"))   # aba EAP, já em texto
     _eap_padrao_no_build(dados, cfg, out)          # esqueleto por etapa de execução, a preencher
@@ -1026,9 +1042,6 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
         "info": _info(cfg, crs, rel, desloc, orto, vertical, lista),
     }
     _sondagens_no_build(dados, cfg, furos, esc, epsg, vertical)
-    contrato = _contrato_211(cfg, out, redes_vala, vala)
-    if contrato is not None:
-        dados["contrato_211"] = contrato
     _aba_projeto(dados, cfg, out, escopo, fichas, {"escavacao": esc, "valas": vala}, redes_vala, cavas_gavetas)
     return _gravar(cfg, out, dados, pranchas, epsg)
 

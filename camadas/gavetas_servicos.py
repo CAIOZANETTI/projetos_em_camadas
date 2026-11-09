@@ -1,12 +1,15 @@
 """Serviços complementares pelas gavetas (F4 da reconstrução, docs/RECONSTRUCAO.md §0 passo 7, §3 F4).
 
 O que a execução do elemento exige e o escopo não traz (forma, armadura, lastro, arrasamento, cava do bloco, vala do
-trecho com demolição, escoramento, berço, reaterro, recomposição por pavimento…) sai das regras de
+rede com escoramento, berço, reaterro, rebaixamento, bota-fora…) sai das regras de
 `conceitos/servicos_associados.jsonl`, que já existiam. Aqui elas passam a ler **só** os fatos e a geometria das gavetas
 e a gravar nas gavetas:
 
     gavetas (objetos + fatos + geometria) ─ elementos ─► dimensões (camadas.dimensoes) ─► regras (camadas.associados)
         ─► servicos (codigo_eap = U.SISTEMA.DISC.PAC.ITEM, fatos usados) + evidencias (classe "associado") + pendencias
+
+A vala vem só da rede (`rede_vala`, regra `vala_rede`; decisão 5 de docs/RECONSTRUCAO.md §5): um elemento por (classe de
+superfície, furo mais próximo). Demolição, recomposição e escavação da vala já são da `vala_rede` e não são geradas aqui.
 
 Dimensão que falta não é suposta: o serviço sai sem valor e a pendência diz o que faltou (cadeia `V ← h ← face`). Sem
 preço e sem prazo. O resultado entra nas folhas da EAP única por `camadas.eap_preencher` (situação `calculada`).
@@ -27,9 +30,18 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
+import shapely
 from shapely import geometry as sg
 
-from . import associados, dimensoes, eap, gavetas, gavetas_construtivos
+from . import (
+    associados,
+    dimensoes,
+    eap,
+    gavetas,
+    gavetas_construtivos,
+    geotecnia,
+    valas,
+)
 from .eap_preencher import _pasta_da_base, _unidade_e_sistema
 from .formulas import nomes, premissa
 
@@ -42,9 +54,31 @@ PROPRIEDADE_GEOMETRICA = {
 }
 """Medida geométrica de `dimensoes.json` → propriedade que a extração grava como fato (`gavetas_construtivos._medidas`)."""
 CLASSE_PARA_TIPO = dimensoes.REGRAS["construtivos"]
-"""Classe do objeto da gaveta → tipo de `dimensoes.json` (estaca, bloco, pilar; o `trecho` vira vala)."""
+"""Classe do objeto da gaveta → tipo de `dimensoes.json` (estaca, bloco, pilar). O `trecho` também consta, como vala, mas
+não gera elemento: a vala vem da rede (`CLASSE_DA_REDE`)."""
 CLASSE_DO_FURO = "furo_sondagem"
-CLASSE_DO_TRECHO = "trecho"
+CLASSE_DA_REDE = "rede_vala"
+FATOS_DA_REDE = ("de_mm", "dn_mm", "classes_por_metro", "pesos_m", "extensao_m", "local")
+"""Fatos da `rede_vala` de que o elemento de vala depende (o rastro dos serviços)."""
+TOLERANCIA_EIXO = 0.01
+"""Tolerância relativa entre o comprimento do eixo da rede e a soma de `pesos_m` para posicionar as amostras (1 %)."""
+MOTIVO_SEM_REDE = "sem rede de vala (vala_rede): a vala não sai"
+SERVICOS_DA_VALA_REDE = frozenset(
+    servico
+    for saida in gavetas.SERVICOS["regras"]["vala_rede"]["saidas"]
+    for servico in (gavetas.EAP["saidas"][saida].get("codigo_eap") or {}).get(
+        "servicos", []
+    )
+)
+"""Serviços da EAP que a regra `vala_rede` já calcula (demolição, recomposição e escavação da vala), lidos do de-para."""
+REGRAS_DE_VALA = frozenset(r["id"] for r in associados.REGRAS if "vala" in r["tipos"])
+"""Regras associadas ao elemento de vala (a paridade com o `associados.csv` separa a vala do resto)."""
+REGRAS_JA_DA_VALA_REDE = frozenset(
+    r["id"]
+    for r in associados.REGRAS
+    if r["id"] in REGRAS_DE_VALA and r["destino"]["servico"] in SERVICOS_DA_VALA_REDE
+)
+"""Regras da vala que repetiriam o que a `vala_rede` dá (mesmo serviço da EAP): nem são aplicadas aos elementos."""
 
 
 def _mapa_de_dimensoes() -> dict[str, dict[str, tuple[str, float]]]:
@@ -130,152 +164,403 @@ def _elemento_construtivo(
     ]
 
 
-def _trecho(
-    objeto: dict, fatos: dict, geometria: dict | None, eixo_partes: list | None
-) -> tuple[dict | None, list[str]]:
-    """(trecho no formato de `dimensoes.dimensionar_vala`, motivos do que faltou) a partir dos fatos do objeto.
+def _par_da_unidade(
+    objeto: dict, fatos: dict, mapa: dict
+) -> tuple[str | None, str | None]:
+    """(unidade, sistema `u2-AAT00`) do objeto: pelo registro ou pelos fatos; senão pelo mapa que dá o `codigo_eap` aos
+    serviços (`gavetas.unidade_sistema`: setor ou `local`). (None, None) se nenhum resolve."""
+    unidade, sistema = _unidade_e_sistema(objeto, fatos)
+    if unidade:
+        return unidade, sistema
+    achado = mapa.get(objeto["objeto_id"])
+    if not achado:
+        return None, None
+    unidade, sistema = achado
+    return unidade, sistema if "-" in sistema else f"{unidade}-{sistema}"
 
-    Faltou diâmetro, metros ou eixo → sem trecho e com o motivo (a vala não sai). A extensão que as superfícies
-    não cobrem vira `sem_ortofoto`, como em `dimensoes.trecho_da_feature`; material ausente segue vazio e a vala
-    sai só com o que não depende da largura."""
-    motivos = []
-    if not _numero(fatos.get("dn_mm")):
-        motivos.append("sem diâmetro (dn_mm): a vala não sai")
-    pavimentos = fatos.get("pavimentos", {}).get("valor")
-    pavimentos = pavimentos if isinstance(pavimentos, dict) else {}
-    if not pavimentos and not _numero(fatos.get("extensao_m")):
-        motivos.append(
-            "sem metros por superfície (pavimentos) nem extensão: a vala não sai"
-        )
-    if geometria is None or geometria["tipo"] != "linha":
-        motivos.append(
-            "sem eixo (linha) na geometria: sondagem e superfície não se medem"
-        )
-    if motivos:
-        return None, motivos
-    segmentos = {
-        c: float(m)
-        for c, m in pavimentos.items()
-        if c in dimensoes.VALAS["classes"] and isinstance(m, (int, float)) and m > 0
-    }
-    total = fatos.get("extensao_m", {}).get("valor")
-    if isinstance(total, (int, float)) and total - sum(segmentos.values()) > 0.5:
-        segmentos["sem_ortofoto"] = round(total - sum(segmentos.values()), 1)
-    partes = eixo_partes or [geometria["coords"]]
-    eixo = (
-        sg.MultiLineString([np.asarray(p, float)[:, :2].tolist() for p in partes])
-        if len(partes) > 1
-        else sg.LineString(np.asarray(partes[0], float)[:, :2])
+
+def _amostras_da_rede(fatos: dict, xy: np.ndarray | None) -> tuple:
+    """(classes, pesos_m, pontos_m, bloqueios, avisos) das amostras da rede: uma classe e os metros de cada amostra, e o
+    ponto de cada uma quando o eixo (`xy`, E/N) tem um vértice por amostra (é assim que a extração o grava: o eixo da
+    rede são os pontos das amostras); senão `pontos_m` é None. Amostra de classe fora de `conceitos/valas.json` ou sem
+    peso sai da conta com aviso; sem diâmetro ou sem amostra, bloqueio."""
+    classes, pesos = (
+        fatos.get(p, {}).get("valor") for p in ("classes_por_metro", "pesos_m")
     )
+    bloqueios = (
+        [] if _numero(fatos.get("de_mm")) else ["sem diâmetro (de_mm): a vala não sai"]
+    )
+    if not (
+        isinstance(classes, list)
+        and isinstance(pesos, list)
+        and classes
+        and len(classes) == len(pesos)
+    ):
+        bloqueios.append(
+            "sem classes por metro e pesos (classes_por_metro, pesos_m) de mesmo tamanho: a vala não sai"
+        )
+        return None, None, None, bloqueios, []
+    classes = np.asarray(classes, dtype=str)
+    pesos_m = np.array(
+        [p if isinstance(p, (int, float)) else np.nan for p in pesos], dtype=float
+    )
+    vale = (
+        np.isfinite(pesos_m)
+        & (pesos_m > 0)
+        & np.isin(classes, list(dimensoes.VALAS["classes"]))
+    )
+    avisos = (
+        []
+        if vale.all()
+        else [
+            f"{int((~vale).sum())} amostra(s) sem peso ou de classe fora de valas.json ficam fora da vala"
+        ]
+    )
+    if not vale.any():
+        bloqueios.append("nenhuma amostra com classe e peso válidos: a vala não sai")
+    pontos_m = xy[vale] if xy is not None and len(xy) == len(vale) else None
+    return classes[vale], pesos_m[vale], pontos_m, bloqueios, avisos
+
+
+def _grupo(classe: str, geometria, furo: dict | None, metros_m: float) -> dict:
     return {
-        "id": objeto["objeto_id"],
-        "de_mm": float(fatos["dn_mm"]["valor"]),
-        "segmentos": segmentos,
-        "material_texto": str(fatos.get("material", {}).get("valor") or ""),
-        "geometria": eixo,
-    }, []
+        "classe": classe,
+        "metros": round(float(metros_m), 3),
+        "geometria": geometria,
+        "furo": furo,
+    }
 
 
-def _elementos_da_vala(
-    objeto: dict,
-    fatos: dict,
-    geometria: dict | None,
-    unidade: str,
-    sistema: str,
-    furos: list[dict],
-) -> tuple[list[dict], list[tuple[str, str | None]]]:
-    """Um elemento por superfície do trecho (o dimensionador único é `lineares.dimensionar_vala`, via `dimensoes`)."""
-    trecho, motivos = _trecho(
-        objeto, fatos, geometria, fatos.get("eixo_partes", {}).get("valor")
+def _pedacos_nos_pontos(
+    pontos_m: np.ndarray, pesos_m: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """(meios, pedaços (n, 2, 2)): a amostra i é o próprio ponto; o pedaço é o trecho de `peso_i` metros centrado nele,
+    na direção do eixo ali (diferença central dos pontos vizinhos; sem vizinho distinto, a direção E)."""
+    if len(pontos_m) > 1:
+        tangente = np.gradient(pontos_m, axis=0)
+    else:
+        tangente = np.zeros_like(pontos_m)
+    norma = np.linalg.norm(tangente, axis=1, keepdims=True)
+    unitaria = np.where(
+        norma > 0, tangente / np.where(norma > 0, norma, 1.0), [1.0, 0.0]
     )
-    if trecho is None:
-        return [], [(m, None) for m in motivos]
-    usados = [
-        fatos[p]["fato_id"]
-        for p in ("dn_mm", "pavimentos", "extensao_m", "material", "eixo_partes")
-        if p in fatos
+    meio = (unitaria * pesos_m[:, None] / 2)[:, None, :]
+    return pontos_m, pontos_m[:, None, :] + np.concatenate([-meio, meio], axis=1)
+
+
+def _pedacos_no_eixo(
+    xy: np.ndarray, pesos_m: np.ndarray, acumulado_m: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """(meios, pedaços (n, 2, 2)) pela posição ao longo do eixo: a amostra i fica no trecho entre `soma(pesos[:i])` e
+    `soma(pesos[:i+1])` metros do início (escalado ao comprimento do eixo)."""
+    limites_m = np.concatenate([[0.0], np.cumsum(pesos_m)]) * (
+        acumulado_m[-1] / pesos_m.sum()
+    )
+
+    def ponto(s_m: np.ndarray) -> np.ndarray:
+        return np.column_stack(
+            [
+                np.interp(s_m, acumulado_m, xy[:, 0]),
+                np.interp(s_m, acumulado_m, xy[:, 1]),
+            ]
+        )
+
+    inicio, fim = ponto(limites_m[:-1]), ponto(limites_m[1:])
+    return (inicio + fim) / 2, np.stack([inicio, fim], axis=1)
+
+
+def _grupos_da_rede(
+    classes: np.ndarray,
+    pesos_m: np.ndarray,
+    pontos_m: np.ndarray | None,
+    xy: np.ndarray,
+    furos: list[dict],
+) -> tuple[list[dict], list[str]]:
+    """([{classe, metros, geometria, furo}], avisos): as amostras agrupadas por (classe, furo mais próximo).
+
+    A posição de cada amostra, em ordem de confiança: (1) o vértice do eixo, quando há um por amostra (`pontos_m`);
+    (2) o ponto a `soma(pesos[:i]) + peso_i/2` metros ao longo do eixo, se o comprimento do eixo confere com a soma dos
+    pesos dentro de `TOLERANCIA_EIXO`; (3) nenhuma: um grupo por classe, com o furo mais próximo do eixo inteiro e um
+    aviso. O furo de cada amostra é o mais próximo (regra única `geotecnia.furo_mais_proximo`) dentro do raio de
+    influência; fora dele o grupo fica sem furo (`furo` None) e o dimensionador avisa."""
+    acumulado_m = np.concatenate(
+        [[0.0], np.cumsum(np.linalg.norm(np.diff(xy, axis=0), axis=1))]
+    )
+    total_m, eixo_m = float(pesos_m.sum()), float(acumulado_m[-1])
+    if pontos_m is not None:
+        meios, pedacos = _pedacos_nos_pontos(pontos_m, pesos_m)
+    elif abs(eixo_m - total_m) <= TOLERANCIA_EIXO * total_m:
+        meios, pedacos = _pedacos_no_eixo(xy, pesos_m, acumulado_m)
+    else:
+        eixo = sg.LineString(xy)
+        furo, _ = dimensoes.sondagem_proxima(eixo, furos)
+        aviso = (
+            f"eixo de {eixo_m:.1f} m não confere com a soma dos pesos ({total_m:.1f} m) a {TOLERANCIA_EIXO:.0%} e não "
+            "tem um vértice por amostra: a posição das amostras não se conhece; sondagem única, a mais próxima do eixo"
+        )
+        return [
+            _grupo(c, eixo, furo, pesos_m[classes == c].sum())
+            for c in dict.fromkeys(classes.tolist())
+        ], [aviso]
+    indices, distancias_m = geotecnia.furo_mais_proximo(meios, furos)
+    indices = np.where(distancias_m <= geotecnia.RAIO_INFLUENCIA_M, indices, -1)
+    grupos = []
+    for classe, indice in sorted(
+        set(zip(classes.tolist(), indices.tolist(), strict=True))
+    ):
+        sel = (classes == classe) & (indices == indice)
+        geometria = shapely.line_merge(
+            shapely.multilinestrings(shapely.linestrings(pedacos[sel]))
+        )
+        grupos.append(
+            _grupo(
+                classe,
+                geometria,
+                furos[indice] if indice >= 0 else None,
+                pesos_m[sel].sum(),
+            )
+        )
+    return grupos, []
+
+
+def _texto(fato: dict | None) -> bool:
+    return fato is not None and bool(str(fato["valor"] or "").strip())
+
+
+def _dn_da_rede(rede: dict) -> float | None:
+    """DN nominal da rede (Tabela I do MOS), o mesmo que a regra `vala_rede` usa; None = DN igual ao DE."""
+    fato = rede["fatos"].get("dn_mm")
+    return float(fato["valor"]) if _numero(fato) else None
+
+
+def _material_da_rede(rede: dict, trechos: list[dict]) -> tuple[dict | None, list[str]]:
+    """(fato `material`, avisos) da rede: o dela, se tiver; senão o dos trechos do mesmo (unidade, sistema), preferindo
+    os de mesmo diâmetro, e dentre eles o material de maior extensão. None sem nenhum: quem chama usa a premissa única
+    de `valas.material_da_rede` (a mesma da regra `vala_rede`)."""
+    if _texto(rede["fatos"].get("material")):
+        return rede["fatos"]["material"], []
+    do_sistema = [
+        t
+        for t in trechos
+        if (t["unidade"], t["sistema"]) == (rede["unidade"], rede["sistema"])
+        and _texto(t["fatos"].get("material"))
     ]
-    furo, _ = dimensoes.sondagem_proxima(trecho["geometria"], furos)
-    usados += furo["fatos"] if furo else []
-    base = f"{unidade.upper()}.{sistema.split('-', 1)[1]}"
+    de_mm = rede["fatos"]["de_mm"]["valor"]
+    candidatos = [
+        t for t in do_sistema if t["fatos"].get("dn_mm", {}).get("valor") == de_mm
+    ] or do_sistema
+    if not candidatos:
+        return None, []
+    extensao_m: dict[str, float] = {}
+    fato_de: dict[str, dict] = {}
+    for t in candidatos:
+        fato = t["fatos"]["material"]
+        texto = str(fato["valor"])
+        fato_de.setdefault(texto, fato)
+        extensao_m[texto] = extensao_m.get(texto, 0.0) + float(
+            t["fatos"].get("extensao_m", {}).get("valor") or 0.0
+        )
+    escolhido = max(extensao_m, key=extensao_m.get)
+    avisos = (
+        [
+            f"{len(extensao_m)} materiais no sistema {rede['sistema']}: tomado o de maior extensão"
+        ]
+        if len(extensao_m) > 1
+        else []
+    )
+    return fato_de[escolhido], avisos
+
+
+def _elementos_do_grupo(
+    g: dict,
+    rede: dict,
+    material_texto: str,
+    usados_da_rede: list[str],
+    furos: list[dict],
+    material_de_premissa: bool = False,
+) -> list[dict]:
+    """Os elementos de vala de um grupo (classe, furo): o dimensionador único recebe só o furo do grupo (ou, sem furo no
+    raio, todos, para o alerta dizer a distância) e a geometria só dos metros do grupo. Material de premissa entra na
+    memória do elemento (e daí nas premissas da evidência)."""
+    objeto_id, base = (
+        rede["objeto"]["objeto_id"],
+        f"{rede['unidade'].upper()}.{rede['sistema'].split('-', 1)[1]}",
+    )
+    trecho = {
+        "id": objeto_id,
+        "de_mm": float(rede["fatos"]["de_mm"]["valor"]),
+        "dn_mm": _dn_da_rede(rede),
+        "segmentos": {g["classe"]: g["metros"]},
+        "material_texto": material_texto,
+        "geometria": g["geometria"],
+    }
+    usados = sorted({*usados_da_rede, *(g["furo"]["fatos"] if g["furo"] else [])})
+    rotulo = g["furo"]["id"] if g["furo"] else "sem furo"
     elementos = []
-    for superficie, metodo, dims, alertas in dimensoes.dimensionar_vala(trecho, furos):
+    for superficie, metodo, dims, alertas in dimensoes.dimensionar_vala(
+        trecho, [g["furo"]] if g["furo"] else furos
+    ):
         el = dimensoes.elemento(
-            f"{objeto['objeto_id']} · {superficie} · {metodo}",
+            f"{objeto_id} · {superficie} · {rotulo} · {metodo}",
             "vala",
             base,
             None,
             dims,
-            f"gavetas: objeto {objeto['objeto_id']}",
+            f"gavetas: objeto {objeto_id}",
             alertas,
             metodo,
         )
+        if material_de_premissa:
+            el["memoria"] = [
+                *el["memoria"],
+                f"material do tubo = {material_texto} (premissa: sem material na rede nem nos trechos; a mesma da vala_rede)",
+            ]
         rastro = {
-            n: sorted(set(usados))
-            for n in (*el["dims"], *dimensoes.TIPOS["vala"]["calculos"])
+            n: usados for n in (*el["dims"], *dimensoes.TIPOS["vala"]["calculos"])
         }
-        elementos.append(_com_rastro(el, objeto["objeto_id"], rastro, superficie))
-    avisos = sorted({a for e in elementos for a in e["alertas"]})
-    return elementos, [(f"vala: {a}", None) for a in avisos]
+        elementos.append(_com_rastro(el, objeto_id, rastro, superficie))
+    return elementos
+
+
+def _elementos_da_rede(
+    rede: dict, trechos: list[dict], furos: list[dict]
+) -> tuple[list[dict], list[tuple[str, str | None]]]:
+    """Um elemento de vala por (classe de superfície, furo) da rede `rede_vala` (`RV-<id>`), pelo dimensionador único
+    (`dimensoes.dimensionar_vala`), com o rastro dos fatos da rede, do material (do trecho de onde veio) e do furo.
+    Devolve também (motivo, detalhe) do que faltou ou foi avisado."""
+    fatos, geometria = rede["fatos"], rede["geometria"]
+    com_eixo = (
+        geometria is not None
+        and geometria["tipo"] == "linha"
+        and len(geometria["coords"]) >= 2
+    )
+    xy = np.asarray(geometria["coords"], dtype=float)[:, :2] if com_eixo else None
+    classes, pesos_m, pontos_m, bloqueios, avisos = _amostras_da_rede(fatos, xy)
+    if not com_eixo:
+        bloqueios.append(
+            "sem eixo (linha) na geometria: sondagem e superfície não se medem"
+        )
+    if bloqueios:
+        return [], [(m, None) for m in bloqueios]
+    material, avisos_material = _material_da_rede(rede, trechos)
+    texto_material, alertas_material = valas.material_da_rede(
+        str(material["valor"]) if material else None
+    )
+    avisos_material += alertas_material
+    grupos, avisos_grupos = _grupos_da_rede(classes, pesos_m, pontos_m, xy, furos)
+    usados_da_rede = [fatos[p]["fato_id"] for p in FATOS_DA_REDE if p in fatos]
+    usados_da_rede += [material["fato_id"]] if material else []
+    elementos = []
+    for g in grupos:
+        elementos += _elementos_do_grupo(
+            g, rede, texto_material, usados_da_rede, furos, material is None
+        )
+    alertas = sorted({a for e in elementos for a in e["alertas"]})
+    todos = [
+        *avisos,
+        *avisos_material,
+        *avisos_grupos,
+        *(f"vala: {a}" for a in alertas),
+    ]
+    return elementos, [(m, None) for m in todos]
+
+
+def _pendencia(objeto_id: str, motivo: str, detalhe: str | None = None) -> dict:
+    return {
+        "objeto_id": objeto_id,
+        "motivo": motivo,
+        **({"detalhe": detalhe} if detalhe else {}),
+    }
+
+
+def _vala_das_redes(
+    redes: list[dict], trechos: list[dict], furos: list[dict]
+) -> tuple[list[dict], list[dict]]:
+    """(elementos, pendências) da vala de todas as redes; o trecho de (unidade, sistema) sem rede vira pendência."""
+    elementos, pendencias = [], []
+    for rede in redes:
+        novos, avisos = _elementos_da_rede(rede, trechos, furos)
+        elementos += novos
+        pendencias += [_pendencia(rede["objeto"]["objeto_id"], m, d) for m, d in avisos]
+    com_rede = {(r["unidade"], r["sistema"]) for r in redes}
+    pendencias += [
+        _pendencia(t["objeto"]["objeto_id"], MOTIVO_SEM_REDE)
+        for t in trechos
+        if (t["unidade"], t["sistema"]) not in com_rede
+    ]
+    return elementos, pendencias
+
+
+def _registro(
+    base: dict, objeto: dict, epsg: int, ind: dict, mapa: dict
+) -> tuple[dict | None, dict | None]:
+    """(registro, pendência) do objeto: {objeto, fatos, geometria, unidade, sistema}; sem unidade e sistema ou com a
+    geometria fora do CRS da obra, só a pendência."""
+    objeto_id = objeto["objeto_id"]
+    fatos = gavetas.fatos_de_codigo(base, objeto_id, ind)
+    unidade, sistema = _par_da_unidade(objeto, fatos, mapa)
+    if not unidade:
+        return None, _pendencia(
+            objeto_id, "unidade e sistema não definidos: sem serviço complementar"
+        )
+    geometria = ind["geometria"].get(objeto_id)
+    if geometria and geometria.get("crs_h") not in (None, f"EPSG:{epsg}"):
+        return None, _pendencia(
+            objeto_id,
+            "geometria fora do CRS da obra: sem serviço complementar",
+            f"{geometria.get('crs_h')} no lugar de EPSG:{epsg}",
+        )
+    return {
+        "objeto": objeto,
+        "fatos": fatos,
+        "geometria": geometria,
+        "unidade": unidade,
+        "sistema": sistema,
+    }, None
 
 
 def _montar(base: dict, epsg: int) -> tuple[list[dict], list[dict]]:
-    """(elementos, pendências) de todos os objetos das classes que `dimensoes.json` conhece."""
+    """(elementos, pendências) dos objetos que `dimensoes.json` conhece (estaca, bloco, pilar) e das redes de vala.
+
+    A vala vem só dos objetos `rede_vala`; o `trecho` não gera vala: sem rede do mesmo (unidade, sistema) vira
+    pendência. A unidade e o sistema da rede saem dos fatos ou, sem eles, do mesmo mecanismo do `codigo_eap`."""
     ind = gavetas.indice(base)
     furos = [
         f
         for f in gavetas.furos(base, CLASSE_DO_FURO, ind)
         if f["E"] is not None and f["N"] is not None
     ]
-    elementos, pendencias = [], []
-
-    def pendencia(objeto_id: str, motivo: str, detalhe: str | None = None) -> None:
-        pendencias.append(
-            {
-                "objeto_id": objeto_id,
-                "motivo": motivo,
-                **({"detalhe": detalhe} if detalhe else {}),
-            }
-        )
-
+    mapa, _ = gavetas.unidade_sistema(base, ind, {})
+    elementos, pendencias, redes, trechos = [], [], [], []
     for objeto in base["objetos"]:
         tipo = CLASSE_PARA_TIPO.get(objeto["classe"])
-        if tipo is None:
+        if tipo is None and objeto["classe"] != CLASSE_DA_REDE:
             continue
-        objeto_id = objeto["objeto_id"]
-        fatos = gavetas.fatos_de_codigo(base, objeto_id, ind)
-        unidade, sistema = _unidade_e_sistema(objeto, fatos)
-        if not unidade:
-            pendencia(
-                objeto_id, "unidade e sistema não definidos: sem serviço complementar"
-            )
-            continue
-        geometria = ind["geometria"].get(objeto_id)
-        if geometria and geometria.get("crs_h") not in (None, f"EPSG:{epsg}"):
-            pendencia(
-                objeto_id,
-                "geometria fora do CRS da obra: sem serviço complementar",
-                f"{geometria.get('crs_h')} no lugar de EPSG:{epsg}",
-            )
-            continue
-        if tipo == "vala":
-            novos, avisos = _elementos_da_vala(
-                objeto, fatos, geometria, unidade, sistema, furos
-            )
-            elementos += novos
-            for motivo, detalhe in avisos:
-                pendencia(objeto_id, motivo, detalhe)
+        registro, pendencia = _registro(base, objeto, epsg, ind, mapa)
+        if pendencia:
+            pendencias.append(pendencia)
+        elif objeto["classe"] == CLASSE_DA_REDE:
+            redes.append(registro)
+        elif tipo == "vala":
+            trechos.append(registro)
         else:
-            elementos += _elemento_construtivo(objeto, fatos, tipo, unidade, sistema)
-    return elementos, pendencias
+            elementos += _elemento_construtivo(
+                objeto,
+                registro["fatos"],
+                tipo,
+                registro["unidade"],
+                registro["sistema"],
+            )
+    da_vala, pendencias_da_vala = _vala_das_redes(redes, trechos, furos)
+    return elementos + da_vala, pendencias + pendencias_da_vala
 
 
 def elementos(base: dict, epsg: int) -> list[dict]:
     """Os elementos no formato que `associados.aplicar` espera, montados só dos fatos e da geometria das gavetas.
 
     Estaca, bloco e pilar pelas dimensões padronizadas de `dimensoes.json` (propriedade da gaveta → dimensão em
-    `MAPA_DE_DIMENSOES`) e as derivações (bloco → cava de fundação); trecho → vala, um elemento por superfície, pelo
-    dimensionador único com as sondagens da própria base. Cada elemento traz também `objeto_id` (o objeto da gaveta),
+    `MAPA_DE_DIMENSOES`) e as derivações (bloco → cava de fundação); rede de vala → um elemento por (classe, furo mais
+    próximo), pelo dimensionador único com as sondagens da própria base. Cada elemento traz também `objeto_id` (o objeto da gaveta),
     `rastro` ({dimensão: ids dos fatos}) e `chave` (a superfície da vala). Dimensão sem fato fica em `faltando`."""
     return _montar(base, epsg)[0]
 
@@ -342,7 +627,7 @@ def _agrupar_servicos(
     ficou sem valor entra em `pendencias` (alterada no lugar)."""
     grupos: dict[tuple, dict] = {}
     for el in elementos_:
-        evs, sem_valor, _ = associados.aplicar([el])
+        evs, sem_valor, _ = associados.aplicar([el], ignorar=REGRAS_JA_DA_VALA_REDE)
         for regra, textos in sem_valor.items():
             pendencias += [
                 {
@@ -495,11 +780,16 @@ def _resumo(servicos: list[dict], pendencias: list[dict]) -> dict:
 # --------------------------------------------------------------------------------------------------------------------
 
 
-def somas(servicos: list[dict]) -> dict[tuple, float]:
-    """{(unidade, item, serviço, unidade de medida): soma} dos serviços com `codigo_eap`, como o `associados.csv`."""
+def _regra_de_vala(regra: str) -> bool:
+    return str(regra).removeprefix("associado:") in REGRAS_DE_VALA
+
+
+def somas(servicos: list[dict], de_vala: bool | None = None) -> dict[tuple, float]:
+    """{(unidade, item, serviço, unidade de medida): soma} dos serviços com `codigo_eap`, como o `associados.csv`.
+    `de_vala`: True só os serviços das regras de vala, False só os demais, None todos."""
     saida: dict[tuple, float] = {}
     for s in servicos:
-        if not s.get("codigo_eap"):
+        if not s.get("codigo_eap") or de_vala not in (None, _regra_de_vala(s["regra"])):
             continue
         unidade, _, item = s["codigo_eap"].split(".", 2)
         servico = (s.get("servicos_eap") or [""])[0]
@@ -508,22 +798,23 @@ def somas(servicos: list[dict]) -> dict[tuple, float]:
     return saida
 
 
-def ler_associados(caminho) -> dict[tuple, float]:
-    """{(unidade, item, serviço, unidade de medida): quantidade} do `associados.csv` (`;`, vírgula decimal, com BOM)."""
+def ler_associados(caminho, de_vala: bool | None = None) -> dict[tuple, float]:
+    """{(unidade, item, serviço, unidade de medida): quantidade} do `associados.csv` (`;`, vírgula decimal, com BOM).
+    `de_vala`: True só as linhas de regras de vala (coluna `regras`), False só as demais, None todas."""
     with open(caminho, encoding="utf-8-sig", newline="") as arquivo:
         linhas = list(csv.DictReader(arquivo, delimiter=";"))
     saida: dict[tuple, float] = {}
     for r in linhas:
+        if de_vala is not None and de_vala != any(
+            f"'{i}'" in r["regras"] for i in REGRAS_DE_VALA
+        ):
+            continue
         chave = (r["unidade"], r["item"], r["servico"], r["unidade_medida"])
         saida[chave] = saida.get(chave, 0.0) + float(r["quantidade"].replace(",", "."))
     return saida
 
 
-def paridade(servicos: list[dict], associados_csv) -> list[str]:
-    """Diferenças entre as gavetas e o `associados.csv` do caminho atual, somando por (unidade, item, serviço, unidade
-    de medida) com tolerância absoluta `TOLERANCIA`. Vazio = paridade. Cada linha do csv tem de sair igual; linha só das
-    gavetas também é diferença."""
-    esperado, obtido = ler_associados(associados_csv), somas(servicos)
+def _diferencas(esperado: dict[tuple, float], obtido: dict[tuple, float]) -> list[str]:
     problemas = []
     for chave in sorted(esperado.keys() | obtido.keys()):
         rotulo = "/".join(chave)
@@ -539,6 +830,19 @@ def paridade(servicos: list[dict], associados_csv) -> list[str]:
     return problemas
 
 
+def paridade(servicos: list[dict], associados_csv) -> list[str]:
+    """Diferenças entre as gavetas e o `associados.csv` do caminho atual nos serviços que não são de vala (estaca, bloco,
+    pilar, cava…), somando por (unidade, item, serviço, unidade de medida) com tolerância absoluta `TOLERANCIA`. Vazio =
+    paridade. Cada linha do csv tem de sair igual; linha só das gavetas também é diferença. A vala não entra: o csv vem do
+    caminho antigo (trecho) e a vala agora sai só da rede; `paridade_da_vala` conta o que mudou."""
+    return _diferencas(ler_associados(associados_csv, False), somas(servicos, False))
+
+
+def paridade_da_vala(servicos: list[dict], associados_csv) -> list[str]:
+    """Como `paridade`, só nos serviços de vala: o que mudou da vala do trecho (csv) para a vala da rede (gavetas)."""
+    return _diferencas(ler_associados(associados_csv, True), somas(servicos, True))
+
+
 def _epsg_da_base(base: dict, pasta: Path) -> int:
     """EPSG da obra: `crs.epsg` do `dados.json` ao lado da base; sem ele, o CRS único da geometria dos objetos que viram
     elemento (a base de Foz tem sondagens em outra zona). ValueError se não houver um só."""
@@ -546,7 +850,9 @@ def _epsg_da_base(base: dict, pasta: Path) -> int:
     if dados.exists():
         return int(json.loads(dados.read_text(encoding="utf-8"))["crs"]["epsg"])
     classes = {
-        o["objeto_id"] for o in base["objetos"] if o["classe"] in CLASSE_PARA_TIPO
+        o["objeto_id"]
+        for o in base["objetos"]
+        if o["classe"] in {*CLASSE_PARA_TIPO, CLASSE_DA_REDE}
     }
     crs = {g["crs_h"] for g in base["geometria"] if g["objeto_id"] in classes}
     if len(crs) != 1:
@@ -597,7 +903,7 @@ def principal(argv=None) -> int:
         print(f"sem {csv_associados}: paridade não conferida")
         return 1 if erros else 0
     diferencas = paridade(resultado["servicos"], csv_associados)
-    total = len(ler_associados(csv_associados))
+    total = len(ler_associados(csv_associados, False))
     so_nas_gavetas = sum("só nas gavetas" in d for d in diferencas)
     batem = total - (len(diferencas) - so_nas_gavetas)
     print(
@@ -605,6 +911,10 @@ def principal(argv=None) -> int:
     )
     for d in diferencas:
         print("  DIFERE", d)
+    print(
+        f"vala (rede no lugar do trecho): {len(paridade_da_vala(resultado['servicos'], csv_associados))} "
+        "serviço(s) mudaram em relação ao csv, por decisão"
+    )
     return 1 if diferencas or erros else 0
 
 
@@ -620,6 +930,7 @@ def metadados() -> dict:
             "complementares",
             "com_complementares",
             "paridade",
+            "paridade_da_vala",
             "metadados",
         ],
         "conceitos": ["servicos_associados.jsonl", "dimensoes.json", "gavetas.json"],

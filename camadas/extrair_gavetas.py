@@ -128,7 +128,8 @@ def _evidencia_da_ortofoto(rede: dict, ortofoto: str | Path | None) -> dict:
 def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path | None = None) -> dict:
     """Redes de `valas.rede` → objetos `rede_vala` `RV-<id>`, eixo em linha, fatos e evidência (pranchas, layers e critério).
 
-    `de_mm`, `extensao_m`, `pesos_m` (traço do tubo) e `finais` (prancha de urbanização) são projetados e apontam para a
+    `de_mm`, `dn_mm` (só quando o DN nominal difere do DE), `extensao_m`, `pesos_m` (traço do tubo) e `finais` (prancha de
+    urbanização) são projetados e apontam para a
     evidência da prancha. A classe de cada metro é `projetado` quando o critério é o desenho (divisas, quadras, meio_fio);
     quando é a ortofoto, é `inferido` e aponta para uma segunda evidência (classe "ortofoto", documento = `ortofoto`,
     método "geometria"). A rede guarda um só critério, não a origem de cada metro: a natureza vale para a rede inteira.
@@ -150,11 +151,14 @@ def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path 
             base["evidencias"].append(_evidencia_da_ortofoto(rede, ortofoto))
         dados = {"local": str(rede["id"]), "de_mm": rede["de_mm"], "extensao_m": rede["extensao_m"],
                  "classes_por_metro": list(rede["classes"]),
-                 "pesos_m": np.asarray(rede["peso"], float).tolist(), "finais": rede.get("finais")}
+                 "pesos_m": np.asarray(rede["peso"], float).tolist(), "finais": rede.get("finais"),
+                 "material": rede.get("material_declarado"),   # só o do obra.json ou do contrato, nunca o FD de premissa
+                 "dn_mm": rede["dn_mm"] if rede.get("dn_mm") not in (None, rede["de_mm"]) else None,   # DN nominal (MOS)
+                 "trecho_contrato": rede.get("trecho_contrato")}           # unidade e sistema quando o local não dá
         for propriedade in propriedades:
             if _vazio(dados.get(propriedade)):
                 continue
-            nasce_do_desenho = por_desenho or propriedade != "classes_por_metro"   # pesos: traço; finais: urbanização
+            nasce_do_desenho = por_desenho or propriedade != "classes_por_metro"   # pesos: traço; finais: urbanização; material: contrato
             base["fatos"].append(_fato(objeto_id, propriedade, dados[propriedade],
                                        "projetado" if nasce_do_desenho else "inferido",
                                        evidencia_id if nasce_do_desenho else f"{evidencia_id}-ORTO"))
@@ -172,7 +176,7 @@ def paridade_valas(base: dict, redes: list[dict], tol: float = 0.1, servicos: li
     difs = []
     for rede in redes:
         quadro = valas.quantificar(rede["classes"], np.asarray(rede["peso"], float), rede["de_mm"] / 1000,
-                                   rede.get("finais"))
+                                   rede.get("finais"), rede.get("material_declarado"), rede.get("dn_mm"))
         esperado = {(nome, f"{q['classe']}/{q['final']}" if q["final"] else q["classe"]): q[nome]
                     for q in quadro for nome in ("demolicao_m2", "recomposicao_m2", "volume_vala_m3")
                     if q[nome] > 0 or nome == "volume_vala_m3"}
@@ -462,13 +466,32 @@ def _anotar_codigo_eap(base: dict, servicos: list[dict], cfg: dict, por_servico:
     return sem_codigo
 
 
+def _base_da_etapa(cfg: dict, furos: list[dict], out: Path, trechos: list[dict], aba: str | None,
+                   redes_vala: list[dict] | None, cavas: dict | None, epsg: int | None) -> dict:
+    """As gavetas da etapa juntas: trechos da planilha, sondagens, decisões, redes de vala, cavas e setores, com a EPSG
+    da obra na geometria (sem ela, o padrão de cada `de_*`)."""
+    c = cfg.get("obras_lineares")
+    doc_sond = cfg["sondagens"] if isinstance(cfg.get("sondagens"), str) else "sondagens"
+    executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
+    setores = (cfg.get("gavetas") or {}).get("setores")
+    crs = {"crs_h": f"EPSG:{epsg}"} if epsg else {}
+    caminho = str(cfg.get("_caminho", "obra.json"))
+    return juntar(de_obras_lineares(trechos, str(c["planilha"]) if c else "", aba or "Obras Lineares"),
+                  de_sondagens(furos, doc_sond, executor, **crs),
+                  de_decisoes((c or {}).get("metodo") or {}, trechos, caminho),
+                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg", **crs),
+                  _base_das_cavas(cfg, out, Path(out) / "base", cavas) if cavas else _base_vazia(),
+                  de_setores(setores or [], caminho, **crs))
+
+
 def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[dict] | None = None,
-          cavas: dict | None = None) -> dict | None:
+          cavas: dict | None = None, epsg: int | None = None) -> dict | None:
     """Etapa `gavetas` do build: extrai planilha, sondagens e decisões para as gavetas, confere, calcula os serviços,
     compara com `obras_lineares.quantificar` e grava `base/`, `paridade.json` e `resumo.json` em `out`. Devolve o resumo
     com `eap_html` (o `dados["eap_gavetas"]` da aba EAP, montado e formatado em Python por `eap_html.montar`).
     `cavas`: o `saida_gavetas` de `escavacao.etapa` (marcas, bases, cristas, grade e resultado); grava a superfície em
-    `base/superficies/`, junta `de_cavas` e soma a paridade com o `escavacao.calcular` direto."""
+    `base/superficies/`, junta `de_cavas` e soma a paridade com o `escavacao.calcular` direto. `epsg`: o CRS da obra,
+    gravado na geometria dos furos, das redes de vala e dos setores (sem ele, o padrão de cada `de_*`)."""
     c = cfg.get("obras_lineares")
     tem_planilha = bool(c) and ol.tem_aba(c)
     if c and not tem_planilha:
@@ -479,16 +502,9 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     trechos = ol.ler_obras_lineares(c["planilha"], aba) if tem_planilha else []
     escolha = {ol.norm(k): v for k, v in ((c or {}).get("metodo") or {}).items()}
     aplicados = [{**t, "metodo": escolha.get(ol.norm(t["local"]), t["metodo"])} for t in trechos]
-    doc_sond = cfg["sondagens"] if isinstance(cfg.get("sondagens"), str) else "sondagens"
-    executor = (cfg.get("gavetas") or {}).get("executor_sondagens", "código")
     pasta = Path(out) / "base"
     setores = (cfg.get("gavetas") or {}).get("setores")
-    base = juntar(de_obras_lineares(trechos, str(c["planilha"]) if c else "", aba or "Obras Lineares"),
-                  de_sondagens(furos, doc_sond, executor),
-                  de_decisoes((c or {}).get("metodo") or {}, trechos, str(cfg.get("_caminho", "obra.json"))),
-                  de_valas(redes_vala or [], ortofoto=Path(out) / "sfm" / "ortofoto.jpg"),
-                  _base_das_cavas(cfg, out, pasta, cavas) if cavas else _base_vazia(),
-                  de_setores(setores or [], str(cfg.get("_caminho", "obra.json"))))
+    base = _base_da_etapa(cfg, furos, out, trechos, aba, redes_vala, cavas, epsg)
     if (Path(out) / "retornos_gavetas").is_dir():                       # fatos da IA: inferidos, com executor e trecho
         base = juntar(base, _conciliar_com_a_base(de_retornos(Path(out) / "retornos_gavetas"), base))
     erros = gavetas.conferir_base(base)
@@ -649,12 +665,15 @@ def _complementares(base: dict, dados: dict, out: Path, log=print) -> dict:
     r = gavetas_servicos.complementares(base, dados["crs"]["epsg"])
     nova = _substituir(base, {g: r.get(g, []) for g in ("servicos", "evidencias", "pendencias")})
     csv = Path(out) / "associados.csv"
-    difs = gavetas_servicos.paridade([s for s in nova["servicos"] if str(s.get("regra", "")).startswith("associado:")], csv) \
-        if csv.exists() else None
+    associados = [s for s in nova["servicos"] if str(s.get("regra", "")).startswith("associado:")]
+    difs = gavetas_servicos.paridade(associados, csv) if csv.exists() else None
+    vala = gavetas_servicos.paridade_da_vala(associados, csv) if csv.exists() else None   # vala: da rede, muda por decisão
     log(f"Complementares (pelas gavetas): {len(r.get('servicos', []))} serviços, {len(r.get('pendencias', []))} pendências; "
-        + (f"paridade com o associados.csv: {len(difs)} diferença(s)" if difs is not None else "sem associados.csv no build"))
+        + (f"paridade com o associados.csv (fora a vala): {len(difs)} diferença(s); vala da rede: {len(vala)} serviço(s) "
+           f"mudaram" if difs is not None else "sem associados.csv no build"))
     return {"base": nova, "servicos": len(r.get("servicos", [])), "pendencias": len(r.get("pendencias", [])),
-            "paridade_associados": len(difs) if difs is not None else None, "diferencas": (difs or [])[:20]}
+            "paridade_associados": len(difs) if difs is not None else None, "diferencas": (difs or [])[:20],
+            "vala_mudou": len(vala) if vala is not None else None}
 
 
 def _eap_unica(base: dict, dados: dict, out: Path, log=print) -> dict:

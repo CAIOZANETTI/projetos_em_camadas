@@ -227,6 +227,11 @@
    "tipo": "texto",
    "obs": "nome do trecho na planilha (ex.: 'Entrada de água bruta') ou da rede (ex.: 'AAT06'); casa com as chaves de conceitos/unidades_construtivas.json"
   },
+  "trecho_contrato": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "trecho da planilha do contrato a que a rede de vala pertence (valas.redes do obra.json); dá unidade e sistema pelas chaves quando o local não dá"
+  },
   "sond_ini": {
    "unidade": null,
    "tipo": "texto",
