@@ -837,3 +837,17 @@ def test_dn_nominal_da_rede_da_a_mesma_largura_na_vala_rede_e_nos_complementares
         assert servicos[("demolicao_m2", q["classe"])] == pytest.approx(q["demolicao_m2"], abs=1e-6)
     pista = [e for e in gs.elementos(base, EPSG) if e["tipo"] == "vala" and e["chave"] == "pista"]
     assert pista and all(e["dims"]["b"] == pytest.approx(pelo_dn, abs=1e-6) for e in pista)
+
+
+def test_rede_sem_sistema_pelo_local_usa_o_trecho_do_contrato():
+    """'ETA entrada adutora água bruta DN1000' não casa com as chaves; o trecho do contrato a que a rede pertence
+    ('ENTRADA DA ADUTORA DE ÁGUA BRUTA') casa com AB_ENTRADA: a rede ganha unidade, sistema e os complementares."""
+    rede = {**_rede(id="ETA entrada adutora água bruta DN1000", de_mm=1048), "dn_mm": 1000,
+            "trecho_contrato": "ENTRADA DA ADUTORA DE ÁGUA BRUTA"}
+    base = eg.juntar(eg.de_valas([rede]), eg.de_sondagens(FUROS, "sondagens.json"))
+    oid = "RV-ETA entrada adutora água bruta DN1000"
+    mapa, pendencias = gavetas.unidade_sistema(base, None, {})
+    assert mapa[oid] == ("u1", "AB_ENTRADA") and not [p for p in pendencias if p["objeto_id"] == oid]
+    sem_trecho = eg.juntar(eg.de_valas([{**rede, "trecho_contrato": None}]), eg.de_sondagens(FUROS, "sondagens.json"))
+    assert oid not in gavetas.unidade_sistema(sem_trecho, None, {})[0]
+    assert any(e["objeto_id"] == oid for e in gs.elementos(base, EPSG) if e["tipo"] == "vala")

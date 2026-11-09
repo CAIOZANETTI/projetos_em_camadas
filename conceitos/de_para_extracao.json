@@ -110,7 +110,8 @@
     "pesos_m",
     "finais",
     "material",
-    "dn_mm"
+    "dn_mm",
+    "trecho_contrato"
    ],
    "leitor": "camadas.valas.rede",
    "estado": "ligado (rodada 24)",

@@ -153,7 +153,8 @@ def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path 
                  "classes_por_metro": list(rede["classes"]),
                  "pesos_m": np.asarray(rede["peso"], float).tolist(), "finais": rede.get("finais"),
                  "material": rede.get("material_declarado"),   # só o do obra.json ou do contrato, nunca o FD de premissa
-                 "dn_mm": rede["dn_mm"] if rede.get("dn_mm") not in (None, rede["de_mm"]) else None}   # DN nominal (MOS)
+                 "dn_mm": rede["dn_mm"] if rede.get("dn_mm") not in (None, rede["de_mm"]) else None,   # DN nominal (MOS)
+                 "trecho_contrato": rede.get("trecho_contrato")}           # unidade e sistema quando o local não dá
         for propriedade in propriedades:
             if _vazio(dados.get(propriedade)):
                 continue
