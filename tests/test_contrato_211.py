@@ -1,5 +1,6 @@
 """Testes do leitor da CUSTO CIVIL do contrato 211, com planilha sintética (sem preço)."""
 
+import inspect
 import json
 
 import openpyxl
@@ -290,7 +291,7 @@ def test_metadados_e_cli(tmp_path, capsys):
 
 import numpy as np
 
-from camadas import lineares, valas
+from camadas import valas
 
 LINHAS_E2 = [
     ("UNIDADE 1 - ETA Teste", None, None, None, None, None),
@@ -366,8 +367,83 @@ def _furo(id_="F1", e=0.0, n=0.0, boca=100.0, na=0.5):
     return {"id": id_, "E": e, "N": n, "cota_boca": boca, "na_m": na}
 
 
-def _quant(linhas, redes, furos=(), **extra):
-    contexto = c211.contexto_do_build(redes, list(furos), **extra)
+FATOR_BOTA_FORA = (
+    1.3  # bota-fora sintético = 1,3 × escavação (empolamento), só para os testes
+)
+FATOR_REATERRO = 0.8  # reaterro sintético = 0,8 × escavação
+
+
+def _servico(rede, regra, saida, valor, unidade, chave=None):
+    """Serviço sintético no formato das gavetas (`gavetas_servicos`), do objeto `RV-<id>` da rede."""
+    sid = f"RV-{rede['id']}.{regra}.{saida}" + (f".{chave}" if chave else "")
+    return {
+        "servico_id": sid,
+        "objeto_id": f"RV-{rede['id']}",
+        "regra": regra,
+        "saida": saida,
+        "valor": float(valor),
+        "unidade": unidade,
+        **({"chave": chave} if chave else {}),
+    }
+
+
+def _servicos_das_redes(redes, com_agua=()):
+    """Serviços sintéticos da vala: `vala_rede` (volume e recomposição por classe) e associados (bota-fora, reaterro e,
+    nas redes de `com_agua`, o esgotamento), derivados do quadro de cada rede."""
+    saida = []
+    for rede in redes:
+        volume_m3 = 0.0
+        for q in rede["quadro"]:
+            volume_m3 += q["volume_vala_m3"]
+            saida.append(
+                _servico(
+                    rede,
+                    "vala_rede",
+                    "volume_vala_m3",
+                    q["volume_vala_m3"],
+                    "m³",
+                    q["classe"],
+                )
+            )
+            if q["recomposicao_m2"] > 0:
+                saida.append(
+                    _servico(
+                        rede,
+                        "vala_rede",
+                        "recomposicao_m2",
+                        q["recomposicao_m2"],
+                        "m²",
+                        q["classe"],
+                    )
+                )
+        saida += [
+            _servico(
+                rede,
+                "associado:bota_fora",
+                "bota_fora",
+                FATOR_BOTA_FORA * volume_m3,
+                "m³",
+            ),
+            _servico(
+                rede,
+                "associado:reaterro_vala",
+                "reaterro",
+                FATOR_REATERRO * volume_m3,
+                "m³",
+            ),
+        ]
+        if rede["id"] in com_agua:
+            saida.append(
+                _servico(rede, "associado:esgotamento", "esgotamento", 12.0, "h")
+            )
+    return saida
+
+
+def _quant(linhas, redes, furos=(), servicos="das_redes", **extra):
+    """`servicos="das_redes"` gera os sintéticos do quadro; `None` ou lista é passada como está."""
+    if isinstance(servicos, str):
+        servicos = _servicos_das_redes(redes)
+    contexto = c211.contexto_do_build(redes, list(furos), servicos=servicos, **extra)
     return c211.quantificar(linhas, contexto)
 
 
@@ -406,42 +482,72 @@ def test_trecho_sem_rede_fica_a_preencher_com_motivo(linhas_e2, redes):
     assert sem_rede["situacao"] == "a preencher" and sem_rede["motivo"]
 
 
-def test_escavacao_e_bota_fora_pelo_dimensionador_unico(linhas_e2, redes):
-    res = _quant(linhas_e2, redes)
-    esperado = {"escavacao_m3": 0.0, "bota_fora_m3": 0.0}
-    for rede in redes[:2]:
-        for q in rede["quadro"]:
-            vala = lineares.dimensionar_vala(
-                {
-                    "local": q["classe"],
-                    "dn_mm": rede["dn_mm"],
-                    "de_mm": rede["de_mm"],
-                    "material": "FD",
-                    "prof_m": q["profundidade_m"],
-                    "comp_m": 1.0,
-                    "metodo": "VCA",
-                }
-            )
-            for chave in esperado:
-                esperado[chave] += vala[chave] * q["extensao_m"]
+def test_escavacao_e_bota_fora_somam_os_servicos_das_gavetas(linhas_e2, redes):
+    servicos = _servicos_das_redes(redes)
+    res = _quant(linhas_e2, redes, servicos=servicos)
+    volume = [s for s in servicos if s["objeto_id"] in ("RV-R300", "RV-R200")]
+    esperado_escavacao = sum(
+        s["valor"] for s in volume if s["saida"] == "volume_vala_m3"
+    )
+    esperado_bota_fora = sum(s["valor"] for s in volume if s["saida"] == "bota_fora")
     carga = _linha(res, "041801", trecho="TRECHO UM")
     bota = _linha(res, "900603")
     assert carga["situacao"] == bota["situacao"] == "calculada"
-    assert carga["quantidade_calculada"] == pytest.approx(
-        esperado["escavacao_m3"], abs=1e-2
-    )
-    assert bota["quantidade_calculada"] == pytest.approx(
-        esperado["bota_fora_m3"], abs=1e-2
-    )
-    assert carga["unidade_calculada"] == "m3"
+    assert carga["quantidade_calculada"] == pytest.approx(esperado_escavacao, abs=1e-6)
+    assert bota["quantidade_calculada"] == pytest.approx(esperado_bota_fora, abs=1e-6)
+    assert carga["quantidade_calculada"] > 0 and carga["unidade_calculada"] == "m3"
     assert {e["id"] for e in carga["evidencias"]} == {"R300", "R200"}
+    ids = {s["servico_id"] for s in volume if s["saida"] == "volume_vala_m3"}
+    assert {e["servico_id"] for e in carga["evidencias"]} == ids
+    assert {e["objeto_id"] for e in carga["evidencias"]} == {"RV-R300", "RV-R200"}
+    assert all(e["servico_id"].startswith(e["objeto_id"]) for e in bota["evidencias"])
+
+
+def test_contrato_nao_refaz_a_vala_nem_chama_o_dimensionador():
+    fonte = inspect.getsource(c211)
+    assert "dimensionar_vala" not in fonte and "_vala_por_metro" not in fonte
+    assert "lineares" not in fonte
+
+
+def test_sem_servicos_de_vala_a_linha_fica_a_preencher_sem_recalcular(linhas_e2, redes):
+    for servicos in (None, []):
+        res = _quant(linhas_e2, redes, [_furo()], servicos=servicos)
+        for composicao in ("041801", "900603", "041901", "CRELF1"):
+            linha = _linha(res, composicao, trecho="TRECHO UM")
+            assert linha["situacao"] == "a preencher"
+            assert linha["quantidade_calculada"] is None
+            assert linha["motivo"] == "sem serviços de vala nas gavetas"
+        recomposicao = _linha(res, descricao="RECOMPOSIÇÃO DE PAVIMENTO")
+        assert recomposicao["motivo"] == "sem serviços de vala nas gavetas"
+        assert (
+            _linha(res, descricao="TRECHO UM")["situacao"] == "calculada"
+        )  # comprimento é da rede
+
+
+def test_servico_de_outra_rede_nao_entra_no_trecho(linhas_e2, redes):
+    so_r300 = [s for s in _servicos_das_redes(redes) if s["objeto_id"] == "RV-R300"]
+    res = _quant(linhas_e2, redes, servicos=so_r300)
+    carga = _linha(res, "041801", trecho="TRECHO UM")
+    assert carga["situacao"] == "parcial" and "RV-R200" in carga["motivo"]
+    esperado = sum(s["valor"] for s in so_r300 if s["saida"] == "volume_vala_m3")
+    assert carga["quantidade_calculada"] == pytest.approx(esperado, abs=1e-6)
+    assert {e["id"] for e in carga["evidencias"]} == {"R300"}
+
+
+def test_vala_sem_o_bota_fora_nas_gavetas_fica_a_preencher(linhas_e2, redes):
+    sem_bota = [s for s in _servicos_das_redes(redes) if s["saida"] != "bota_fora"]
+    res = _quant(linhas_e2, redes, servicos=sem_bota)
+    bota = _linha(res, "900603")
+    assert bota["situacao"] == "a preencher" and "associado:bota_fora" in bota["motivo"]
+    assert _linha(res, "041801", trecho="TRECHO UM")["situacao"] == "calculada"
 
 
 def test_transporte_usa_a_dmt_como_premissa(linhas_e2, redes):
     res = _quant(linhas_e2, redes)
     bota = _linha(res, "900603")["quantidade_calculada"]
     transporte = _linha(res, "041901")
-    assert transporte["quantidade_calculada"] == pytest.approx(bota * 10, abs=0.05)
+    assert transporte["quantidade_calculada"] == pytest.approx(bota * 10, abs=1e-2)
+    assert all("servico_id" in e for e in transporte["evidencias"])
     assert transporte["unidade_calculada"] == "m3.km"
     premissa = transporte["premissas"][0]
     assert premissa["nome"] == "dmt_bota_fora_km" and premissa["valor"] == 10
@@ -465,13 +571,44 @@ def test_escoramento_em_meses_fica_a_preencher_por_ser_prazo(linhas_e2, redes):
     assert not prazo & set(c211.DE_PARA["premissas"])
 
 
-def test_recomposicao_soma_o_quadro_do_trecho(linhas_e2, redes):
+def test_recomposicao_soma_os_servicos_da_vala_rede(linhas_e2, redes):
     res = _quant(linhas_e2, redes)
-    esperado = sum(q["recomposicao_m2"] for r in redes[:2] for q in r["quadro"])
+    esperado = sum(
+        s["valor"]
+        for s in _servicos_das_redes(redes[:2])
+        if s["saida"] == "recomposicao_m2"
+    )
     linha = _linha(res, descricao="RECOMPOSIÇÃO DE PAVIMENTO")
     assert esperado > 0
-    assert linha["quantidade_calculada"] == pytest.approx(esperado, abs=1e-2)
+    assert linha["quantidade_calculada"] == pytest.approx(esperado, abs=1e-6)
+    assert all(
+        e["servico_id"].endswith(("pista", "calcada")) for e in linha["evidencias"]
+    )
     assert linha["unidade_calculada"] == "m2"
+
+
+def test_rebaixamento_um_pelo_servico_de_esgotamento_com_o_servico_como_evidencia(
+    linhas_e2, redes
+):
+    servicos = _servicos_das_redes(redes, com_agua={"R200"})
+    res = _quant(linhas_e2, redes, [_furo(na=20.0)], servicos=servicos)  # o NA diria 0
+    linha = _linha(res, "CRELF1")
+    assert linha["quantidade_calculada"] == 1.0 and linha["situacao"] == "calculada"
+    assert [e["servico_id"] for e in linha["evidencias"]] == [
+        "RV-R200.associado:esgotamento.esgotamento"
+    ]
+    assert linha["evidencias"][0]["objeto_id"] == "RV-R200"
+
+
+def test_servico_de_agua_com_valor_zero_nao_rebaixa(linhas_e2, redes):
+    servicos = _servicos_das_redes(redes, com_agua={"R200"})
+    for s in servicos:
+        if s["saida"] == "esgotamento":
+            s["valor"] = 0.0
+    linha = _linha(
+        _quant(linhas_e2, redes, [_furo(na=20.0)], servicos=servicos), "CRELF1"
+    )
+    assert linha["quantidade_calculada"] == 0.0  # cai no critério do NA
 
 
 def test_rebaixamento_um_quando_o_na_esta_acima_do_fundo(linhas_e2, redes):
@@ -506,7 +643,9 @@ def test_rebaixamento_sem_na_ou_sem_furo_fica_a_preencher(linhas_e2, redes):
     assert sem_na["situacao"] == "a preencher" and "nível d'água" in sem_na["motivo"]
     assert sem_na["quantidade_calculada"] is None
     sem_coordenada = {"id": "F9", "E": None, "N": None, "cota_boca": 100.0, "na_m": 1.0}
-    contexto = c211.contexto_do_build(redes, [sem_coordenada])
+    contexto = c211.contexto_do_build(
+        redes, [sem_coordenada], servicos=_servicos_das_redes(redes)
+    )
     assert contexto["furos"] == [] and contexto["furos_sem_coordenada"] == ["F9"]
     sem_furo = _linha(c211.quantificar(linhas_e2, contexto), "CRELF1")
     assert sem_furo["situacao"] == "a preencher" and "sondagem" in sem_furo["motivo"]
@@ -698,7 +837,7 @@ def test_premissas_e_tolerancias_vivem_no_conceito():
 def test_conceito_alternativo_muda_a_premissa(linhas_e2, redes):
     conceito = json.loads(json.dumps(c211.DE_PARA))
     conceito["premissas"]["dmt_bota_fora_km"]["valor"] = 20
-    contexto = c211.contexto_do_build(redes, [])
+    contexto = c211.contexto_do_build(redes, [], servicos=_servicos_das_redes(redes))
     base = _linha(c211.quantificar(linhas_e2, contexto), "041901")
     dobro = _linha(c211.quantificar(linhas_e2, contexto, conceito), "041901")
     assert dobro["quantidade_calculada"] == pytest.approx(
