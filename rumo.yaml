@@ -28,10 +28,13 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 300000
-  status: fazendo
+  status: feito
   inicio: '2026-11-09T13:05:25Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-09T14:08:40Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente; tarefa separada sugerida); balanço
+    SEM_GANHO sem piora; aferição ok; determinismo ok; build real: interface 331/0,
+    0 caminho paralelo, paridades 0, EAP única 37/37'
 - id: E2
   nome: 'F4b: contrato_211 lê a vala das gavetas'
   entregaveis:
@@ -43,10 +46,13 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 300000
-  status: fazendo
+  status: feito
   inicio: '2026-11-09T13:22:53Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-09T14:08:41Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente; tarefa separada sugerida); balanço
+    SEM_GANHO sem piora; aferição ok; determinismo ok; build real: interface 331/0,
+    0 caminho paralelo, paridades 0, EAP única 37/37'
 - id: E3
   nome: 'F4b: build real, golden de propósito, três verdes, balanço, PR e merge'
   entregaveis:
@@ -69,11 +75,42 @@ etapas:
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 150000
-  status: fazendo
+  status: feito
   inicio: '2026-11-09T13:30:25Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-09T14:08:42Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente; tarefa separada sugerida); balanço
+    SEM_GANHO sem piora; aferição ok; determinismo ok; build real: interface 331/0,
+    0 caminho paralelo, paridades 0, EAP única 37/37'
+- id: E1b
+  nome: 'F4b: uma largura por rede (material do contrato e DN nominal nos três cálculos),
+    CRS da obra nas gavetas e sistema pelo trecho do contrato (achados do build real)'
+  entregaveis:
+  - camadas/valas.py
+  - camadas/gavetas.py
+  - camadas/dimensoes.py
+  - camadas/associados.py
+  - conceitos/de_para_extracao.json
+  - conceitos/de_para_servicos.json
+  - conceitos/gavetas.json
+  - tests/test_cavas_gavetas.py
+  - tests/test_gavetas_servicos.py
+  depende_de:
+  - E1
+  agente: sonnet
+  estimativa_min: 30
+  estimativa_tokens: 150000
+  status: feito
+  inicio: '2026-11-09T13:25:00Z'
+  fim: '2026-11-09T14:40:00Z'
+  forcado: 'etapa registrada depois de feita: o build real mostrou três larguras para
+    a mesma rede, o CRS 31982 fixo e 4 redes sem sistema; mesmo motivo do teste OCR'
 historico:
+- data: '2026-11-09'
+  mudanca: 'etapa E1b acrescentada depois de feita (arquivos fora do plano: valas, gavetas,
+    dimensoes, associados, conceitos e dois testes)'
+  motivo: 'o build real da E1 mostrou a vala com três larguras (FD de premissa, DE como DN),
+    o CRS fixo em 31982 e 4 redes da ETA sem sistema, que tiravam 8 linhas do contrato'
 - data: '2026-11-09'
   mudanca: 'objetivo anterior concluído: reconstrução F5 infraestrutura (PR #83, 0.73.0)'
   motivo: a verificação noturna de 05/11 mostrou o portão da F4 aberto (dois caminhos
