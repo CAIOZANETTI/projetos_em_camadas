@@ -43,8 +43,8 @@ etapas:
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 300000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-09T13:22:53Z'
   fim: null
   forcado: null
 - id: E3
