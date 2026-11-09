@@ -1,77 +1,84 @@
-objetivo: 'Reconstrução F5 (docs/RECONSTRUCAO.md): laço até a EAP completa — o texto
-  dos editais, memoriais e laudos lido por código para as gavetas (menções com página),
-  e para cada folha a preencher: onde está, o roteiro do próximo passe (IA com citação
-  conferida ou o Caio) e o portão ''EAP completa'''
+objetivo: 'Reconstrução F4b (docs/RECONSTRUCAO.md §5.5): vala única pela vala_rede
+  — os serviços da vala (demolição, escavação, escoramento, rebaixamento, berço, envoltória,
+  reaterro, bota-fora, transporte, recomposição) saem de um só caminho, as redes de
+  vala (RV-*) das gavetas; a vala do trecho e a vala refeita pelo contrato_211 deixam
+  de existir; fecha o portão da F4 (0 caminho paralelo)'
 criterio_de_pronto:
-- 'camadas/gavetas_texto.py: menções aos itens técnicos nos documentos de texto, por
-  página, nas gavetas (objeto mencao_documento, fatos item_tecnico/mencao/quantidade
-  quando houver, evidência com página e trecho)'
-- 'camadas/eap_laco.py: cada folha a preencher com o destino (documentos e páginas
-  candidatas, ou ''ausente do projeto'' com motivo), o roteiro do próximo passe e
-  o portão ''EAP completa'' (folhas obrigatórias sem destino = 0)'
-- build real sem regressão (golden 0, EAP única × codificada 0, complementares 25/25),
-  interface 0 falha, balanço sem REVERTER, PR e merge
-base: a988f75
+- 'camadas/gavetas_servicos.py: os elementos de vala vêm dos objetos rede_vala (classe
+  por metro e furo mais próximo), não dos trechos; nenhum serviço complementar repete
+  uma grandeza que a regra vala_rede já calcula (nada é calculado para ser descartado)'
+- 'camadas/eap_preencher.py: sem o descarte do caminho paralelo; teste ''0 caminho
+  paralelo'': cada (código da EAP, serviço) vem de uma regra só'
+- 'camadas/contrato_211.py: as quantidades da vala (comprimento, escavação, reaterro,
+  bota-fora, transporte, recomposição, rebaixamento) lidas dos serviços das gavetas;
+  o módulo não chama mais o dimensionador da vala'
+- 'três verdes (pytest, aferição, determinismo), build real: golden atualizado de
+  propósito com a justificativa no CHANGELOG, EAP única × codificada sem regressão,
+  interface 0 falha; balanço sem REVERTER; PR e merge'
+base: db92362
 etapas:
 - id: E1
-  nome: 'F5: texto dos documentos → gavetas (menções por página)'
+  nome: 'F4b: vala das gavetas pela rede_vala (gavetas_servicos e eap_preencher)'
   entregaveis:
-  - camadas/gavetas_texto.py
-  - tests/test_gavetas_texto.py
+  - camadas/gavetas_servicos.py
+  - camadas/eap_preencher.py
+  - tests/test_gavetas_servicos.py
+  - tests/test_eap_preencher.py
   depende_de: []
   agente: sonnet
-  estimativa_min: 45
-  estimativa_tokens: 250000
-  status: feito
-  inicio: '2026-11-04T21:57:00Z'
-  fim: '2026-11-04T22:26:45Z'
-  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
-    que já falha na main; balanço SEM_GANHO sem piora; build real: interface 331/0,
-    golden 0, EAP única 0, complementares 0'
+  estimativa_min: 60
+  estimativa_tokens: 300000
+  status: fazendo
+  inicio: '2026-11-09T13:05:25Z'
+  fim: null
+  forcado: null
 - id: E2
-  nome: 'F5: laço da EAP (destino de cada folha a preencher, roteiro do próximo passe,
-    portão EAP completa)'
+  nome: 'F4b: contrato_211 lê a vala das gavetas'
   entregaveis:
-  - camadas/eap_laco.py
-  - tests/test_eap_laco.py
-  depende_de: []
+  - camadas/contrato_211.py
+  - camadas/obra.py
+  - tests/test_contrato_211.py
+  depende_de:
+  - E1
   agente: sonnet
-  estimativa_min: 45
-  estimativa_tokens: 250000
-  status: feito
-  inicio: '2026-11-04T21:57:01Z'
-  fim: '2026-11-04T22:02:49Z'
+  estimativa_min: 60
+  estimativa_tokens: 300000
+  status: a_fazer
+  inicio: null
+  fim: null
   forcado: null
 - id: E3
-  nome: 'F5: ligação no build, build real, balanço, PR e merge'
+  nome: 'F4b: build real, golden de propósito, três verdes, balanço, PR e merge'
   entregaveis:
   - camadas/extrair_gavetas.py
-  - camadas/eap_preencher.py
-  - conceitos/gavetas.json
+  - tests/golden_foz/quantidades_foz.json
   - CHANGELOG.md
   - camadas/__init__.py
   - pdca/licoes.jsonl
   - pdca/agentes.jsonl
+  - pdca/afericao.jsonl
   - rumo.yaml
   - results/iteracoes/*
   - results/agentes/execucoes.csv
   - results/rumo.md
   - results/rumo.html
   - docs/RECONSTRUCAO.md
-  - tests/test_gavetas_v2.py
   depende_de:
   - E1
   - E2
   agente: opus
-  estimativa_min: 45
-  estimativa_tokens: 120000
-  status: feito
-  inicio: '2026-11-04T22:26:46Z'
-  fim: '2026-11-04T22:26:46Z'
-  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
-    que já falha na main; balanço SEM_GANHO sem piora; build real: interface 331/0,
-    golden 0, EAP única 0, complementares 0'
+  estimativa_min: 60
+  estimativa_tokens: 150000
+  status: a_fazer
+  inicio: null
+  fim: null
+  forcado: null
 historico:
+- data: '2026-11-09'
+  mudanca: 'objetivo anterior concluído: reconstrução F5 infraestrutura (PR #83, 0.73.0)'
+  motivo: a verificação noturna de 05/11 mostrou o portão da F4 aberto (dois caminhos
+    para a vala); o Caio decidiu vala única = vala_rede (09/11) e a F4b entra antes
+    da F5b
 - data: '2026-11-04'
   mudanca: 'objetivo anterior concluído: reconstrução F4 (PR #81, 0.72.0)'
   motivo: a F5 segue a F4 no plano; o texto de 41 editais e 99 memoriais nunca tinha
