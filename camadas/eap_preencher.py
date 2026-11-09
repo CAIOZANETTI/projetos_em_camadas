@@ -140,18 +140,11 @@ def _de_objetos(base: dict, ind: dict, modelo: dict) -> dict[tuple, dict]:
 
 
 def _de_servicos(base: dict, medidos: set[str]) -> tuple[dict[tuple, dict], list[dict]]:
-    """({(código, saída, unidade): quantidade}, descartados): serviços das gavetas com `codigo_eap`. Dois serviços não
-    entram, para a mesma grandeza não ser contada por dois caminhos, e ficam em `descartados` com o motivo:
-    - o serviço sem nome (`servicos_eap` vazio) de um item que os fatos dos objetos já medem (a cava: escavação e
-      reaterro); o serviço com nome (forma, armadura, concreto…) é outra grandeza e entra;
-    - o serviço complementar (`regra` `associado:*`) cujo código e serviço já são calculados por outra regra das
-      gavetas (a vala da rede): vale a regra primária, e o complementar fica como caminho paralelo declarado."""
-    primarios: dict[str, set[str]] = {}
-    for s in base["servicos"]:
-        if s.get("codigo_eap") and not str(s["regra"]).startswith("associado:"):
-            primarios.setdefault(s["codigo_eap"], set()).update(
-                s.get("servicos_eap") or []
-            )
+    """({(código, saída, unidade): quantidade}, descartados): serviços das gavetas com `codigo_eap`. Um serviço não
+    entra, para a mesma grandeza não ser contada por dois caminhos, e fica em `descartados` com o motivo: o serviço sem
+    nome (`servicos_eap` vazio) de um item que os fatos dos objetos já medem (a cava: escavação e reaterro); o serviço
+    com nome (forma, armadura, concreto…) é outra grandeza e entra. Não há descarte entre regras: cada (código, serviço)
+    nasce de uma regra só (a vala sai só da `vala_rede`; `gavetas_servicos` nem calcula o que ela já dá)."""
     acumulado: dict[tuple, dict] = {}
     descartados = []
     for s in sorted(base["servicos"], key=lambda x: x["servico_id"]):
@@ -159,23 +152,14 @@ def _de_servicos(base: dict, medidos: set[str]) -> tuple[dict[tuple, dict], list
         if not codigo:
             continue
         nomes_eap = set(s.get("servicos_eap") or [])
-        motivo = None
         if not nomes_eap and codigo.split(".", 2)[2] in medidos:
-            motivo = "o item já é medido pelos fatos dos objetos"
-        elif str(s["regra"]).startswith("associado:") and nomes_eap & primarios.get(
-            codigo, set()
-        ):
-            motivo = (
-                "o código e o serviço já são calculados por outra regra das gavetas"
-            )
-        if motivo:
             descartados.append(
                 {
                     "servico_id": s["servico_id"],
                     "codigo": codigo,
                     "valor": s["valor"],
                     "unidade": s["unidade"],
-                    "motivo": motivo,
+                    "motivo": "o item já é medido pelos fatos dos objetos",
                 }
             )
             continue

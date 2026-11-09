@@ -78,11 +78,12 @@ def _memoria(regra: dict, el: dict, r: dict) -> str:
     return texto + (f" · alertas: {'; '.join(el['alertas'])}" if el["alertas"] else "")
 
 
-def aplicar(elementos: list[dict]) -> tuple[list[dict], dict, list[dict]]:
-    """(evidências, {regra: ['elemento (falta x)']}, detalhes) de todas as regras em todos os elementos."""
+def aplicar(elementos: list[dict], ignorar: frozenset[str] = frozenset()) -> tuple[list[dict], dict, list[dict]]:
+    """(evidências, {regra: ['elemento (falta x)']}, detalhes) de todas as regras em todos os elementos. `ignorar`: ids
+    de regras que nem são calculadas (a grandeza já vem de outro caminho: a vala da `vala_rede`)."""
     from .evidencias import evidencia
     evs, sem_valor, detalhes = [], {}, []
-    for regra in REGRAS:
+    for regra in (r for r in REGRAS if r["id"] not in ignorar):
         for el in (e for e in elementos if e["tipo"] in regra["tipos"]):
             r = calcular(regra, el)
             if "falta" in r:
