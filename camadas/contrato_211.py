@@ -3,7 +3,8 @@
     ler_custo_civil  = uma linha de serviço por dict, com a hierarquia unidade › UC › trecho › grupo e o projeto
     classificar      = acrescenta folha da EAP, regra, material, DN e estado (de-para `composicoes_sanepar.json`)
     resumo           = totais: linhas, declaradas, vazias e contagem por regra
-    contexto_do_build, quantificar = a quantidade calculada de cada linha, com evidência e situação (E2)
+    contexto_do_build, quantificar = a quantidade calculada de cada linha, com evidência e situação (E2); a vala vem
+                       dos serviços das gavetas (`RV-<id>`), sem refazer o dimensionamento
     resumo_quantidades, para_html  = totais por situação e a lista enxuta para o HTML
 
 **Sem preço.** A leitura toca só as colunas A a E (item, composição, descrição, unidade, quantidade) e I (projeto).
@@ -19,14 +20,12 @@ import json
 import re
 import sys
 import unicodedata
-from functools import cache
 from pathlib import Path
 
 import numpy as np
 import openpyxl
 
 from . import geotecnia as geo
-from . import lineares
 
 DE_PARA = json.loads(
     (
@@ -305,10 +304,13 @@ def contexto_do_build(
     furos: list[dict],
     supressao_por_uc: dict | None = None,
     urbanizacao: dict | None = None,
+    servicos: list[dict] | None = None,
 ) -> dict:
     """Contexto de `quantificar`: o que o build já calculou, sem nenhum preço.
 
-    `redes_vala` = redes de `valas.rede` (com `trecho_contrato`); `furos` = sondagens (id, E, N, cota_boca, na_m),
+    `redes_vala` = redes de `valas.rede` (com `trecho_contrato`); `servicos` = `base["servicos"]` das gavetas (a vala
+    sai só deles: `vala_rede` e `associado:*` do objeto `RV-<id>`; sem eles a vala fica "a preencher", nunca é
+    refeita aqui); `furos` = sondagens (id, E, N, cota_boca, na_m),
     sem os de coordenada `null`; `supressao_por_uc` = {uc: {arvores_m2, rasteira_m2}} (ver `supressao_por_uc`);
     `urbanizacao` = {nome: área em m²} (`valas.para_html` → `urbanizacao_m2`) ou {nome: geometria shapely}.
     Cada parte ausente deixa as regras que dependem dela "a preencher", com o motivo."""
@@ -320,6 +322,7 @@ def contexto_do_build(
         ],
         "supressao_por_uc": supressao_por_uc,
         "urbanizacao": urbanizacao,
+        "servicos": list(servicos or []),
     }
 
 
@@ -384,79 +387,48 @@ def supressao_por_uc(
     }
 
 
-@cache
-def _vala_por_metro(
-    classe: str, de_mm: float, material: str, dn_mm: float, profundidade_m: float
-) -> tuple[float, float, float]:
-    """(escavação, reaterro, bota-fora) em m³ por metro de vala, pelo dimensionador único (`lineares`)."""
-    vala = lineares.dimensionar_vala(
-        {
-            "local": classe,
-            "dn_mm": dn_mm,
-            "de_mm": de_mm,
-            "material": material,
-            "prof_m": profundidade_m,
-            "comp_m": 1.0,
-            "metodo": "VCA",
-        }
-    )
-    return vala["escavacao_m3"], vala["reaterro_m3"], vala["bota_fora_m3"]
-
-
-def _evidencia_rede(rede: dict, valor: float, unidade: str, tipo: str) -> dict:
-    return {
+def _evidencia_rede(
+    rede: dict, valor: float, unidade: str, tipo: str, servico: dict | None = None
+) -> dict:
+    """Evidência de uma rede de vala; com `servico`, cita o `servico_id` das gavetas de onde veio o valor."""
+    evidencia = {
         "tipo": tipo,
         "id": rede.get("id"),
+        "objeto_id": f"RV-{rede.get('id')}",
         "prancha": ", ".join(rede.get("pranchas") or []),
         "layer": ", ".join(rede.get("layers") or []),
         "valor": round(float(valor), _CASAS_DECIMAIS),
         "unidade": unidade,
     }
+    if servico is not None:
+        evidencia["servico_id"] = servico["servico_id"]
+    return evidencia
 
 
-def _agregado_das_redes(redes: list[dict]) -> dict:
-    """Grandezas da vala somadas sobre as classes do quadro das redes; um vetor NumPy por grandeza."""
-    pares = [(rede, q) for rede in redes for q in rede.get("quadro", [])]
-    extensao_m = np.array([q["extensao_m"] for _, q in pares], dtype=np.float64)
-    largura_m = np.array([q["largura_m"] for _, q in pares], dtype=np.float64)
-    profundidade_m = np.array([q["profundidade_m"] for _, q in pares], dtype=np.float64)
-    escorado = np.array([bool(q["escorado"]) for _, q in pares], dtype=bool)
-    recomposicao_m2 = np.array(
-        [q.get("recomposicao_m2", 0.0) for _, q in pares], dtype=np.float64
-    )
-    por_metro = np.array(
-        [
-            _vala_por_metro(
-                q["classe"],
-                float(rede["de_mm"]),
-                q.get("material") or rede.get("material"),
-                float(q.get("dn_mm") or rede.get("dn_mm") or rede["de_mm"]),
-                float(q["profundidade_m"]),
-            )
-            for rede, q in pares
-        ],
-        dtype=np.float64,
-    ).reshape(-1, 3)
-    return {
-        "extensao_m": extensao_m,
-        "largura_m": largura_m,
-        "escavacao_m3": float(np.sum(extensao_m * por_metro[:, 0])),
-        "reaterro_m3": float(np.sum(extensao_m * por_metro[:, 1])),
-        "bota_fora_m3": float(np.sum(extensao_m * por_metro[:, 2])),
-        "escorada_m": float(np.sum(extensao_m[escorado])),
-        "profundidade_max_m": float(profundidade_m.max()) if len(pares) else 0.0,
-        "recomposicao_m2": float(np.sum(recomposicao_m2)),
-    }
+def _extensao_e_largura_m(redes: list[dict]) -> tuple[np.ndarray, np.ndarray]:
+    """Extensão e largura (m) de cada classe do quadro das redes (para a área de locação)."""
+    quadros = [q for rede in redes for q in rede.get("quadro", [])]
+    extensao_m = np.array([q["extensao_m"] for q in quadros], dtype=np.float64)
+    largura_m = np.array([q["largura_m"] for q in quadros], dtype=np.float64)
+    return extensao_m, largura_m
+
+
+def _servicos_por_objeto(servicos: list[dict] | None) -> dict[str, list[dict]]:
+    """{objeto_id: serviços} das gavetas (vazio se não houver serviços)."""
+    saida: dict[str, list[dict]] = {}
+    for servico in servicos or []:
+        saida.setdefault(servico.get("objeto_id"), []).append(servico)
+    return saida
 
 
 class _Ambiente:
-    """Tudo que as regras consultam: contexto, conceito e cache por trecho (uma instância por `quantificar`)."""
+    """Tudo que as regras consultam: contexto, conceito e índice dos serviços (uma instância por `quantificar`)."""
 
     def __init__(self, linhas: list[dict], contexto: dict, conceito: dict):
         self.contexto = contexto
         self.conceito = conceito
         self.trechos_da_uc = _trechos_por_uc(linhas)
-        self._agregados: dict[str, dict | None] = {}
+        self.servicos = _servicos_por_objeto(contexto.get("servicos"))
 
     def redes(self, trecho: str | None, dn_mm: int | None = None) -> list[dict]:
         if trecho is None:
@@ -468,14 +440,9 @@ class _Ambiente:
             and (dn_mm is None or r.get("dn_mm") == dn_mm)
         ]
 
-    def agregado(self, trecho: str) -> dict | None:
-        """Agregado de todas as redes do trecho (sem filtro de DN), ou None se não há rede."""
-        if trecho not in self._agregados:
-            redes = self.redes(trecho)
-            self._agregados[trecho] = (
-                {"redes": redes, **_agregado_das_redes(redes)} if redes else None
-            )
-        return self._agregados[trecho]
+    def servicos_da_rede(self, rede: dict) -> list[dict]:
+        """Serviços das gavetas do objeto `RV-<id>` da rede."""
+        return self.servicos.get(f"RV-{rede.get('id')}", [])
 
     def premissa(self, nome: str) -> dict:
         p = self.conceito["premissas"][nome]
@@ -512,6 +479,7 @@ def _sem_rede(linha: dict, dn_mm=None) -> dict:
 
 
 def _regra_comprimento_trecho(linha: dict, amb: _Ambiente) -> dict:
+    """Comprimento = `extensao_m` das redes do trecho (o fato `extensao_m` do objeto `RV-<id>`)."""
     if not linha.get("trecho"):
         return _calculo(motivo="linha fora de um trecho do contrato")
     redes = amb.redes(linha["trecho"], linha.get("dn_mm"))
@@ -526,48 +494,95 @@ def _regra_comprimento_trecho(linha: dict, amb: _Ambiente) -> dict:
     )
 
 
-def _por_rede(linha: dict, amb: _Ambiente, chave: str, unidade: str, tipo: str):
-    """(agregado do trecho, evidências por rede) para a grandeza `chave`; (None, cálculo vazio) se faltar o trecho."""
+def _redes_do_trecho_com_servicos(linha: dict, amb: _Ambiente):
+    """(redes do trecho, None) ou (None, cálculo vazio com o motivo) se faltar trecho, rede ou serviços de vala."""
     if not linha.get("trecho"):
         return None, _calculo(motivo="linha fora de um trecho do contrato")
-    agregado = amb.agregado(linha["trecho"])
-    if agregado is None:
+    redes = amb.redes(linha["trecho"])
+    if not redes:
         return None, _sem_rede(linha)
-    evidencias = [
-        _evidencia_rede(r, _agregado_das_redes([r])[chave], unidade, tipo)
-        for r in agregado["redes"]
+    if not any(amb.servicos_da_rede(r) for r in redes):
+        return None, _calculo(motivo="sem serviços de vala nas gavetas")
+    return redes, None
+
+
+def _achados(
+    redes: list[dict], amb: _Ambiente, regras: tuple[str, ...], saidas: tuple[str, ...]
+) -> list[tuple[dict, dict]]:
+    """(rede, serviço) dos serviços das gavetas com uma das `regras` e uma das `saidas`."""
+    return [
+        (rede, servico)
+        for rede in redes
+        for servico in amb.servicos_da_rede(rede)
+        if servico["regra"] in regras and servico["saida"] in saidas
     ]
-    return agregado, evidencias
 
 
-def _regra_volume(chave: str, tipo: str):
-    def regra(linha: dict, amb: _Ambiente) -> dict:
-        agregado, evidencias = _por_rede(linha, amb, chave, "m3", tipo)
-        if agregado is None:
-            return evidencias
-        return _calculo(agregado[chave], evidencias=evidencias)
+def _soma_de_servicos(
+    linha: dict,
+    amb: _Ambiente,
+    regra: str,
+    saida: str,
+    tipo: str,
+    multiplicador: float = 1.0,
+    premissas=(),
+) -> dict:
+    """Soma, sobre as redes do trecho, o `valor` dos serviços (regra, saída) das gavetas; cada um vira evidência.
 
-    return regra
+    Rede sem o serviço deixa a linha `parcial` (com as redes no motivo); nenhuma rede com ele, "a preencher"."""
+    redes, falha = _redes_do_trecho_com_servicos(linha, amb)
+    if redes is None:
+        return falha
+    achados = _achados(redes, amb, (regra,), (saida,))
+    if not achados:
+        return _calculo(
+            motivo=f"redes do trecho sem o serviço {regra}/{saida} nas gavetas"
+        )
+    com_servico = {r["id"] for r, _ in achados}
+    faltam = [f"RV-{r['id']}" for r in redes if r["id"] not in com_servico]
+    valores = np.array([s["valor"] for _, s in achados], dtype=np.float64)
+    return _calculo(
+        np.sum(valores) * multiplicador,
+        motivo=f"redes sem o serviço {regra}/{saida}: " + "; ".join(faltam)
+        if faltam
+        else None,
+        parcial=bool(faltam),
+        evidencias=[
+            _evidencia_rede(r, s["valor"], s["unidade"], tipo, s) for r, s in achados
+        ],
+        premissas=premissas,
+    )
+
+
+def _regra_escavacao(linha: dict, amb: _Ambiente) -> dict:
+    """041801: `volume_vala_m3` da `vala_rede`. Escavação em rocha não tem linha própria no contrato (o de-para não
+    traz composição de rocha): o volume da vala já a inclui, e `associado:escavacao_rocha_vala` é só o detalhe."""
+    return _soma_de_servicos(linha, amb, "vala_rede", "volume_vala_m3", "vala_rede")
+
+
+def _regra_bota_fora(linha: dict, amb: _Ambiente) -> dict:
+    """900603: serviço `bota_fora` (associado:bota_fora) das redes do trecho."""
+    return _soma_de_servicos(
+        linha, amb, "associado:bota_fora", "bota_fora", "bota_fora"
+    )
 
 
 def _regra_transporte(linha: dict, amb: _Ambiente) -> dict:
-    agregado, evidencias = _por_rede(linha, amb, "bota_fora_m3", "m3", "bota_fora")
-    if agregado is None:
-        return evidencias
-    return _calculo(
-        agregado["bota_fora_m3"] * amb.valor("dmt_bota_fora_km"),
-        evidencias=evidencias,
+    """041901: bota-fora × DMT (premissa `dmt_bota_fora_km`)."""
+    return _soma_de_servicos(
+        linha,
+        amb,
+        "associado:bota_fora",
+        "bota_fora",
+        "bota_fora",
+        multiplicador=amb.valor("dmt_bota_fora_km"),
         premissas=[amb.premissa("dmt_bota_fora_km")],
     )
 
 
 def _regra_recomposicao(linha: dict, amb: _Ambiente) -> dict:
-    agregado, evidencias = _por_rede(
-        linha, amb, "recomposicao_m2", "m2", "recomposicao"
-    )
-    if agregado is None:
-        return evidencias
-    return _calculo(agregado["recomposicao_m2"], evidencias=evidencias)
+    """Recomposição de pavimento: `recomposicao_m2` da `vala_rede`."""
+    return _soma_de_servicos(linha, amb, "vala_rede", "recomposicao_m2", "recomposicao")
 
 
 def _evidencia_furo(tipo: str, furo: dict, valor: float) -> dict:
@@ -580,34 +595,49 @@ def _evidencia_furo(tipo: str, furo: dict, valor: float) -> dict:
     }
 
 
-def _regra_rebaixamento(linha: dict, amb: _Ambiente) -> dict:
-    """1 se o NA do furo mais próximo do trecho fica acima do fundo da vala mais funda do trecho; 0 se não.
+_REGRAS_DA_AGUA = (
+    "associado:esgotamento",
+    "associado:rebaixamento_linha",
+    "associado:rebaixamento_horas",
+)
+_SAIDAS_DA_AGUA = ("esgotamento", "rebaixamento")
 
-    Furo mais próximo = o de menor distância a qualquer amostra (`pts`) das redes do trecho. NA = `geotecnia.na_m`
-    (profundidade a partir da boca, com a margem da premissa); fundo = cota da boca − maior profundidade do quadro.
-    NA igual ao fundo não rebaixa. Furo sem NA registrado: "a preencher" (não se supõe seco nem molhado)."""
-    agregado, falha = _por_rede(linha, amb, "escorada_m", "m", "")
-    if agregado is None:
-        return falha
-    furos = amb.contexto.get("furos", [])
-    if not furos:
-        return _calculo(motivo="sem sondagem com coordenada e cota da boca no contexto")
+
+def _furo_mais_proximo_das_redes(
+    redes: list[dict], furos: list[dict]
+) -> tuple[dict | None, float | None]:
+    """(furo, distância em m) do furo mais próximo de qualquer amostra (`pts`) das redes; (None, None) sem amostras."""
     amostras = [
         np.asarray(r["pts"], dtype=np.float64).reshape(-1, 2)
-        for r in agregado["redes"]
+        for r in redes
         if len(r.get("pts", ())) > 0
     ]
     if not amostras:
-        return _calculo(
-            motivo="redes do trecho sem amostras (pts) para medir a distância ao furo"
-        )
+        return None, None
     pontos = np.vstack(amostras)
     coordenadas = np.array([[f["E"], f["N"]] for f in furos], dtype=np.float64)
     distancia_por_furo_m = np.linalg.norm(
         pontos[:, None, :] - coordenadas[None, :, :], axis=2
     ).min(axis=0)
-    furo = furos[int(np.argmin(distancia_por_furo_m))]
-    distancia_m = float(distancia_por_furo_m.min())
+    indice = int(np.argmin(distancia_por_furo_m))
+    return furos[indice], float(distancia_por_furo_m[indice])
+
+
+def _rebaixamento_pelo_na(redes: list[dict], amb: _Ambiente) -> dict:
+    """1 se o NA do furo mais próximo do trecho fica acima do fundo da vala mais funda do trecho; 0 se não.
+
+    Só vale quando nenhum serviço das gavetas diz que há esgotamento ou rebaixamento. Fundo = cota da boca − maior
+    `profundidade_m` do quadro das redes (a profundidade que a `valas.rede` já calculou; o dimensionador não roda
+    aqui). NA = `geotecnia.na_m` (a partir da boca, com a margem da premissa); NA igual ao fundo não rebaixa. Furo
+    sem NA registrado: "a preencher" (não se supõe seco nem molhado)."""
+    furos = amb.contexto.get("furos", [])
+    if not furos:
+        return _calculo(motivo="sem sondagem com coordenada e cota da boca no contexto")
+    furo, distancia_m = _furo_mais_proximo_das_redes(redes, furos)
+    if furo is None:
+        return _calculo(
+            motivo="redes do trecho sem amostras (pts) para medir a distância ao furo"
+        )
     premissas = [
         {
             "nome": "margem_na_m",
@@ -624,8 +654,10 @@ def _regra_rebaixamento(linha: dict, amb: _Ambiente) -> dict:
             evidencias=evidencias,
             premissas=premissas,
         )
+    profundidades_m = [q["profundidade_m"] for r in redes for q in r.get("quadro", [])]
+    profundidade_max_m = float(np.max(profundidades_m)) if profundidades_m else 0.0
     cota_na_m = float(furo["cota_boca"]) - profundidade_na_m
-    cota_fundo_m = float(furo["cota_boca"]) - agregado["profundidade_max_m"]
+    cota_fundo_m = float(furo["cota_boca"]) - profundidade_max_m
     evidencias += [
         _evidencia_furo("cota_na", furo, cota_na_m),
         _evidencia_furo("cota_fundo_vala", furo, cota_fundo_m),
@@ -634,6 +666,29 @@ def _regra_rebaixamento(linha: dict, amb: _Ambiente) -> dict:
         1.0 if cota_na_m > cota_fundo_m else 0.0,
         evidencias=evidencias,
         premissas=premissas,
+    )
+
+
+def _regra_rebaixamento(linha: dict, amb: _Ambiente) -> dict:
+    """CRELF1: 1 se algum serviço de esgotamento ou rebaixamento das redes do trecho tem valor > 0 (o serviço é a
+    evidência). As gavetas só geram esses serviços quando há água; a ausência deles não prova vala seca (pode faltar
+    furo), então, sem eles, vale o critério do NA × fundo da vala (`_rebaixamento_pelo_na`)."""
+    redes, falha = _redes_do_trecho_com_servicos(linha, amb)
+    if redes is None:
+        return falha
+    com_agua = [
+        (r, s)
+        for r, s in _achados(redes, amb, _REGRAS_DA_AGUA, _SAIDAS_DA_AGUA)
+        if s["valor"] > 0
+    ]
+    if not com_agua:
+        return _rebaixamento_pelo_na(redes, amb)
+    return _calculo(
+        1.0,
+        evidencias=[
+            _evidencia_rede(r, s["valor"], s["unidade"], "rebaixamento_servico", s)
+            for r, s in com_agua
+        ],
     )
 
 
@@ -689,8 +744,8 @@ def _regra_area_da_uc(linha: dict, amb: _Ambiente) -> dict:
     folga_m = amb.valor("folga_locacao_lateral_m")
 
     def area_m2(redes):
-        agregado = _agregado_das_redes(redes)
-        return np.sum(agregado["extensao_m"] * (agregado["largura_m"] + 2 * folga_m))
+        extensao_m, largura_m = _extensao_e_largura_m(redes)
+        return np.sum(extensao_m * (largura_m + 2 * folga_m))
 
     return _resultado_da_uc(
         linha, amb, area_m2, "m2", premissas=[amb.premissa("folga_locacao_lateral_m")]
@@ -796,8 +851,8 @@ def _regra_sem_regra(linha: dict, amb: _Ambiente) -> dict:
 
 _REGRAS = {
     "comprimento_trecho": _regra_comprimento_trecho,
-    "escavacao_trecho": _regra_volume("escavacao_m3", "vala_dimensionada"),
-    "bota_fora_trecho": _regra_volume("bota_fora_m3", "bota_fora"),
+    "escavacao_trecho": _regra_escavacao,
+    "bota_fora_trecho": _regra_bota_fora,
     "transporte_m3km": _regra_transporte,
     "rebaixamento_vb": _regra_rebaixamento,
     "recomposicao_trecho": _regra_recomposicao,
@@ -928,6 +983,7 @@ def _evidencia_curta(e: dict) -> str:
     partes = [
         e["tipo"],
         str(e.get("id") or ""),
+        e.get("servico_id") or "",
         e.get("prancha") or e.get("furo") or "",
         f"{_ptbr(e['valor'])} {e['unidade']}",
     ]
