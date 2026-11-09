@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.74.0 — 2026-11-09 · F4b da reconstrução: vala única pela vala_rede (em andamento)
+- Os serviços da vala saem de um caminho só, as redes de vala (`RV-*`) das gavetas; os números do build real entram
+  ao fechar a rodada.
+
 ## 0.73.0 — 2026-11-04 · F5 da reconstrução: o texto dos documentos nas gavetas e o laço até a EAP completa
 - **`camadas/gavetas_texto.py`** (novo): editais, memoriais, laudos e listas são lidos por código, página a página,
   sem IA e sem OCR.

@@ -69,8 +69,8 @@ etapas:
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 150000
-  status: a_fazer
-  inicio: null
+  status: fazendo
+  inicio: '2026-11-09T13:30:25Z'
   fim: null
   forcado: null
 historico:
