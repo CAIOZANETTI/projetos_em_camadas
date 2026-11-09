@@ -428,9 +428,10 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
 
 
 def quantificar_gavetas(dados: dict, furos=None, pts=None) -> dict:
-    """Regra `vala_rede` das gavetas: demolição, recomposição e volume de vala por classe (e superfície final)."""
+    """Regra `vala_rede` das gavetas: demolição, recomposição e volume de vala por classe (e superfície final), com o
+    material e o DN nominal da rede quando a gaveta os tem (sem eles: FD de premissa e DN = DE, como `valas.rede`)."""
     quadro = quantificar(dados["classes_por_metro"], np.asarray(dados["pesos_m"], float), dados["de_mm"] / 1000,
-                         dados.get("finais"), dados.get("material"))
+                         dados.get("finais"), dados.get("material"), dados.get("dn_mm"))
     saida: dict = {"demolicao_m2": {}, "recomposicao_m2": {}, "volume_vala_m3": {}, "alertas": []}
     for q in quadro:
         chave = f"{q['classe']}/{q['final']}" if q["final"] else q["classe"]

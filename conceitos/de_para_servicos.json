@@ -81,7 +81,8 @@
    ],
    "opcionais": [
     "finais",
-    "material"
+    "material",
+    "dn_mm"
    ],
    "sondagens": null,
    "saidas": [

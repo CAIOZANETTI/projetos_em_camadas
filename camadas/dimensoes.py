@@ -175,7 +175,7 @@ def _pontos(geometria, passo_m: float = 1.0):
 
 
 def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: str, furos: list | None, pts,
-                   profundidade: float | None) -> tuple[dict | None, list]:
+                   profundidade: float | None, dn_mm: float | None = None) -> tuple[dict | None, list]:
     """Adaptador: dimensões de um segmento no formato do tipo `vala`, todas vindas de `lineares.dimensionar_vala`
     (largura, profundidade, escoramento, esgotamento, escavação, reaterro, bota-fora, escoramento em m² e pavimento em
     m²); (None, [motivo]) quando o material do tubo não é reconhecido. Fora da Tabela I do MOS a largura é o fallback
@@ -189,7 +189,7 @@ def _segmento_vala(sup: str, L: float, d: float, de_mm: float, material_texto: s
     rec = VALAS["recobrimento_m"][VALAS["classes"].get(sup, {}).get("recobrimento", "outros")]
     h = profundidade if profundidade is not None else rec + d + c["berco"]
     pav_mos = VP["metodos"]["mos_sanepar"]["pavimentos"]["valor"].get(sup, "terra")
-    trecho = {"local": sup, "dn_mm": de_mm, "de_mm": de_mm, "material": material, "prof_m": h, "comp_m": L,
+    trecho = {"local": sup, "dn_mm": dn_mm or de_mm, "de_mm": de_mm, "material": material, "prof_m": h, "comp_m": L,
               "metodo": "VCA", "pavimentos": {pav_mos: L}}
     r = lineares.dimensionar_vala(trecho, furos or [], pts=pts)
     if not r.get("largura_m"):
@@ -231,7 +231,7 @@ def fracao_rocha_de(dims: dict) -> float:
 
 def dimensionar_vala(trecho: dict, sondagens: list | None = None,
                      metodos: list[str] | None = None) -> list[tuple[str, str, tuple, list[str]]]:
-    """[(segmento, método, (dimensões, faltando, memória), alertas)] de um trecho: {id, de_mm, segmentos: {superfície:
+    """[(segmento, método, (dimensões, faltando, memória), alertas)] de um trecho: {id, de_mm, dn_mm?, segmentos: {superfície:
     m}, material_texto?, geometria (UTM)?, cota_terreno?, profundidade_m?}. Adaptador de `lineares.dimensionar_vala`
     (decisão do Caio 03/11/2026: dimensionador único): o único método é `mos_sanepar`; outro método pedido (ex.:
     'nbr12266') não tem regra própria e fica de fora com alerta. Material não reconhecido sai com a largura em `faltando`; tubo fora da Tabela I do MOS usa o fallback do lineares (D7)."""
@@ -253,7 +253,7 @@ def dimensionar_vala(trecho: dict, sondagens: list | None = None,
             continue
         for sup, L in trecho["segmentos"].items():
             dims, memoria = _segmento_vala(sup, L, trecho["de_mm"] / 1000, trecho["de_mm"], trecho.get("material_texto"),
-                                           furos, pts, trecho.get("profundidade_m"))
+                                           furos, pts, trecho.get("profundidade_m"), trecho.get("dn_mm"))
             if dims is None:                              # o que falta não é suposto: só o que não depende da largura sai
                 d, faltando, mem = dimensionar("vala", dados={"L": L, "d": trecho["de_mm"] / 1000})
                 saida.append((sup, metodo, (d, [f"b (falta {memoria[0]})", *faltando], mem), alertas + [f"{sup}: {memoria[0]}"]))

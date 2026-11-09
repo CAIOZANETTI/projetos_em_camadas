@@ -820,3 +820,20 @@ def test_metadados_citam_as_funcoes_e_o_mapa():
     m = gs.metadados()
     assert {"elementos", "complementares", "paridade"} <= set(m["funcoes"])
     assert m["mapa_de_dimensoes"]["estaca"] == ["L", "d"]
+
+
+def test_dn_nominal_da_rede_da_a_mesma_largura_na_vala_rede_e_nos_complementares():
+    """DE 326 com DN 300 (lodo da ETA): a Tabela I do MOS é pelo DN nominal; a regra `vala_rede` (serviços das gavetas),
+    o quadro de `valas.rede` (HTML) e os complementares usam o mesmo DN, e a largura difere da que sairia do DE."""
+    rede = {**_rede(id="AAT01", de_mm=326), "dn_mm": 300}
+    base = eg.juntar(eg.de_valas([rede]), eg.de_sondagens(FUROS, "sondagens.json"))
+    fatos = {f["propriedade"]: f["valor"] for f in base["fatos"] if f["objeto_id"] == "RV-AAT01"}
+    assert fatos["dn_mm"] == 300
+    pelo_dn = valas.secao("pista", 0.326, valas.MATERIAL_PADRAO, 300)[0]
+    assert pelo_dn != pytest.approx(valas.secao("pista", 0.326, valas.MATERIAL_PADRAO, 326)[0])
+    quadro = valas.quantificar(rede["classes"], rede["peso"], 0.326, None, None, 300)
+    servicos = {(s["saida"], s.get("chave")): s["valor"] for s in gavetas.calcular(base)[0] if s["regra"] == "vala_rede"}
+    for q in quadro:
+        assert servicos[("demolicao_m2", q["classe"])] == pytest.approx(q["demolicao_m2"], abs=1e-6)
+    pista = [e for e in gs.elementos(base, EPSG) if e["tipo"] == "vala" and e["chave"] == "pista"]
+    assert pista and all(e["dims"]["b"] == pytest.approx(pelo_dn, abs=1e-6) for e in pista)

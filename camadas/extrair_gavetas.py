@@ -128,7 +128,8 @@ def _evidencia_da_ortofoto(rede: dict, ortofoto: str | Path | None) -> dict:
 def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path | None = None) -> dict:
     """Redes de `valas.rede` → objetos `rede_vala` `RV-<id>`, eixo em linha, fatos e evidência (pranchas, layers e critério).
 
-    `de_mm`, `extensao_m`, `pesos_m` (traço do tubo) e `finais` (prancha de urbanização) são projetados e apontam para a
+    `de_mm`, `dn_mm` (só quando o DN nominal difere do DE), `extensao_m`, `pesos_m` (traço do tubo) e `finais` (prancha de
+    urbanização) são projetados e apontam para a
     evidência da prancha. A classe de cada metro é `projetado` quando o critério é o desenho (divisas, quadras, meio_fio);
     quando é a ortofoto, é `inferido` e aponta para uma segunda evidência (classe "ortofoto", documento = `ortofoto`,
     método "geometria"). A rede guarda um só critério, não a origem de cada metro: a natureza vale para a rede inteira.
@@ -151,7 +152,8 @@ def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path 
         dados = {"local": str(rede["id"]), "de_mm": rede["de_mm"], "extensao_m": rede["extensao_m"],
                  "classes_por_metro": list(rede["classes"]),
                  "pesos_m": np.asarray(rede["peso"], float).tolist(), "finais": rede.get("finais"),
-                 "material": rede.get("material_declarado")}   # só o do obra.json ou do contrato, nunca o FD de premissa
+                 "material": rede.get("material_declarado"),   # só o do obra.json ou do contrato, nunca o FD de premissa
+                 "dn_mm": rede["dn_mm"] if rede.get("dn_mm") not in (None, rede["de_mm"]) else None}   # DN nominal (MOS)
         for propriedade in propriedades:
             if _vazio(dados.get(propriedade)):
                 continue
@@ -173,7 +175,7 @@ def paridade_valas(base: dict, redes: list[dict], tol: float = 0.1, servicos: li
     difs = []
     for rede in redes:
         quadro = valas.quantificar(rede["classes"], np.asarray(rede["peso"], float), rede["de_mm"] / 1000,
-                                   rede.get("finais"))
+                                   rede.get("finais"), rede.get("material_declarado"), rede.get("dn_mm"))
         esperado = {(nome, f"{q['classe']}/{q['final']}" if q["final"] else q["classe"]): q[nome]
                     for q in quadro for nome in ("demolicao_m2", "recomposicao_m2", "volume_vala_m3")
                     if q[nome] > 0 or nome == "volume_vala_m3"}

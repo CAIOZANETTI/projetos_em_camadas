@@ -58,7 +58,7 @@ CLASSE_PARA_TIPO = dimensoes.REGRAS["construtivos"]
 não gera elemento: a vala vem da rede (`CLASSE_DA_REDE`)."""
 CLASSE_DO_FURO = "furo_sondagem"
 CLASSE_DA_REDE = "rede_vala"
-FATOS_DA_REDE = ("de_mm", "classes_por_metro", "pesos_m", "extensao_m", "local")
+FATOS_DA_REDE = ("de_mm", "dn_mm", "classes_por_metro", "pesos_m", "extensao_m", "local")
 """Fatos da `rede_vala` de que o elemento de vala depende (o rastro dos serviços)."""
 TOLERANCIA_EIXO = 0.01
 """Tolerância relativa entre o comprimento do eixo da rede e a soma de `pesos_m` para posicionar as amostras (1 %)."""
@@ -327,6 +327,12 @@ def _texto(fato: dict | None) -> bool:
     return fato is not None and bool(str(fato["valor"] or "").strip())
 
 
+def _dn_da_rede(rede: dict) -> float | None:
+    """DN nominal da rede (Tabela I do MOS), o mesmo que a regra `vala_rede` usa; None = DN igual ao DE."""
+    fato = rede["fatos"].get("dn_mm")
+    return float(fato["valor"]) if _numero(fato) else None
+
+
 def _material_da_rede(rede: dict, trechos: list[dict]) -> tuple[dict | None, list[str]]:
     """(fato `material`, avisos) da rede: o dela, se tiver; senão o dos trechos do mesmo (unidade, sistema), preferindo
     os de mesmo diâmetro, e dentre eles o material de maior extensão. None sem nenhum: quem chama usa a premissa única
@@ -383,6 +389,7 @@ def _elementos_do_grupo(
     trecho = {
         "id": objeto_id,
         "de_mm": float(rede["fatos"]["de_mm"]["valor"]),
+        "dn_mm": _dn_da_rede(rede),
         "segmentos": {g["classe"]: g["metros"]},
         "material_texto": material_texto,
         "geometria": g["geometria"],
