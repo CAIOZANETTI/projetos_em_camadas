@@ -349,6 +349,50 @@ def ajustar_rigido(origem: np.ndarray, destino: np.ndarray) -> np.ndarray:
     return M
 
 
+def _partes_na_janela(tracos, padrao_layers: str, janela_pt) -> list:
+    """Partes `(pontos, fechado)` dos traços dos layers `padrao_layers` com centro dentro da janela (toda a folha se None)."""
+    import re
+    partes = []
+    for t in tracos:
+        if re.search(padrao_layers, t["layer"], re.IGNORECASE) is None:
+            continue
+        for q in t["partes"]:
+            q = np.asarray(q, float)
+            c = q.mean(0)
+            if len(q) >= 2 and (janela_pt is None or
+                                (janela_pt[0] <= c[0] <= janela_pt[2] and janela_pt[1] <= c[1] <= janela_pt[3])):
+                partes.append((q, bool(t.get("fechado"))))
+    return partes
+
+
+def _rasterizar_partes(partes: list, k: float, espessura: int):
+    """Rasteriza as partes na escala `k` (px por pt); devolve a imagem e a origem em pt do canto superior esquerdo."""
+    todos = np.vstack([q for q, _ in partes])
+    origem_pt = todos.min(0) - 5.0
+    forma = np.ceil((todos.max(0) + 5.0 - origem_pt) * k).astype(int)[::-1] + 1
+    img = np.zeros(forma, np.uint8)
+    for q, fechado in partes:
+        cv2.polylines(img, [np.round((q - origem_pt) * k).astype(np.int32)], fechado, 255, espessura, cv2.LINE_AA)
+    return img, origem_pt
+
+
+def _reajustar_escala_fixa(r: dict, res: float, max_residuo_m: float):
+    """Reajusta a similaridade do SIFT com a escala fixa; devolve (Mpx, pares usados, distâncias em m dos usados)."""
+    # escala fixa: rotação + translação (px da referência, mesma unidade nas duas nuvens). Reajusta e reconta,
+    # entre TODOS os pares do SIFT, os que ficam a <= max_residuo_m, três vezes: o RANSAC de similaridade, com
+    # a escala solta, perde correspondências boas quando a vista tem poucas
+    Mpx = ajustar_rigido(r["pts_movel"], r["pts_ref"])
+    usados = np.ones(len(r["pares_movel"]), bool)
+    for _ in range(3):
+        dist = geo.residuos(Mpx, r["pares_movel"], r["pares_ref"]) * res
+        usados = dist <= max_residuo_m
+        if usados.sum() < 3:
+            break
+        Mpx = ajustar_rigido(r["pares_movel"][usados], r["pares_ref"][usados])
+    dif = geo.residuos(Mpx, r["pares_movel"][usados], r["pares_ref"][usados]) * res
+    return Mpx, usados, dif
+
+
 def registrar_cad_escala_fixa(tracos, referencia: str | Path, escala_m_pt: float, padrao_layers: str, janela_pt=None,
                               min_inliers: int = 15, max_residuo_m: float = 0.15, tol_escala: float = 0.02, espessura: int = 2,
                               lado_px: int = 6000, log=print) -> dict:
@@ -369,49 +413,23 @@ def registrar_cad_escala_fixa(tracos, referencia: str | Path, escala_m_pt: float
     Uso: `ref = obra.referencia_cad(base, pasta, padrao, 0.05)`; `registrar_cad_escala_fixa(tr, ref, 100 * 0.0254 / 72,
     padrao, janela_pt=vista)`. Confira sempre em imagem sobre a base.
     """
-    import re
     referencia = Path(referencia)
     meta = json.loads(referencia.with_suffix(".json").read_text())
     e0, n1 = meta["canto_sup_esq"]
     res = meta["res_m_px"]
     ref = cv2.imread(str(referencia), cv2.IMREAD_GRAYSCALE)
     k = escala_m_pt / res                                 # px da referência por pt da folha
-    partes = []
-    for t in tracos:
-        if re.search(padrao_layers, t["layer"], re.IGNORECASE) is None:
-            continue
-        for q in t["partes"]:
-            q = np.asarray(q, float)
-            c = q.mean(0)
-            if len(q) >= 2 and (janela_pt is None or
-                                (janela_pt[0] <= c[0] <= janela_pt[2] and janela_pt[1] <= c[1] <= janela_pt[3])):
-                partes.append((q, bool(t.get("fechado"))))
+    partes = _partes_na_janela(tracos, padrao_layers, janela_pt)
     if not partes:
         return {"M": None, "ok": False, "motivo": f"sem traços nos layers '{padrao_layers}' na janela"}
-    todos = np.vstack([q for q, _ in partes])
-    origem_pt = todos.min(0) - 5.0
-    forma = np.ceil((todos.max(0) + 5.0 - origem_pt) * k).astype(int)[::-1] + 1
-    img = np.zeros(forma, np.uint8)
-    for q, fechado in partes:
-        cv2.polylines(img, [np.round((q - origem_pt) * k).astype(np.int32)], fechado, 255, espessura, cv2.LINE_AA)
+    img, origem_pt = _rasterizar_partes(partes, k, espessura)
     try:
         r = registrar_imagem(cv2.cvtColor(255 - img, cv2.COLOR_GRAY2BGR), cv2.cvtColor(ref, cv2.COLOR_GRAY2BGR),
                              "similaridade", lado=lado_px)
     except RuntimeError as e:
         return {"M": None, "ok": False, "motivo": str(e)}
     razao = float(np.sqrt(abs(np.linalg.det(r["M"][:2, :2]))))
-    # escala fixa: rotação + translação (px da referência, mesma unidade nas duas nuvens). Reajusta e reconta,
-    # entre TODOS os pares do SIFT, os que ficam a <= max_residuo_m, três vezes: o RANSAC de similaridade, com
-    # a escala solta, perde correspondências boas quando a vista tem poucas
-    Mpx = ajustar_rigido(r["pts_movel"], r["pts_ref"])
-    usados = np.ones(len(r["pares_movel"]), bool)
-    for _ in range(3):
-        dist = geo.residuos(Mpx, r["pares_movel"], r["pares_ref"]) * res
-        usados = dist <= max_residuo_m
-        if usados.sum() < 3:
-            break
-        Mpx = ajustar_rigido(r["pares_movel"][usados], r["pares_ref"][usados])
-    dif = geo.residuos(Mpx, r["pares_movel"][usados], r["pares_ref"][usados]) * res
+    Mpx, usados, dif = _reajustar_escala_fixa(r, res, max_residuo_m)
     if usados.sum() < 3:
         return {"M": None, "ok": False, "motivo": f"{int(usados.sum())} correspondências na escala fixa"}
     T = np.array([[res, 0, e0], [0, -res, n1], [0, 0, 1]])

@@ -165,6 +165,43 @@ def _pdf_ausente(p: dict) -> bool:
     return True
 
 
+def _registrar_prancha(p: dict, tr, pts, orto, pasta: Path, feitas: dict) -> tuple:
+    """Georreferencia uma prancha pelo primeiro recurso que ela traz (afim absoluta, malha, pontos de controle ou
+    prancha irmã); devolve `(resultado | None, ok, motivo)`."""
+    r, ok, motivo = None, False, ""
+    pc = p.get("pontos_controle")
+    irma = feitas.get(p.get("irma", ""), {}).get("M")
+    if p.get("M_absoluta"):
+        # afim já conhecida (ex.: ajustada em coordenadas topográficas): usa sem ICP
+        r = {"M": np.vstack([np.asarray(p["M_absoluta"], float), [0, 0, 1]]), "residuo_mediano_m": None,
+             "frac_05m": None}
+        ok, motivo = True, "afim absoluta (coordenadas topográficas)"
+    elif p.get("malha"):
+        # malha de coordenadas impressa no próprio desenho: exata, não depende da ortofoto
+        r = georef_prancha.registrar_malha(tr, p["malha"], escala=p.get("escala"), log=_log)
+        if not r["ok"] and p.get("continuidade"):
+            r = _malha_por_continuidade(p, tr, feitas, r["motivo"])
+        ok, motivo = r["ok"], r["motivo"]
+    elif pc:
+        M0 = georef_prancha.matriz_inicial(pc["pt"], pc["utm"])
+        r = georef_prancha.registrar(pts, orto, M_inicial=M0, log=_log) if len(pts) > 200 else \
+            {"M": M0, "residuo_mediano_m": None, "frac_05m": None, "escala_m_pt": None}
+        ok, motivo = True, "pontos de controle" + (" + ICP" if len(pts) > 200 else "")
+    elif irma is not None:
+        # referência = linhas de existentes da prancha irmã já georreferenciada (CAD × CAD)
+        ref = referencia_cad(feitas[p["irma"]], pasta, p.get("layers_irma", "EXIST"), p.get("res_irma", 0.10))
+        r = georef_prancha.registrar_cad(tr, ref, irma, p.get("layers_referencia", "EXIST"), log=_log)
+        ok, motivo = r["ok"], f"automático sobre a prancha {p['irma']}: {r['motivo']}"
+        if not ok and len(pts) > 200:                 # alternativa: ICP a partir da escala da irmã
+            r2 = georef_prancha.registrar(pts, ref, M_irma=irma, log=lambda *a: None)
+            ok2, _ = georef_prancha.aceitavel(r2, irma, max_residuo_m=0.25, min_frac=0.6)
+            if ok2:
+                r, ok, motivo = r2, True, f"automático (ICP) sobre a prancha {p['irma']}"
+    else:
+        motivo = "sem pontos de controle nem prancha irmã"
+    return r, ok, motivo
+
+
 def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
     """Georreferencia cada prancha (cache em pranchas/<id>.json)."""
     orto = out / "sfm" / "ortofoto.jpg"
@@ -189,37 +226,7 @@ def etapa_pranchas(cfg: dict, out: Path, refazer: bool) -> list[dict]:
         filtro_ref = p.get("layers_referencia", "EXIST")
         pts = georef_prancha.pontos_de_traco(tr, filtro=lambda t, f=filtro_ref: re.search(f, t["layer"], re.IGNORECASE) is not None,
                                              passo_pt=3)
-        r, ok, motivo = None, False, ""
-        pc = p.get("pontos_controle")
-        irma = feitas.get(p.get("irma", ""), {}).get("M")
-        if p.get("M_absoluta"):
-            # afim já conhecida (ex.: ajustada em coordenadas topográficas): usa sem ICP
-            r = {"M": np.vstack([np.asarray(p["M_absoluta"], float), [0, 0, 1]]), "residuo_mediano_m": None,
-                 "frac_05m": None}
-            ok, motivo = True, "afim absoluta (coordenadas topográficas)"
-        elif p.get("malha"):
-            # malha de coordenadas impressa no próprio desenho: exata, não depende da ortofoto
-            r = georef_prancha.registrar_malha(tr, p["malha"], escala=p.get("escala"), log=_log)
-            if not r["ok"] and p.get("continuidade"):
-                r = _malha_por_continuidade(p, tr, feitas, r["motivo"])
-            ok, motivo = r["ok"], r["motivo"]
-        elif pc:
-            M0 = georef_prancha.matriz_inicial(pc["pt"], pc["utm"])
-            r = georef_prancha.registrar(pts, orto, M_inicial=M0, log=_log) if len(pts) > 200 else \
-                {"M": M0, "residuo_mediano_m": None, "frac_05m": None, "escala_m_pt": None}
-            ok, motivo = True, "pontos de controle" + (" + ICP" if len(pts) > 200 else "")
-        elif irma is not None:
-            # referência = linhas de existentes da prancha irmã já georreferenciada (CAD × CAD)
-            ref = referencia_cad(feitas[p["irma"]], pasta, p.get("layers_irma", "EXIST"), p.get("res_irma", 0.10))
-            r = georef_prancha.registrar_cad(tr, ref, irma, p.get("layers_referencia", "EXIST"), log=_log)
-            ok, motivo = r["ok"], f"automático sobre a prancha {p['irma']}: {r['motivo']}"
-            if not ok and len(pts) > 200:                 # alternativa: ICP a partir da escala da irmã
-                r2 = georef_prancha.registrar(pts, ref, M_irma=irma, log=lambda *a: None)
-                ok2, _ = georef_prancha.aceitavel(r2, irma, max_residuo_m=0.25, min_frac=0.6)
-                if ok2:
-                    r, ok, motivo = r2, True, f"automático (ICP) sobre a prancha {p['irma']}"
-        else:
-            motivo = "sem pontos de controle nem prancha irmã"
+        r, ok, motivo = _registrar_prancha(p, tr, pts, orto, pasta, feitas)
         info = {"ok": bool(ok), "motivo": motivo, "segundos": round(time.time() - t, 1), "assinatura": assinatura}
         if r is not None:
             info.update({k: v for k, v in r.items() if k != "M"})
@@ -956,6 +963,20 @@ def _escavacao_e_conferencia(cfg: dict, pranchas: list, out: Path, vertical: dic
     return esc
 
 
+def _vetores_do_build(cfg: dict, out: Path, rel: dict, epsg: int, pranchas: list, esc, fichas, vala, extensao_utm) -> list:
+    """Vetores do build além dos das pranchas: câmeras, estacas, supressão, escavação, marcos, blocos, peças e valas."""
+    e0, n0, e1, n1 = extensao_utm
+    return [v for v in (
+        {"id": "cameras", "nome": "Fotos do drone (posição e visada)", "grupo": "Levantamento", "subgrupo": "Drone",
+         "visivel": False, "geojson": vetores_cameras(rel, epsg), "fotos": True, "estilo": {"color": "#f5c518", "weight": 2}},
+        estacas(cfg, epsg), vetor_supressao(cfg, out, pranchas), vetor_escavacao(esc),
+        vetor_marcos(cfg, epsg, ((e0 + e1) / 2, (n0 + n1) / 2)),
+        *((prancha.vetor_blocos(fichas, epsg), prancha.vetor_pecas(fichas, epsg)) if fichas else ()),
+        vala and {"id": "valas", "nome": "Valas: pista, calçada e lote (calculado)", "grupo": "Intervenções",
+                  "subgrupo": "Demolição e recomposição", "visivel": False, "geojson": vala["geojson"],
+                  "estilo": {"color": "#dc2626", "weight": 4, "opacity": 0.9}}) if v]
+
+
 def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     cfg = json.loads(Path(cfg_path).read_text())
     out = Path(cfg["saida"])
@@ -979,15 +1000,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     fichas = prancha.etapa(cfg, pranchas, escopo, out, log=_log)           # prancha lida em camadas (pilotos)
     redes_vala: list = []
     vala = valas.etapa(cfg, pranchas, lista, escopo, out, epsg, log=_log, redes_saida=redes_vala)   # pista × calçada × lote
-    vetores += [v for v in (
-        {"id": "cameras", "nome": "Fotos do drone (posição e visada)", "grupo": "Levantamento", "subgrupo": "Drone",
-         "visivel": False, "geojson": vetores_cameras(rel, epsg), "fotos": True, "estilo": {"color": "#f5c518", "weight": 2}},
-        estacas(cfg, epsg), vetor_supressao(cfg, out, pranchas), vetor_escavacao(esc),
-        vetor_marcos(cfg, epsg, ((e0 + e1) / 2, (n0 + n1) / 2)),
-        *((prancha.vetor_blocos(fichas, epsg), prancha.vetor_pecas(fichas, epsg)) if fichas else ()),
-        vala and {"id": "valas", "nome": "Valas: pista, calçada e lote (calculado)", "grupo": "Intervenções",
-                  "subgrupo": "Demolição e recomposição", "visivel": False, "geojson": vala["geojson"],
-                  "estilo": {"color": "#dc2626", "weight": 4, "opacity": 0.9}}) if v]
+    vetores += _vetores_do_build(cfg, out, rel, epsg, pranchas, esc, fichas, vala, orto["extensao_utm"])
     area = area_da_obra(cfg, vetores, orto["extensao_utm"], crs)
     vetores += [_vetor_area(area, epsg)] if area is not None else []
     furos = _furos_x_nuvem(sondagens(cfg, epsg), vertical)

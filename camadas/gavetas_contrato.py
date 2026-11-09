@@ -39,10 +39,6 @@ PROPRIEDADES_CONTRATO = (
 )
 
 
-def _base_vazia() -> dict:
-    return {gaveta: [] for gaveta in gavetas.GAVETAS}
-
-
 def _vazio(valor) -> bool:
     return valor is None or (isinstance(valor, str) and not valor.strip())
 
@@ -79,7 +75,7 @@ def de_contrato(planilha: Path, documento_id: str) -> dict:
 
     `quantidade` só existe quando a planilha a declara; senão a linha vira pendência "quantidade a calcular (F4)".
     `folha_eap`, `dn_mm` e `material` vêm do de-para `composicoes_sanepar.json`, quando ele casa."""
-    base = _base_vazia()
+    base = gavetas.base_vazia()
     for linha in contrato_211.classificar(
         contrato_211.ler_custo_civil(planilha, ABA_CONTRATO)
     ):
@@ -202,7 +198,7 @@ def de_materiais(planilha: Path, documento_id: str) -> dict:
 
     Quantidade de etapa só vira fato quando é número; vazia ou em texto vira pendência. `dn_mm` só quando a descrição
     traz `DN <n>` (extrator `orcamento_sanepar.extrair_dn`)."""
-    base = _base_vazia()
+    base = gavetas.base_vazia()
     for item in ler_relacao(planilha):
         objeto_id = f"rel-{item['linha']}"
         base["objetos"].append({"objeto_id": objeto_id, "classe": "item_material"})

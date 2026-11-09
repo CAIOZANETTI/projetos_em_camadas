@@ -286,24 +286,8 @@ def _fato(
     }
 
 
-def _fatos_do_elemento(
-    elemento: dict, utm: list[np.ndarray], evidencia_id: str
-) -> tuple[dict, list]:
-    """({propriedade: fato}, [(motivo, detalhe)]) do elemento: rótulo, unidade, sistema, atributos mapeados e medidas."""
-    objeto_id, fatos, pendencias = str(elemento["id"]), {}, []
-
-    def incluir(propriedade, valor, natureza):
-        fatos[propriedade] = _fato(
-            objeto_id, propriedade, valor, natureza, evidencia_id
-        )
-
-    if elemento.get("rotulo"):
-        incluir("rotulo", str(elemento["rotulo"]), "projetado")
-    unidade, sistema = elemento.get("unidade"), elemento.get("sistema")
-    if unidade:
-        incluir("unidade", str(unidade), "inferido")
-    if sistema:  # a chave de unidades_construtivas.json não leva o prefixo da unidade
-        incluir("sistema", str(sistema).removeprefix(f"{unidade}-"), "inferido")
+def _atributos_do_elemento(elemento: dict) -> list[tuple]:
+    """Atributos lidos do elemento, mais etapa e origem da etapa quando o desenho não traz o rótulo "Etapa"."""
     atributos = [tuple(a) for a in elemento.get("atributos", [])]
     lidos = {r for r, _ in atributos}
     atributos += [
@@ -311,18 +295,11 @@ def _fatos_do_elemento(
         for campo in ("etapa", "origem_etapa")
         if elemento.get(campo) and "Etapa" not in lidos
     ]
-    superficies = {
-        SUPERFICIES[r]: float(v)
-        for r, v in atributos
-        if r in SUPERFICIES
-        and isinstance(v, (int, float))
-        and not isinstance(v, bool)
-        and v > 0
-    }
-    if superficies:
-        incluir("pavimentos", superficies, "inferido")
-    if len(utm) > 1 and elemento["geometria"]["type"] == "MultiLineString":
-        incluir("eixo_partes", [p.tolist() for p in utm], "projetado")
+    return atributos
+
+
+def _incluir_atributos(atributos: list[tuple], fatos: dict, pendencias: list, incluir) -> None:
+    """Passa cada atributo mapeado a fato; o que não vira propriedade, repete ou falha vira pendência."""
     for rotulo, bruto in atributos:
         if (
             rotulo in SUPERFICIES
@@ -353,8 +330,11 @@ def _fatos_do_elemento(
             )
         else:
             incluir(propriedade, valor, natureza)
-    medidas = _medidas(elemento["geometria"], utm)
-    area = medidas.get("area_planta_m2")
+
+
+def _pendencia_de_area(fatos: dict, area) -> list:
+    """Pendência quando a área do atributo difere da geometria UTM além da tolerância."""
+    pendencias = []
     area_atributo = fatos.get("area_planta_m2", {}).get("valor")
     if area_atributo is not None and area is not None:
         dif = abs(area_atributo - area)
@@ -365,6 +345,43 @@ def _fatos_do_elemento(
                     f"atributo {area_atributo:.1f} m², geometria {area:.1f} m²",
                 )
             )
+    return pendencias
+
+
+def _fatos_do_elemento(
+    elemento: dict, utm: list[np.ndarray], evidencia_id: str
+) -> tuple[dict, list]:
+    """({propriedade: fato}, [(motivo, detalhe)]) do elemento: rótulo, unidade, sistema, atributos mapeados e medidas."""
+    objeto_id, fatos, pendencias = str(elemento["id"]), {}, []
+
+    def incluir(propriedade, valor, natureza):
+        fatos[propriedade] = _fato(
+            objeto_id, propriedade, valor, natureza, evidencia_id
+        )
+
+    if elemento.get("rotulo"):
+        incluir("rotulo", str(elemento["rotulo"]), "projetado")
+    unidade, sistema = elemento.get("unidade"), elemento.get("sistema")
+    if unidade:
+        incluir("unidade", str(unidade), "inferido")
+    if sistema:  # a chave de unidades_construtivas.json não leva o prefixo da unidade
+        incluir("sistema", str(sistema).removeprefix(f"{unidade}-"), "inferido")
+    atributos = _atributos_do_elemento(elemento)
+    superficies = {
+        SUPERFICIES[r]: float(v)
+        for r, v in atributos
+        if r in SUPERFICIES
+        and isinstance(v, (int, float))
+        and not isinstance(v, bool)
+        and v > 0
+    }
+    if superficies:
+        incluir("pavimentos", superficies, "inferido")
+    if len(utm) > 1 and elemento["geometria"]["type"] == "MultiLineString":
+        incluir("eixo_partes", [p.tolist() for p in utm], "projetado")
+    _incluir_atributos(atributos, fatos, pendencias, incluir)
+    medidas = _medidas(elemento["geometria"], utm)
+    pendencias += _pendencia_de_area(fatos, medidas.get("area_planta_m2"))
     for propriedade, valor in medidas.items():
         # o traço desenhado não é o tubo (dois traços por tubo): vale o comprimento ou a extensão que o elemento declara
         declara_comprimento = propriedade == "comprimento_m" and (
