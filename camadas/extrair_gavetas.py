@@ -150,11 +150,12 @@ def de_valas(redes: list[dict], crs_h: str = "EPSG:31982", ortofoto: str | Path 
             base["evidencias"].append(_evidencia_da_ortofoto(rede, ortofoto))
         dados = {"local": str(rede["id"]), "de_mm": rede["de_mm"], "extensao_m": rede["extensao_m"],
                  "classes_por_metro": list(rede["classes"]),
-                 "pesos_m": np.asarray(rede["peso"], float).tolist(), "finais": rede.get("finais")}
+                 "pesos_m": np.asarray(rede["peso"], float).tolist(), "finais": rede.get("finais"),
+                 "material": rede.get("material_declarado")}   # só o do obra.json ou do contrato, nunca o FD de premissa
         for propriedade in propriedades:
             if _vazio(dados.get(propriedade)):
                 continue
-            nasce_do_desenho = por_desenho or propriedade != "classes_por_metro"   # pesos: traço; finais: urbanização
+            nasce_do_desenho = por_desenho or propriedade != "classes_por_metro"   # pesos: traço; finais: urbanização; material: contrato
             base["fatos"].append(_fato(objeto_id, propriedade, dados[propriedade],
                                        "projetado" if nasce_do_desenho else "inferido",
                                        evidencia_id if nasce_do_desenho else f"{evidencia_id}-ORTO"))

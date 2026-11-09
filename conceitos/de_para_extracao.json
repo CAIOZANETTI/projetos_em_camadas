@@ -108,7 +108,8 @@
     "extensao_m",
     "classes_por_metro",
     "pesos_m",
-    "finais"
+    "finais",
+    "material"
    ],
    "leitor": "camadas.valas.rede",
    "estado": "ligado (rodada 24)",

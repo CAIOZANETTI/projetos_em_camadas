@@ -71,7 +71,7 @@
    ]
   },
   "vala_rede": {
-   "versao": "1",
+   "versao": "2",
    "objeto": "rede_vala",
    "funcao": "camadas.valas.quantificar_gavetas",
    "exige": [
@@ -80,7 +80,8 @@
     "pesos_m"
    ],
    "opcionais": [
-    "finais"
+    "finais",
+    "material"
    ],
    "sondagens": null,
    "saidas": [

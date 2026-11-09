@@ -33,7 +33,15 @@ import numpy as np
 import shapely
 from shapely import geometry as sg
 
-from . import associados, dimensoes, eap, gavetas, gavetas_construtivos, geotecnia
+from . import (
+    associados,
+    dimensoes,
+    eap,
+    gavetas,
+    gavetas_construtivos,
+    geotecnia,
+    valas,
+)
 from .eap_preencher import _pasta_da_base, _unidade_e_sistema
 from .formulas import nomes, premissa
 
@@ -321,7 +329,8 @@ def _texto(fato: dict | None) -> bool:
 
 def _material_da_rede(rede: dict, trechos: list[dict]) -> tuple[dict | None, list[str]]:
     """(fato `material`, avisos) da rede: o dela, se tiver; senão o dos trechos do mesmo (unidade, sistema), preferindo
-    os de mesmo diâmetro, e dentre eles o material de maior extensão. None sem nenhum: a largura da vala (MOS) não sai."""
+    os de mesmo diâmetro, e dentre eles o material de maior extensão. None sem nenhum: quem chama usa a premissa única
+    de `valas.material_da_rede` (a mesma da regra `vala_rede`)."""
     if _texto(rede["fatos"].get("material")):
         return rede["fatos"]["material"], []
     do_sistema = [
@@ -335,9 +344,7 @@ def _material_da_rede(rede: dict, trechos: list[dict]) -> tuple[dict | None, lis
         t for t in do_sistema if t["fatos"].get("dn_mm", {}).get("valor") == de_mm
     ] or do_sistema
     if not candidatos:
-        return None, [
-            f"sem material do tubo: nem a rede nem os trechos de {rede['sistema']} o trazem"
-        ]
+        return None, []
     extensao_m: dict[str, float] = {}
     fato_de: dict[str, dict] = {}
     for t in candidatos:
@@ -364,9 +371,11 @@ def _elementos_do_grupo(
     material_texto: str,
     usados_da_rede: list[str],
     furos: list[dict],
+    material_de_premissa: bool = False,
 ) -> list[dict]:
     """Os elementos de vala de um grupo (classe, furo): o dimensionador único recebe só o furo do grupo (ou, sem furo no
-    raio, todos, para o alerta dizer a distância) e a geometria só dos metros do grupo."""
+    raio, todos, para o alerta dizer a distância) e a geometria só dos metros do grupo. Material de premissa entra na
+    memória do elemento (e daí nas premissas da evidência)."""
     objeto_id, base = (
         rede["objeto"]["objeto_id"],
         f"{rede['unidade'].upper()}.{rede['sistema'].split('-', 1)[1]}",
@@ -394,6 +403,11 @@ def _elementos_do_grupo(
             alertas,
             metodo,
         )
+        if material_de_premissa:
+            el["memoria"] = [
+                *el["memoria"],
+                f"material do tubo = {material_texto} (premissa: sem material na rede nem nos trechos; a mesma da vala_rede)",
+            ]
         rastro = {
             n: usados for n in (*el["dims"], *dimensoes.TIPOS["vala"]["calculos"])
         }
@@ -422,13 +436,17 @@ def _elementos_da_rede(
     if bloqueios:
         return [], [(m, None) for m in bloqueios]
     material, avisos_material = _material_da_rede(rede, trechos)
+    texto_material, alertas_material = valas.material_da_rede(
+        str(material["valor"]) if material else None
+    )
+    avisos_material += alertas_material
     grupos, avisos_grupos = _grupos_da_rede(classes, pesos_m, pontos_m, xy, furos)
     usados_da_rede = [fatos[p]["fato_id"] for p in FATOS_DA_REDE if p in fatos]
     usados_da_rede += [material["fato_id"]] if material else []
     elementos = []
     for g in grupos:
         elementos += _elementos_do_grupo(
-            g, rede, str(material["valor"]) if material else "", usados_da_rede, furos
+            g, rede, texto_material, usados_da_rede, furos, material is None
         )
     alertas = sorted({a for e in elementos for a in e["alertas"]})
     todos = [

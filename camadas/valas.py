@@ -25,7 +25,7 @@ import shapely
 import shapely.affinity
 from shapely.geometry import LineString, Polygon, mapping
 
-from . import geo, lineares, pdf_cad
+from . import dimensoes, geo, lineares, pdf_cad
 
 REGRAS = json.loads((pdf_cad.CONCEITOS / "valas.json").read_text(encoding="utf-8"))
 VALOR = {k: v["valor"] for k, v in REGRAS.items() if isinstance(v, dict) and "valor" in v}
@@ -307,12 +307,24 @@ def urbanizacao(tracos: list, M, camadas: dict, janela=None) -> dict:
     return out
 
 
+def material_da_rede(material: str | None) -> tuple[str, list[str]]:
+    """(material, alertas) que a rede usa: o declarado (obra.json ou contrato) ou, sem ele, `MATERIAL_PADRAO` como
+    premissa com alerta. Regra única da largura da vala: a `vala_rede` e os complementares de `gavetas_servicos` a chamam.
+    Texto que a Tabela I do MOS não reconhece segue ao dimensionador, que usa o fallback DE + 0,60 m (D7), com alerta."""
+    if not material:
+        return MATERIAL_PADRAO, [f"material de premissa ({MATERIAL_PADRAO}): confirmar o tipo do tubo no contrato"]
+    if dimensoes.material_mos(material) is None:
+        return material, [f"material '{material}' fora da Tabela I do MOS: largura pelo fallback (DE + 0,60 m)"]
+    return material, []
+
+
 def _dimensionar(classe: str, de_m: float, material: str, dn_mm: float) -> dict:
     """Vala de 1 m de tubo da classe pelo dimensionador único (`lineares.dimensionar_vala`): largura pelo MOS
     (L = D + SL + X + Y). Profundidade de premissa = recobrimento da classe + DE + berço (sem perfil)."""
     prof_m = REGRAS["recobrimento_m"][REGRAS["classes"][classe]["recobrimento"]] + de_m + VALOR["berco_m"]
     # decisão do Caio 03/11/2026 (D9): o DE do trecho vai ao dimensionador (fallback fora da Tabela I: DE + 0,60 m)
-    trecho = {"local": classe, "dn_mm": dn_mm, "de_mm": round(de_m * 1000, 3), "material": material,
+    trecho = {"local": classe, "dn_mm": dn_mm, "de_mm": round(de_m * 1000, 3),
+              "material": dimensoes.material_mos(material) or material,
               "prof_m": round(prof_m, 3), "comp_m": 1.0, "metodo": "VCA"}
     return lineares.dimensionar_vala(trecho)
 
@@ -331,10 +343,7 @@ def quantificar(classes: list[str], pesos: np.ndarray, de_m: float, finais: list
     Largura, profundidade e escoramento vêm do dimensionador único; `material` (padrão FD, com alerta) e `dn_mm`
     (padrão = DE) definem a largura pelo MOS. Demolição/recomposição seguem aqui: sobrelargura de recorte, classe e
     a regra 'coberta pela urbanização'."""
-    alertas_rede = []
-    if material is None:
-        material = MATERIAL_PADRAO
-        alertas_rede.append(f"material de premissa ({MATERIAL_PADRAO}): confirmar o tipo do tubo no contrato")
+    material, alertas_rede = material_da_rede(material)
     dn_mm = dn_mm or round(de_m * 1000)
     grupos: dict[tuple, float] = {}
     for i, c in enumerate(classes):
@@ -409,7 +418,8 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
     apoio = [r[k] for k in ("layer_limite", "layer_meio_fio", "layer_alinhamento") if r.get(k)]
     peso = np.concatenate(peso)
     return {"id": r["id"], "de_mm": r["de_mm"], "fonte_de": r.get("fonte_de", ""),
-            "material": r.get("material") or MATERIAL_PADRAO, "dn_mm": r.get("dn_mm") or r["de_mm"], "criterio": r["criterio"],
+            "material": r.get("material") or MATERIAL_PADRAO, "material_declarado": r.get("material"),
+            "fonte_material": r.get("fonte_material", ""), "dn_mm": r.get("dn_mm") or r["de_mm"], "criterio": r["criterio"],
             "pranchas": list(r["pranchas"]), "layers": list(dict.fromkeys(layers + apoio)), "finais": finais if any(finais) else None,
             "extensao_m": round(float(peso.sum()), 1), "pts": np.vstack(pts), "tang": np.vstack(tang), "peso": peso,
             "classes": classes, "quadro": quantificar(classes, peso, r["de_mm"] / 1000, finais if any(finais) else None,
@@ -420,7 +430,7 @@ def rede(r: dict, por_id: dict, orto: dict | None, final: dict | None) -> dict |
 def quantificar_gavetas(dados: dict, furos=None, pts=None) -> dict:
     """Regra `vala_rede` das gavetas: demolição, recomposição e volume de vala por classe (e superfície final)."""
     quadro = quantificar(dados["classes_por_metro"], np.asarray(dados["pesos_m"], float), dados["de_mm"] / 1000,
-                         dados.get("finais"))
+                         dados.get("finais"), dados.get("material"))
     saida: dict = {"demolicao_m2": {}, "recomposicao_m2": {}, "volume_vala_m3": {}, "alertas": []}
     for q in quadro:
         chave = f"{q['classe']}/{q['final']}" if q["final"] else q["classe"]
@@ -437,6 +447,16 @@ def de_do_escopo(pranchas: list[str], tubo_x_desenho: list[dict]) -> tuple[int |
             m = re.search(r"\b(?:DE|DN)\s*(\d{2,4})\b", linha["descricao"])
             if m:
                 return int(m[1]), f"contrato: {linha['descricao']} (tabela {', '.join(linha['tabelas'])})"
+    return None, ""
+
+
+def material_do_escopo(pranchas: list[str], tubo_x_desenho: list[dict]) -> tuple[str | None, str]:
+    """(material, fonte): a descrição do mesmo item do contrato de onde `de_do_escopo` tira o DE (ex.: 'TUBO POLIETILENO PE
+    100 … DE 315'); o MOS a normaliza. (None, '') sem a linha ou sem material reconhecido na descrição."""
+    for linha in tubo_x_desenho or []:
+        if linha["prancha"] in pranchas and re.search(r"\b(?:DE|DN)\s*(\d{2,4})\b", linha["descricao"]):
+            fonte = f"contrato: {linha['descricao']} (tabela {', '.join(linha['tabelas'])})"
+            return (linha["descricao"], fonte) if dimensoes.material_mos(linha["descricao"]) else (None, "")
     return None, ""
 
 
@@ -462,7 +482,10 @@ def etapa(cfg: dict, pranchas: list, lista: list, escopo: dict | None, out, epsg
         if de is None:
             log(f"Valas: {r['id']} sem DE (nem no obra.json nem no contrato), fica de fora")
             continue
-        v = rede({**r, "de_mm": de, "fonte_de": fonte}, por_id, orto, final)
+        material, fonte_material = (r.get("material"), r.get("fonte_material", fonte)) if r.get("material") else \
+            material_do_escopo(r["pranchas"], (escopo or {}).get("tubo_x_desenho"))
+        v = rede({**r, "de_mm": de, "fonte_de": fonte, "material": material, "fonte_material": fonte_material},
+                 por_id, orto, final)
         if v:
             redes.append(v)
             log(f"Valas {v['id']} (DE {de}): " + "; ".join(f"{q['nome']} {q['extensao_m']:.0f} m" for q in v["quadro"]))
@@ -502,7 +525,7 @@ def metadados() -> dict:
         "descricao": "classe da superfície em cada metro de tubo (desenho ou ortofoto) e o quadro de demolição, "
                      "recomposição e volume de vala por rede",
         "funcoes": ["amostras", "cruzamentos", "classe_divisas", "classe_quadras", "classe_meio_fio", "ortofoto", "classe_ortofoto",
-                    "urbanizacao", "eixos_por_pares", "secao", "quantificar", "quantificar_gavetas", "classificar", "rede", "de_do_escopo", "etapa", "para_html"],
+                    "urbanizacao", "eixos_por_pares", "secao", "quantificar", "quantificar_gavetas", "classificar", "rede", "de_do_escopo", "material_do_escopo", "material_da_rede", "etapa", "para_html"],
         "bibliografia": [
             {"obra": "ABNT NBR 12266 — Projeto e execução de valas para assentamento de tubulação de água, esgoto ou "
                      "drenagem urbana", "ano": 1992, "editora": "ABNT",

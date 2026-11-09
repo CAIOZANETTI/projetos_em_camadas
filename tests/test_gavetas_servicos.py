@@ -6,7 +6,7 @@ import math
 import numpy as np
 import pytest
 
-from camadas import associados, dimensoes, eap, gavetas, geo
+from camadas import associados, dimensoes, eap, gavetas, geo, valas
 from camadas import eap_preencher as ep
 from camadas import extrair_gavetas as eg
 from camadas import gavetas_construtivos as gc
@@ -107,15 +107,16 @@ def _base(*features) -> dict:
     return gc.de_construtivos(construtivos, [], {}, EPSG)
 
 
-def _rede(n=100, classes=None, pts=None):
+def _rede(n=100, classes=None, pts=None, id="AAT00", de_mm=315, material=None):
     """Rede `AAT00` (u2) com `n` amostras de 1 m, 60 de pista e o resto de calçada. Padrão: um vértice por amostra num
     eixo reto de `n` m (como a extração grava); `pts` troca os vértices."""
     classes = classes or ["pista"] * 60 + ["calcada"] * (n - 60)
     if pts is None:
         pts = np.c_[500200.0 + np.linspace(0, n, n), np.full(n, 7000000.0)]
     return {
-        "id": "AAT00",
-        "de_mm": 315,
+        "id": id,
+        "de_mm": de_mm,
+        "material_declarado": material,
         "fonte_de": "teste",
         "criterio": "divisas",
         "pranchas": ["P1"],
@@ -494,14 +495,80 @@ def test_trecho_sem_rede_do_mesmo_sistema_vira_pendencia_e_nao_gera_vala():
     assert gs.MOTIVO_SEM_REDE == "sem rede de vala (vala_rede): a vala não sai"
 
 
-def test_rede_sem_trecho_nao_inventa_a_largura():
+def test_rede_sem_material_usa_a_premissa_da_vala_rede_com_alerta_e_premissa_na_evidencia():
     base = _base_rede(rede=_rede())
     r = gs.complementares(base, EPSG)
-    assert not _servicos(r, RV, "berco")  # sem material não há largura (MOS)
-    assert _servicos(r, RV, "assentamento")  # o que não depende dela sai
+    assert _servicos(
+        r, RV, "berco"
+    )  # a largura sai pelo material de premissa (FD), a mesma da vala_rede
+    assert _servicos(r, RV, "assentamento")
+    assert not any(
+        p["motivo"].startswith("serviço sem valor")
+        for p in r["pendencias"]
+        if p["objeto_id"] == RV
+    )
     motivos = {p["motivo"] for p in r["pendencias"] if p["objeto_id"] == RV}
-    assert "serviço sem valor: berco" in motivos
-    assert any(m.startswith("sem material do tubo") for m in motivos)
+    assert (
+        f"material de premissa ({valas.MATERIAL_PADRAO}): confirmar o tipo do tubo no contrato"
+        in motivos
+    )
+    evidencias = {e["evidencia_id"]: e for e in r["evidencias"]}
+    berco = _servicos(r, RV, "berco")[0]
+    assert any(
+        "premissa" in p and "material do tubo" in p
+        for p in evidencias[berco["evidencia_id"]]["premissas"]
+    )
+
+
+def test_material_do_fato_da_rede_vale_mais_que_o_do_trecho():
+    rede = _rede(de_mm=315, material="TUBO FD DN 300")
+    base = _base_rede(_trecho(), rede=rede)  # o trecho do sistema diz PEAD
+    el = next(e for e in gs.elementos(base, EPSG) if e["tipo"] == "vala")
+    fato = next(
+        f
+        for f in base["fatos"]
+        if f["objeto_id"] == RV and f["propriedade"] == "material"
+    )
+    assert fato["fato_id"] in el["rastro"]["b"]
+    largura_fd = valas.secao("pista", 0.315, "FD", 315)[0]
+    assert el["dims"]["b"] == pytest.approx(largura_fd, abs=1e-6)
+
+
+def test_largura_da_demolicao_da_vala_rede_e_a_dos_elementos_dos_complementares():
+    redes = [
+        _rede(id="AAT00", de_mm=450, material="TUBO POLIETILENO PE 100 DE 450"),
+        _rede(
+            id="AAT01", de_mm=400, material=None
+        ),  # sem material: premissa FD nos dois cálculos
+    ]
+    base = eg.juntar(
+        eg.de_valas(redes),
+        eg.de_sondagens(FUROS, "sondagens.json"),
+    )
+    assert valas.secao("pista", 0.45, "FD", 450)[0] != pytest.approx(
+        valas.secao("pista", 0.45, "TUBO POLIETILENO PE 100 DE 450", 450)[0]
+    )
+    vala = [e for e in gs.elementos(base, EPSG) if e["tipo"] == "vala"]
+    assert {e["objeto_id"] for e in vala} == {"RV-AAT00", "RV-AAT01"}
+    for rede in redes:
+        oid, de_m = f"RV-{rede['id']}", rede["de_mm"] / 1000
+        material, _ = valas.material_da_rede(rede["material_declarado"])
+        quadro = valas.quantificar(
+            rede["classes"],
+            np.asarray(rede["peso"], float),
+            de_m,
+            None,
+            rede["material_declarado"],
+        )
+        largura_da_demolicao = {q["classe"]: q["largura_m"] for q in quadro}
+        proprios = [e for e in vala if e["objeto_id"] == oid]
+        assert {e["chave"] for e in proprios} == set(largura_da_demolicao)
+        for e in proprios:
+            esperada = valas.secao(e["chave"], de_m, material, rede["de_mm"])[0]
+            assert e["dims"]["b"] == pytest.approx(esperada, abs=1e-6)
+            assert round(e["dims"]["b"], 2) == pytest.approx(
+                largura_da_demolicao[e["chave"]], abs=1e-6
+            )
 
 
 def test_rede_sem_diametro_nao_gera_vala():
