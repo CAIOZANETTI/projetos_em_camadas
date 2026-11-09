@@ -350,6 +350,8 @@ com a verificação que a aceita, e o estado de cada entrega anda `pendente` →
 
 **Regras.**
 - Uma entrega só vai para a `main` com os três verdes (testes, aferição, determinismo) **e** o aceite do Fable.
+  Exceção decidida pelo Caio em 09/11/2026: na frente da reconstrução (`docs/RECONSTRUCAO.md` §5.6) o aceite do
+  Fable é feito uma vez, na F6, sobre a frente inteira.
 - Cada PR sobe a versão, tem entrada no CHANGELOG e uma lição. O teste da lição reprova versão sem lição.
 - Depois de cada entrega, o plano é revisitado: a entrega cumpriu a verificação prometida? O estado só vira
   `verificado` com a evidência escrita na linha do plano (números, testes, arquivos).
