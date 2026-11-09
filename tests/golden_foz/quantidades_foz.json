@@ -92,19 +92,19 @@
         "unidade_calculada": "vb"
       },
       "CUSTO CIVIL|102": {
-        "calculada": "16,52",
+        "calculada": "16,60",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
       },
       "CUSTO CIVIL|103": {
-        "calculada": "7,25",
+        "calculada": "28,88",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3.km"
       },
       "CUSTO CIVIL|104": {
-        "calculada": "0,72",
+        "calculada": "2,89",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
@@ -152,19 +152,19 @@
         "unidade_calculada": "vb"
       },
       "CUSTO CIVIL|116": {
-        "calculada": "9,77",
+        "calculada": "9,80",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
       },
       "CUSTO CIVIL|117": {
-        "calculada": "4,65",
+        "calculada": "18,17",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3.km"
       },
       "CUSTO CIVIL|118": {
-        "calculada": "0,47",
+        "calculada": "1,82",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
@@ -302,7 +302,7 @@
         "unidade_calculada": null
       },
       "CUSTO CIVIL|19": {
-        "calculada": "185,15",
+        "calculada": "184,90",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
@@ -320,7 +320,7 @@
         "unidade_calculada": null
       },
       "CUSTO CIVIL|20": {
-        "calculada": "540,11",
+        "calculada": "677,71",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3.km"
@@ -338,7 +338,7 @@
         "unidade_calculada": null
       },
       "CUSTO CIVIL|21": {
-        "calculada": "54,01",
+        "calculada": "67,77",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
@@ -380,19 +380,19 @@
         "unidade_calculada": "vb"
       },
       "CUSTO CIVIL|33": {
-        "calculada": "9,10",
+        "calculada": "9,00",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
       },
       "CUSTO CIVIL|34": {
-        "calculada": "26,55",
+        "calculada": "33,16",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3.km"
       },
       "CUSTO CIVIL|35": {
-        "calculada": "2,65",
+        "calculada": "3,32",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
@@ -446,19 +446,19 @@
         "unidade_calculada": "vb"
       },
       "CUSTO CIVIL|53": {
-        "calculada": "78,51",
+        "calculada": "78,40",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
       },
       "CUSTO CIVIL|54": {
-        "calculada": "217,47",
+        "calculada": "273,08",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3.km"
       },
       "CUSTO CIVIL|55": {
-        "calculada": "21,75",
+        "calculada": "27,31",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
@@ -542,13 +542,13 @@
         "unidade_calculada": "vb"
       },
       "CUSTO CIVIL|88": {
-        "calculada": "75,23",
+        "calculada": "75,30",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
       },
       "CUSTO CIVIL|89": {
-        "calculada": "45,29",
+        "calculada": "126,05",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3.km"
@@ -560,7 +560,7 @@
         "unidade_calculada": "m2"
       },
       "CUSTO CIVIL|90": {
-        "calculada": "4,53",
+        "calculada": "12,61",
         "declarada": "",
         "situacao": "calculada",
         "unidade_calculada": "m3"
@@ -1358,12 +1358,12 @@
     "diferencas_paridade": 0,
     "fatos_ia": 0,
     "fatos_por_executor": {
-      "código": 180
+      "código": 211
     },
     "fatos_por_natureza": {
       "inferido": 11,
       "observado": 96,
-      "projetado": 73
+      "projetado": 104
     },
     "objetos_por_classe": {
       "conjunto_cavas": 1,
@@ -1379,8 +1379,7 @@
       "cava C03 na borda do levantamento": 1,
       "cava C05 na borda do levantamento": 1,
       "cava C06 na borda do levantamento": 1,
-      "furo sem coordenadas": 43,
-      "unidade e sistema não definidos": 4
+      "furo sem coordenadas": 43
     },
     "reaproveitados": 16,
     "recalculados": 0,
@@ -1394,19 +1393,19 @@
     "redes": {
       "AAT00": {
         "extensao_m": 3259.0,
-        "volume_vala_m3": 4055.0
+        "volume_vala_m3": 3344.6
       },
       "AAT01": {
         "extensao_m": 594.0,
-        "volume_vala_m3": 836.9
+        "volume_vala_m3": 751.4
       },
       "AAT02": {
         "extensao_m": 350.0,
-        "volume_vala_m3": 433.0
+        "volume_vala_m3": 356.4
       },
       "AAT06": {
         "extensao_m": 3102.0,
-        "volume_vala_m3": 6304.0
+        "volume_vala_m3": 5535.3
       },
       "ETA drenagem Actiflo 600 DN150": {
         "extensao_m": 20.2,

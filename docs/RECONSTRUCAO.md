@@ -45,10 +45,10 @@ As fases da §3 foram reorganizadas nesses passos.
 | F0 | 0.69.0 | feita (PR #79) | decisões registradas; gavetas v2; golden das quantidades |
 | F1+F2 | 0.70.0 | feita (PR #79) | 324 documentos, 1 483 páginas, 1 514 objetos, 7 327 fatos (5 987 com página), 0 erros |
 | F3 | 0.71.0 | feita (PR #80) | EAP pelas gavetas: paridade 37/37 |
-| F4 | 0.72.0 | **portão aberto** (PR #81): falta "um só caminho por grandeza"; a vala tem dois caminhos (verificação de 05/11) | complementares pelas gavetas: paridade 25/25 com o associados.csv; localizada 6 preenchidas + 8 calculadas + 6 declaradas de 45, linear 1 + 10 de 32 |
-| F5 | 0.73.0 | infraestrutura feita (este PR) | texto de 158 documentos nas gavetas (2 506 menções com página); laço com portão: EAP aberta, 20 obrigatórias travam, todas com menção; próximo passe: 955 leituras para a IA com citação conferida |
-| F4b | — | próxima | vala única pela `vala_rede` (decisão 5): o caminho da vala do trecho e o do `contrato_211` saem; teste "0 caminho paralelo"; fecha o portão da F4 |
-| F5b | — | depois da F4b | o passe de IA com citação conferida (skill eap-evidencias) sobre o roteiro; as decisões do Caio de 'ausente do projeto'; portão fechado |
+| F4 | 0.72.0 | feita (PR #81); portão fechado na F4b | complementares pelas gavetas: paridade 25/25 com o associados.csv; localizada 6 preenchidas + 8 calculadas + 6 declaradas de 45, linear 1 + 10 de 32 |
+| F5 | 0.73.0 | infraestrutura feita (PR #83) | texto de 158 documentos nas gavetas (2 506 menções com página); laço com portão: EAP aberta, 20 obrigatórias travam, todas com menção; próximo passe: 955 leituras para a IA com citação conferida |
+| F4b | 0.74.0 | feita (este PR) | vala única pela `vala_rede`: 0 caminho paralelo; uma largura por rede (material do contrato e DN nominal) no HTML, nas gavetas e nos complementares; contrato_211 sem dimensionador (52 linhas calculadas); golden atualizado de propósito (25 diferenças, AAT00 4 055 → 3 345 m³ de vala) |
+| F5b | — | próxima | o passe de IA com citação conferida (skill eap-evidencias) sobre o roteiro; as decisões do Caio de 'ausente do projeto'; portão fechado |
 
 ## 1. Diagnóstico: o que temos (0.68.0)
 
