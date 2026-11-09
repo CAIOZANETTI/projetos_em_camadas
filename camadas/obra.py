@@ -902,7 +902,7 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
     servicos_gavetas = None
     try:                                                       # a base das gavetas não pode derrubar o build
         dados["gavetas"] = extrair_gavetas.etapa(cfg, dados["sondagens"], out, log=_log, redes_vala=redes_vala,
-                                                cavas=cavas)
+                                                cavas=cavas, epsg=(dados.get("crs") or {}).get("epsg"))
         if dados["gavetas"]:                                    # aba EAP das gavetas: só apresenta o que o Python montou
             dados["eap_gavetas"] = dados["gavetas"].pop("eap_html")   # chave própria: `dados["eap"]` é a EAP codificada
             servicos_gavetas = dados["gavetas"].pop("servicos_eap", None)   # com o código completo, para a conciliação

@@ -201,3 +201,16 @@ def test_cada_cava_cai_no_seu_setor_pelo_ponto_do_servico():
     assert mapa == {"CAVAS:cavas:escavacao_cava_m3:C01": "SET-A", "CAVAS:cavas:escavacao_cava_m3:C02": None} and pend == []
     grupos = {g["setor_id"]: g["nos"] for g in gavetas.para_eap_por_setor(servicos, {"CAVAS": None, **mapa}, ["SET-A", "SET-B"])}
     assert grupos["SET-A"][0]["valor"] == 10.0 and grupos[None][0]["valor"] == 4.0 and grupos["SET-B"] == []
+
+
+@precisa_rasterio
+def test_etapa_grava_o_crs_da_obra_na_geometria_dos_furos(tmp_path):
+    """A geometria dos furos (e das redes de vala) leva a EPSG da obra, não o padrão do `de_*` (Foz é 31981): com o
+    padrão 31982, os serviços complementares descartavam toda a vala por 'geometria fora do CRS da obra'."""
+    out = tmp_path / "saida"
+    out.mkdir()
+    cfg = {"escavacao": {"layer_base": "BASE", "layer_marca": "COTA", "layer_crista": "CRISTA"}}
+    furo = {"id": "SP-01", "E": 10.0, "N": 20.0, "cota_boca": 100.0}
+    eg.etapa(cfg, [furo], out, log=lambda *_: None, cavas=_saida_da_escavacao(), epsg=31981)
+    lido = gavetas.ler(out / "base")
+    assert {g["crs_h"] for g in lido["geometria"] if g["objeto_id"] == "SP-01"} == {"EPSG:31981"}
