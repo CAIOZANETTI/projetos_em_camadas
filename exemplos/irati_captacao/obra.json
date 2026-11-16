@@ -191,6 +191,15 @@
     }
   ],
   "estacas": "dados/irati_captacao/estrutura/estacas_captacao.csv",
+  "solidos": [
+    "dados/irati_captacao/estrutura/eeb09_fundacao.json",
+    "dados/irati_captacao/estrutura/eeb10_fundacao.json"
+  ],
+  "controle_vertical": {
+    "fonte": "PROVISÓRIO: pisos já concretados da EEB10 (fundos 804,050/804,100/806,300 da PBHI 13), só offset; ver metadata do arquivo",
+    "pontos": "dados/irati_captacao/topografia/controle_vertical_eeb10.json",
+    "modelo": "offset"
+  },
   "pendentes": {
     "Geotecnia (sondagens)": [
       "Os boletins SPT da captação não estão no pacote (nem nos zips aninhados: só há laudos da ETA, AAB08 e AAB09). As folhas PBGE 001–011 não locam os furos. Pedir ao projetista (OSM/Sanepar) os boletins com coordenada e cota de boca",
@@ -203,7 +212,7 @@
       "Divergências a esclarecer: folha 003 soma 259,05 m³ nos elementos contra TOTAL 258,65 (resumo 258,68); carimbo 'Sistema de Esgotamento Sanitário' nas 28 folhas e resumo chamado 'EEB11'; descarregador em fundação direta a 1,52 kgf/cm² sobre argila de NSPT 5–6 na barragem (SP 02)",
       "Fundação da EEB09 georreferenciada (folha 016 sobre a PBHI 09, 2–4 cm): 29 blocos e 52 estacas com face superior e arrasamento; as estacas entram como camada (dados/irati_captacao/estrutura/estacas_captacao.csv) e os blocos estão em eeb09_fundacao.json. A tabela da 016 imprime o arrasamento de P7=P13=P21 como N=897,60; usado 798,60",
       "Fundação da EEB10 georreferenciada (folha 002 sobre a PBHI 13): 38 blocos e 38 estacas (P1–P9, PC1–PC29) nos eixos das paredes do poço a ≤ 1 pt; a coluna P1–P7 fica ~0,6 m para dentro da parede oeste da PBHI 13. Na ortofoto, a escada e os poços de sucção em construção caem onde a planta os põe. Blocos em eeb10_fundacao.json. Tabela da 002: PC9 aparece duas vezes e P9 falta (a linha isolada foi lida como P9); PC1=PC2 com arrasamento a 1,10 m da face (os demais a 0,70)",
-      "3D das estruturas bloqueado: o visualizador só põe sólidos em cota com controle vertical, e esta obra não tem sondagem com coordenada; dos 20 pontos RTK do 091114TRIBACK nenhum cai na nuvem do voo (o mais perto, pt38, a 17 m). Precisa de pelo menos um ponto de cota conhecida dentro da área do voo. A PBHI 13 traz cotas de terreno e de pista (807,000; 808,500; 808,400) que podem servir, se o terreno ali não tiver sido mexido",
+      "3D das estruturas com controle vertical PROVISÓRIO: offset de 812,02 m (só deslocamento) ajustado em 8 marcas de nível da PBHI 13 nos pisos já concretados da EEB10 (fundos 804,050/804,100/806,300), validação cruzada 0,41 m; pontos em dados/irati_captacao/topografia/controle_vertical_eeb10.json. Conferência independente: o terreno intacto sobre os blocos da EEB09 dá mediana 799,52 para faces de bloco de 799,30 a 800,75 (piso 802,00 sobre pilares). As marcas de terreno da PBHI 13 caem sob as araucárias ou na cava e não servem; dos 20 pontos RTK nenhum cai na nuvem. Trocar por ponto RTK dentro do voo assim que houver",
       "Ainda não lido: forma da EEB10 acima dos blocos (003–006) e do descarregador (026), vigas e pilares acima dos blocos da EEB09, tabelas de armadura posição a posição"
     ],
     "Supressão vegetal": [

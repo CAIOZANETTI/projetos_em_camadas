@@ -935,6 +935,8 @@ def test_modelo3d_em_altura_ou_em_cota(tmp_path):
     assert em_cota["referencia_z"] == "cota (m), plano ajustado às sondagens"
     assert em_cota["origem"] == [745818.0, 7182897.0, 0.0]  # nuvem deslocada (1, 2) m
     assert [c["centro"][2] for c in em_cota["cameras"]] == pytest.approx([160.04, 150.0])
+    so_offset = obra.modelo3d(tmp_path / "saida", rel, 100_000, vertical={**vertical, "modelo": "offset"})
+    assert so_offset["referencia_z"] == "cota (m), deslocamento ajustado aos pontos de controle"
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1207,3 +1209,33 @@ def test_etapa_sig_grava_geotiff_geopackage_e_pontos_qgis(tmp_path):
         "pontos",
     ]
     assert [p.name for p in (sig / "pontos").iterdir()] == ["P1.points"]
+
+
+def test_ajustar_vertical_so_offset_nao_inclina_com_pontos_concentrados():
+    rng = np.random.default_rng(0)
+    xyz = np.c_[rng.uniform(0, 20, 20000), rng.uniform(0, 20, 20000), np.zeros(20000)]
+    xyz[:, 2] = 0.01 * xyz[:, 0]                       # nuvem levemente inclinada
+    pontos = [{"id": f"m{i}", "E": 8 + i % 3, "N": 8 + i // 3, "cota": 804.0} for i in range(8)]
+    livre = sfm.ajustar_vertical(xyz, pontos)
+    fixo = sfm.ajustar_vertical(xyz, pontos, so_offset=True)
+    assert livre["modelo"] == "plano" and fixo["modelo"] == "offset"
+    assert fixo["inclinacao_e"] == fixo["inclinacao_n"] == 0.0
+    assert fixo["offset_m"] == pytest.approx(804.0 - 0.09, abs=0.03)
+
+
+def test_controle_vertical_por_arquivo_de_pontos_e_solidos_de_arquivos(tmp_path):
+    (tmp_path / "sfm").mkdir()
+    rng = np.random.default_rng(1)
+    xyz = np.c_[rng.uniform(0, 20, 20000), rng.uniform(0, 20, 20000), np.full(20000, -7.9)]
+    np.savez(tmp_path / "sfm" / "nuvem.npz", xyz=xyz)
+    pts = tmp_path / "pontos.json"
+    pts.write_text(json.dumps({"pontos": [{"id": f"m{i}", "E": 5.0 + 2 * i, "N": 10.0, "cota": 804.05} for i in range(6)]}))
+    cfg = {"controle_vertical": {"pontos": str(pts), "modelo": "offset"}}
+    ajuste = obra.etapa_controle_vertical(cfg, tmp_path, np.zeros(2), EPSG)
+    assert ajuste["ok"] and ajuste["modelo"] == "offset" and ajuste["usados"] == 6
+    assert ajuste["offset_m"] == pytest.approx(811.95, abs=0.01)
+    bl = tmp_path / "blocos.json"
+    bl.write_text(json.dumps({"estrutura": "EEB10", "blocos": [
+        {"rotulo": "P1", "contorno_utm": [[10, 20], [11, 20], [11, 21], [10, 21], [10, 20]], "fundo": 804.55, "face_superior": 805.30}]}))
+    s = obra.solidos_de_arquivos({"solidos": [str(bl)]}, np.array([10.0, 20.0, 0.0]))
+    assert s == [{"id": "EEB10-P1", "xy": [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]], "z0": 804.55, "z1": 805.30}]

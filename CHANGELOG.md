@@ -27,11 +27,19 @@
   - Fundação da EEB09 georreferenciada a partir da folha 016: 29 blocos e 52 estacas, com face superior e
     arrasamento. A folha 016 recebe a afim da PBHI 09 mais uma translação, porque as duas desenham a grade alinhada
     aos eixos da folha; as linhas de viga coincidem a 2–4 cm. As estacas entram como camada (`estacas` no
-    obra.json). O 3D em cota fica bloqueado: não há controle vertical, porque nenhum dos 20 pontos RTK cai na nuvem.
+    obra.json).
   - Fundação da EEB10 pela folha 002 sobre a PBHI 13: 38 blocos e 38 estacas, nos eixos das paredes do poço a
     ≤ 1 pt. Na ortofoto, a escada e os poços em construção caem no lugar. As estacas das duas elevatórias ficam em
     `estacas_captacao.csv` (90). Divergências da tabela (PC9 duplicado, P9 ausente, PC1=PC2) estão no obra.json.
+  - Controle vertical PROVISÓRIO: nenhum dos 20 pontos RTK cai na nuvem e as marcas de terreno da PBHI 13 caem sob
+    as araucárias ou na cava. O offset de 812,02 m vem de 8 marcas de nível da PBHI 13 nos pisos já concretados da
+    EEB10 (validação cruzada 0,41 m). Na EEB09, que não entrou no ajuste, o terreno sobre os blocos dá 799,52 m
+    para faces de 799,30 a 800,75. Com isso os 67 blocos entram no 3D (`solidos` no obra.json).
   - Também estão pendentes o KMZ da supressão liberada e o ponto RTK `pt0`.
+- **`controle_vertical`**: aceita `pontos` (arquivo [{id, E, N, cota}]) além das sondagens, e `modelo: "offset"`
+  para não inclinar o plano com pontos concentrados (`sfm.ajustar_vertical(..., so_offset=True)`); o 3D diz
+  "deslocamento ajustado aos pontos de controle". **`solidos`**: lista de JSON com blocos já georreferenciados
+  (`obra.solidos_de_arquivos`), somados aos sólidos das fichas. Testes incluídos.
 - **`obra.estacas`**: a coluna opcional `execucao` do CSV dá o nome da camada ("Estacas escavada"); sem ela, continua
   "hélice contínua". Teste incluído.
 - **Unidades do voo**: a estrutura em construção ao sul é a **EEB10 alto recalque**, a EEB09 fica junto ao rio, ao

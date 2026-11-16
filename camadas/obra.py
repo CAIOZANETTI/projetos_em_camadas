@@ -137,7 +137,9 @@ def _aplicar_deslocamento(out: Path, desloc: np.ndarray) -> None:
 
 
 def etapa_controle_vertical(cfg: dict, out: Path, desloc: np.ndarray, epsg: int) -> dict | None:
-    """Plano z_nuvem -> cota pelas cotas de boca das sondagens (`controle_vertical` no obra.json)."""
+    """Plano z_nuvem -> cota pelas cotas de boca das sondagens (`controle_vertical` no obra.json) ou por um arquivo
+    `controle_vertical.pontos` ([{id, E, N, cota}] ou {"pontos": [...]}, ex.: piso já concretado com cota de projeto).
+    `controle_vertical.modelo = "offset"` força só o deslocamento (pontos concentrados não sustentam inclinação)."""
     c = cfg.get("controle_vertical")
     if not c:
         return None
@@ -146,8 +148,12 @@ def etapa_controle_vertical(cfg: dict, out: Path, desloc: np.ndarray, epsg: int)
         if f.get("E") and f.get("N") and f.get(c.get("campo_cota", "cota_boca")) is not None:
             chave = f["id"].rstrip("A") if c.get("juntar_variantes_A", True) else f["id"]
             pontos.setdefault(chave, {"id": chave, "E": f["E"], "N": f["N"], "cota": f[c.get("campo_cota", "cota_boca")]})
+    if c.get("pontos"):
+        lidos = json.loads(Path(c["pontos"]).read_text())
+        for p in lidos.get("pontos", []) if isinstance(lidos, dict) else lidos:
+            pontos.setdefault(p["id"], {"id": p["id"], "E": p["E"], "N": p["N"], "cota": p["cota"]})
     xyz = np.load(out / "sfm" / "nuvem.npz")["xyz"] - [desloc[0], desloc[1], 0.0]
-    ajuste = sfm.ajustar_vertical(xyz, list(pontos.values()))
+    ajuste = sfm.ajustar_vertical(xyz, list(pontos.values()), so_offset=c.get("modelo") == "offset")
     ajuste["fonte"] = c.get("fonte", "")
     (out / "sfm" / "ajuste_vertical.json").write_text(json.dumps(ajuste, indent=1, ensure_ascii=False))
     if ajuste["ok"]:
@@ -486,7 +492,9 @@ def modelo3d(out: Path, rel: dict, max_pontos: int, desloc=(0.0, 0.0), vertical:
         xyz = sfm.aplicar_vertical(xyz, vertical)
         cams = [{**c, "centro": sfm.aplicar_vertical(np.array([c["centro"]], float), vertical)[0].tolist()} for c in cams]
     pacote = sfm.pacote_visualizador(xyz, d["rgb"], cams, max_pontos=max_pontos)
-    pacote["referencia_z"] = "cota (m), plano ajustado às sondagens" if vertical else "altura sobre a decolagem (m)"
+    pacote["referencia_z"] = ("altura sobre a decolagem (m)" if not vertical else
+                              "cota (m), deslocamento ajustado aos pontos de controle" if vertical.get("modelo") == "offset"
+                              else "cota (m), plano ajustado às sondagens")
     return pacote
 
 
@@ -554,6 +562,20 @@ def sondagens_3d(furos: list, origem) -> list[dict]:
                       "z_boca": z0, "z_fundo": round(z0 - prof, 2),
                       "z_na": round(z0 - s["na_m"], 2) if s.get("na_m") is not None else None,
                       "impenetravel": bool(s.get("impenetravel")), "segmentos": seg})
+    return saida
+
+
+def solidos_de_arquivos(cfg: dict, origem) -> list[dict]:
+    """Sólidos do 3D lidos de JSON já georreferenciados (`solidos` no obra.json: lista de caminhos, cada um com
+    `blocos: [{rotulo, contorno_utm, fundo, face_superior}]`, cotas em m, e `estrutura` opcional como prefixo do id),
+    relativos à origem do modelo."""
+    saida = []
+    for caminho in cfg["solidos"]:
+        d = json.loads(Path(caminho).read_text())
+        prefixo = f"{d['estrutura']}-" if d.get("estrutura") else ""
+        for b in d["blocos"]:
+            saida.append({"id": prefixo + b["rotulo"], "xy": (np.array(b["contorno_utm"]) - origem[:2]).round(3).tolist(),
+                          "z0": b["fundo"], "z1": b["face_superior"]})
     return saida
 
 
@@ -929,6 +951,8 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         dados["fichas"] = prancha.para_html(fichas)
         if dados.get("vertical"):
             dados["modelo3d"]["solidos"] = prancha.solidos_3d(fichas, np.asarray(dados["modelo3d"]["origem"]))
+    if cfg.get("solidos") and dados.get("vertical"):
+        dados["modelo3d"].setdefault("solidos", []).extend(solidos_de_arquivos(cfg, np.asarray(dados["modelo3d"]["origem"])))
     for chave, pacote in pacotes.items():
         if pacote:
             dados[chave] = {k: v for k, v in pacote.items() if k != "geojson"}
