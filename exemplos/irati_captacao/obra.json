@@ -190,6 +190,7 @@
       "obs_georef": "vetor × vetor sobre a LAYLOC (malha impressa): escala fixa 1:50 do título da vista (lido por OCR), rotação por correlação de ocupação a 0,15 m e ICP rígido: layers L_TUB_PROJETADA e EIXOS; correlação 0,70, ICP mediana 15 cm, 33 % a < 10 cm, 86 % a < 30 cm; rotação 127,4°. Cai sobre a estrutura em construção ao sul; encaixe mais frouxo que o da EEB09 — conferir em zoom"
     }
   ],
+  "estacas": "dados/irati_captacao/estrutura/estacas_eeb09.csv",
   "pendentes": {
     "Geotecnia (sondagens)": [
       "Os boletins SPT da captação não estão no pacote (nem nos zips aninhados: só há laudos da ETA, AAB08 e AAB09). As folhas PBGE 001–011 não locam os furos. Pedir ao projetista (OSM/Sanepar) os boletins com coordenada e cota de boca",
@@ -200,7 +201,9 @@
       "Lidas por OCR as 28 pranchas (carimbo, Peso Total, resumo dos materiais, estacas e níveis) e conferidas contra o 'RESUMO DE MATERIAIS CAPTAÇÃO': 85.644 kg de aço e 596,67 m³ de concreto. EEB10: 51.911 kg, 314,43 m³ e 38 estacas escavadas Ø 40 × 9 m. EEB09: 21.235 kg, 218,09 m³ e 52 estacas Ø 40 × 9 m. CSP04 descarregador de fundo: 12.498 kg, 64,15 m³, fundação direta. A leitura está em dados/irati_captacao/estrutura/pbes_ocr.json",
       "Níveis da EEB09: fundação N.F.S. 799,30 a 800,75, piso 802,00, cobertura 808,70/809,00, cota de inundação Sanepar 801,50. EEB10: fundo 804,05 até 815,355. Descarregador: fundo 795,44, topo 802,00",
       "Divergências a esclarecer: folha 003 soma 259,05 m³ nos elementos contra TOTAL 258,65 (resumo 258,68); carimbo 'Sistema de Esgotamento Sanitário' nas 28 folhas e resumo chamado 'EEB11'; descarregador em fundação direta a 1,52 kgf/cm² sobre argila de NSPT 5–6 na barragem (SP 02)",
-      "Ainda não lido: tabelas de armadura posição a posição e cotas de forma (para o 3D das estruturas)"
+      "Fundação da EEB09 georreferenciada (folha 016 sobre a PBHI 09, 2–4 cm): 29 blocos e 52 estacas com face superior e arrasamento; as estacas entram como camada (dados/irati_captacao/estrutura/estacas_eeb09.csv) e os blocos estão em eeb09_fundacao.json. A tabela da 016 imprime o arrasamento de P7=P13=P21 como N=897,60; usado 798,60",
+      "3D das estruturas bloqueado: o visualizador só põe sólidos em cota com controle vertical, e esta obra não tem sondagem com coordenada; dos 20 pontos RTK do 091114TRIBACK nenhum cai na nuvem do voo (o mais perto, pt38, a 17 m). Precisa de pelo menos um ponto de cota conhecida dentro da área do voo",
+      "Ainda não lido: forma da EEB10 (003–006) e do descarregador (026), vigas e pilares acima dos blocos da EEB09, tabelas de armadura posição a posição"
     ],
     "Supressão vegetal": [
       "KMZ 'IRATI 31.08 Supressão Liberada' (polígonos 'captação') ainda não entra como camada; está em dados/irati_captacao/kmz"

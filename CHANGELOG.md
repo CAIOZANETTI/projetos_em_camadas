@@ -24,7 +24,13 @@
     materiais, estacas e níveis. Bateram com o "RESUMO DE MATERIAIS CAPTAÇÃO": 85.644 kg de aço e 596,67 m³ de
     concreto. EEB10 e EEB09 ficam sobre estacas escavadas Ø 40 × 9 m (38 e 52); o descarregador da CSP04 fica em
     fundação direta. As divergências (soma da folha 003, carimbo "esgotamento sanitário") estão no obra.json.
+  - Fundação da EEB09 georreferenciada a partir da folha 016: 29 blocos e 52 estacas, com face superior e
+    arrasamento. A folha 016 recebe a afim da PBHI 09 mais uma translação, porque as duas desenham a grade alinhada
+    aos eixos da folha; as linhas de viga coincidem a 2–4 cm. As estacas entram como camada (`estacas` no
+    obra.json). O 3D em cota fica bloqueado: não há controle vertical, porque nenhum dos 20 pontos RTK cai na nuvem.
   - Também estão pendentes o KMZ da supressão liberada e o ponto RTK `pt0`.
+- **`obra.estacas`**: a coluna opcional `execucao` do CSV dá o nome da camada ("Estacas escavada"); sem ela, continua
+  "hélice contínua". Teste incluído.
 - **Unidades do voo**: a estrutura em construção ao sul é a **EEB10 alto recalque**, a EEB09 fica junto ao rio, ao
   norte, e a CSP04 atravessa o rio. O nome do exemplo antigo `exemplos/irati/` ("EEB 10") está certo. A pasta local
   `drone_EEB10`, cerca de 5 km a oeste, é de outro local.

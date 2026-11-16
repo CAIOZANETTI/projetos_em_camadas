@@ -558,7 +558,8 @@ def sondagens_3d(furos: list, origem) -> list[dict]:
 
 
 def estacas(cfg: dict, epsg: int) -> dict | None:
-    """Estacas (CSV id;E;N;diametro_cm;cota_arrasamento;comprimento_m;estrutura;...) -> vetor."""
+    """Estacas (CSV id;E;N;diametro_cm;cota_arrasamento;comprimento_m;estrutura;...) -> vetor. A coluna opcional
+    `execucao` (ex.: "escavada") dá o nome da camada; sem ela, hélice contínua (Foz)."""
     caminho = cfg.get("estacas")
     if not caminho or not Path(caminho).exists():
         return None
@@ -572,7 +573,8 @@ def estacas(cfg: dict, epsg: int) -> dict | None:
         props["tipo"] = "estaca"
         feats.append({"type": "Feature", "properties": props,
                       "geometry": {"type": "Point", "coordinates": [round(float(x), 8), round(float(y), 8)]}})
-    return {"id": "estacas", "nome": f"Estacas hélice contínua ({len(feats)})", "grupo": "Civil",
+    execucao = ", ".join(sorted(t["execucao"].dropna().unique())) if "execucao" in t else "hélice contínua"
+    return {"id": "estacas", "nome": f"Estacas {execucao} ({len(feats)})", "grupo": "Civil",
             "subgrupo": "Geotecnia e fundação", "visivel": False, "estacas": True,
             "geojson": {"type": "FeatureCollection", "features": feats},
             "estilo": {"color": "#7c3aed", "radius": 3, "weight": 1, "fillOpacity": 0.8}}

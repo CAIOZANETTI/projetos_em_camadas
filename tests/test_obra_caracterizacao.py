@@ -538,6 +538,15 @@ def test_estacas_em_geojson_e_linhas_do_csv(tmp_path):
     assert obra.estacas({}, EPSG) is None and obra._estacas_do_csv({}) == []
 
 
+def test_estacas_com_coluna_execucao_dao_o_nome_da_camada(tmp_path):
+    csv = tmp_path / "estacas.csv"
+    csv.write_text("id;E;N;diametro_cm;cota_arrasamento;comprimento_m;estrutura;execucao\n"
+                   "EEB09-P1-1;745806,0;7182886,0;40;800,05;9,00;EEB09;escavada\n")
+    vetor = obra.estacas({"estacas": str(csv)}, EPSG)
+    assert vetor["nome"] == "Estacas escavada (1)"
+    assert vetor["geojson"]["features"][0]["properties"]["execucao"] == "escavada"
+
+
 def test_vetores_das_cameras_com_seta_de_15_m_na_obliqua_e_3_m_na_nadir():
     rel = {
         "cameras": [
