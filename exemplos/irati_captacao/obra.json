@@ -196,8 +196,11 @@
       "Lido por OCR o único dado existente, a Tabela 1 do memorial PBGE-RT (p. 14): SP 01 e SP 02 na barragem (boca 798,00; NA 2,30 e 3,20 m), SP 03 e SP 04 no alto recalque (boca 808,00 e 804,55; NA 10,25 e 3,20 m); argila mole a média nas 4 primeiras camadas, silte ou areia e argila rija abaixo. Sem coordenada nem profundidade das camadas, não entra como `sondagens`; a leitura está em dados/irati_captacao/geotecnia/tabela1_resumo_sondagens.json",
       "Divergências do memorial a esclarecer: 5 sondagens no texto, 4 na tabela, 6 na Figura 2; 'sem NA no alto recalque' (p. 19) contra NA 10,25 e 3,20 m na tabela; edificação 'CSP01' em vez de CSP04; médias NSPT impressas diferentes da média dos furos"
     ],
-    "Estrutura (PBES 016–028)": [
-      "Formas e armaduras da EEB09 e da descarga de fundo sem texto: precisam de OCR para escala e cotas"
+    "Estrutura (PBES 001–028)": [
+      "Lidas por OCR as 28 pranchas (carimbo, Peso Total, resumo dos materiais, estacas e níveis) e conferidas contra o 'RESUMO DE MATERIAIS CAPTAÇÃO': 85.644 kg de aço e 596,67 m³ de concreto. EEB10: 51.911 kg, 314,43 m³ e 38 estacas escavadas Ø 40 × 9 m. EEB09: 21.235 kg, 218,09 m³ e 52 estacas Ø 40 × 9 m. CSP04 descarregador de fundo: 12.498 kg, 64,15 m³, fundação direta. A leitura está em dados/irati_captacao/estrutura/pbes_ocr.json",
+      "Níveis da EEB09: fundação N.F.S. 799,30 a 800,75, piso 802,00, cobertura 808,70/809,00, cota de inundação Sanepar 801,50. EEB10: fundo 804,05 até 815,355. Descarregador: fundo 795,44, topo 802,00",
+      "Divergências a esclarecer: folha 003 soma 259,05 m³ nos elementos contra TOTAL 258,65 (resumo 258,68); carimbo 'Sistema de Esgotamento Sanitário' nas 28 folhas e resumo chamado 'EEB11'; descarregador em fundação direta a 1,52 kgf/cm² sobre argila de NSPT 5–6 na barragem (SP 02)",
+      "Ainda não lido: tabelas de armadura posição a posição e cotas de forma (para o 3D das estruturas)"
     ],
     "Supressão vegetal": [
       "KMZ 'IRATI 31.08 Supressão Liberada' (polígonos 'captação') ainda não entra como camada; está em dados/irati_captacao/kmz"

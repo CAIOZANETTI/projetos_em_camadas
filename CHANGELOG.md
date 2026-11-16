@@ -20,7 +20,11 @@
     memorial (imagem) foi lida por OCR: SP 01 a SP 04, com cota de boca, NA e NSPT por camada, mas sem coordenada nem
     profundidade. Por isso fica como pendência no obra.json, com as divergências do memorial, e não entra como
     `sondagens`.
-  - PBES está sem texto e precisa de OCR; também estão pendentes o KMZ da supressão liberada e o ponto RTK `pt0`.
+  - Estrutura: as 28 pranchas PBES (vetoriais, sem texto) foram lidas por OCR: carimbo, Peso Total, resumo dos
+    materiais, estacas e níveis. Bateram com o "RESUMO DE MATERIAIS CAPTAÇÃO": 85.644 kg de aço e 596,67 m³ de
+    concreto. EEB10 e EEB09 ficam sobre estacas escavadas Ø 40 × 9 m (38 e 52); o descarregador da CSP04 fica em
+    fundação direta. As divergências (soma da folha 003, carimbo "esgotamento sanitário") estão no obra.json.
+  - Também estão pendentes o KMZ da supressão liberada e o ponto RTK `pt0`.
 - **Unidades do voo**: a estrutura em construção ao sul é a **EEB10 alto recalque**, a EEB09 fica junto ao rio, ao
   norte, e a CSP04 atravessa o rio. O nome do exemplo antigo `exemplos/irati/` ("EEB 10") está certo. A pasta local
   `drone_EEB10`, cerca de 5 km a oeste, é de outro local.
