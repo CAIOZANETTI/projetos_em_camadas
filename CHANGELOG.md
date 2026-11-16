@@ -35,11 +35,15 @@
     as araucárias ou na cava. O offset de 812,02 m vem de 8 marcas de nível da PBHI 13 nos pisos já concretados da
     EEB10 (validação cruzada 0,41 m). Na EEB09, que não entrou no ajuste, o terreno sobre os blocos dá 799,52 m
     para faces de 799,30 a 800,75. Com isso os 67 blocos entram no 3D (`solidos` no obra.json).
+  - EEB10 em 3D: paredes e pilares da folha 003 (preenchimento do layer 12), lajes de fundo e cobertura, com topos
+    pelos cortes das folhas 005/006 e fundos pela face dos blocos da 002. A 003 cai sobre a 002 a 0,1 pt; na ortofoto
+    as paredes ficam a 22 cm (mediana) das bordas da obra em construção.
   - Também estão pendentes o KMZ da supressão liberada e o ponto RTK `pt0`.
 - **`controle_vertical`**: aceita `pontos` (arquivo [{id, E, N, cota}]) além das sondagens, e `modelo: "offset"`
   para não inclinar o plano com pontos concentrados (`sfm.ajustar_vertical(..., so_offset=True)`); o 3D diz
   "deslocamento ajustado aos pontos de controle". **`solidos`**: lista de JSON com blocos já georreferenciados
-  (`obra.solidos_de_arquivos`), somados aos sólidos das fichas. Testes incluídos.
+  (`obra.solidos_de_arquivos`), somados aos sólidos das fichas; aceita também `elementos` com z0/z1 (paredes,
+  pilares, lajes). Testes incluídos.
 - **`obra.estacas`**: a coluna opcional `execucao` do CSV dá o nome da camada ("Estacas escavada"); sem ela, continua
   "hélice contínua". Teste incluído.
 - **Unidades do voo**: a estrutura em construção ao sul é a **EEB10 alto recalque**, a EEB09 fica junto ao rio, ao

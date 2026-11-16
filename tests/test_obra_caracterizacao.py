@@ -1239,3 +1239,8 @@ def test_controle_vertical_por_arquivo_de_pontos_e_solidos_de_arquivos(tmp_path)
         {"rotulo": "P1", "contorno_utm": [[10, 20], [11, 20], [11, 21], [10, 21], [10, 20]], "fundo": 804.55, "face_superior": 805.30}]}))
     s = obra.solidos_de_arquivos({"solidos": [str(bl)]}, np.array([10.0, 20.0, 0.0]))
     assert s == [{"id": "EEB10-P1", "xy": [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]], "z0": 804.55, "z1": 805.30}]
+    el = tmp_path / "estrutura.json"
+    el.write_text(json.dumps({"estrutura": "EEB10", "elementos": [
+        {"rotulo": "parede 1", "tipo": "parede", "contorno_utm": [[10, 20], [12, 20], [12, 20.2], [10, 20.2], [10, 20]], "z0": 804.05, "z1": 809.2}]}))
+    s = obra.solidos_de_arquivos({"solidos": [str(bl), str(el)]}, np.array([10.0, 20.0, 0.0]))
+    assert [(x["id"], x["z0"], x["z1"]) for x in s] == [("EEB10-P1", 804.55, 805.30), ("EEB10-parede 1", 804.05, 809.2)]

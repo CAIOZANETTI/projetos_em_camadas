@@ -567,15 +567,19 @@ def sondagens_3d(furos: list, origem) -> list[dict]:
 
 def solidos_de_arquivos(cfg: dict, origem) -> list[dict]:
     """Sólidos do 3D lidos de JSON já georreferenciados (`solidos` no obra.json: lista de caminhos, cada um com
-    `blocos: [{rotulo, contorno_utm, fundo, face_superior}]`, cotas em m, e `estrutura` opcional como prefixo do id),
+    `blocos: [{rotulo, contorno_utm, fundo, face_superior}]` e/ou `elementos: [{rotulo, contorno_utm, z0, z1}]` —
+    paredes, pilares, lajes —, cotas em m, e `estrutura` opcional como prefixo do id),
     relativos à origem do modelo."""
     saida = []
     for caminho in cfg["solidos"]:
         d = json.loads(Path(caminho).read_text())
         prefixo = f"{d['estrutura']}-" if d.get("estrutura") else ""
-        for b in d["blocos"]:
+        for b in d.get("blocos", []):
             saida.append({"id": prefixo + b["rotulo"], "xy": (np.array(b["contorno_utm"]) - origem[:2]).round(3).tolist(),
                           "z0": b["fundo"], "z1": b["face_superior"]})
+        for e in d.get("elementos", []):
+            saida.append({"id": prefixo + e["rotulo"], "xy": (np.array(e["contorno_utm"]) - origem[:2]).round(3).tolist(),
+                          "z0": e["z0"], "z1": e["z1"]})
     return saida
 
 
