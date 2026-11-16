@@ -28,6 +28,9 @@
     arrasamento. A folha 016 recebe a afim da PBHI 09 mais uma translação, porque as duas desenham a grade alinhada
     aos eixos da folha; as linhas de viga coincidem a 2–4 cm. As estacas entram como camada (`estacas` no
     obra.json). O 3D em cota fica bloqueado: não há controle vertical, porque nenhum dos 20 pontos RTK cai na nuvem.
+  - Fundação da EEB10 pela folha 002 sobre a PBHI 13: 38 blocos e 38 estacas, nos eixos das paredes do poço a
+    ≤ 1 pt. Na ortofoto, a escada e os poços em construção caem no lugar. As estacas das duas elevatórias ficam em
+    `estacas_captacao.csv` (90). Divergências da tabela (PC9 duplicado, P9 ausente, PC1=PC2) estão no obra.json.
   - Também estão pendentes o KMZ da supressão liberada e o ponto RTK `pt0`.
 - **`obra.estacas`**: a coluna opcional `execucao` do CSV dá o nome da camada ("Estacas escavada"); sem ela, continua
   "hélice contínua". Teste incluído.
