@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.74.1 — 2026-11-16 · Irati: Captação CSP04 e EEB09 sobre o voo de 13/11
+## 0.74.1 — 2026-11-16 · Irati: Captação CSP04, EEB09 e EEB10 sobre o voo de 13/11
 - **Obra nova `exemplos/irati_captacao/obra.json`**: voo DJI Mini 2 de 13/11/2026 (32 fotos a 60 m) × pacote
   `01_CAPT-EEB09 AAB07-EEB10` do `1023. SAA_IRATI.zip`, extraído para `dados/irati_captacao/` com a origem de cada
   arquivo em `origem_zip.tsv`.
@@ -9,13 +9,18 @@
     da malha G-MALHA, cujos rótulos são texto vetorial (E 546.850/546.900, N 7.183.500/7.183.550); escala isótropa
     0,05307 m/pt (1:150).
   - O controle absoluto pela LAYLOC deslocou a ortofoto em −0,16 m E e +1,06 m N (viés do GPS do drone), com resíduo
-    mediano de 36 cm. A EEB09 executada bate com o contorno do projeto na conferência visual.
-  - Barragem (folha 07) e planta da EEB09 (folha 09) ficam pendentes: o CAD × CAD sobre a LAYLOC é rejeitado (escala
-    e rotação incoerentes com a base).
+    mediano de 36 cm.
+  - As vistas de detalhe 1:50 também entram por afim absoluta. A escala vem do título da vista, lido por OCR, e o
+    encaixe é vetor × vetor sobre a prancha georreferenciada: rotação por correlação de ocupação e ICP rígido.
+    - EEB09 (folha 09): sobre a LAYLOC, ICP com mediana de 0,4 cm.
+    - Barragem (folha 07): sobre a folha 09, mediana de 5 cm.
+    - EEB10 (folha 13): sobre a LAYLOC, mediana de 15 cm, encaixe a conferir.
+    - Cada uma foi conferida na ortofoto.
   - PBGE e PBES estão sem texto e precisam de OCR; também estão pendentes o KMZ da supressão liberada e o ponto RTK
     `pt0`.
-- **O voo antigo do exemplo `exemplos/irati/` (17/09) é do mesmo local**: Captação/EEB09, e não EEB10 (a EEB10 fica
-  cerca de 5 km a oeste, pelo KMZ "Irati-SAA"). O nome do exemplo antigo fica como estava, à espera da decisão do Caio.
+- **Unidades do voo**: a estrutura em construção ao sul é a **EEB10 alto recalque**, a EEB09 fica junto ao rio, ao
+  norte, e a CSP04 atravessa o rio. O nome do exemplo antigo `exemplos/irati/` ("EEB 10") está certo. A pasta local
+  `drone_EEB10`, cerca de 5 km a oeste, é de outro local.
 - **`extrair_gavetas.etapa`**: obra sem `escavacao` no obra.json derrubava a etapa com `KeyError: 'g'`. A conferência
   das cavas grava `cavas["conferencia"]` mesmo sem cava; agora um `cavas` sem a superfície vale como "sem cavas".
   Teste de regressão incluído.
