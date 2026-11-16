@@ -1,0 +1,53 @@
+{
+  "id": "irati-captacao",
+  "titulo": "Captação CSP04 e EEB09 — SAA Irati (LE 242/2025)",
+  "titulo_curto": "Irati · Captação/EEB09",
+  "subtitulo": "Voo DJI Mini 2 de 13/11/2026 (32 fotos, 60 m) × pacote 01_CAPT-EEB09 AAB07-EEB10",
+  "fotos": "dados/irati_captacao/foto_drone_2026-11-13",
+  "saida": "saida/irati_captacao",
+  "sfm": {"denso": true, "orto_res": 0.04},
+  "res_html": 0.06,
+  "max_pontos_3d": 300000,
+  "etapas": [
+    {"id": "1ª etapa", "cor": "#0b6fde"},
+    {"id": "Existente a manter", "cor": "#f59e0b"}
+  ],
+  "controle_absoluto": {
+    "pdf": "dados/irati_captacao/projeto/PBHI/003-SAA-0005-8907-PBHI-DE-01CSP04LAYLOC-R0.pdf",
+    "afim_pt_utm": [[0, -0.05306993920940191, 546935.3047252329], [-0.05306994264577793, 0, 7183603.773252191]],
+    "fonte": "malha de coordenadas impressa da LAYLOC (layer G-MALHA, rótulos em texto vetorial E 546.850/546.900 e N 7.183.500/7.183.550; escala isótropa 0,05307 m/pt, 1:150); a mesma afim vale para as folhas 001 a 004 do CSP04"
+  },
+  "pranchas": [
+    {"id": "loc", "pdf": "dados/irati_captacao/projeto/PBHI/003-SAA-0005-8907-PBHI-DE-01CSP04LAYLOC-R0.pdf",
+     "nome": "Folha 03 · Layout de locação (CSP04)", "disciplina": "Hidráulica",
+     "M_absoluta": [[0, -0.05306993920940191, 546935.3047252329], [-0.05306994264577793, 0, 7183603.773252191]],
+     "obs_georef": "malha G-MALHA com rótulos em texto vetorial (2 linhas E, 2 linhas N; E e N com a mesma escala, 1:150)"},
+    {"id": "urb", "pdf": "dados/irati_captacao/projeto/PBHI/001-SAA-0005-8907-PBHI-DE-01CSP04LAYURB-R0.pdf",
+     "nome": "Folha 01 · Layout de urbanização (CSP04)", "disciplina": "Urbanização",
+     "M_absoluta": [[0, -0.05306993920940191, 546935.3047252329], [-0.05306994264577793, 0, 7183603.773252191]],
+     "obs_georef": "mesma malha da folha 03 (rótulos e linhas G-MALHA idênticos)"},
+    {"id": "int", "pdf": "dados/irati_captacao/projeto/PBHI/002-SAA-0005-8907-PBHI-DE-01CSP04LAYINT-R0.pdf",
+     "nome": "Folha 02 · Layout de interligação (CSP04)", "disciplina": "Hidráulica",
+     "M_absoluta": [[0, -0.05306993920940191, 546935.3047252329], [-0.05306994264577793, 0, 7183603.773252191]],
+     "obs_georef": "mesma malha da folha 03 (rótulos e linhas G-MALHA idênticos)"},
+    {"id": "dre", "pdf": "dados/irati_captacao/projeto/PBHI/004-SAA-0005-8907-PBHI-DE-01CSP04LAYDRE-R0.pdf",
+     "nome": "Folha 04 · Layout de drenagem (CSP04)", "disciplina": "Drenagem",
+     "M_absoluta": [[0, -0.05306993920940191, 546935.3047252329], [-0.05306994264577793, 0, 7183603.773252191]],
+     "obs_georef": "mesma malha da folha 03 (rótulos e linhas G-MALHA idênticos)"},
+    {"id": "barr", "pdf": "dados/irati_captacao/projeto/PBHI/007-SAA-0005-8907-PBHI-DE-01CSP04BARR-R0.pdf",
+     "nome": "Folha 07 · Barragem — planta e vista superior", "disciplina": "Hidráulica",
+     "irma": "loc", "layers_irma": "HIDROGRAFIA|EXISTENTE|IMPLANTAR", "layers_referencia": "HIDROGRAFIA|EXISTENTE|IMPLANTAR"},
+    {"id": "eeb09", "pdf": "dados/irati_captacao/projeto/PBHI/009-SAA-0005-8907-PBHI-DE-01EEB09PLANCORTISO-R0.pdf",
+     "nome": "Folha 09 · EEB09 — planta", "disciplina": "Hidráulica",
+     "irma": "loc", "layers_irma": "IMPLANTAR|UNIDADES", "layers_referencia": "IMPLANTAR|UNIDADES|PAREDE|CIVIL"}
+  ],
+  "pendentes": {
+    "Geotecnia (PBGE 001–011)": ["PDFs sem texto (fontes em curva): a leitura das sondagens precisa de OCR (tesseract não instalado) ou dos DXF irmãos em dados/irati_captacao/dwg"],
+    "Estrutura (PBES 016–028)": ["Formas e armaduras da EEB09 e da descarga de fundo sem texto: precisam de OCR para escala e cotas"],
+    "Supressão vegetal": ["KMZ 'IRATI 31.08 Supressão Liberada' (polígonos 'captação') ainda não entra como camada; está em dados/irati_captacao/kmz"],
+    "Controle de campo": ["Ponto RTK pt0 (E 546835,190; N 7183467,190; cota 819,431) do levantamento 091114TRIBACK: identificar no campo o que ele marca antes de usar como controle"]
+  },
+  "referencias_geodesicas": {"pasta": "referencias/sanepar", "raio_m": 3000},
+  "sig": true,
+  "artifact": true
+}

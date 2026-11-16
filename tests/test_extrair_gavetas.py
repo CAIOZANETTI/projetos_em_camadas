@@ -383,6 +383,14 @@ def test_retorno_de_ia_com_objeto_fora_da_planilha_nao_gera_escavacao_na_etapa(t
     assert resumo["fatos_ia"] == 4 and resumo["fatos_por_natureza"]["inferido"] >= 4
 
 
+def test_obra_sem_escavacao_so_com_conferencia_nas_cavas_nao_derruba_a_etapa(tmp_path):
+    # Irati (captação): sem `escavacao` no obra.json, a conferência das cavas ainda grava `cavas["conferencia"]`
+    # e o dict chegava à etapa sem a superfície `g` (KeyError)
+    resumo = eg.etapa(_cfg(tmp_path), [], tmp_path / "saida", log=lambda *_: None, cavas={"conferencia": []})
+    assert resumo is not None
+    assert not [o for o in gavetas.ler(tmp_path / "saida" / "base")["objetos"] if o["classe"] == "cava"]
+
+
 # --- setores da obra localizada (rodada 5) --------------------------------------------------------------------------
 
 QUADRADO = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]
