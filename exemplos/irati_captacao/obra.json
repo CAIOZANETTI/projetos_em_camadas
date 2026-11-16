@@ -191,8 +191,10 @@
     }
   ],
   "pendentes": {
-    "Geotecnia (PBGE 001–011)": [
-      "PDFs sem texto (fontes em curva): ler as sondagens por OCR (tesseract instalado em 16/11) ou pelos DXF irmãos em dados/irati_captacao/dwg"
+    "Geotecnia (sondagens)": [
+      "Os boletins SPT da captação não estão no pacote (nem nos zips aninhados: só há laudos da ETA, AAB08 e AAB09). As folhas PBGE 001–011 não locam os furos. Pedir ao projetista (OSM/Sanepar) os boletins com coordenada e cota de boca",
+      "Lido por OCR o único dado existente, a Tabela 1 do memorial PBGE-RT (p. 14): SP 01 e SP 02 na barragem (boca 798,00; NA 2,30 e 3,20 m), SP 03 e SP 04 no alto recalque (boca 808,00 e 804,55; NA 10,25 e 3,20 m); argila mole a média nas 4 primeiras camadas, silte ou areia e argila rija abaixo. Sem coordenada nem profundidade das camadas, não entra como `sondagens`; a leitura está em dados/irati_captacao/geotecnia/tabela1_resumo_sondagens.json",
+      "Divergências do memorial a esclarecer: 5 sondagens no texto, 4 na tabela, 6 na Figura 2; 'sem NA no alto recalque' (p. 19) contra NA 10,25 e 3,20 m na tabela; edificação 'CSP01' em vez de CSP04; médias NSPT impressas diferentes da média dos furos"
     ],
     "Estrutura (PBES 016–028)": [
       "Formas e armaduras da EEB09 e da descarga de fundo sem texto: precisam de OCR para escala e cotas"

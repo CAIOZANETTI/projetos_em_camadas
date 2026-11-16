@@ -16,8 +16,11 @@
     - Barragem (folha 07): sobre a folha 09, mediana de 5 cm.
     - EEB10 (folha 13): sobre a LAYLOC, mediana de 15 cm, encaixe a conferir.
     - Cada uma foi conferida na ortofoto.
-  - PBGE e PBES estão sem texto e precisam de OCR; também estão pendentes o KMZ da supressão liberada e o ponto RTK
-    `pt0`.
+  - Sondagens: os boletins SPT da captação não estão no pacote e as folhas PBGE não locam os furos. A Tabela 1 do
+    memorial (imagem) foi lida por OCR: SP 01 a SP 04, com cota de boca, NA e NSPT por camada, mas sem coordenada nem
+    profundidade. Por isso fica como pendência no obra.json, com as divergências do memorial, e não entra como
+    `sondagens`.
+  - PBES está sem texto e precisa de OCR; também estão pendentes o KMZ da supressão liberada e o ponto RTK `pt0`.
 - **Unidades do voo**: a estrutura em construção ao sul é a **EEB10 alto recalque**, a EEB09 fica junto ao rio, ao
   norte, e a CSP04 atravessa o rio. O nome do exemplo antigo `exemplos/irati/` ("EEB 10") está certo. A pasta local
   `drone_EEB10`, cerca de 5 km a oeste, é de outro local.
