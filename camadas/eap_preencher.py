@@ -6,12 +6,14 @@
 
 Nenhuma quantidade nasce aqui sem fato por trás; sem preço, sem prazo. Só lê a base; não grava em `saida/`.
 
-Três origens por folha, que nunca se somam entre si, em ordem de precedência da situação:
+Quatro origens por folha, que nunca se somam entre si, em ordem de precedência da situação:
 
     1. medida   (fatos dos objetos e serviços das gavetas)        → "preenchida" (ou "calculada", se só há serviço de regra)
     2. calculada pelo contrato (`item_contrato` com `quantidade_calculada` do `contrato_211`, situação `calculada`)
                                                                      → "calculada"
     3. declarada (`item_contrato` com `quantidade`; `item_material` com etapa 1 + etapa 2) → "declarada"
+    4. declarada pelo documento (leitura de IA com citação conferida, `gavetas_ia`: objeto `leitura_ia`)
+                                                                     → "declarada" (`fonte_declarada`: "declarada (documento)")
 
 Por quê: o que o projeto mede tem a evidência mais forte (fato com página). A calculada pelo contrato nasce de regra
 determinística sobre o projeto (rede, vala, área da UC) e só existe onde a planilha deixou a quantidade vazia, então
@@ -19,6 +21,9 @@ nunca disputa a mesma linha com a declarada; ela vale mais que a declarada porqu
 conferem, enquanto a declarada é o número escrito na planilha. A linha `parcial` (cálculo incompleto) e a que a planilha
 declarou e o código só conferiu (`declarada · confere/diverge`) não fecham a folha como calculada. As outras origens
 seguem listadas na folha (`calculadas_contrato`, `declaradas`) com os totais por unidade, sem entrar nos `totais` medidos.
+A leitura de IA conferida só fecha a folha quando nenhuma fonte mais forte a fecha; as linhas ficam em
+`declaradas_documento` (por código da evidência, serviço e unidade; parcelas somam, total repetido conta uma vez, valores
+que divergem viram `conflito` e não fecham). A menção sem número não preenche: é `mencao_documento`, destino do laço.
 
     python -m camadas.eap_preencher saida/foz
 """
@@ -29,7 +34,14 @@ import argparse
 import json
 from pathlib import Path
 
-from . import eap, gavetas, gavetas_construtivos, gavetas_contrato, vocabulario
+from . import (
+    eap,
+    evidencias,
+    gavetas,
+    gavetas_construtivos,
+    gavetas_contrato,
+    vocabulario,
+)
 from .pdf_cad import CONCEITOS
 
 PADRAO = json.loads((CONCEITOS / "eap_padrao.json").read_text(encoding="utf-8"))
@@ -362,6 +374,79 @@ def _calculadas(base: dict) -> dict[str, list[dict]]:
     return saida
 
 
+def _leituras_ia(base: dict) -> list[dict]:
+    """Leituras de IA com número e citação conferida (objetos `leitura_ia` de `gavetas_ia`): item técnico, código da
+    evidência (`*` vale qualquer unidade ou sistema), serviço, unidade, quantidade, parcela e a citação (documento,
+    página ou aba e linha, trecho literal). A leitura de IA é declaração do documento, nunca medida."""
+    ind = gavetas.indice(base)
+    por_evidencia = {e["evidencia_id"]: e for e in base["evidencias"]}
+    saida = []
+    for objeto in base["objetos"]:
+        if objeto["classe"] != "leitura_ia":
+            continue
+        fatos = gavetas.fatos_do_objeto(base, objeto["objeto_id"], ind)
+        v = {p: f["valor"] for p, f in fatos.items()}
+        evidencia = por_evidencia.get(fatos["quantidade"]["evidencia_id"]) if "quantidade" in fatos else None
+        if not evidencia or evidencia.get("citacao") != "conferida" or not _numero(v["quantidade"]):
+            continue
+        saida.append(
+            {
+                "objeto_id": objeto["objeto_id"],
+                "item": v["item_tecnico"],
+                "codigo": v["codigo_evidencia"],
+                "servico": v.get("servico") or "",
+                "unidade": _unidade_canonica(v.get("unidade_medida")),
+                "quantidade": float(v["quantidade"]),
+                "parcela": bool(v.get("parcela")),
+                "citacao": {**_citacao(evidencia), "trecho": evidencia.get("trecho")},
+            }
+        )
+    return saida
+
+
+def _vale_ia(leitura: dict, alvo: dict, vista: str, reservados: set[tuple]) -> bool:
+    """A leitura pertence ao apontamento da folha: mesmo item, vista do código da evidência (unidade `*` vale em qualquer
+    vista) e o serviço como em `_vale`: o apontamento que pede um serviço só recebe a leitura dele; sem serviço vale o
+    item inteiro, menos o serviço que outra folha do mesmo tipo pede pelo nome."""
+    if leitura["item"] != alvo["item"] or eap.vista_do_codigo(leitura["codigo"]) not in (None, vista):
+        return False
+    if alvo.get("servico"):
+        return leitura["servico"] == alvo["servico"]
+    return (leitura["item"], leitura["servico"]) not in reservados
+
+
+def _afirmacoes_do_documento(leituras: list[dict]) -> list[float]:
+    """Valores que um documento afirma para a mesma chave: as parcelas somam (a mesma frase em outra página é total
+    repetido e conta uma vez, como em `evidencias`) e cada total diferente é uma afirmação; total repetido conta uma vez."""
+    parcelas = {" ".join(vocabulario.normalizar(x["citacao"]["trecho"]).split()): x for x in leituras if x["parcela"]}
+    totais = {x["quantidade"] for x in leituras if not x["parcela"]}
+    return ([round(sum(x["quantidade"] for x in parcelas.values()), 6)] if parcelas else []) + sorted(totais)
+
+
+def _linha_da_leitura(chave: tuple, leituras: list[dict]) -> dict:
+    """Linha da folha por (código da evidência, serviço, unidade): o valor que os documentos afirmam (parcelas somadas,
+    total repetido uma vez), ou `conflito` com todos os valores, sem quantidade, se um documento afirma mais de um valor
+    ou dois documentos divergem (acima de `evidencias.TOLERANCIA_RELATIVA`). Nunca soma entre documentos."""
+    por_documento: dict[str, list[dict]] = {}
+    for x in leituras:
+        por_documento.setdefault(x["citacao"]["documento"], []).append(x)
+    valores = sorted({v for doc in por_documento.values() for v in _afirmacoes_do_documento(doc)})
+    unico = bool(valores) and valores[-1] - valores[0] <= evidencias.TOLERANCIA_RELATIVA * max(1.0, abs(valores[-1]))
+    citacoes = [x["citacao"] for x in sorted(leituras, key=lambda x: x["objeto_id"])]
+    return {"codigo": chave[0], "servico": chave[1], "unidade": chave[2], "citacoes": citacoes,
+            "quantidade": (max(valores) if unico else None), "valores_afirmados": valores, "conflito": not unico}
+
+
+def _declaradas_documento(folha: dict, vista: str, leituras: list[dict], reservados: set) -> list[dict]:
+    """Linhas "declaradas (documento)" da folha: as leituras de IA conferidas dos itens que ela aponta, por (código da
+    evidência, serviço, unidade). Só vale onde não há fonte mais forte: `_situacao` decide."""
+    chaves: dict[tuple, list[dict]] = {}
+    for x in leituras:
+        if any(_vale_ia(x, alvo, vista, reservados) for alvo in folha["aponta"]):
+            chaves.setdefault((x["codigo"], x["servico"], x["unidade"]), []).append(x)
+    return [_linha_da_leitura(c, ls) for c, ls in sorted(chaves.items(), key=lambda kv: tuple(map(str, kv[0])))]
+
+
 def _totais_por_unidade(linhas: list[dict]) -> list[dict]:
     """Soma por unidade das linhas com quantidade: unidades diferentes nunca se somam."""
     somas: dict[str, float] = {}
@@ -418,11 +503,15 @@ def _medidas_da_folha(
 
 
 def _situacao(
-    medidas: list[dict], calculadas: list[dict], declaradas: list[dict]
+    medidas: list[dict],
+    calculadas: list[dict],
+    declaradas: list[dict],
+    do_documento: list[dict] | None = None,
 ) -> str:
-    """Situação da folha pela precedência medida > calculada pelo contrato > declarada (docstring do módulo): `preenchida`
-    (medida de documento), `calculada` (só serviço de regra ou só quantidade calculada pelo contrato, completa),
-    `declarada` (só a planilha declara) ou `a preencher`."""
+    """Situação da folha pela precedência medida > calculada pelo contrato > declarada pelo contrato ou materiais >
+    declarada pelo documento (docstring do módulo): `preenchida` (medida de documento), `calculada` (só serviço de regra
+    ou só quantidade calculada pelo contrato, completa), `declarada` (a planilha declara, ou só a leitura de IA
+    conferida de um documento: `_fonte_declarada` diz qual) ou `a preencher`."""
     if medidas:
         return (
             "calculada"
@@ -433,29 +522,43 @@ def _situacao(
         return "calculada"
     return (
         "declarada"
-        if any(d["quantidade"] is not None for d in declaradas)
+        if any(d["quantidade"] is not None for d in [*declaradas, *(do_documento or [])])
         else "a preencher"
     )
+
+
+def _fonte_declarada(situacao: str, declaradas: list[dict]) -> str | None:
+    """De onde vem a folha `declarada`: "declarada (documento)" se só a leitura de IA conferida declara (nenhuma linha
+    do contrato ou da Relação de Materiais traz número); "declarada (contrato)" se o contrato ou os materiais declaram;
+    None nas outras situações."""
+    if situacao != "declarada":
+        return None
+    do_contrato = any(d["quantidade"] is not None for d in declaradas)
+    return "declarada (contrato)" if do_contrato else "declarada (documento)"
 
 
 def _folha(
     folha: dict,
     vista: str,
     por_item: dict[str, list[dict]],
-    origens: tuple[list[dict], list[dict]],
+    origens: tuple[list[dict], list[dict], list[dict]],
     reservados: set,
 ) -> dict:
-    """Folha preenchida: quantidades medidas dos itens que ela aponta, as linhas calculadas pelo contrato e as declaradas
-    (`origens` = (declaradas, calculadas), cada uma com totais por unidade, nunca somadas ao medido) e a situação."""
-    declaradas, calculadas = origens
+    """Folha preenchida: quantidades medidas dos itens que ela aponta, as linhas calculadas pelo contrato, as declaradas e
+    as declaradas pelo documento (`origens` = (declaradas, calculadas, leituras de IA do documento), cada uma com totais por
+    unidade, nunca somadas ao medido nem entre si) e a situação."""
+    declaradas, calculadas, leituras = origens
     medidas = _medidas_da_folha(folha, vista, por_item, reservados)
+    do_documento = _declaradas_documento(folha, vista, leituras, reservados)
+    situacao = _situacao(medidas, calculadas, declaradas, do_documento)
     return {
         "id": folha["id"],
         "nome": folha["nome"],
         "obrigatoria": folha["obrigatoria"],
         "escopo": folha.get("escopo", "ambos"),
         "aponta": folha["aponta"],
-        "situacao": _situacao(medidas, calculadas, declaradas),
+        "situacao": situacao,
+        "fonte_declarada": _fonte_declarada(situacao, declaradas),
         "quantidades": medidas,
         "totais": _totais(medidas),
         "calculadas_contrato": calculadas,
@@ -464,6 +567,8 @@ def _folha(
         ),
         "declaradas": declaradas,
         "totais_declaradas": _totais_por_unidade(declaradas),
+        "declaradas_documento": do_documento,
+        "totais_declaradas_documento": _totais_por_unidade(do_documento),
     }
 
 
@@ -475,6 +580,7 @@ def _completude(folhas: list[dict]) -> dict:
         s: sum(f["situacao"] == s for f in folhas)
         for s in ("preenchida", "calculada", "declarada", "a preencher")
     }
+    por_situacao["declarada_documento"] = sum(f.get("fonte_declarada") == "declarada (documento)" for f in folhas)
     obrigatorias = [f for f in folhas if f["obrigatoria"]]
     return {
         "folhas": n,
@@ -493,9 +599,10 @@ def _completude(folhas: list[dict]) -> dict:
 
 
 def _etapas_do_tipo(
-    tipo: str, modelo: dict, por_item: dict, declaradas: dict, calculadas: dict
+    tipo: str, modelo: dict, por_item: dict, origens: tuple[dict, dict, list[dict]]
 ) -> tuple[list[dict], set, set]:
     """As etapas preenchidas de um tipo de obra, as quantidades usadas (`item|grandeza`) e os ids das folhas."""
+    declaradas, calculadas, leituras = origens
     etapas, usadas, folhas_do_tipo = [], set(), set()
     reservados = {
         (a["item"], a["servico"])
@@ -510,7 +617,7 @@ def _etapas_do_tipo(
                 f,
                 VISTA_DO_TIPO[tipo],
                 por_item,
-                (declaradas.get(f["id"], []), calculadas.get(f["id"], [])),
+                (declaradas.get(f["id"], []), calculadas.get(f["id"], []), leituras),
                 reservados,
             )
             for f in etapa["folhas"]
@@ -543,7 +650,7 @@ def preencher(base: dict) -> dict:
     tipos, usadas, folhas_do_modelo = {}, set(), set()
     for tipo, modelo in PADRAO["tipos"].items():
         etapas, usadas_do_tipo, folhas_do_tipo = _etapas_do_tipo(
-            tipo, modelo, por_item, declaradas, calculadas
+            tipo, modelo, por_item, (declaradas, calculadas, _leituras_ia(base))
         )
         usadas |= usadas_do_tipo
         folhas_do_modelo |= folhas_do_tipo
