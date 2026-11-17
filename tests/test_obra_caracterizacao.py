@@ -1244,3 +1244,142 @@ def test_controle_vertical_por_arquivo_de_pontos_e_solidos_de_arquivos(tmp_path)
         {"rotulo": "parede 1", "tipo": "parede", "contorno_utm": [[10, 20], [12, 20], [12, 20.2], [10, 20.2], [10, 20]], "z0": 804.05, "z1": 809.2}]}))
     s = obra.solidos_de_arquivos({"solidos": [str(bl), str(el)]}, np.array([10.0, 20.0, 0.0]))
     assert [(x["id"], x["z0"], x["z1"]) for x in s] == [("EEB10-P1", 804.55, 805.30), ("EEB10-parede 1", 804.05, 809.2)]
+
+
+# --- estruturas_3d: sólidos e estacas pela chave declarativa do obra.json ---
+
+VERMELHO_PILAR = (1.0, 0.0, 0.0)
+AZUL_PAREDE = (0.0, 0.0, 1.0)
+BLOCOS_PT = {"P1": (100, 100, 160, 140), "P2": (300, 100, 360, 140), "P3": (100, 300, 160, 340), "P4": (320, 300, 380, 340)}
+ESTACAS_PT = [(115, 120), (145, 120), (315, 120), (345, 120), (130, 320), (350, 320)]
+PAREDES_PT = [(100, 100, 360, 110), (100, 300, 380, 310)]   # na folha de fundação; a de paredes está deslocada de (40, 30)
+M_PRANCHA = [[0.02, 0.0, 500000.0], [0.0, -0.02, 7000000.0]]    # pt -> UTM (0,02 m/pt, y para baixo)
+
+
+def _utm_pt(x, y):
+    """UTM de um ponto da folha 016 (translação 10, 5 pt até a prancha), na conta à mão."""
+    return 500000.0 + 0.02 * (x + 10), 7000000.0 - 0.02 * (y + 5)
+
+
+def _pdf_estrutura(caminho, formas):
+    import pymupdf
+    doc = pymupdf.open()
+    pagina = doc.new_page(width=600, height=600)
+    xrefs = {l: doc.add_ocg(l) for l in {f[0] for f in formas}}
+    for layer, tipo, dados, cor in formas:
+        forma = pagina.new_shape()
+        if tipo == "circulo":
+            forma.draw_circle(pymupdf.Point(*dados[0]), dados[1])
+            forma.finish(color=(0, 0, 0), closePath=True, oc=xrefs[layer])
+        else:
+            x0, y0, x1, y1 = dados
+            forma.draw_polyline([pymupdf.Point(*p) for p in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]])
+            forma.finish(fill=cor if tipo == "preenchido" else None, color=None if tipo == "preenchido" else (0, 0, 0),
+                         closePath=True, oc=xrefs[layer])
+        forma.commit()
+    doc.save(caminho)
+    return str(caminho)
+
+
+def _pilares_pt(deslocamento=(0, 0)):
+    cx = [(130, 120), (330, 120), (130, 320), (350, 320)]
+    return [("12", "preenchido", (x - 6 - deslocamento[0], y - 6 - deslocamento[1], x + 6 - deslocamento[0], y + 6 - deslocamento[1]), VERMELHO_PILAR) for x, y in cx]
+
+
+def _pdfs_da_estrutura(raiz):
+    fundacao = [("3", "contorno", b, None) for b in BLOCOS_PT.values()] + [("2", "circulo", (c, 11.5), None) for c in ESTACAS_PT]
+    paredes = [("12", "preenchido", (x0 - 40, y0 - 30, x1 - 40, y1 - 30), AZUL_PAREDE) for x0, y0, x1, y1 in PAREDES_PT]
+    return (_pdf_estrutura(raiz / "fund.pdf", fundacao + _pilares_pt()),
+            _pdf_estrutura(raiz / "paredes.pdf", paredes + _pilares_pt((40, 30))))
+
+
+def _estrutura_3d(id_estrutura, pdf_fundacao, pdf_paredes, translacao_paredes=(40, 30)):
+    regiao = [0, 0, 600, 600]
+    return {
+        "id": id_estrutura,
+        "folhas": {
+            "016": {"pdf": pdf_fundacao, "transformacao": {"prancha": "eeb", "translacao_pt": [10, 5]}},
+            "018": {"pdf": pdf_paredes, "transformacao": {"folha": "016", "translacao_pt": list(translacao_paredes)},
+                    "conferencia": {"chave": ["12", list(VERMELHO_PILAR)], "regiao_pt": regiao, "tol_pt": 0.5}},
+        },
+        "fundacao": {
+            "folha": "016", "regiao_pt": regiao, "estacas": {"layer": "2", "diametro_pt": [22, 23.5]},
+            "blocos": {"layer": "3", "area_min_pt2": 200},
+            "rotulos_pt": {"P4": [352, 322], "P2": [327, 123], "P1": [133, 118], "P3": [127, 318]},
+            "niveis": {"P1": {"face_superior": 800.75, "arrasamento": 800.05}, "P2": {"face_superior": 800.55, "arrasamento": 799.85},
+                       "P3": {"face_superior": 800.90, "arrasamento": 800.20}, "P4": {"face_superior": 800.60, "arrasamento": 799.90}},
+            "altura_bloco_m": 0.75, "estaca": {"diametro_cm": 40, "comprimento_m": 9.0, "execucao": "escavada"},
+        },
+        "elementos": [
+            {"tipo": "preenchido", "folha": "018", "chave": ["12", list(AZUL_PAREDE)], "regiao_pt": regiao, "elemento": "parede",
+             "z0": 800.0, "z1": 808.65, "zonas": [{"regiao_pt": [200, 0, 600, 600], "z1": 809.2}], "z0_pelos_blocos": "minimo"},
+            {"tipo": "retangulo", "folha": "018", "rotulo": "P1", "centro_bloco": "P1", "dimensoes_m": [0.6, 0.3],
+             "z0_pelos_blocos": "minimo", "z1": 802.0, "elemento": "pilar"},
+        ],
+    }
+
+
+def _cfg_estruturas(raiz, *estruturas):
+    return {"pranchas": [{"id": "eeb", "pdf": "x.pdf", "M_absoluta": M_PRANCHA}], "estruturas_3d": list(estruturas)}
+
+
+def test_estruturas_3d_gera_blocos_estacas_e_elementos_pela_conta_a_mao(tmp_path):
+    fund, par = _pdfs_da_estrutura(tmp_path)
+    cfg = _cfg_estruturas(tmp_path, _estrutura_3d("EEB09", fund, par))
+    saida = obra.etapa_estruturas_3d(cfg, tmp_path / "saida")
+    d = json.loads(Path(saida["arquivos"][0]).read_text())
+    assert saida["estruturas"] == {"EEB09": True} and d["estrutura"] == "EEB09"
+    assert d["metadata"]["conferencias"]["018"]["ok"] and d["metadata"]["conferencias"]["018"]["casados"] == 4
+    blocos = {b["rotulo"]: b for b in d["blocos"]}
+    assert sorted(blocos) == ["P1", "P2", "P3", "P4"] and [blocos[r]["estacas"] for r in sorted(blocos)] == [2, 2, 1, 1]
+    p1 = np.array(blocos["P1"]["contorno_utm"])                       # bloco 100..160 x 100..140 pt
+    (e0, n1), (e1, n0) = _utm_pt(100, 100), _utm_pt(160, 140)
+    assert (p1[:, 0].min(), p1[:, 0].max(), p1[:, 1].min(), p1[:, 1].max()) == pytest.approx((e0, e1, n0, n1), abs=0.01)
+    assert (blocos["P1"]["fundo"], blocos["P1"]["face_superior"], blocos["P1"]["arrasamento"]) == (800.0, 800.75, 800.05)
+    paredes = sorted((e for e in d["elementos"] if e["tipo"] == "parede"), key=lambda e: (-np.array(e["contorno_utm"])[:, 1].mean(), np.array(e["contorno_utm"])[:, 0].mean()))
+    assert [(e["z0"], e["z1"]) for e in paredes] == [(800.75, 808.65), (800.55, 809.2), (800.9, 808.65), (800.6, 809.2)]   # junto de P1, P2, P3, P4
+    p = np.array(paredes[0]["contorno_utm"])                          # parede 1 esquerda: x 100..240 pt, y 100..110
+    assert (p[:, 0].min(), p[:, 0].max()) == pytest.approx((_utm_pt(100, 0)[0], _utm_pt(240, 0)[0]), abs=0.01)
+    pilar = next(e for e in d["elementos"] if e["tipo"] == "pilar")
+    q = np.array(pilar["contorno_utm"])
+    centro = _utm_pt(130, 120)
+    assert (q[:, 0].max() - q[:, 0].min(), q[:, 1].max() - q[:, 1].min()) == pytest.approx((0.6, 0.3), abs=0.01)
+    assert q[:4].mean(axis=0) == pytest.approx(centro, abs=0.01) and (pilar["z0"], pilar["z1"]) == (800.75, 802.0)
+    import pandas as pd
+    t = pd.read_csv(saida["estacas_csv"], sep=";", decimal=",", dtype={"id": str})
+    assert list(t.columns) == ["id", "E", "N", "diametro_cm", "cota_arrasamento", "comprimento_m", "estrutura", "bloco", "execucao", "desenho_origem"]
+    assert list(t["id"]) == ["EEB09-P1-1", "EEB09-P1-2", "EEB09-P2-1", "EEB09-P2-2", "EEB09-P3-1", "EEB09-P4-1"]
+    for linha, (x, y) in zip(t.itertuples(), [ESTACAS_PT[i] for i in (0, 1, 2, 3, 4, 5)]):
+        assert (linha.E, linha.N) == pytest.approx(_utm_pt(x, y), abs=0.01)
+    assert t.loc[0, ["diametro_cm", "cota_arrasamento", "comprimento_m", "bloco", "execucao", "desenho_origem"]].tolist() == [40, 800.05, 9.0, "P1", "escavada", "fund.pdf"]
+
+
+def test_estruturas_3d_conferencia_fora_da_tolerancia_tira_a_estrutura_sem_derrubar(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(obra, "AVISOS_DO_BUILD", [])
+    fund, par = _pdfs_da_estrutura(tmp_path)
+    cfg = _cfg_estruturas(tmp_path, _estrutura_3d("EEB09", fund, par), _estrutura_3d("EEB99", fund, par, translacao_paredes=(43, 30)))
+    saida = obra.etapa_estruturas_3d(cfg, tmp_path / "saida")
+    assert saida["estruturas"] == {"EEB09": True, "EEB99": False}
+    assert [Path(a).name for a in saida["arquivos"]] == ["EEB09.json"]
+    ruim = json.loads((tmp_path / "saida" / "estrutura" / "EEB99.json").read_text())
+    assert ruim["blocos"] == [] and ruim["elementos"] == []
+    c = ruim["metadata"]["conferencias"]["018"]
+    assert not c["ok"] and c["diferenca_pt"] == pytest.approx(3, abs=0.1) and c["casados"] == 4
+    assert "NÃO GERADA — conferência" in capsys.readouterr().out and any("EEB99" in a for a in obra.AVISOS_DO_BUILD)
+    assert len(Path(saida["estacas_csv"]).read_text().splitlines()) == 1 + 6   # só as estacas da estrutura que passou
+
+
+def test_estruturas_3d_alimenta_solidos_e_estacas_do_build(tmp_path):
+    fund, par = _pdfs_da_estrutura(tmp_path)
+    cfg = {**_cfg_estruturas(tmp_path, _estrutura_3d("EEB09", fund, par)), "solidos": ["antigo.json"]}
+    obra._aplicar_estruturas_3d(cfg, tmp_path / "saida")
+    assert cfg["solidos"][0] == "antigo.json" and cfg["solidos"][1].endswith("EEB09.json")
+    assert cfg["estacas"].endswith("estacas.csv") and len(obra._estacas_do_csv(cfg)) == 6
+    solidos = obra.solidos_de_arquivos({"solidos": cfg["solidos"][1:]}, np.array([500000.0, 7000000.0, 0.0]))
+    assert {s["id"] for s in solidos} >= {"EEB09-P1", "EEB09-parede 1", "EEB09-pilar P1"}
+    declarado = {**_cfg_estruturas(tmp_path, _estrutura_3d("EEB09", fund, par)), "estacas": "meu.csv"}
+    obra._aplicar_estruturas_3d(declarado, tmp_path / "saida2")
+    assert declarado["estacas"] == "meu.csv"                          # o obra.json manda
+    sem = {"pranchas": []}
+    obra._aplicar_estruturas_3d(sem, tmp_path / "saida3")
+    assert sem == {"pranchas": []} and not (tmp_path / "saida3").exists()   # obra sem a chave não muda

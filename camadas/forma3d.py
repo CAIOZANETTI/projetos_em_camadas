@@ -8,13 +8,21 @@ retângulo comum) e escora como prismas verticais. Tudo determinístico; unidade
 
 from __future__ import annotations
 
+import csv
 import itertools
+import json
+import re
+from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import pymupdf
+from scipy.optimize import linear_sum_assignment
 from scipy.spatial import cKDTree
-from shapely.geometry import Polygon, box
-from shapely.ops import unary_union
+from scipy.spatial.distance import cdist
+from shapely.affinity import affine_transform
+from shapely.geometry import GeometryCollection, LineString, Polygon, box
+from shapely.ops import polygonize, unary_union
 
 FRACAO_MINIMA_RECT = (
     0.4  # área do caminho / área do rect abaixo disso: caminho fora de ordem
@@ -23,6 +31,14 @@ RESOLUCAO_HIST_PT = 0.5  # passo do histograma de linhas
 COMPRIMENTO_EIXO_PT = (
     30.0  # traço mais curto que isso não entra na correlação de linhas
 )
+BUFFER_BLOCO_M = (
+    0.6  # "z0_pelos_blocos": o elemento enxerga os blocos a até 0,6 m (UTM)
+)
+BUFFER_DESCONTO_PT = 1.0  # "descontar_blocos": folga em volta do bloco, em pt da folha
+AREA_MINIMA_ELEMENTO_M2 = (
+    1e-3  # sobra de recorte menor que isso (10 cm²) não vira elemento
+)
+REDONDEZA_ESTACA = 0.1  # círculo: |largura − altura| ≤ 10 % da largura
 
 
 def _pagina(pdf):
@@ -77,6 +93,9 @@ def preenchidos(pdf, chaves, regiao_pt) -> dict:
 
 
 def _partes(geometria) -> list[Polygon]:
+    """Polígonos não vazios da geometria (ou da lista de polígonos), em ordem estável (x e y mínimos)."""
+    if isinstance(geometria, (list, tuple)):
+        geometria = GeometryCollection(list(geometria))
     partes = [
         g
         for g in getattr(geometria, "geoms", [geometria])
@@ -325,6 +344,659 @@ def prismas_inclinados(
     ]
 
 
+# --- montagem declarativa de uma estrutura (chave `estruturas_3d` do obra.json) ---
+
+
+def _chave(chave) -> tuple:
+    """`["12", [0.8, 0.85, 0.8]]` do JSON -> ("12", (0.8, 0.85, 0.8)), a chave de `preenchidos`."""
+    return (chave[0], tuple(round(float(c), 2) for c in chave[1]))
+
+
+def _matriz3(matriz_2x3) -> np.ndarray:
+    return np.vstack([np.asarray(matriz_2x3, float).reshape(2, 3), [0.0, 0.0, 1.0]])
+
+
+def _afim_da_folha(transformacao: dict) -> np.ndarray:
+    """Afim 3x3 pt da folha -> pt da base: `matriz_pt` (2x3) ou `translacao_pt` (padrão: nula)."""
+    if transformacao.get("matriz_pt") is not None:
+        return _matriz3(transformacao["matriz_pt"])
+    afim = np.eye(3)
+    afim[:2, 2] = transformacao.get("translacao_pt", [0.0, 0.0])
+    return afim
+
+
+def matrizes_das_pranchas(pranchas: list[dict]) -> dict[str, np.ndarray]:
+    """{id: afim 3x3 pt -> UTM} das pranchas do obra.json que declaram `M_absoluta`."""
+    return {p["id"]: _matriz3(p["M_absoluta"]) for p in pranchas if p.get("M_absoluta")}
+
+
+def matriz_da_folha(
+    id_folha, folhas: dict, matrizes_pranchas: dict, pilha=()
+) -> np.ndarray:
+    """Afim 3x3 pt da folha -> UTM: a base (`prancha` ou outra `folha`) composta com a translação/matriz em pt.
+    Erro claro se a cadeia tiver ciclo, folha não declarada ou prancha sem `M_absoluta`."""
+    if id_folha in pilha:
+        raise ValueError(
+            "ciclo nas transformações das folhas: " + " -> ".join([*pilha, id_folha])
+        )
+    if id_folha not in folhas:
+        raise ValueError(f"folha {id_folha} não declarada em `folhas`")
+    transformacao = folhas[id_folha]["transformacao"]
+    if "prancha" in transformacao:
+        if transformacao["prancha"] not in matrizes_pranchas:
+            raise ValueError(
+                f"prancha {transformacao['prancha']} sem M_absoluta no obra.json (folha {id_folha})"
+            )
+        base = matrizes_pranchas[transformacao["prancha"]]
+    elif "folha" in transformacao:
+        base = matriz_da_folha(
+            transformacao["folha"], folhas, matrizes_pranchas, (*pilha, id_folha)
+        )
+    else:
+        raise ValueError(
+            f"folha {id_folha}: a transformação precisa de `prancha` ou `folha`"
+        )
+    return base @ _afim_da_folha(transformacao)
+
+
+def _aplicar(matriz, pontos) -> np.ndarray:
+    return np.asarray(pontos, float).reshape(-1, 2) @ matriz[:2, :2].T + matriz[:2, 2]
+
+
+def _para_utm(geometria, matriz):
+    m = matriz
+    return affine_transform(
+        geometria, [m[0, 0], m[0, 1], m[1, 0], m[1, 1], m[0, 2], m[1, 2]]
+    )
+
+
+def _escala_m_por_pt(matriz) -> float:
+    return float(np.sqrt(abs(np.linalg.det(matriz[:2, :2]))))
+
+
+def centros_das_pecas(pdf, chave, regiao_pt) -> np.ndarray:
+    """Centroides (pt) das peças preenchidas da `chave` (layer, cor) na região, já unidas."""
+    lidos = preenchidos(pdf, [_chave(chave)], regiao_pt)[_chave(chave)]
+    return np.array([p.centroid.coords[0] for p in unir(lidos)], float).reshape(-1, 2)
+
+
+def conferir_folha(pdf_folha, pdf_base, afim_pt, conferencia: dict) -> dict:
+    """Recalcula a translação folha -> base pelos centros das peças da `chave`: `afim_pt` (3x3, declarada) leva a
+    folha à base; o resíduo é a translação extra que `alinhar_por_pontos` ainda acha. Passa se a diferença ≤ `tol_pt`
+    e se casaram ao menos min(3, total) peças."""
+    regiao, tol_pt = conferencia["regiao_pt"], float(conferencia.get("tol_pt", 0.5))
+    base = centros_das_pecas(pdf_base, conferencia["chave"], regiao)
+    folha = _aplicar(
+        afim_pt, centros_das_pecas(pdf_folha, conferencia["chave"], regiao)
+    )
+    if not len(base) or not len(folha):
+        return {
+            "casados": 0,
+            "total": len(folha),
+            "ok": False,
+            "tol_pt": tol_pt,
+            "diferenca_pt": None,
+        }
+    r = alinhar_por_pontos(base, folha)
+    diferenca = float(np.hypot(*r["translacao_pt"]))
+    ok = r["casados"] >= min(3, r["total"]) and diferenca <= tol_pt
+    return {
+        "casados": r["casados"],
+        "total": r["total"],
+        "residuo_mediano_pt": r["residuo_mediano_pt"],
+        "translacao_declarada_pt": [float(afim_pt[0, 2]), float(afim_pt[1, 2])],
+        "diferenca_pt": diferenca,
+        "tol_pt": tol_pt,
+        "ok": bool(ok),
+    }
+
+
+def _conferencias(est: dict, pdfs: dict) -> dict:
+    """{folha: conferência} das folhas que declaram `conferencia`; a base é a `folha` da transformação."""
+    saida = {}
+    for id_folha, folha in est["folhas"].items():
+        if not folha.get("conferencia"):
+            continue
+        base = folha["transformacao"].get("folha")
+        if base is None:
+            raise ValueError(
+                f"folha {id_folha}: `conferencia` exige transformação por `folha`"
+            )
+        saida[id_folha] = conferir_folha(
+            pdfs[id_folha],
+            pdfs[base],
+            _afim_da_folha(folha["transformacao"]),
+            folha["conferencia"],
+        )
+    return saida
+
+
+def _caixas_dos_subcaminhos(desenho) -> list[tuple]:
+    """Caixas (x0, y0, x1, y1) de cada subcaminho contínuo (`l`/`c`) e de cada `re` do desenho."""
+    caixas, pontos, fim = [], [], None
+    for item in desenho["items"]:
+        if item[0] == "re":
+            caixas.append(tuple(item[1]))
+            continue
+        if item[0] not in ("l", "c"):
+            continue
+        if fim is None or np.hypot(item[1].x - fim[0], item[1].y - fim[1]) > 1e-3:
+            if pontos:
+                caixas.append((*np.min(pontos, axis=0), *np.max(pontos, axis=0)))
+            pontos = []
+        pontos += [(p.x, p.y) for p in item[1:]]
+        fim = (item[-1].x, item[-1].y)
+    if pontos:
+        caixas.append((*np.min(pontos, axis=0), *np.max(pontos, axis=0)))
+    return caixas
+
+
+def circulos(pdf, layer, diametro_pt, regiao_pt) -> np.ndarray:
+    """Centros (pt) dos círculos do layer cuja largura cai em `diametro_pt` (mín, máx); sem duplicata a 0,5 pt."""
+    centros = []
+    for d in _pagina(pdf).get_drawings():
+        if d.get("layer") != layer or not _dentro(d["rect"], regiao_pt):
+            continue
+        for x0, y0, x1, y1 in _caixas_dos_subcaminhos(d):
+            largura, altura = x1 - x0, y1 - y0
+            redondo = abs(largura - altura) <= REDONDEZA_ESTACA * largura
+            centro = ((x0 + x1) / 2, (y0 + y1) / 2)
+            if (
+                diametro_pt[0] <= largura <= diametro_pt[1]
+                and redondo
+                and not any(
+                    np.hypot(centro[0] - o[0], centro[1] - o[1]) < 0.5 for o in centros
+                )
+            ):
+                centros.append(centro)
+    return np.array(sorted(centros), float).reshape(-1, 2)
+
+
+def _fechadas_do_layer(pdf, layer, regiao_pt) -> list[Polygon]:
+    """Itens `re` e `qu` dos desenhos do layer (o PyMuPDF devolve um contorno de 4 traços ou retangular assim)."""
+    saida = []
+    for d in _pagina(pdf).get_drawings():
+        if d.get("layer") != layer or not _dentro(d["rect"], regiao_pt):
+            continue
+        for item in d["items"]:
+            if item[0] == "re":
+                saida.append(box(*item[1]))
+            elif item[0] == "qu":
+                q = item[1]
+                saida.append(Polygon([q.ul, q.ur, q.lr, q.ll]))
+    return saida
+
+
+def blocos_fechados(pdf, layer, regiao_pt, area_min_pt2: float) -> list[Polygon]:
+    """Blocos do layer com área ≥ `area_min_pt2`: polígonos fechados pelos traços (polygonize) e contornos `re`/`qu`."""
+    segmentos = tracos(pdf, [layer], regiao_pt, minimo_pt=0)
+    fechados = []
+    if segmentos:
+        linhas = unary_union([LineString([a, b]) for a, b, _ in segmentos])
+        fechados = list(polygonize(linhas))
+    candidatos = [
+        p
+        for p in [*fechados, *_fechadas_do_layer(pdf, layer, regiao_pt)]
+        if p.area >= area_min_pt2
+    ]
+    unicos = []
+    for p in candidatos:
+        if not any(p.equals_exact(o, 0.05) for o in unicos):
+            unicos.append(p)
+    return _partes(unicos)
+
+
+def atribuir_rotulos(centros_pt, rotulos_pt: dict) -> dict[int, str]:
+    """{índice do centro: rótulo}, 1 a 1 (`linear_sum_assignment`) pela menor distância total até os pontos de
+    `rotulos_pt`. Sobra sem rótulo o que exceder a quantidade menor."""
+    nomes = list(rotulos_pt)
+    centros = np.asarray(centros_pt, float).reshape(-1, 2)
+    if not len(centros) or not nomes:
+        return {}
+    custo = cdist(centros, np.asarray([rotulos_pt[n] for n in nomes], float))
+    linhas, colunas = linear_sum_assignment(custo)
+    return {int(i): nomes[j] for i, j in zip(linhas, colunas)}
+
+
+def bloco_de_cada_estaca(centros_pt, poligonos) -> list[int | None]:
+    """Índice do primeiro polígono que contém o centro da estaca (None se nenhum contém)."""
+    saida = []
+    for x, y in np.asarray(centros_pt, float).reshape(-1, 2):
+        pontos = box(x, y, x, y)
+        saida.append(
+            next((i for i, p in enumerate(poligonos) if p.contains(pontos)), None)
+        )
+    return saida
+
+
+def _chave_natural(texto: str) -> list:
+    return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", texto)]
+
+
+def _blocos_da_fundacao(fund, poligonos, rotulos, donos, matriz) -> tuple[list, dict]:
+    """Blocos {rotulo, contorno_utm, estacas, face_superior, fundo, arrasamento, estacas_utm} e {índice: bloco}."""
+    por_bloco = {}
+    for k, dono in enumerate(donos):
+        por_bloco.setdefault(dono, []).append(k)
+    blocos = []
+    for i, rotulo in rotulos.items():
+        if rotulo not in fund["niveis"]:
+            raise ValueError(f"bloco {rotulo} sem `niveis` na fundação")
+        niveis = fund["niveis"][rotulo]
+        blocos.append(
+            {
+                "rotulo": rotulo,
+                "contorno_utm": _aplicar(matriz, poligonos[i].exterior.coords)
+                .round(3)
+                .tolist(),
+                "estacas": len(por_bloco.get(i, [])),
+                "face_superior": niveis["face_superior"],
+                "fundo": round(niveis["face_superior"] - fund["altura_bloco_m"], 3),
+                "arrasamento": niveis["arrasamento"],
+                "estacas_utm": [],
+                "_indice": i,
+            }
+        )
+    return sorted(blocos, key=lambda b: _chave_natural(b["rotulo"])), por_bloco
+
+
+def _linhas_de_estacas(
+    fund, estrutura, pdf, centros_utm, blocos, por_bloco, donos
+) -> list[dict]:
+    """Estacas na ordem dos blocos (n = 1, 2, ... por bloco, na ordem x, y do desenho); as sem bloco vão no fim."""
+    modelo = {
+        **fund["estaca"],
+        "estrutura": estrutura,
+        "desenho_origem": Path(str(pdf)).name,
+    }
+    linhas = []
+    for b in blocos:
+        for n, k in enumerate(por_bloco.get(b["_indice"], []), 1):
+            b.setdefault("estacas_utm", []).append(centros_utm[k].round(3).tolist())
+            linhas.append(
+                _linha_de_estaca(
+                    f"{estrutura}-{b['rotulo']}-{n}", centros_utm[k], b, modelo
+                )
+            )
+    soltas = [k for k, d in enumerate(donos) if d not in {b["_indice"] for b in blocos}]
+    return linhas + [
+        _linha_de_estaca(f"{estrutura}-SB-{n}", centros_utm[k], None, modelo)
+        for n, k in enumerate(soltas, 1)
+    ]
+
+
+def _linha_de_estaca(id_estaca, centro_utm, bloco, modelo) -> dict:
+    return {
+        "id": id_estaca,
+        "E": round(float(centro_utm[0]), 3),
+        "N": round(float(centro_utm[1]), 3),
+        "diametro_cm": modelo["diametro_cm"],
+        "cota_arrasamento": bloco["arrasamento"] if bloco else None,
+        "comprimento_m": modelo["comprimento_m"],
+        "estrutura": modelo["estrutura"],
+        "bloco": bloco["rotulo"] if bloco else None,
+        "execucao": modelo.get("execucao"),
+        "desenho_origem": modelo["desenho_origem"],
+    }
+
+
+def montar_fundacao(fund: dict, estrutura: str, pdfs: dict, matrizes: dict) -> dict:
+    """Blocos e estacas da fundação: círculos do layer das estacas, polígonos fechados do layer dos blocos, rótulo
+    do ponto de `rotulos_pt` mais próximo (1 a 1), níveis de `niveis`, `fundo = face_superior − altura_bloco_m`."""
+    pdf, matriz, regiao = (
+        pdfs[fund["folha"]],
+        matrizes[fund["folha"]],
+        fund["regiao_pt"],
+    )
+    centros = circulos(
+        pdf, fund["estacas"]["layer"], fund["estacas"]["diametro_pt"], regiao
+    )
+    poligonos = blocos_fechados(
+        pdf, fund["blocos"]["layer"], regiao, fund["blocos"]["area_min_pt2"]
+    )
+    rotulos = atribuir_rotulos(
+        [p.centroid.coords[0] for p in poligonos], fund["rotulos_pt"]
+    )
+    donos = bloco_de_cada_estaca(centros, poligonos)
+    blocos, por_bloco = _blocos_da_fundacao(fund, poligonos, rotulos, donos, matriz)
+    estacas = _linhas_de_estacas(
+        fund, estrutura, pdf, _aplicar(matriz, centros), blocos, por_bloco, donos
+    )
+    diagnostico = {
+        "blocos_lidos": len(poligonos),
+        "blocos_sem_rotulo": len(poligonos) - len(rotulos),
+        "rotulos_sem_bloco": sorted(
+            set(fund["rotulos_pt"]) - set(rotulos.values()), key=_chave_natural
+        ),
+        "estacas_lidas": len(centros),
+        "estacas_sem_bloco": sum(d is None or d not in rotulos for d in donos),
+    }
+    for b in blocos:
+        b.pop("_indice")
+    return {"blocos": blocos, "estacas": estacas, "diagnostico": diagnostico}
+
+
+def _cotas_do_elemento(espec: dict) -> tuple:
+    if "nivel" in espec:
+        return espec["nivel"] - espec["altura_m"], espec["nivel"]
+    return espec.get("z0"), espec.get("z1")
+
+
+def _fatiar_por_zonas(poligono, espec) -> list[tuple]:
+    """[(Polygon pt, z0, z1)]: o polígono partido pelas `zonas` (cada parte com o z da zona); o resto com o z do elemento."""
+    z0, z1 = _cotas_do_elemento(espec)
+    fatias, resto = [], poligono
+    for zona in espec.get("zonas", []):
+        caixa = box(*zona["regiao_pt"])
+        fatias += [
+            (p, zona.get("z0", z0), zona.get("z1", z1))
+            for p in _partes(resto.intersection(caixa))
+        ]
+        resto = resto.difference(caixa)
+    fatias += [(p, z0, z1) for p in _partes(resto)]
+    return sorted(
+        fatias, key=lambda f: (round(f[0].bounds[0], 6), round(f[0].bounds[1], 6))
+    )
+
+
+def z0_pelos_blocos(poligono_utm, blocos: list[tuple], modo: str, padrao):
+    """z0 de um elemento pelos blocos (lista de (Polygon UTM, face_superior)): "minimo" = menor face dos que tocam o
+    elemento (buffer de 0,6 m); "moda" = face mais comum dos blocos com o centro dentro dele. Sem bloco, `padrao`."""
+    if modo == "minimo":
+        zona = poligono_utm.buffer(BUFFER_BLOCO_M)
+        faces = [f for p, f in blocos if zona.intersects(p)]
+        return min(faces) if faces else padrao
+    if modo == "moda":
+        faces = [round(f, 2) for p, f in blocos if poligono_utm.contains(p.centroid)]
+        if not faces:
+            return padrao
+        contagem = Counter(faces)
+        return min(contagem, key=lambda f: (-contagem[f], f))
+    raise ValueError(f"`z0_pelos_blocos` deve ser 'minimo' ou 'moda', veio {modo!r}")
+
+
+def _a_remover(espec, ctx):
+    """União do que sai do elemento: blocos (folga de 1 pt) e/ou os pilares já gerados."""
+    remover = []
+    if espec.get("descontar_blocos"):
+        folga_m = BUFFER_DESCONTO_PT * _escala_m_por_pt(ctx["matrizes"][espec["folha"]])
+        remover += [p.buffer(folga_m) for p, _ in ctx["blocos"]]
+    if espec.get("recortar_pilares"):
+        remover += [
+            Polygon(e["contorno_utm"]) for e in ctx["elementos"] if e["tipo"] == "pilar"
+        ]
+    return unary_union(remover) if remover else None
+
+
+def _pecas_recortadas(poligono, remover, tirar_furos: bool) -> list[Polygon]:
+    partes = _partes(poligono.difference(remover) if remover is not None else poligono)
+    partes = [p for p in partes if p.area >= AREA_MINIMA_ELEMENTO_M2]
+    return [q for p in partes for q in (sem_furos(p) if tirar_furos else [p])]
+
+
+def _finalizar(fatias, espec, ctx) -> list[dict]:
+    """Fatias UTM [(Polygon, z0, z1)] -> elementos {rotulo, tipo, contorno_utm, z0, z1}: recorta (blocos, pilares),
+    tira furos, ajusta o z0 pelos blocos e numera os rótulos."""
+    remover = _a_remover(espec, ctx)
+    modo = espec.get("z0_pelos_blocos")
+    pecas = []
+    for poligono, z0, z1 in fatias:
+        for p in _pecas_recortadas(poligono, remover, espec.get("sem_furos", False)):
+            pecas.append(
+                (p, z0_pelos_blocos(p, ctx["blocos"], modo, z0) if modo else z0, z1)
+            )
+    tipo = espec.get("elemento", espec["tipo"])
+    base = (
+        f"{tipo} {espec['rotulo']}" if "rotulo" in espec else espec.get("nome") or tipo
+    )
+    rotulos = (
+        [base]
+        if len(pecas) == 1 and "rotulo" in espec
+        else [f"{base} {n}" for n in range(1, len(pecas) + 1)]
+    )
+    return [
+        _elemento(r, tipo, p.exterior.coords, z0, z1)
+        for r, (p, z0, z1) in zip(rotulos, pecas)
+    ]
+
+
+def _elemento(rotulo, tipo, contorno, z0, z1) -> dict:
+    if z0 is None or z1 is None:
+        raise ValueError(
+            f"elemento '{rotulo}' sem z0/z1 (declare `z0`/`z1`, `nivel`+`altura_m` ou `z0_pelos_blocos`)"
+        )
+    return {
+        "rotulo": rotulo,
+        "tipo": tipo,
+        "contorno_utm": np.asarray(contorno, float).round(3).tolist(),
+        "z0": round(float(z0), 3),
+        "z1": round(float(z1), 3),
+    }
+
+
+def _el_preenchido(espec, ctx) -> list[dict]:
+    pdf, matriz = ctx["pdfs"][espec["folha"]], ctx["matrizes"][espec["folha"]]
+    lidos = preenchidos(pdf, [_chave(espec["chave"])], espec["regiao_pt"])[
+        _chave(espec["chave"])
+    ]
+    polis = unir(lidos) if espec.get("unir") else _partes(lidos)
+    fatias = [
+        (_para_utm(p, matriz), z0, z1)
+        for poli in polis
+        for p, z0, z1 in _fatiar_por_zonas(poli, espec)
+    ]
+    return _finalizar(fatias, espec, ctx)
+
+
+def _el_pares(espec, ctx) -> list[dict]:
+    pdf, matriz = ctx["pdfs"][espec["folha"]], ctx["matrizes"][espec["folha"]]
+    segmentos = [
+        s
+        for regiao in espec["regioes_pt"]
+        for s in tracos(pdf, espec["layers"], regiao)
+    ]
+    vigas = vigas_por_pares(segmentos, tuple(espec.get("largura_pt", (10.5, 12.5))))
+    z0, z1 = _cotas_do_elemento(espec)
+    return _finalizar([(_para_utm(v, matriz), z0, z1) for v in vigas], espec, ctx)
+
+
+def _retangulo_orientado(centro, dimensoes_m, angulo_rad) -> Polygon:
+    u = np.array([np.cos(angulo_rad), np.sin(angulo_rad)])
+    n = np.array([-u[1], u[0]])
+    a, b = dimensoes_m[0] / 2, dimensoes_m[1] / 2
+    return Polygon(
+        [
+            centro + u * a + n * b,
+            centro - u * a + n * b,
+            centro - u * a - n * b,
+            centro + u * a - n * b,
+        ]
+    )
+
+
+def _bloco_por_rotulo(ctx, rotulo) -> Polygon:
+    if rotulo not in ctx["rotulos_blocos"]:
+        raise ValueError(f"bloco {rotulo} inexistente na fundação da estrutura")
+    return ctx["rotulos_blocos"][rotulo]
+
+
+def _el_retangulo(espec, ctx) -> list[dict]:
+    """Retângulo de `dimensoes_m` (lado maior na direção do bloco) no centro de um bloco (`centro_bloco`) ou de um
+    ponto da folha (`centro_pt`); `orientacao_bloco` escolhe o bloco que dá a direção (padrão: `centro_bloco`)."""
+    if "centro_bloco" in espec:
+        bloco = _bloco_por_rotulo(ctx, espec["centro_bloco"])
+        centro = np.array(bloco.centroid.coords[0])
+    else:
+        centro = _aplicar(ctx["matrizes"][espec["folha"]], [espec["centro_pt"]])[0]
+    rotulo_direcao = espec.get("orientacao_bloco", espec.get("centro_bloco"))
+    angulo = (
+        _centro_e_angulo(_bloco_por_rotulo(ctx, rotulo_direcao))[1]
+        if rotulo_direcao
+        else 0.0
+    )
+    z0, z1 = _cotas_do_elemento(espec)
+    return _finalizar(
+        [(_retangulo_orientado(centro, espec["dimensoes_m"], angulo), z0, z1)],
+        espec,
+        ctx,
+    )
+
+
+def _el_escora(espec, ctx) -> list[dict]:
+    matriz = ctx["matrizes"][espec["folha"]]
+    base, topo = _aplicar(matriz, [espec["base_pt"], espec["topo_pt"]])
+    prismas = prismas_inclinados(
+        base,
+        espec["z_base"],
+        topo,
+        espec["z_topo"],
+        espec["largura_m"],
+        espec.get("n", 14),
+    )
+    tipo = espec.get("elemento", "escora")
+    return [
+        _elemento(
+            f"{tipo} {espec['rotulo']} {n}",
+            tipo,
+            [*pr["contorno"], pr["contorno"][0]],
+            pr["z0"],
+            pr["z1"],
+        )
+        for n, pr in enumerate(prismas, 1)
+    ]
+
+
+TIPOS_DE_ELEMENTO = {
+    "preenchido": _el_preenchido,
+    "pares": _el_pares,
+    "retangulo": _el_retangulo,
+    "escora": _el_escora,
+}
+
+
+def _montar_elementos(est: dict, ctx: dict) -> list[dict]:
+    for espec in est.get("elementos", []):
+        if espec["tipo"] not in TIPOS_DE_ELEMENTO:
+            raise ValueError(
+                f"tipo de elemento desconhecido: {espec['tipo']!r} (use {sorted(TIPOS_DE_ELEMENTO)})"
+            )
+        ctx["elementos"] += TIPOS_DE_ELEMENTO[espec["tipo"]](espec, ctx)
+    return ctx["elementos"]
+
+
+def _contexto(est, pdfs, matrizes, fundacao) -> dict:
+    blocos = [
+        (Polygon(b["contorno_utm"]), b["face_superior"]) for b in fundacao["blocos"]
+    ]
+    return {
+        "pdfs": pdfs,
+        "matrizes": matrizes,
+        "blocos": blocos,
+        "rotulos_blocos": {
+            b["rotulo"]: p for b, (p, _) in zip(fundacao["blocos"], blocos)
+        },
+        "elementos": [],
+    }
+
+
+def montar_estrutura(est: dict, matrizes_pranchas: dict) -> dict:
+    """Monta uma estrutura do `estruturas_3d`: transformações das folhas, conferências, fundação (blocos e estacas) e
+    elementos. Devolve {estrutura, gerada, metadata, blocos, elementos, estacas}; com conferência fora da tolerância,
+    `gerada` é False (e o motivo vai em `metadata["motivo"]`), sem blocos, elementos nem estacas."""
+    pdfs = {f: d["pdf"] for f, d in est["folhas"].items()}
+    matrizes = {
+        f: matriz_da_folha(f, est["folhas"], matrizes_pranchas) for f in est["folhas"]
+    }
+    conferencias = _conferencias(est, pdfs)
+    metadata = {
+        "estrutura": est["id"],
+        "folhas": {
+            f: {
+                "pdf": str(pdfs[f]),
+                "transformacao": est["folhas"][f]["transformacao"],
+                "matriz_utm": matrizes[f][:2].tolist(),
+            }
+            for f in pdfs
+        },
+        "conferencias": conferencias,
+    }
+    reprovadas = [f for f, c in conferencias.items() if not c["ok"]]
+    if reprovadas:
+        metadata["motivo"] = "conferência fora da tolerância nas folhas " + ", ".join(
+            reprovadas
+        )
+        return {
+            "estrutura": est["id"],
+            "gerada": False,
+            "metadata": metadata,
+            "blocos": [],
+            "elementos": [],
+            "estacas": [],
+        }
+    vazia = {"blocos": [], "estacas": [], "diagnostico": {}}
+    fundacao = (
+        montar_fundacao(est["fundacao"], est["id"], pdfs, matrizes)
+        if est.get("fundacao")
+        else vazia
+    )
+    elementos = _montar_elementos(est, _contexto(est, pdfs, matrizes, fundacao))
+    metadata["fundacao"] = fundacao["diagnostico"]
+    metadata["contagens"] = {
+        "blocos": len(fundacao["blocos"]),
+        "estacas": len(fundacao["estacas"]),
+        "elementos": dict(Counter(e["tipo"] for e in elementos)),
+    }
+    return {
+        "estrutura": est["id"],
+        "gerada": True,
+        "metadata": metadata,
+        "blocos": fundacao["blocos"],
+        "elementos": elementos,
+        "estacas": fundacao["estacas"],
+    }
+
+
+COLUNAS_ESTACAS = [
+    "id",
+    "E",
+    "N",
+    "diametro_cm",
+    "cota_arrasamento",
+    "comprimento_m",
+    "estrutura",
+    "bloco",
+    "execucao",
+    "desenho_origem",
+]
+CASAS_ESTACAS = {"E": 3, "N": 3, "cota_arrasamento": 2, "comprimento_m": 2}
+
+
+def _campo_csv(coluna, valor) -> str:
+    if valor is None:
+        return ""
+    if coluna in CASAS_ESTACAS:
+        return f"{valor:.{CASAS_ESTACAS[coluna]}f}".replace(".", ",")
+    return f"{valor:g}".replace(".", ",") if isinstance(valor, float) else str(valor)
+
+
+def gravar_estacas_csv(estacas: list[dict], caminho) -> None:
+    """CSV de estacas no formato que o build lê (`;`, decimal vírgula)."""
+    with Path(caminho).open("w", newline="", encoding="utf-8") as f:
+        escritor = csv.writer(f, delimiter=";", lineterminator="\n")
+        escritor.writerow(COLUNAS_ESTACAS)
+        escritor.writerows(
+            [_campo_csv(c, e.get(c)) for c in COLUNAS_ESTACAS] for e in estacas
+        )
+
+
+def gravar_estrutura(resultado: dict, caminho) -> None:
+    """JSON da estrutura no formato de `obra.solidos_de_arquivos` (`estrutura`, `metadata`, `blocos`, `elementos`)."""
+    corpo = {k: resultado[k] for k in ("estrutura", "metadata", "blocos", "elementos")}
+    Path(caminho).write_text(
+        json.dumps(corpo, ensure_ascii=False, indent=1), encoding="utf-8"
+    )
+
+
 PREMISSAS = [
     {
         "aplicacao": {"preenchidos": ["FRACAO_MINIMA_RECT=0,4", "duplicata a 0,05 pt"]},
@@ -372,6 +1044,32 @@ PREMISSAS = [
         "fonte": "pilar P7 da EEB09 desenhado na folha 026: rotação de 3,04°",
     },
     {
+        "aplicacao": {
+            "circulos": ["redondeza 10 %", "sem duplicata a 0,5 pt"],
+            "blocos_fechados": ["polygonize dos traços do layer"],
+        },
+        "estado": "premissa",
+        "fonte": "estaca = círculo de largura declarada no layer das estacas; bloco = polígono fechado do layer dos blocos",
+    },
+    {
+        "aplicacao": {
+            "z0_pelos_blocos": ["buffer 0,6 m", "moda: empate pela menor face"],
+            "montar_estrutura": ["descontar_blocos: folga 1 pt"],
+        },
+        "estado": "premissa",
+        "fonte": "fundo de parede e pilar = face dos blocos sob eles (EEB10 e EEB09)",
+    },
+    {
+        "aplicacao": {
+            "conferir_folha": [
+                "tol_pt declarada por folha (padrão 0,5)",
+                "mínimo de min(3, total) peças casadas",
+            ]
+        },
+        "estado": "premissa",
+        "fonte": "conferência pilar × estaca ≤ 0,5 pt do ciclo 1 (docs/PLANO_IRATI.md); reprovada, a estrutura sai do 3D",
+    },
+    {
         "aplicacao": {"prismas_inclinados": ["n=14"]},
         "estado": "premissa",
         "fonte": "escora aproximada por prismas verticais, único sólido que o visualizador extruda",
@@ -395,6 +1093,16 @@ def metadados() -> dict:
             "alinhar_por_linhas",
             "alinhar_por_retangulo",
             "prismas_inclinados",
+            "matriz_da_folha",
+            "conferir_folha",
+            "circulos",
+            "blocos_fechados",
+            "atribuir_rotulos",
+            "bloco_de_cada_estaca",
+            "z0_pelos_blocos",
+            "montar_estrutura",
+            "gravar_estrutura",
+            "gravar_estacas_csv",
         ],
         "premissas": PREMISSAS,
     }

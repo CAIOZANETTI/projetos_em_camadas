@@ -39,6 +39,7 @@ from . import (
     evidencias,
     extracao,
     extrair_gavetas,
+    forma3d,
     gavetas,
     geo,
     georef_prancha,
@@ -583,6 +584,77 @@ def solidos_de_arquivos(cfg: dict, origem) -> list[dict]:
     return saida
 
 
+def _gravar_estrutura_3d(est: dict, matrizes: dict, pasta: Path) -> dict | None:
+    """Monta e grava uma estrutura; devolve o resultado ou None (com pendência no log) se não saiu."""
+    try:
+        r = forma3d.montar_estrutura(est, matrizes)
+    except Exception as erro:  # noqa: BLE001 - a estrutura nunca derruba o build
+        _log(f"Estrutura {est.get('id')}: NÃO GERADA — {type(erro).__name__}: {erro} (pendência; o build segue)")
+        return None
+    forma3d.gravar_estrutura(r, pasta / f"{r['estrutura']}.json")
+    if not r["gerada"]:
+        _log(f"Estrutura {r['estrutura']}: NÃO GERADA — {r['metadata']['motivo']} (pendência; fora do 3D)")
+        return None
+    return r
+
+
+def etapa_estruturas_3d(cfg: dict, out: Path) -> dict | None:
+    """Sólidos e estacas pela chave declarativa `estruturas_3d` do obra.json (lista de estruturas):
+
+        {"id": "EEB09",
+         "folhas": {"016": {"pdf": ..., "transformacao": {"prancha": id, "translacao_pt": [x, y]}},
+                    "018": {"pdf": ..., "transformacao": {"folha": "016", "translacao_pt": [x, y]  # ou "matriz_pt" 2x3},
+                            "conferencia": {"chave": [layer, [r, g, b]], "regiao_pt": [x0, y0, x1, y1], "tol_pt": 0.5}}},
+         "fundacao": {"folha", "regiao_pt", "estacas": {"layer", "diametro_pt": [min, max]},
+                      "blocos": {"layer", "area_min_pt2"}, "rotulos_pt": {rótulo: [x, y]},
+                      "niveis": {rótulo: {"face_superior", "arrasamento"}}, "altura_bloco_m",
+                      "estaca": {"diametro_cm", "comprimento_m", "execucao"}},
+         "elementos": [  # na ordem: `recortar_pilares` enxerga só os pilares já listados
+           {"tipo": "preenchido", "folha", "chave", "regiao_pt", "elemento", "nome", "unir": false, "sem_furos": false,
+            "descontar_blocos": false, "z0", "z1" | "nivel" + "altura_m", "zonas": [{"regiao_pt", "z0", "z1"}],
+            "z0_pelos_blocos": "minimo" | "moda"},
+           {"tipo": "pares", "folha", "layers", "regioes_pt", "largura_pt", "z0", "z1", "recortar_pilares", ...},
+           {"tipo": "retangulo", "rotulo", "centro_bloco" | "centro_pt" (+ "folha"), "orientacao_bloco", "dimensoes_m",
+            "z0" | "z0_pelos_blocos", "z1", "elemento"},
+           {"tipo": "escora", "folha", "rotulo", "base_pt", "topo_pt", "z_base", "z_topo", "largura_m", "n"}]}
+
+    Rótulo do elemento: "<elemento> <rotulo>" (uma peça com `rotulo`), senão "<nome ou elemento> <n>"; escora:
+    "<elemento> <rotulo> <n>". `unir` e `sem_furos` valem falso se omitidos.
+
+    A transformação pt da folha -> UTM é a `M_absoluta` da `prancha` (ou a de outra `folha`) composta com a
+    translação (ou matriz 2x3) em pt. Grava `<saida>/estrutura/<id>.json` (formato de `solidos_de_arquivos`, com
+    `metadata`) e `<saida>/estrutura/estacas.csv`. Conferência fora da tolerância tira a estrutura do 3D, com
+    pendência no log. Devolve {"arquivos": [...], "estacas_csv": caminho | None, "estruturas": {id: gerada}}."""
+    if not cfg.get("estruturas_3d"):
+        return None
+    pasta = out / "estrutura"
+    pasta.mkdir(parents=True, exist_ok=True)
+    matrizes = forma3d.matrizes_das_pranchas(cfg.get("pranchas", []))
+    resultados = [(est, _gravar_estrutura_3d(est, matrizes, pasta)) for est in cfg["estruturas_3d"]]
+    feitas = [r for _, r in resultados if r is not None]
+    estacas_todas = [e for r in feitas for e in r["estacas"]]
+    csv = pasta / "estacas.csv"
+    csv.unlink(missing_ok=True)
+    if estacas_todas:
+        forma3d.gravar_estacas_csv(estacas_todas, csv)
+    for r in feitas:
+        c = r["metadata"]["contagens"]
+        _log(f"Estrutura {r['estrutura']}: {c['blocos']} bloco(s), {c['estacas']} estaca(s), {sum(c['elementos'].values())} elemento(s)")
+    return {"arquivos": [str(pasta / f"{r['estrutura']}.json") for r in feitas], "estacas_csv": str(csv) if estacas_todas else None,
+            "estruturas": {est.get("id"): r is not None for est, r in resultados}}
+
+
+def _aplicar_estruturas_3d(cfg: dict, out: Path) -> None:
+    """Roda `etapa_estruturas_3d` e entrega a saída ao build: os JSONs entram em `solidos` e o CSV em `estacas`
+    (se o obra.json não declara `estacas`)."""
+    gerado = etapa_estruturas_3d(cfg, out)
+    if gerado is None:
+        return
+    cfg["solidos"] = [*cfg.get("solidos", []), *gerado["arquivos"]]
+    if gerado["estacas_csv"] and not cfg.get("estacas"):
+        cfg["estacas"] = gerado["estacas_csv"]
+
+
 def estacas(cfg: dict, epsg: int) -> dict | None:
     """Estacas (CSV id;E;N;diametro_cm;cota_arrasamento;comprimento_m;estrutura;...) -> vetor. A coluna opcional
     `execucao` (ex.: "escavada") dá o nome da camada; sem ela, hélice contínua (Foz)."""
@@ -1036,6 +1108,7 @@ def construir(cfg_path: str | Path, refazer: set[str] = frozenset()) -> Path:
     orto = json.loads((out / "sfm" / "ortofoto.json").read_text())
     e0, n0, e1, n1 = orto["extensao_utm"]
     pranchas = etapa_pranchas(cfg, out, "pranchas" in refazer)
+    _aplicar_estruturas_3d(cfg, out)                  # estruturas_3d -> sólidos e estacas (antes dos vetores e do 3D)
     lista, vetores, pendentes = _pranchas_no_mapa(cfg, pranchas, orto["extensao_utm"], epsg)
     crs = visualizador.crs_info(epsg, [e0, n0, e1, n1], rel["alt_decolagem_m"])
     cavas_gavetas: dict = {}                          # o que a escavação entrega às gavetas (cavas)
