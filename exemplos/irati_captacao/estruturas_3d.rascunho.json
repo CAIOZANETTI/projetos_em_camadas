@@ -1,0 +1,1396 @@
+[
+ {
+  "id": "EEB09",
+  "folhas": {
+   "016": {
+    "pdf": "dados/irati_captacao/projeto/PBES/016-SAA-0005-8907-PBES-DE-01EEB09BAIXOREC-R0.PDF",
+    "transformacao": {
+     "prancha": "eeb09",
+     "translacao_pt": [
+      240.5,
+      309.75
+     ]
+    }
+   },
+   "017": {
+    "pdf": "dados/irati_captacao/projeto/PBES/017-SAA-0005-8907-PBES-DE-01EEB09BAIXOREC-R0.PDF",
+    "transformacao": {
+     "folha": "016",
+     "translacao_pt": [
+      36.36,
+      3.72
+     ]
+    },
+    "conferencia": {
+     "chave": [
+      "12",
+      [
+       0.8,
+       0.85,
+       0.8
+      ]
+     ],
+     "regiao_pt": [
+      100,
+      50,
+      2080,
+      800
+     ],
+     "tol_pt": 0.5
+    }
+   },
+   "018": {
+    "pdf": "dados/irati_captacao/projeto/PBES/018-SAA-0005-8907-PBES-DE-01EEB09BAIXOREC-R0.PDF",
+    "transformacao": {
+     "folha": "016",
+     "translacao_pt": [
+      36.36,
+      34.02
+     ]
+    },
+    "conferencia": {
+     "chave": [
+      "12",
+      [
+       0.8,
+       0.85,
+       0.8
+      ]
+     ],
+     "regiao_pt": [
+      100,
+      50,
+      2080,
+      900
+     ],
+     "tol_pt": 0.5
+    }
+   },
+   "019": {
+    "pdf": "dados/irati_captacao/projeto/PBES/019-SAA-0005-8907-PBES-DE-01EEB09BAIXOREC-R0.PDF",
+    "transformacao": {
+     "folha": "018",
+     "translacao_pt": [
+      -0.5,
+      2.0
+     ]
+    }
+   }
+  },
+  "fundacao": {
+   "folha": "016",
+   "regiao_pt": [
+    60,
+    60,
+    2300,
+    1250
+   ],
+   "estacas": {
+    "layer": "2",
+    "diametro_pt": [
+     22,
+     23.5
+    ]
+   },
+   "blocos": {
+    "layer": "3",
+    "area_min_pt2": 200
+   },
+   "rotulos_pt": {
+    "P1": [
+     738.0,
+     215.8
+    ],
+    "P2": [
+     871.7,
+     215.8
+    ],
+    "P3": [
+     960.9,
+     215.8
+    ],
+    "P4": [
+     1192.5,
+     215.8
+    ],
+    "P5": [
+     1452.9,
+     215.8
+    ],
+    "P6": [
+     1665.8,
+     251.7
+    ],
+    "P7": [
+     1891.6,
+     251.7
+    ],
+    "P9": [
+     949.4,
+     479.0
+    ],
+    "P10": [
+     1192.5,
+     479.0
+    ],
+    "P11": [
+     1424.1,
+     479.0
+    ],
+    "P12": [
+     1661.5,
+     479.0
+    ],
+    "P13": [
+     1898.8,
+     479.0
+    ],
+    "P24": [
+     750.9,
+     726.4
+    ],
+    "P17": [
+     960.9,
+     726.4
+    ],
+    "P18": [
+     1192.5,
+     726.4
+    ],
+    "P19": [
+     1424.1,
+     726.4
+    ],
+    "P20": [
+     1661.5,
+     726.4
+    ],
+    "P21": [
+     1891.6,
+     726.4
+    ],
+    "P8": [
+     546.6,
+     345.2
+    ],
+    "P14": [
+     496.3,
+     467.5
+    ],
+    "P15": [
+     438.7,
+     604.2
+    ],
+    "P16": [
+     385.5,
+     719.2
+    ],
+    "P22": [
+     330.9,
+     848.7
+    ],
+    "P23": [
+     345.2,
+     1114.8
+    ],
+    "PC1": [
+     621.4,
+     244.5
+    ],
+    "PC2": [
+     666.0,
+     339.5
+    ],
+    "PC3": [
+     539.4,
+     651.6
+    ],
+    "PC4": [
+     410.0,
+     935.0
+    ],
+    "PC5": [
+     256.1,
+     1067.4
+    ]
+   },
+   "niveis": {
+    "P7": {
+     "face_superior": 799.3,
+     "arrasamento": 798.6
+    },
+    "P13": {
+     "face_superior": 799.3,
+     "arrasamento": 798.6
+    },
+    "P21": {
+     "face_superior": 799.3,
+     "arrasamento": 798.6
+    },
+    "P5": {
+     "face_superior": 799.85,
+     "arrasamento": 799.15
+    },
+    "P6": {
+     "face_superior": 799.85,
+     "arrasamento": 799.15
+    },
+    "P11": {
+     "face_superior": 799.85,
+     "arrasamento": 799.15
+    },
+    "P12": {
+     "face_superior": 799.85,
+     "arrasamento": 799.15
+    },
+    "P19": {
+     "face_superior": 799.85,
+     "arrasamento": 799.15
+    },
+    "P20": {
+     "face_superior": 799.85,
+     "arrasamento": 799.15
+    },
+    "P4": {
+     "face_superior": 800.1,
+     "arrasamento": 799.4
+    },
+    "P10": {
+     "face_superior": 800.1,
+     "arrasamento": 799.4
+    },
+    "P18": {
+     "face_superior": 800.1,
+     "arrasamento": 799.4
+    },
+    "P3": {
+     "face_superior": 800.3,
+     "arrasamento": 799.6
+    },
+    "P9": {
+     "face_superior": 800.3,
+     "arrasamento": 799.6
+    },
+    "P17": {
+     "face_superior": 800.3,
+     "arrasamento": 799.6
+    },
+    "P24": {
+     "face_superior": 800.3,
+     "arrasamento": 799.6
+    },
+    "P2": {
+     "face_superior": 800.55,
+     "arrasamento": 799.85
+    },
+    "P1": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "P8": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "P14": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "P15": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "P16": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "P22": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "P23": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "PC1": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "PC2": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "PC3": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "PC4": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    },
+    "PC5": {
+     "face_superior": 800.75,
+     "arrasamento": 800.05
+    }
+   },
+   "altura_bloco_m": 0.75,
+   "estaca": {
+    "diametro_cm": 40,
+    "comprimento_m": 9.0,
+    "execucao": "escavada"
+   }
+  },
+  "elementos": [
+   {
+    "tipo": "preenchido",
+    "folha": "018",
+    "chave": [
+     "12",
+     [
+      0.8,
+      0.85,
+      0.8
+     ]
+    ],
+    "regiao_pt": [
+     600,
+     50,
+     2080,
+     900
+    ],
+    "elemento": "pilar",
+    "nome": "pilar",
+    "unir": true,
+    "z0_pelos_blocos": "minimo",
+    "z1": 809.0,
+    "zonas": [
+     {
+      "regiao_pt": [
+       600,
+       50,
+       900,
+       900
+      ],
+      "z1": 808.7
+     }
+    ]
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P8",
+    "centro_bloco": "P8",
+    "dimensoes_m": [
+     0.7,
+     0.4
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 808.7,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P14",
+    "centro_bloco": "P14",
+    "dimensoes_m": [
+     0.7,
+     0.4
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 808.7,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P15",
+    "centro_bloco": "P15",
+    "dimensoes_m": [
+     0.7,
+     0.4
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 808.7,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P16",
+    "centro_bloco": "P16",
+    "dimensoes_m": [
+     0.7,
+     0.4
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 808.7,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P22",
+    "centro_bloco": "P22",
+    "dimensoes_m": [
+     0.7,
+     0.4
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 808.7,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P23",
+    "centro_bloco": "P23",
+    "dimensoes_m": [
+     0.8,
+     0.5
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 808.7,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P9",
+    "centro_bloco": "P9",
+    "dimensoes_m": [
+     0.3,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P10",
+    "centro_bloco": "P10",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P11",
+    "centro_bloco": "P11",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P12",
+    "centro_bloco": "P12",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "P13",
+    "centro_bloco": "P13",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "PC1",
+    "centro_bloco": "PC1",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "PC2",
+    "centro_bloco": "PC2",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "PC3",
+    "centro_bloco": "PC3",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "PC4",
+    "centro_bloco": "PC4",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "retangulo",
+    "rotulo": "PC5",
+    "centro_bloco": "PC5",
+    "dimensoes_m": [
+     0.2,
+     0.2
+    ],
+    "z0_pelos_blocos": "minimo",
+    "z1": 802.0,
+    "elemento": "pilar"
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "017",
+    "chave": [
+     "14",
+     [
+      0.9,
+      0.96,
+      0.99
+     ]
+    ],
+    "regiao_pt": [
+     100,
+     50,
+     2080,
+     800
+    ],
+    "elemento": "viga",
+    "nome": "viga baldrame N.F.S. 800.75",
+    "nivel": 800.75,
+    "altura_m": 0.5,
+    "descontar_blocos": true
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "017",
+    "chave": [
+     "22",
+     [
+      0.8,
+      0.8,
+      1.0
+     ]
+    ],
+    "regiao_pt": [
+     100,
+     50,
+     2080,
+     800
+    ],
+    "elemento": "viga",
+    "nome": "viga baldrame N.F.S. 800.55",
+    "nivel": 800.55,
+    "altura_m": 0.5,
+    "descontar_blocos": true
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "017",
+    "chave": [
+     "1",
+     [
+      0.88,
+      0.88,
+      0.88
+     ]
+    ],
+    "regiao_pt": [
+     100,
+     50,
+     2080,
+     800
+    ],
+    "elemento": "viga",
+    "nome": "viga baldrame N.F.S. 800.30",
+    "nivel": 800.3,
+    "altura_m": 0.5,
+    "descontar_blocos": true
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "017",
+    "chave": [
+     "15",
+     [
+      0.9,
+      0.85,
+      0.8
+     ]
+    ],
+    "regiao_pt": [
+     100,
+     50,
+     2080,
+     800
+    ],
+    "elemento": "viga",
+    "nome": "viga baldrame N.F.S. 800.10",
+    "nivel": 800.1,
+    "altura_m": 0.5,
+    "descontar_blocos": true
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "017",
+    "chave": [
+     "20",
+     [
+      1.0,
+      0.85,
+      0.77
+     ]
+    ],
+    "regiao_pt": [
+     100,
+     50,
+     2080,
+     800
+    ],
+    "elemento": "viga",
+    "nome": "viga baldrame N.F.S. 799.85",
+    "nivel": 799.85,
+    "altura_m": 0.5,
+    "descontar_blocos": true
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "017",
+    "chave": [
+     "16",
+     [
+      1.0,
+      1.0,
+      0.8
+     ]
+    ],
+    "regiao_pt": [
+     100,
+     50,
+     2080,
+     800
+    ],
+    "elemento": "viga",
+    "nome": "viga baldrame N.F.S. 799.30",
+    "nivel": 799.3,
+    "altura_m": 0.5,
+    "descontar_blocos": true
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "019",
+    "chave": [
+     "17",
+     [
+      0.75,
+      0.87,
+      1.0
+     ]
+    ],
+    "regiao_pt": [
+     100,
+     50,
+     2600,
+     1000
+    ],
+    "elemento": "viga",
+    "nome": "viga de cobertura N.F.S. 809.00",
+    "nivel": 809.0,
+    "altura_m": 0.6
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "019",
+    "chave": [
+     "18",
+     [
+      0.9,
+      1.0,
+      0.9
+     ]
+    ],
+    "regiao_pt": [
+     100,
+     50,
+     2600,
+     1000
+    ],
+    "elemento": "viga",
+    "nome": "viga de cobertura N.F.S. 808.70",
+    "nivel": 808.7,
+    "altura_m": 0.6
+   },
+   {
+    "tipo": "pares",
+    "folha": "018",
+    "layers": [
+     "4"
+    ],
+    "regioes_pt": [
+     [
+      100,
+      50,
+      2080,
+      800
+     ],
+     [
+      100,
+      780,
+      480,
+      1100
+     ]
+    ],
+    "largura_pt": [
+     10.5,
+     12.5
+    ],
+    "z0": 801.4,
+    "z1": 802.0,
+    "elemento": "viga",
+    "nome": "viga do piso",
+    "recortar_pilares": true
+   },
+   {
+    "tipo": "escora",
+    "folha": "018",
+    "rotulo": "ESC1",
+    "base_pt": [
+     1869.14,
+     222.02
+    ],
+    "topo_pt": [
+     2095.93,
+     221.7
+    ],
+    "z_base": 801.8,
+    "z_topo": 808.8,
+    "largura_m": 0.35,
+    "n": 14
+   },
+   {
+    "tipo": "escora",
+    "folha": "018",
+    "rotulo": "ESC2",
+    "base_pt": [
+     1869.02,
+     692.09
+    ],
+    "topo_pt": [
+     2095.81,
+     691.77
+    ],
+    "z_base": 801.8,
+    "z_topo": 808.8,
+    "largura_m": 0.35,
+    "n": 14
+   }
+  ]
+ },
+ {
+  "id": "EEB10",
+  "folhas": {
+   "002": {
+    "pdf": "dados/irati_captacao/projeto/PBES/002-SAA-0005-8907-PBES-DE-01EEB10ELEVATORIA-R0.PDF",
+    "transformacao": {
+     "prancha": "eeb10",
+     "translacao_pt": [
+      33.7,
+      443.3
+     ]
+    }
+   },
+   "003": {
+    "pdf": "dados/irati_captacao/projeto/PBES/003-SAA-0005-8907-PBES-DE-01EEB10ELEVATORIA-R0.PDF",
+    "transformacao": {
+     "folha": "002",
+     "translacao_pt": [
+      -791.2,
+      0.0
+     ]
+    }
+   },
+   "004": {
+    "pdf": "dados/irati_captacao/projeto/PBES/004-SAA-0005-8907-PBES-DE-01EEB10ELEVATORIA-R0.PDF",
+    "transformacao": {
+     "folha": "003",
+     "translacao_pt": [
+      836.94,
+      27.18
+     ]
+    },
+    "conferencia": {
+     "chave": [
+      "12",
+      [
+       0.8,
+       0.85,
+       0.8
+      ]
+     ],
+     "regiao_pt": [
+      150,
+      250,
+      1700,
+      1110
+     ],
+     "tol_pt": 0.5
+    }
+   }
+  },
+  "fundacao": {
+   "folha": "002",
+   "regiao_pt": [
+    60,
+    60,
+    1835,
+    1310
+   ],
+   "estacas": {
+    "layer": "2",
+    "diametro_pt": [
+     22,
+     23.5
+    ]
+   },
+   "blocos": {
+    "layer": "4",
+    "area_min_pt2": 800
+   },
+   "rotulos_pt": {
+    "P1": [
+     272.4,
+     366.0
+    ],
+    "P3": [
+     272.4,
+     639.6
+    ],
+    "P5": [
+     272.4,
+     828.0
+    ],
+    "P7": [
+     272.4,
+     1018.8
+    ],
+    "PC3": [
+     417.6,
+     366.0
+    ],
+    "PC4": [
+     553.2,
+     366.0
+    ],
+    "PC5": [
+     721.2,
+     366.0
+    ],
+    "P2": [
+     868.8,
+     366.0
+    ],
+    "PC6": [
+     1005.6,
+     366.0
+    ],
+    "P9": [
+     1236.0,
+     380.4
+    ],
+    "PC1": [
+     1005.6,
+     178.8
+    ],
+    "PC2": [
+     1230.0,
+     178.8
+    ],
+    "PC7": [
+     879.6,
+     447.6
+    ],
+    "PC8": [
+     1005.6,
+     447.6
+    ],
+    "PC9": [
+     1248.0,
+     447.6
+    ],
+    "PC10": [
+     553.2,
+     524.4
+    ],
+    "PC11": [
+     721.2,
+     524.4
+    ],
+    "PC12": [
+     417.6,
+     639.6
+    ],
+    "PC13": [
+     553.2,
+     639.6
+    ],
+    "P4": [
+     868.8,
+     639.6
+    ],
+    "PC14": [
+     1005.6,
+     639.6
+    ],
+    "PC15": [
+     1248.0,
+     639.6
+    ],
+    "PC16": [
+     721.2,
+     704.4
+    ],
+    "PC17": [
+     816.0,
+     704.4
+    ],
+    "PC18": [
+     417.6,
+     828.0
+    ],
+    "PC19": [
+     553.2,
+     828.0
+    ],
+    "P6": [
+     868.8,
+     828.0
+    ],
+    "PC20": [
+     1005.6,
+     828.0
+    ],
+    "PC21": [
+     1248.0,
+     828.0
+    ],
+    "PC22": [
+     721.2,
+     888.0
+    ],
+    "PC23": [
+     417.6,
+     1018.8
+    ],
+    "PC24": [
+     553.2,
+     1018.8
+    ],
+    "PC25": [
+     721.2,
+     1018.8
+    ],
+    "P8": [
+     868.8,
+     1018.8
+    ],
+    "PC26": [
+     1062.0,
+     1018.8
+    ],
+    "PC27": [
+     1248.0,
+     1018.8
+    ],
+    "PC28": [
+     938.4,
+     1088.4
+    ],
+    "PC29": [
+     1062.0,
+     1088.4
+    ]
+   },
+   "niveis": {
+    "PC1": {
+     "face_superior": 805.36,
+     "arrasamento": 804.26
+    },
+    "PC2": {
+     "face_superior": 805.36,
+     "arrasamento": 804.26
+    },
+    "P1": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "P3": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "P5": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "P7": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "PC3": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "PC4": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "PC18": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "PC23": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "PC24": {
+     "face_superior": 805.3,
+     "arrasamento": 804.6
+    },
+    "P2": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "P4": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "P6": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "P8": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC6": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC7": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC8": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC14": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC17": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC20": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC26": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC28": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC29": {
+     "face_superior": 804.05,
+     "arrasamento": 803.35
+    },
+    "PC5": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "PC10": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "PC11": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "PC12": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "PC13": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "PC16": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "PC19": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "PC22": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "PC25": {
+     "face_superior": 805.1,
+     "arrasamento": 804.4
+    },
+    "P9": {
+     "face_superior": 805.17,
+     "arrasamento": 804.47
+    },
+    "PC9": {
+     "face_superior": 806.3,
+     "arrasamento": 805.6
+    },
+    "PC15": {
+     "face_superior": 806.3,
+     "arrasamento": 805.6
+    },
+    "PC21": {
+     "face_superior": 806.3,
+     "arrasamento": 805.6
+    },
+    "PC27": {
+     "face_superior": 806.3,
+     "arrasamento": 805.6
+    }
+   },
+   "altura_bloco_m": 0.75,
+   "estaca": {
+    "diametro_cm": 40,
+    "comprimento_m": 9.0,
+    "execucao": "escavada"
+   }
+  },
+  "elementos": [
+   {
+    "tipo": "preenchido",
+    "folha": "003",
+    "chave": [
+     "12",
+     [
+      0.8,
+      0.85,
+      0.8
+     ]
+    ],
+    "regiao_pt": [
+     1000,
+     150,
+     1700,
+     1110
+    ],
+    "elemento": "pilar",
+    "nome": "pilar",
+    "unir": true,
+    "z0_pelos_blocos": "minimo",
+    "z1": 815.1,
+    "z0": 805.3,
+    "zonas": [
+     {
+      "regiao_pt": [
+       1100,
+       300,
+       1620,
+       1100
+      ],
+      "z1": 808.65
+     }
+    ]
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "003",
+    "chave": [
+     "12",
+     [
+      0.85,
+      0.89,
+      0.85
+     ]
+    ],
+    "regiao_pt": [
+     1000,
+     150,
+     2100,
+     1110
+    ],
+    "elemento": "parede",
+    "nome": "parede",
+    "z0_pelos_blocos": "minimo",
+    "z0": 805.3,
+    "z1": 808.65,
+    "zonas": [
+     {
+      "regiao_pt": [
+       1000,
+       300,
+       1655,
+       1027
+      ],
+      "z0": 805.3,
+      "z1": 808.65
+     },
+     {
+      "regiao_pt": [
+       1790,
+       100,
+       2100,
+       447
+      ],
+      "z0": 805.07,
+      "z1": 808.55
+     },
+     {
+      "regiao_pt": [
+       1655,
+       300,
+       1790,
+       447
+      ],
+      "z0": 805.3,
+      "z1": 808.65
+     },
+     {
+      "regiao_pt": [
+       1655,
+       447,
+       2100,
+       1027
+      ],
+      "z0": 804.05,
+      "z1": 809.2
+     },
+     {
+      "regiao_pt": [
+       1655,
+       1027,
+       2100,
+       1110
+      ],
+      "z0": 804.05,
+      "z1": 807.05
+     }
+    ]
+   },
+   {
+    "tipo": "preenchido",
+    "folha": "004",
+    "chave": [
+     "18",
+     [
+      0.9,
+      1.0,
+      0.9
+     ]
+    ],
+    "regiao_pt": [
+     150,
+     250,
+     1300,
+     1100
+    ],
+    "elemento": "laje",
+    "nome": "laje superior poços/reservatório",
+    "unir": true,
+    "sem_furos": true,
+    "z0": 809.0,
+    "z1": 809.2
+   }
+  ]
+ },
+ {
+  "id": "CSP04",
+  "folhas": {
+   "016": {
+    "pdf": "dados/irati_captacao/projeto/PBES/016-SAA-0005-8907-PBES-DE-01EEB09BAIXOREC-R0.PDF",
+    "transformacao": {
+     "prancha": "eeb09",
+     "translacao_pt": [
+      240.5,
+      309.75
+     ]
+    }
+   },
+   "026": {
+    "pdf": "dados/irati_captacao/projeto/PBES/026-SAA-0005-8907-PBES-DE-01CSP04DESCFUNDO-R0.PDF",
+    "transformacao": {
+     "folha": "016",
+     "matriz_pt": [
+      [
+       0.998597,
+       -0.052946,
+       1521.603327
+      ],
+      [
+       0.052946,
+       0.998597,
+       -357.633718
+      ]
+     ]
+    }
+   }
+  },
+  "elementos": [
+   {
+    "tipo": "preenchido",
+    "folha": "026",
+    "chave": [
+     "12",
+     [
+      0.8,
+      0.85,
+      0.8
+     ]
+    ],
+    "regiao_pt": [
+     150,
+     40,
+     800,
+     570
+    ],
+    "elemento": "parede",
+    "nome": "parede",
+    "z0": 795.44,
+    "z1": 801.8
+   }
+  ]
+ }
+]

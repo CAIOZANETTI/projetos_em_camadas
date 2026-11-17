@@ -127,3 +127,42 @@ para `dados/`.
 - anexar o `vcm balanco` ao PR.
 
 **Fora do ciclo 1:** novos elementos (E1–E3), armaduras (Q1–Q2), qualquer mudança no visualizador.
+
+### Resultado do ciclo 1 até o R1c (17/11/2026)
+
+| Passo | Commit | Situação |
+|---|---|---|
+| R1a | 38f5bf2 | aprovado; quebrou o CI (`import pymupdf` no teste, o CI não tem o extra `pdf`) |
+| R1b | 479f0cf + 4bdd69a | aprovado; a correção põe `pymupdf`/`scipy` dentro das funções; `balanco` verde de novo |
+| R1c | — | parcial: a configuração está em `exemplos/irati_captacao/estruturas_3d.rascunho.json` |
+
+Comparação do gerado pelo build com os arquivos feitos à mão:
+
+| Estrutura | Igual | Diferente, e por quê |
+|---|---|---|
+| EEB09 | 29 blocos (0,0 cm, z idêntico); 52 estacas na mesma posição; pilares +0,1 %; vigas de cobertura +0,0 % e do piso +0,3 % | **vigas baldrame −8,2 %**: a conferência por pilares achou um erro de 7,2 pt (13 cm) no alinhamento manual de 017/018 (feito pelos centros dos blocos, e os pilares são excêntricos). Com a translação antiga o gerado reproduz o à mão (285 peças, 68,14 m² × 68,13). A correta é a nova; o 3D atual da EEB09 está deslocado 13 cm. Escoras −6,5 % (o à mão sobrepunha 1 cm entre prismas) |
+| EEB10 | 38 blocos e 38 estacas idênticos; paredes +1,0 %; laje superior | +4 pilaretes PL1–PL4 (20x20, até 808,65), que o à mão filtrava |
+| CSP04 | 17 paredes, 0,0 % | — |
+| Estacas | 90 de 90 na mesma posição | numeração −1/−2 trocada em 9 blocos (regra de ordem dentro do bloco) |
+
+Lacunas do contrato do R1b (o que o à mão tinha e a receita ainda não expressa): lajes de fundo da EEB10
+(salas fechadas pelas paredes), laje do piso da EEB09 (área fechada pelas vigas), lajes L23/L24 (precisam de
+filtro de peça fina: o cinza também pinta o topo das paredes), laje de cobertura da EEB10 (retângulo orientado pela
+folha), lajes de fundo e tampa do descarregador (envoltória convexa) e a escada LE (degraus).
+
+### Ficha do R1d (fecha o ciclo 1)
+
+- **Executor** (`executor-sonnet`, worktree próprio). Arquivos permitidos: `camadas/forma3d.py`, `tests/test_forma3d.py`.
+- **Tipos novos em `estruturas_3d.elementos`:**
+  - `area_fechada`: salas fechadas pelos elementos já gerados com dado prefixo de rótulo (buracos da união);
+    opção de dividir por uma linha em pt da folha, com z por lado.
+  - `envoltoria`: casco convexo dos elementos com dado prefixo.
+  - `faixas`: degraus de escada, com a lista de bordas (em pt da folha), a faixa transversal e z por degrau a
+    partir de piso, topo e número de espelhos.
+- **Opções novas:** `lado_minimo_pt` no `preenchido` (descarta peça fina antes de unir); `orientacao: "folha"` no
+  `retangulo` com `centro_pt` (lados paralelos aos eixos da folha).
+- **Estacas:** numeração dentro do bloco por uma regra declarada (N decrescente, depois E crescente, em UTM).
+- **Depois, gerente:** completa o rascunho, move para o `obra.json`, tira `solidos`/`estacas` à mão e regera.
+  - **Aceite:** tudo igual ao à mão menos as diferenças explicadas acima, que passam a valer como correção.
+- **Check:** verificador novo.
+- **Act:** apagar os JSONs à mão de `dados/`, lição, registro dos agentes, `vcm balanco`.
