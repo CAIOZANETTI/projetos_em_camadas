@@ -474,10 +474,8 @@ def _termos_de_busca(codigo: str, mantidas: list[str]) -> list[str]:
         key=lambda t: (-len(t.split()), t),
     )
     sinonimos = evidencias._sinonimos_do_item(regex) if regex else []
-    termos = [
-        t
-        for t in proprios + sinonimos
-        if t and not gavetas_texto.motivo_estatico(t.upper().split())
+    termos = proprios + [  # os próprios já passaram em `termos_da_busca` (siglas incluídas)
+        t for t in sinonimos if t and not gavetas_texto.motivo_estatico(t.upper().split())
     ]
     return list(dict.fromkeys(termos))
 

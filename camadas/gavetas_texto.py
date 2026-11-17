@@ -146,13 +146,21 @@ def termo_legivel(alternativa: str) -> str:
     return " ".join(palavras_do_termo(alternativa)).lower()
 
 
-def motivo_estatico(palavras: list[str], regras: dict = REGRAS) -> str | None:
-    """Por que o termo não discrimina sem olhar o corpus: só stopwords ou poucas letras fora das stopwords."""
+def eh_sigla(alternativa: str) -> bool:
+    """A alternativa é uma sigla presa por fronteira de palavra dos dois lados (`\\bMND\\b`, `\\bPVS?\\b`,
+    `(?:^|[-(] ?)ALO\\b`): curta, mas precisa, porque a regex não casa pedaço de outra palavra. `ALO\\b` sem a fronteira
+    da esquerda casa o fim de 'INTERVALO' e não é sigla."""
+    return alternativa.endswith("\\b") and alternativa.startswith(("\\b", "(?:^"))
+
+
+def motivo_estatico(palavras: list[str], regras: dict = REGRAS, sigla: bool = False) -> str | None:
+    """Por que o termo não discrimina sem olhar o corpus: só stopwords ou poucas letras fora das stopwords (a sigla
+    presa por fronteira de palavra, `eh_sigla`, não cai na regra das letras)."""
     uteis = [p for p in palavras if p.lower() not in regras["stopwords"]]
     letras = sum(len(p) for p in uteis)
     if not uteis:
         return "sem palavra útil (só stopwords)"
-    if letras < regras["letras_uteis_minimas"]:
+    if letras < regras["letras_uteis_minimas"] and not sigla:
         return f"menos de {regras['letras_uteis_minimas']} letras úteis ({letras})"
     return None
 
@@ -198,7 +206,7 @@ def termos_da_busca(
         mantidas = []
         for alternativa in alternativas(item["termos"]):
             palavras = palavras_do_termo(alternativa)
-            motivo = motivo_estatico(palavras, regras)
+            motivo = motivo_estatico(palavras, regras, eh_sigla(alternativa))
             freq = None
             if motivo is None and com_frequencia:
                 freq = _frequencia(re.compile(alternativa), buscas)

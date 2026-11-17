@@ -182,7 +182,7 @@ def test_corpus_pequeno_nao_decide_por_frequencia():
 
 def test_item_sem_termo_que_discrimine_fica_sem_padrao():
     padroes, ignorados = gavetas_texto.termos_da_busca(
-        [{"codigo": "X", "termos": r"\bCLP\b"}], ["TEXTO"]
+        [{"codigo": "X", "termos": r"CLP"}], ["TEXTO"]  # sem fronteira de palavra: não é sigla
     )
     assert padroes["X"] is None and len(ignorados) == 1
 
@@ -250,3 +250,15 @@ def test_de_documentos_ignora_termo_generico_e_registra(tmp_path):
     ]
     assert "acima de 8%" in ignoradas[0]["motivo"]
     assert gavetas_texto.resumo(base)["termos_ignorados"] == 1
+
+
+def test_sigla_presa_por_fronteira_de_palavra_fica_na_busca():
+    """ALO, MND e PVS têm menos de 4 letras, mas a regex com fronteira de palavra não casa pedaço de outra palavra: ficam
+    (a frequência do corpus ainda decide). Fragmento sem fronteira ('TES D') e stopword ('DAS') saem."""
+    from camadas import gavetas_texto as g
+
+    for sigla in (r"\bMND\b", r"\bPVS?\b", r"(?:^|[-(] ?)ALO\b"):
+        assert g.eh_sigla(sigla) and g.motivo_estatico(g.palavras_do_termo(sigla), sigla=True) is None
+    assert not g.eh_sigla("TES D") and g.motivo_estatico(g.palavras_do_termo("TES D")) is not None
+    assert not g.eh_sigla(r"ALO\b")  # sem fronteira à esquerda casa o fim de 'INTERVALO'
+    assert g.motivo_estatico(g.palavras_do_termo("DAS")) is not None
