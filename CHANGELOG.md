@@ -41,6 +41,8 @@
   - EEB09 em 3D: vigas baldrame (017) e de cobertura (019) pela cor de N.F.S. da legenda das folhas, pilares da 018
     (os hachurados entram pelo bloco e pelo rótulo) e a laje do piso a 802,00. 017 e 018 caem sobre a 016 pelos
     pilares (0,1 pt); a 019 pela correlação de linhas com a 018.
+  - EEB10: laje superior dos poços e do reservatório (809,20), lajes L23/L24 da casa de bombas (808,65) e a escada
+    LE com 17 degraus de 17,2 cm, todos da folha 004 (8 pilares a < 0,1 pt da 003).
   - Descarregador de fundo da CSP04 em 3D pela 026, georreferenciado pelo P7 da EEB09 que a própria folha desenha
     (7,8 cm de mediana contra a PBHI 09). O terreno no local, 797,2–798,0, bate com a boca 798,00 dos furos da
     barragem: segunda conferência independente do controle vertical.
