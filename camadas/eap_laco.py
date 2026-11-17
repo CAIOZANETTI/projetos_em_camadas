@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 
 from . import eap as eap_geral
-from . import eap_preencher, evidencias, extracao, gavetas
+from . import eap_preencher, evidencias, extracao, gavetas, gavetas_texto
 from .pdf_cad import CONCEITOS
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -106,7 +106,7 @@ def _mencoes_por_item(base: dict) -> dict[str, list[dict]]:
         )
         if not item:
             continue
-        paginas, documento_id, trechos = [], None, []
+        paginas, documento_id, trechos, pares = [], None, [], []
         for f in fatos:
             if f["propriedade"] != "mencao":
                 continue
@@ -116,6 +116,8 @@ def _mencoes_por_item(base: dict) -> dict[str, list[dict]]:
                 paginas.append(int(pagina))
             if trecho:
                 trechos.append(trecho)
+            if pagina is not None and trecho:
+                pares.append([int(pagina), trecho])
         medida, doc_q = _medida_da_mencao(fatos, pagina_e_trecho)
         documento_id = documento_id or doc_q
         saida.setdefault(item, []).append(
@@ -124,7 +126,26 @@ def _mencoes_por_item(base: dict) -> dict[str, list[dict]]:
                 "documento_id": documento_id,
                 "paginas": sorted(set(paginas)),
                 "trechos": trechos,
+                "paginas_trechos": sorted(pares),
                 "medida": medida,
+            }
+        )
+    return saida
+
+
+def _termos_ignorados(base: dict) -> dict[str, list[dict]]:
+    """{item: termos que saíram da busca de menções} das pendências `termo_ignorado` de `gavetas_texto`: cada um com o
+    `termo` (legível), a `alternativa` (a regex de `eap_geral.termos`) e o `motivo`."""
+    saida: dict[str, list[dict]] = {}
+    for p in base.get("pendencias", []):
+        if p.get("regra") != gavetas_texto.REGRA_TERMO_IGNORADO:
+            continue
+        item = str(p["objeto_id"]).removeprefix("termo:")
+        saida.setdefault(item, []).append(
+            {
+                "termo": gavetas_texto.termo_legivel(p["detalhe"]),
+                "alternativa": p["detalhe"],
+                "motivo": p["motivo"],
             }
         )
     return saida
@@ -249,6 +270,7 @@ def _acoes_da_mencao(item: dict, m: dict, documentos: dict) -> list[dict]:
             "documento_id": m["documento_id"],
             "documento": arquivo,
             "paginas": m["paginas"],
+            "paginas_trechos": m["paginas_trechos"],
             "objeto_id": m["objeto_id"],
             "texto": f"ler {arquivo} nas páginas {m['paginas'] or 'a localizar'}: quantidade e unidade da "
             f"medição do item {item['codigo']}",
@@ -335,6 +357,7 @@ def destinos(eap: dict, base: dict, decisoes: dict | None = None) -> list[dict]:
     mencoes = _mencoes_por_item(base)
     documentos = {d["documento_id"]: d["arquivo"] for d in base.get("documentos", [])}
     presentes = _documentos_do_sistema(base)
+    ignorados = _termos_ignorados(base)
     saida = []
     for tipo, etapa, folha in _folhas(eap):
         if folha["situacao"] != "a preencher":
@@ -350,6 +373,7 @@ def destinos(eap: dict, base: dict, decisoes: dict | None = None) -> list[dict]:
                     "construtivos": list(item.get("construtivos", [])),
                     "layers": list(item.get("layers", [])),
                     "servicos": list(item.get("servicos", [])),
+                    "termos_ignorados": ignorados.get(alvo["item"], []),
                 }
             )
         acoes = _acoes(itens_info, mencoes, presentes, documentos)
@@ -434,49 +458,161 @@ def portao(eap: dict, destinos: list[dict]) -> dict:
     return {"fechada": not trava, "trava": trava, "completude": completude}
 
 
-def roteiro(destinos: list[dict]) -> list[dict]:
+def _alternativas_mantidas(codigo: str, ignorados: list[dict]) -> list[str]:
+    """As alternativas de `eap_geral.termos` do item que ficaram na busca (as que não saíram em `termos_ignorados`)."""
+    regex = eap_geral.itens().get(codigo, {}).get("termos", "")
+    fora = {i["alternativa"] for i in ignorados}
+    return [a for a in gavetas_texto.alternativas(regex) if regex and a not in fora]
+
+
+def _termos_de_busca(codigo: str, mantidas: list[str]) -> list[str]:
+    """Termos que a IA procura no documento: os das alternativas mantidas (os de mais palavras primeiro, que são os
+    específicos) e os sinônimos canônicos do item, sem os que `motivo_estatico` recusa (stopword, poucas letras)."""
+    regex = eap_geral.itens().get(codigo, {}).get("termos", "")
+    proprios = sorted(
+        {gavetas_texto.termo_legivel(a) for a in mantidas},
+        key=lambda t: (-len(t.split()), t),
+    )
+    sinonimos = evidencias._sinonimos_do_item(regex) if regex else []
+    termos = [
+        t
+        for t in proprios + sinonimos
+        if t and not gavetas_texto.motivo_estatico(t.upper().split())
+    ]
+    return list(dict.fromkeys(termos))
+
+
+def _linha_de_leitura(a: dict, d: dict) -> dict:
+    """A linha vazia do roteiro para o documento da ação `a` e a folha do destino `d`."""
+    return {
+        "documento_id": a["documento_id"],
+        "documento": Path(str(a["documento"])).name,
+        "folha": d["folha"],
+        "tipo": d["tipo"],
+        "obrigatoria": d["obrigatoria"],
+        "paginas": [],
+        "itens": [],
+        "procurar": "quantidade e unidade da medição de cada item; sem número, valor e unidade nulos",
+    }
+
+
+def _pontuar_paginas(
+    a: dict, mantidas: list[str], unidades: list[str], pontuadas: dict
+) -> None:
+    """Acumula em `pontuadas` {página: melhor força entre os itens da folha}; página sem trecho guardado fica com a
+    força mínima."""
+    trechos = dict(a.get("paginas_trechos") or [])
+    for pagina in a["paginas"]:
+        forca = (
+            gavetas_texto.forca_da_mencao(trechos[pagina], mantidas, unidades)
+            if pagina in trechos and mantidas
+            else {"chave": (False, 0, 0), "termo": None, "candidata": None}
+        )
+        atual = pontuadas.get(pagina)
+        if atual is None or forca["chave"] > atual["chave"]:
+            pontuadas[pagina] = {**forca, "pagina": pagina, "item": a["item"]}
+
+
+def _ranquear_paginas(linha: dict, pontuadas: dict, teto: int) -> dict:
+    """Páginas da leitura da mais forte para a mais fraca (a mais baixa desempata), no máximo `teto`; diz quantas cortou
+    e, de cada página lida, o termo e a candidata que a puseram ali."""
+    ordem = sorted(
+        pontuadas.values(),
+        key=lambda p: (tuple(-int(x) for x in p["chave"]), p["pagina"]),
+    )
+    lidas = ordem[:teto]
+    return {
+        **linha,
+        "forca": [int(x) for x in ordem[0]["chave"]] if ordem else [0, 0, 0],
+        "paginas": [p["pagina"] for p in lidas],
+        "paginas_cortadas": len(ordem) - len(lidas),
+        "paginas_ranqueadas": [
+            {
+                "pagina": p["pagina"],
+                "item": p["item"],
+                "termo": p["termo"],
+                "candidata": p["candidata"],
+            }
+            for p in lidas
+        ],
+    }
+
+
+def roteiro(destinos: list[dict], regras: dict = gavetas_texto.REGRAS) -> list[dict]:
     """Linhas do próximo passe de leitura por IA, uma por documento × folha, no formato que a skill `eap-evidencias`
     espera: o `documento` (nome do arquivo, o `documento.id` da evidência), as `paginas` (índice no PDF, 1 = primeira
-    folha, para o `localizador` "p. N"), e por item o `codigo` com `*` nos segmentos que o documento não diz
-    (`*.*.GEO.FUN.EST`), termos de busca, serviços e unidades aceitas (de `evidencias.roteiro`). A IA devolve uma linha
-    JSON por afirmação, com o trecho copiado literalmente; `evidencias conferir` decide o que entra."""
+    folha, para o `localizador` "p. N") e por item o `codigo` com `*` nos segmentos que o documento não diz
+    (`*.*.GEO.FUN.EST`), termos de busca, `termos_ignorados` (os que saíram e por quê), serviços e unidades aceitas.
+    As páginas vêm ranqueadas pela força da menção (termo específico, número com unidade admitida perto dele) e cortadas
+    em `teto_paginas_por_documento_folha`; `paginas_cortadas` diz quantas ficaram de fora e `forca` é a da melhor página
+    (as leituras de cada folha vêm da mais forte para a mais fraca). A IA devolve uma linha JSON
+    por afirmação, com o trecho copiado literalmente; `evidencias conferir` decide o que entra."""
     por_codigo = {r["codigo"]: r for r in evidencias.roteiro()}
     linhas: dict[tuple, dict] = {}
+    pontuadas: dict[tuple, dict] = {}
     for d in destinos:
+        info = {i["codigo"]: i for i in d["itens"]}
         for a in d["acoes"]:
             if a["destino"] != MENCAO:
                 continue
             chave = (a["documento_id"], d["folha"])
-            linha = linhas.setdefault(
-                chave,
-                {
-                    "documento_id": a["documento_id"],
-                    "documento": Path(str(a["documento"])).name,
-                    "folha": d["folha"],
-                    "tipo": d["tipo"],
-                    "obrigatoria": d["obrigatoria"],
-                    "paginas": [],
-                    "itens": [],
-                    "procurar": "quantidade e unidade da medição de cada item; sem número, valor e unidade nulos",
-                },
+            linha = linhas.setdefault(chave, _linha_de_leitura(a, d))
+            rot = por_codigo.get(a["item"], {})
+            ignorados = info[a["item"]]["termos_ignorados"] if a["item"] in info else []
+            mantidas = _alternativas_mantidas(a["item"], ignorados)
+            _pontuar_paginas(
+                a, mantidas, rot.get("unidades", []), pontuadas.setdefault(chave, {})
             )
-            linha["paginas"] = sorted(set(linha["paginas"]) | set(a["paginas"]))
             if all(i["item"] != a["item"] for i in linha["itens"]):
-                rot = por_codigo.get(a["item"], {})
                 linha["itens"].append(
                     {
                         "item": a["item"],
                         "codigo": f"*.*.{a['item']}",
                         "nome": rot.get("nome"),
-                        "termos": rot.get("termos", []),
+                        "termos": _termos_de_busca(a["item"], mantidas),
+                        "termos_ignorados": [
+                            {"termo": i["termo"], "motivo": i["motivo"]}
+                            for i in ignorados
+                        ],
                         "servicos": rot.get("servicos", []),
                         "unidades": rot.get("unidades", []),
                     }
                 )
+    teto = regras["teto_paginas_por_documento_folha"]
+    ranqueadas = [
+        _ranquear_paginas(linha, pontuadas[c], teto) for c, linha in linhas.items()
+    ]
     return sorted(
-        linhas.values(),
-        key=lambda x: (not x["obrigatoria"], x["folha"], x["documento"]),
+        ranqueadas,
+        key=lambda x: (
+            not x["obrigatoria"],
+            x["folha"],
+            [-v for v in x["forca"]],
+            x["documento"],
+        ),
     )
+
+
+def resumo_do_roteiro(linhas: list[dict]) -> dict:
+    """Tamanho do roteiro: leituras, páginas e documentos (no total e só das folhas obrigatórias), páginas cortadas
+    pelo teto e termos ignorados na busca (itens × termo)."""
+    obrigatorias = [x for x in linhas if x["obrigatoria"]]
+    ignorados = {
+        (i["item"], t["termo"])
+        for x in linhas
+        for i in x["itens"]
+        for t in i["termos_ignorados"]
+    }
+    return {
+        "leituras": len(linhas),
+        "leituras_obrigatorias": len(obrigatorias),
+        "paginas": sum(len(x["paginas"]) for x in linhas),
+        "paginas_obrigatorias": sum(len(x["paginas"]) for x in obrigatorias),
+        "documentos": len({x["documento_id"] for x in linhas}),
+        "documentos_obrigatorios": len({x["documento_id"] for x in obrigatorias}),
+        "paginas_cortadas": sum(x["paginas_cortadas"] for x in linhas),
+        "termos_ignorados": len(ignorados),
+    }
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -521,7 +657,8 @@ def principal(argv=None) -> int:
     for t in resultado["trava"]:
         print(f"  {t['folha']:9} {t['nome'][:44]:44} {t['destino']} [{t['degrau']}]")
     print(
-        f"roteiro do próximo passe: {len(roteiro(destinados))} linhas (documento × folha)"
+        "roteiro do próximo passe:",
+        json.dumps(resumo_do_roteiro(roteiro(destinados)), ensure_ascii=False),
     )
     return 0
 
@@ -532,12 +669,20 @@ def metadados() -> dict:
         "modulo": "eap_laco",
         "descricao": "laço da F5: destino de cada folha a preencher na escada código → IA → humano, portão EAP completa "
         "e roteiro do próximo passe de leitura por IA; sem IA no laço, nada é preenchido",
-        "funcoes": ["destinos", "portao", "roteiro", "ler_decisoes", "metadados"],
+        "funcoes": [
+            "destinos",
+            "portao",
+            "roteiro",
+            "resumo_do_roteiro",
+            "ler_decisoes",
+            "metadados",
+        ],
         "conceitos": [
             "eap_geral.jsonl",
             "eap_padrao.json",
             "documentos_esperados.json",
             "fontes.json",
+            "busca_texto.json",
         ],
         "premissas": [
             {
