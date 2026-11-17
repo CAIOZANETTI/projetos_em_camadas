@@ -1324,6 +1324,8 @@ def _cfg_estruturas(raiz, *estruturas):
 
 
 def test_estruturas_3d_gera_blocos_estacas_e_elementos_pela_conta_a_mao(tmp_path):
+    pytest.importorskip("pymupdf")
+    pytest.importorskip("scipy")
     fund, par = _pdfs_da_estrutura(tmp_path)
     cfg = _cfg_estruturas(tmp_path, _estrutura_3d("EEB09", fund, par))
     saida = obra.etapa_estruturas_3d(cfg, tmp_path / "saida")
@@ -1355,6 +1357,8 @@ def test_estruturas_3d_gera_blocos_estacas_e_elementos_pela_conta_a_mao(tmp_path
 
 
 def test_estruturas_3d_conferencia_fora_da_tolerancia_tira_a_estrutura_sem_derrubar(tmp_path, capsys, monkeypatch):
+    pytest.importorskip("pymupdf")
+    pytest.importorskip("scipy")
     monkeypatch.setattr(obra, "AVISOS_DO_BUILD", [])
     fund, par = _pdfs_da_estrutura(tmp_path)
     cfg = _cfg_estruturas(tmp_path, _estrutura_3d("EEB09", fund, par), _estrutura_3d("EEB99", fund, par, translacao_paredes=(43, 30)))
@@ -1370,6 +1374,8 @@ def test_estruturas_3d_conferencia_fora_da_tolerancia_tira_a_estrutura_sem_derru
 
 
 def test_estruturas_3d_alimenta_solidos_e_estacas_do_build(tmp_path):
+    pytest.importorskip("pymupdf")
+    pytest.importorskip("scipy")
     fund, par = _pdfs_da_estrutura(tmp_path)
     cfg = {**_cfg_estruturas(tmp_path, _estrutura_3d("EEB09", fund, par)), "solidos": ["antigo.json"]}
     obra._aplicar_estruturas_3d(cfg, tmp_path / "saida")

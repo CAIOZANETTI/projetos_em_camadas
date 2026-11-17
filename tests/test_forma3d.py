@@ -3,11 +3,13 @@
 import itertools
 
 import numpy as np
-import pymupdf
 import pytest
 from shapely.geometry import Polygon, box
 
 from camadas import forma3d
+
+pymupdf = pytest.importorskip("pymupdf")
+pytest.importorskip("scipy")
 
 REGIAO = (0, 0, 600, 600)
 VERMELHO = (1.0, 0.0, 0.0)

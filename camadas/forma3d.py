@@ -16,10 +16,6 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
-import pymupdf
-from scipy.optimize import linear_sum_assignment
-from scipy.spatial import cKDTree
-from scipy.spatial.distance import cdist
 from shapely.affinity import affine_transform
 from shapely.geometry import GeometryCollection, LineString, Polygon, box
 from shapely.ops import polygonize, unary_union
@@ -42,6 +38,9 @@ REDONDEZA_ESTACA = 0.1  # círculo: |largura − altura| ≤ 10 % da largura
 
 
 def _pagina(pdf):
+    """Primeira página do PDF (pymupdf importado aqui: extra `pdf`)."""
+    import pymupdf
+
     return pymupdf.open(pdf)[0]
 
 
@@ -183,6 +182,8 @@ def vigas_por_pares(
 def alinhar_por_pontos(pontos_a, pontos_b, tol_pt: float = 1.0) -> dict:
     """Translação que leva `pontos_b` sobre `pontos_a`: a diferença candidata a−b que casa mais pontos, refinada pela mediana."""
     a, b = np.asarray(pontos_a, float), np.asarray(pontos_b, float)
+    from scipy.spatial import cKDTree  # extra `topografia`
+
     arvore = cKDTree(a)
     candidatas = (a[:, None, :] - b[None, :, :]).reshape(-1, 2)
     melhor, melhor_n = None, -1
@@ -553,6 +554,9 @@ def atribuir_rotulos(centros_pt, rotulos_pt: dict) -> dict[int, str]:
     centros = np.asarray(centros_pt, float).reshape(-1, 2)
     if not len(centros) or not nomes:
         return {}
+    from scipy.optimize import linear_sum_assignment  # extra `topografia`
+    from scipy.spatial.distance import cdist
+
     custo = cdist(centros, np.asarray([rotulos_pt[n] for n in nomes], float))
     linhas, colunas = linear_sum_assignment(custo)
     return {int(i): nomes[j] for i, j in zip(linhas, colunas)}
