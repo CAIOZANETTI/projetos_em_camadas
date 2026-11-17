@@ -45,6 +45,7 @@
  "naturezas": [
   "observado",
   "projetado",
+  "calculado",
   "inferido",
   "decidido"
  ],
@@ -52,6 +53,7 @@
   "decidido",
   "observado",
   "projetado",
+  "calculado",
   "inferido"
  ],
  "executores": [
@@ -225,7 +227,7 @@
   "local": {
    "unidade": null,
    "tipo": "texto",
-   "obs": "nome do trecho na planilha (ex.: 'Entrada de água bruta') ou da rede (ex.: 'AAT06'); casa com as chaves de conceitos/unidades_construtivas.json"
+   "obs": "nome do trecho na planilha (ex.: 'Entrada de água bruta') ou da rede (ex.: 'AAT06'); na Relação de Materiais, a coluna Local (ETA VILA C, AAT 06…); casa com as chaves de conceitos/unidades_construtivas.json"
   },
   "trecho_contrato": {
    "unidade": null,
@@ -432,6 +434,31 @@
    "unidade": null,
    "tipo": "texto",
    "obs": "trecho do documento (≤ 200 caracteres) que menciona o item, numa página; a evidência traz a página (F5)"
+  },
+  "quantidade_calculada": {
+   "unidade": null,
+   "tipo": "numero",
+   "obs": "quantidade que o código calculou para a linha do contrato (contrato_211), na unidade de `unidade_calculada`; natureza calculado"
+  },
+  "unidade_calculada": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "unidade da quantidade calculada (m, m2, m3, vb, un…)"
+  },
+  "regra_calculo": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "regra do contrato_211 que calculou a quantidade (comprimento_trecho, soma_trechos, area_da_uc…)"
+  },
+  "situacao_calculo": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "situação do cálculo no contrato_211: calculada, parcial ou declarada · confere/diverge; só `calculada` fecha a folha"
+  },
+  "subcategoria": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "subcategoria do cadastro de materiais Sanepar na Relação de Materiais (conexao, valvula, tubo…)"
   }
  },
  "tipos_superficie": [

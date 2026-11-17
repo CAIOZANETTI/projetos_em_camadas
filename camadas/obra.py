@@ -886,6 +886,7 @@ def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | No
                       ["Sem declarada, calculadas", str(resumo["vazias_calculadas"])],
                       ["Sem declarada, calculadas (%)", pct]]           # já em texto: o HTML só apresenta
         return {"resumo": resumo, "resumo_txt": resumo_txt, "linhas": contrato_211.para_html(resultados),
+                "resultados": resultados,       # com números: `_contrato_no_build` os tira daqui, vão às gavetas
                 "premissas": premissas,
                 "fonte": "aba CUSTO CIVIL da planilha 211 (colunas A–E e I; sem preço)"}
     except Exception as erro:  # noqa: BLE001 - o contrato nunca derruba o build
@@ -893,17 +894,21 @@ def _contrato_211(cfg: dict, out: Path, redes_vala: list | None, vala: dict | No
         return None
 
 
-def _contrato_no_build(dados: dict, cfg: dict, out: Path, redes_vala: list | None, vala: dict | None) -> None:
+def _contrato_no_build(dados: dict, cfg: dict, out: Path, redes_vala: list | None, vala: dict | None) -> list[dict] | None:
     """`dados["contrato_211"]` com os serviços da base gravada em `out/base` (depois do `completar_escopo`, para a vala
-    sair só das gavetas); sem base, o contrato não recalcula a vala e as linhas ficam "a preencher"."""
+    sair só das gavetas); sem base, o contrato não recalcula a vala e as linhas ficam "a preencher". Devolve os resultados
+    com os números (`quantificar`), que `extrair_gavetas.fechar_eap` leva às gavetas; None sem contrato."""
     servicos = None
     try:
         servicos = gavetas.ler(out / "base")["servicos"] if (out / "base").exists() else None
     except Exception as erro:  # noqa: BLE001 - base ilegível vira pendência, nunca derruba o build
         _log(f"Contrato 211: base das gavetas ilegível (pendência; {type(erro).__name__}: {erro})")
     contrato = _contrato_211(cfg, out, redes_vala, vala, servicos)
-    if contrato is not None:
-        dados["contrato_211"] = contrato
+    if contrato is None:
+        return None
+    resultados = contrato.pop("resultados")
+    dados["contrato_211"] = contrato
+    return resultados
 
 
 def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas: list | None, pacotes: dict,
@@ -947,7 +952,11 @@ def _aba_projeto(dados: dict, cfg: dict, out: Path, escopo: dict | None, fichas:
         extrair_gavetas.completar_escopo(cfg, out, dados, log=_log)
     except Exception as erro:  # noqa: BLE001 - nunca derruba o build
         _log(f"Gavetas (escopo): não concluído (pendência; {type(erro).__name__}: {erro})")
-    _contrato_no_build(dados, cfg, out, redes_vala, pacotes.get("valas"))   # depois das gavetas: a vala vem dos serviços
+    resultados_contrato = _contrato_no_build(dados, cfg, out, redes_vala, pacotes.get("valas"))   # a vala vem dos serviços
+    try:                                           # F5b: o contrato calculado volta às gavetas; só então a EAP única e o laço
+        extrair_gavetas.fechar_eap(cfg, out, dados, log=_log, resultados_contrato=resultados_contrato)
+    except Exception as erro:  # noqa: BLE001 - nunca derruba o build
+        _log(f"EAP (fechamento): não concluído (pendência; {type(erro).__name__}: {erro})")
     _conciliar_eaps(dados, servicos_gavetas, out)  # gavetas × codificada × documento: `conciliacao_eap.json` e o resumo
     dados["eap_painel"] = eap_painel.montar(dados.get("eap"), dados.get("evidencias"))   # aba EAP, já em texto
     _eap_padrao_no_build(dados, cfg, out)          # esqueleto por etapa de execução, a preencher

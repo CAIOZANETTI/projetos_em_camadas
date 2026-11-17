@@ -4,8 +4,21 @@
     modelo (conceitos/eap_padrao.json: OP/OL)   ─►  cada folha soma os itens técnicos que aponta
     código da EAP única = <folha>/<item técnico>      ex.: OP.03.01/U1.ACT600.GEO.FUN.EST
 
-Nenhuma quantidade nasce aqui sem fato por trás; sem preço, sem prazo. O contrato (`item_contrato` com `folha_eap`)
-entra como "declarada" e nunca se soma com o medido. Só lê a base; não grava em `saida/`.
+Nenhuma quantidade nasce aqui sem fato por trás; sem preço, sem prazo. Só lê a base; não grava em `saida/`.
+
+Três origens por folha, que nunca se somam entre si, em ordem de precedência da situação:
+
+    1. medida   (fatos dos objetos e serviços das gavetas)        → "preenchida" (ou "calculada", se só há serviço de regra)
+    2. calculada pelo contrato (`item_contrato` com `quantidade_calculada` do `contrato_211`, situação `calculada`)
+                                                                     → "calculada"
+    3. declarada (`item_contrato` com `quantidade`; `item_material` com etapa 1 + etapa 2) → "declarada"
+
+Por quê: o que o projeto mede tem a evidência mais forte (fato com página). A calculada pelo contrato nasce de regra
+determinística sobre o projeto (rede, vala, área da UC) e só existe onde a planilha deixou a quantidade vazia, então
+nunca disputa a mesma linha com a declarada; ela vale mais que a declarada porque tem regra e evidências que se
+conferem, enquanto a declarada é o número escrito na planilha. A linha `parcial` (cálculo incompleto) e a que a planilha
+declarou e o código só conferiu (`declarada · confere/diverge`) não fecham a folha como calculada. As outras origens
+seguem listadas na folha (`calculadas_contrato`, `declaradas`) com os totais por unidade, sem entrar nos `totais` medidos.
 
     python -m camadas.eap_preencher saida/foz
 """
@@ -16,11 +29,13 @@ import argparse
 import json
 from pathlib import Path
 
-from . import eap, gavetas, gavetas_construtivos
+from . import eap, gavetas, gavetas_construtivos, gavetas_contrato, vocabulario
 from .pdf_cad import CONCEITOS
 
 PADRAO = json.loads((CONCEITOS / "eap_padrao.json").read_text(encoding="utf-8"))
 VISTA_DO_TIPO = {"obra_localizada": "localizada", "obra_linear": "linear"}
+CLASSES_DO_CONTRATO = ("item_contrato", "item_material")
+"""Classes das gavetas cuja quantidade é "declarada" na folha: a linha do contrato e o item da Relação de Materiais."""
 TOLERANCIA = 1e-3
 """Tolerância absoluta da paridade com o golden (unidade da própria quantidade)."""
 IDENTIFICACAO = ("rotulo", "sistema", "unidade")
@@ -82,6 +97,8 @@ def _citacao(evidencia: dict) -> dict:
     }
     if "aba" in localizador:
         citacao |= {"aba": localizador["aba"], "linha": localizador.get("linha")}
+    if "regra" in localizador:  # cálculo do contrato: a regra e o que ela usou
+        citacao |= {"regra": localizador["regra"], "trecho": evidencia.get("trecho")}
     return citacao
 
 
@@ -243,9 +260,80 @@ def _vale(q: dict, alvo: dict, vista: str, reservados: set[tuple]) -> bool:
     return not any((item, s) in reservados for s in q["servicos_eap"])
 
 
+def _unidade_canonica(texto) -> str | None:
+    """Unidade canônica do vocabulário (pç e pc contam como un, MÊS como mês); a que ele não conhece (barras, ud) segue
+    na grafia da planilha, em minúsculas, sem converter. None se vazia."""
+    return vocabulario.unidade_medida(texto) or (
+        str(texto or "").strip().lower() or None
+    )
+
+
+def _quantidade_declarada(fatos: dict) -> tuple[float | None, list[dict]]:
+    """(quantidade, fatos citados) declarada: o fato `quantidade` do contrato ou, na Relação de Materiais, a soma das
+    quantidades da etapa 1 e da etapa 2 (só as numéricas; sem nenhuma, None)."""
+    propriedades = (
+        ("quantidade",)
+        if "quantidade" in fatos
+        else ("quantidade_etapa1", "quantidade_etapa2")
+    )
+    citados = [fatos[p] for p in propriedades if p in fatos]
+    numeros = [f["valor"] for f in citados if _numero(f["valor"])]
+    return (float(sum(numeros)) if numeros else None), citados
+
+
+def _numero(valor) -> bool:
+    return isinstance(valor, (int, float)) and not isinstance(valor, bool)
+
+
+def _linha_do_contrato(
+    objeto: dict, fatos: dict, citados: list[dict], por_evidencia: dict
+) -> dict:
+    """Campos comuns de uma linha do contrato ou da Relação de Materiais numa folha: objeto, descrição, fatos citados e
+    evidências (documento, aba e linha)."""
+    return {
+        "objeto_id": objeto["objeto_id"],
+        "descricao": fatos.get("descricao", {}).get("valor"),
+        "fatos": [f["fato_id"] for f in citados],
+        "evidencias": [
+            _citacao(por_evidencia[i])
+            for i in sorted({f["evidencia_id"] for f in citados})
+            if i in por_evidencia
+        ],
+    }
+
+
 def _declaradas(base: dict) -> dict[str, list[dict]]:
-    """{folha: linhas do contrato}: cada `item_contrato` com fato `folha_eap`, a quantidade declarada (None se a planilha
-    não a traz) e a evidência (aba e linha)."""
+    """{folha: linhas declaradas}: cada `item_contrato` ou `item_material` com fato `folha_eap`, a quantidade declarada
+    (None se a planilha não a traz; no material, etapa 1 + etapa 2), a unidade e a evidência (aba e linha)."""
+    ind = gavetas.indice(base)
+    por_evidencia = {e["evidencia_id"]: e for e in base["evidencias"]}
+    saida: dict[str, list[dict]] = {}
+    for objeto in base["objetos"]:
+        if objeto["classe"] not in CLASSES_DO_CONTRATO:
+            continue
+        fatos = gavetas.fatos_do_objeto(base, objeto["objeto_id"], ind)
+        if "folha_eap" not in fatos:
+            continue
+        quantidade, citados_q = _quantidade_declarada(fatos)
+        unidade_medida = fatos.get("unidade_medida", {}).get("valor")
+        saida.setdefault(fatos["folha_eap"]["valor"], []).append(
+            {
+                **_linha_do_contrato(
+                    objeto, fatos, [fatos["folha_eap"], *citados_q], por_evidencia
+                ),
+                "classe": objeto["classe"],
+                "unidade_medida": unidade_medida,
+                "unidade": _unidade_canonica(unidade_medida),
+                "quantidade": quantidade,
+            }
+        )
+    return saida
+
+
+def _calculadas(base: dict) -> dict[str, list[dict]]:
+    """{folha: linhas calculadas pelo contrato}: cada `item_contrato` com `folha_eap` e `quantidade_calculada` (fato do
+    `gavetas_contrato.aplicar_calculadas`), com a unidade, a regra, a situação do cálculo (`completa` só se `calculada`)
+    e a evidência do cálculo (aba, linha, regra e o que o `contrato_211` usou)."""
     ind = gavetas.indice(base)
     por_evidencia = {e["evidencia_id"]: e for e in base["evidencias"]}
     saida: dict[str, list[dict]] = {}
@@ -253,27 +341,39 @@ def _declaradas(base: dict) -> dict[str, list[dict]]:
         if objeto["classe"] != "item_contrato":
             continue
         fatos = gavetas.fatos_do_objeto(base, objeto["objeto_id"], ind)
-        if "folha_eap" not in fatos:
+        if "folha_eap" not in fatos or "quantidade_calculada" not in fatos:
             continue
-        quantidade = fatos.get("quantidade", {}).get("valor")
-        citados = [fatos[p] for p in ("folha_eap", "quantidade") if p in fatos]
-        saida.setdefault(fatos["folha_eap"]["valor"], []).append(
+        if not _numero(fatos["quantidade_calculada"]["valor"]):
+            continue
+        citados = [fatos["folha_eap"]] + [
+            fatos[p] for p in gavetas_contrato.PROPRIEDADES_CALCULO if p in fatos
+        ]
+        v = {p: f["valor"] for p, f in fatos.items()}
+        saida.setdefault(v["folha_eap"], []).append(
             {
-                "objeto_id": objeto["objeto_id"],
-                "descricao": fatos.get("descricao", {}).get("valor"),
-                "unidade_medida": fatos.get("unidade_medida", {}).get("valor"),
-                "quantidade": float(quantidade)
-                if isinstance(quantidade, (int, float))
-                else None,
-                "fatos": [f["fato_id"] for f in citados],
-                "evidencias": [
-                    _citacao(por_evidencia[i])
-                    for i in sorted({f["evidencia_id"] for f in citados})
-                    if i in por_evidencia
-                ],
+                **_linha_do_contrato(objeto, fatos, citados, por_evidencia),
+                "quantidade": float(v["quantidade_calculada"]),
+                "unidade": v.get("unidade_calculada"),
+                "regra": v.get("regra_calculo"),
+                "situacao_calculo": v.get("situacao_calculo"),
+                "completa": v.get("situacao_calculo") == "calculada",
             }
         )
     return saida
+
+
+def _totais_por_unidade(linhas: list[dict]) -> list[dict]:
+    """Soma por unidade das linhas com quantidade: unidades diferentes nunca se somam."""
+    somas: dict[str, float] = {}
+    for linha in linhas:
+        if linha["quantidade"] is not None:
+            somas[linha["unidade"]] = (
+                somas.get(linha["unidade"], 0.0) + linha["quantidade"]
+            )
+    return [
+        {"unidade": u, "quantidade": round(v, 6)}
+        for u, v in sorted(somas.items(), key=lambda x: str(x[0]))
+    ]
 
 
 def _totais(quantidades: list[dict]) -> list[dict]:
@@ -289,60 +389,81 @@ def _totais(quantidades: list[dict]) -> list[dict]:
     ]
 
 
-def _folha(
-    folha: dict,
-    vista: str,
-    por_item: dict[str, list[dict]],
-    declaradas: list[dict],
-    reservados: set,
-) -> dict:
-    """Folha preenchida: quantidades dos itens que ela aponta (`<folha>/<código>`), contrato declarado e situação."""
+def _medidas_da_folha(
+    folha: dict, vista: str, por_item: dict[str, list[dict]], reservados: set
+) -> list[dict]:
+    """Quantidades medidas (fatos e serviços das gavetas) dos itens que a folha aponta (`<folha>/<código>`)."""
     escolhidas: dict[tuple, dict] = {}
     for alvo in folha["aponta"]:
         for q in por_item.get(alvo["item"], []):
             if q["n_com_valor"] and _vale(q, alvo, vista, reservados):
                 escolhidas[(q["codigo"], q["grandeza"], q["unidade"], q["origem"])] = q
-    medidas = [
-        {
-            "codigo_eap": f"{folha['id']}/{q['codigo']}",
-            **{
-                k: q[k]
-                for k in (
-                    "grandeza",
-                    "unidade",
-                    "quantidade",
-                    "origem",
-                    "n_objetos",
-                    "sem_valor",
-                    "objetos",
-                    "fatos",
-                    "evidencias",
-                    "servicos",
-                    "por_chave",
-                )
-            },
-        }
+    campos = (
+        "grandeza",
+        "unidade",
+        "quantidade",
+        "origem",
+        "n_objetos",
+        "sem_valor",
+        "objetos",
+        "fatos",
+        "evidencias",
+        "servicos",
+        "por_chave",
+    )
+    return [
+        {"codigo_eap": f"{folha['id']}/{q['codigo']}", **{k: q[k] for k in campos}}
         for _, q in sorted(escolhidas.items())
     ]
-    declarou = any(d["quantidade"] is not None for d in declaradas)
-    if not medidas:
-        situacao = "declarada" if declarou else "a preencher"
-    elif all(q["origem"] == "servico" for q in medidas):
-        situacao = (
-            "calculada"  # só serviço calculado por regra: não é medida de documento
+
+
+def _situacao(
+    medidas: list[dict], calculadas: list[dict], declaradas: list[dict]
+) -> str:
+    """Situação da folha pela precedência medida > calculada pelo contrato > declarada (docstring do módulo): `preenchida`
+    (medida de documento), `calculada` (só serviço de regra ou só quantidade calculada pelo contrato, completa),
+    `declarada` (só a planilha declara) ou `a preencher`."""
+    if medidas:
+        return (
+            "calculada"
+            if all(q["origem"] == "servico" for q in medidas)
+            else "preenchida"
         )
-    else:
-        situacao = "preenchida"
+    if any(c["completa"] for c in calculadas):
+        return "calculada"
+    return (
+        "declarada"
+        if any(d["quantidade"] is not None for d in declaradas)
+        else "a preencher"
+    )
+
+
+def _folha(
+    folha: dict,
+    vista: str,
+    por_item: dict[str, list[dict]],
+    origens: tuple[list[dict], list[dict]],
+    reservados: set,
+) -> dict:
+    """Folha preenchida: quantidades medidas dos itens que ela aponta, as linhas calculadas pelo contrato e as declaradas
+    (`origens` = (declaradas, calculadas), cada uma com totais por unidade, nunca somadas ao medido) e a situação."""
+    declaradas, calculadas = origens
+    medidas = _medidas_da_folha(folha, vista, por_item, reservados)
     return {
         "id": folha["id"],
         "nome": folha["nome"],
         "obrigatoria": folha["obrigatoria"],
         "escopo": folha.get("escopo", "ambos"),
         "aponta": folha["aponta"],
-        "situacao": situacao,
+        "situacao": _situacao(medidas, calculadas, declaradas),
         "quantidades": medidas,
         "totais": _totais(medidas),
+        "calculadas_contrato": calculadas,
+        "totais_calculadas_contrato": _totais_por_unidade(
+            [c for c in calculadas if c["completa"]]
+        ),
         "declaradas": declaradas,
+        "totais_declaradas": _totais_por_unidade(declaradas),
     }
 
 
@@ -372,7 +493,7 @@ def _completude(folhas: list[dict]) -> dict:
 
 
 def _etapas_do_tipo(
-    tipo: str, modelo: dict, por_item: dict, declaradas: dict
+    tipo: str, modelo: dict, por_item: dict, declaradas: dict, calculadas: dict
 ) -> tuple[list[dict], set, set]:
     """As etapas preenchidas de um tipo de obra, as quantidades usadas (`item|grandeza`) e os ids das folhas."""
     etapas, usadas, folhas_do_tipo = [], set(), set()
@@ -389,7 +510,7 @@ def _etapas_do_tipo(
                 f,
                 VISTA_DO_TIPO[tipo],
                 por_item,
-                declaradas.get(f["id"], []),
+                (declaradas.get(f["id"], []), calculadas.get(f["id"], [])),
                 reservados,
             )
             for f in etapa["folhas"]
@@ -406,21 +527,23 @@ def _etapas_do_tipo(
 
 def preencher(base: dict) -> dict:
     """Laço sobre o modelo `eap_padrao.json` (obra localizada e obra linear): cada folha soma as quantidades dos itens
-    técnicos que aponta e traz as linhas do contrato como "declarada" (sem somar com o medido).
+    técnicos que aponta e traz as linhas do contrato calculadas (`calculadas_contrato`) e declaradas (`declaradas`, que
+    inclui a Relação de Materiais), sem somar com o medido nem entre si.
 
-    Situação: `preenchida` (há quantidade medida de documento, com fatos e evidências), `calculada` (só há serviço
-    calculado por regra, como os complementares de `gavetas_servicos`: não é medida e conta à parte), `declarada` (só o
-    contrato declara quantidade), `a preencher` (nada); `obrigatoria` vem do modelo. Devolve {tipos: {tipo: {nome, prefixo, etapas, completude}},
+    Situação, pela precedência medida > calculada pelo contrato > declarada (docstring do módulo): `preenchida` (há
+    quantidade medida de documento, com fatos e evidências), `calculada` (só há serviço calculado por regra, como os
+    complementares de `gavetas_servicos`, ou só quantidade calculada pelo `contrato_211`: não é medida e conta à parte),
+    `declarada` (só a planilha declara quantidade), `a preencher` (nada); `obrigatoria` vem do modelo. Devolve {tipos: {tipo: {nome, prefixo, etapas, completude}},
     completude, quantidades_sem_folha, contrato_sem_folha, servicos_descartados}."""
     quantidades, descartados = _quantidades(base)
     por_item: dict[str, list[dict]] = {}
     for q in quantidades:
         por_item.setdefault(q["codigo"].split(".", 2)[2], []).append(q)
-    declaradas = _declaradas(base)
+    declaradas, calculadas = _declaradas(base), _calculadas(base)
     tipos, usadas, folhas_do_modelo = {}, set(), set()
     for tipo, modelo in PADRAO["tipos"].items():
         etapas, usadas_do_tipo, folhas_do_tipo = _etapas_do_tipo(
-            tipo, modelo, por_item, declaradas
+            tipo, modelo, por_item, declaradas, calculadas
         )
         usadas |= usadas_do_tipo
         folhas_do_modelo |= folhas_do_tipo
@@ -440,7 +563,7 @@ def preencher(base: dict) -> dict:
             if q["n_com_valor"] and f"{q['codigo']}|{q['grandeza']}" not in usadas
         ],
         "contrato_sem_folha": sorted(
-            f for f in declaradas if f not in folhas_do_modelo
+            f for f in {**declaradas, **calculadas} if f not in folhas_do_modelo
         ),
         "servicos_descartados": descartados,
     }

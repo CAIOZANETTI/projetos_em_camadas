@@ -67,5 +67,46 @@
   "BLOCOS DE ANCORAGEM": {"descricao": "Blocos de ancoragem do trecho", "folha_eap": "OP.07.04", "grandeza": "contagem", "unidade": "un", "regra": "contagem_blocos", "estado": "premissa"},
   "BLOCOS DE APOIO": {"descricao": "Blocos de apoio do trecho", "folha_eap": "OP.07.04", "grandeza": "contagem", "unidade": "un", "regra": "contagem_blocos", "estado": "premissa"},
   "MEDIDORES DE VAZAO": {"descricao": "Medidores de vazão do trecho", "folha_eap": "OP.09.01", "grandeza": "contagem", "unidade": "un", "regra": "sem_regra", "motivo": "medidor de vazão é instrumentação (OP.09.01), de elétrica e automação, fora do escopo desta rodada; a EAP não tem folha de medidor em OP.07", "estado": "calibrar"}
+ },
+ "equivalencia_obra_linear": {
+  "estado": "premissa",
+  "fonte": "nomes e `aponta` das folhas de conceitos/eap_padrao.json (obra_localizada OP × obra_linear OL): a folha OL que aponta para o mesmo item técnico (ou o mesmo serviço) da OP; a numeração do MOS não está no repositório, então é premissa a conferir",
+  "observacoes": "O de-para composição → folha (`composicoes`, `padroes`, `por_estrutura`, `por_descricao`) é escrito com as folhas OP. A linha de uma unidade de obra linear (`unidades_construtivas.json`: u2, adutoras) troca a folha OP pela OL desta tabela; a de unidade localizada (u1) fica como está. Folha OP sem par aqui (`sem_equivalente`) fica como está, sem chute.",
+  "folhas": {
+   "OP.00.01": "OL.00.01",
+   "OP.01.01": "OL.01.01",
+   "OP.01.02": "OL.01.02",
+   "OP.01.04": "OL.01.04",
+   "OP.02.03": "OL.03.03",
+   "OP.02.05": "OL.05.03",
+   "OP.07.02": "OL.07.03",
+   "OP.07.04": "OL.04.04",
+   "OP.10.01": "OL.08.01",
+   "OP.10.02": "OL.08.02",
+   "OP.11.01": "OL.09.01",
+   "OP.12.01": "OL.11.02",
+   "OP.12.02": "OL.11.01",
+   "OP.12.03": "OL.11.03",
+   "OP.12.04": "OL.09.02"
+  },
+  "sem_equivalente": {
+   "OP.01.03": "corte e demolição de pavimento se dividem em OL.02.01 e OL.02.02",
+   "OP.02.06": "a vala composta (escavação, escoramento, assentamento, reaterro) se decompõe em várias folhas OL",
+   "OP.08.01": "equipamento hidromecânico não tem folha na obra linear",
+   "OP.09.01": "elétrica e automação não têm folha de mesmo nome na obra linear (OL.07.04 é instrumentação de linha)",
+   "OP.10.03": "drenagem, cercamento e paisagismo não têm folha na obra linear"
+  }
+ },
+ "materiais": {
+  "estado": "premissa",
+  "fonte": "aba 'Relação de Materiais' da planilha 211 (colunas Local, Descrição, Unidade, Quantidade 1ª e 2ª etapa, subcategoria do cadastro Sanepar; nunca as de valor); itens técnicos e catálogo de conceitos/eap_geral.jsonl",
+  "observacoes": "A unidade de obra do material vem da coluna Local (`locais`, sem acento e em minúsculas): ETA é a unidade 1 (obra localizada) e AAT (adutora de água tratada) é a unidade 2 (obra linear). Local que nenhum padrão casa vira pendência, sem chute. Com subcategoria do cadastro Sanepar, vale o `catalogo` do item da EAP geral (a subcategoria que nenhum item acolhe, como fixação e borracharia, não leva folha); sem cadastro (`subcategoria_sem_cadastro`: a planilha traz #N/A), vale o vocabulário do projeto, `evidencias.classificar` (termos dos itens da EAP geral, itens acessórios só se a cabeça não for de item principal). Só os itens de `itens_com_folha` ganham folha neste passe: conexões, peças especiais e válvulas (HID.TUB.VAL: OP.07.02 / OL.07.03) e tubos (HID.TUB.RED: OP.07.01 / OL.04.02); o resto vira pendência com o item que casou. Quantidade inteira entre 36526 e 73050 (`serial_de_data_excel`: datas de 2000 a 2099 no Excel) parece data digitada na célula e não entra: vira pendência com o motivo (em Foz, 3 tubos especiais com 46023 e 46054 peças). Quantidade = etapa 1 + etapa 2, por unidade de medida, sem preço; peça (pç, pc) conta como un (conceitos/sinonimos.json) e unidade que o vocabulário não conhece (barras, ud) segue na grafia da planilha, sem converter.",
+  "locais": [
+   {"padrao": "^eta\\b", "unidade": "u1"},
+   {"padrao": "^aat\\b", "unidade": "u2"}
+  ],
+  "subcategoria_sem_cadastro": ["#N/A", "nao_classificado"],
+  "serial_de_data_excel": [36526, 73050],
+  "itens_com_folha": ["HID.TUB.VAL", "HID.TUB.RED"]
  }
 }

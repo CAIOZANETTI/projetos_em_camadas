@@ -567,7 +567,8 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
     páginas do inventário (`gavetas_documentos`), linhas do contrato e itens de material (`gavetas_contrato`, sem preço) e
     elementos construtivos (`gavetas_construtivos`) —, confere e regrava `base/`. Roda depois dos `construtivos`. Devolve
     o resumo (gravado em `gavetas_escopo.json`); nada muda no `dados` do HTML. Sem inventário, planilha ou elementos, a
-    parte que falta só não entra (e o resumo diz)."""
+    parte que falta só não entra (e o resumo diz). A EAP única e o laço não rodam aqui: `fechar_eap` os roda depois do
+    contrato, porque as quantidades que o `contrato_211` calcula precisam estar nas gavetas antes de preencher a EAP."""
     pasta = Path(out) / "base"
     base = gavetas.ler(pasta) if (pasta / "objetos.parquet").exists() else _base_vazia()
     faltou = []
@@ -582,8 +583,6 @@ def completar_escopo(cfg: dict, out: Path, dados: dict, log=print) -> dict | Non
     resumo = _resumo_escopo(base, faltou, erros)
     com_pagina = resumo["fatos_com_pagina"]
     resumo["complementares"] = complementares
-    resumo["eap_unica"] = _eap_unica(base, dados, out, log)
-    resumo["laco"] = _laco(base, cfg, out, log)
     (Path(out) / "gavetas_escopo.json").write_text(json.dumps(resumo, ensure_ascii=False, indent=1), encoding="utf-8")
     log(f"Gavetas (escopo): {len(base['documentos'])} documentos, {len(base['paginas'])} páginas, "
         f"{len(base['objetos'])} objetos, {len(base['fatos'])} fatos ({com_pagina} com página ou aba e linha), "
@@ -620,7 +619,7 @@ def _escopo_contrato(cfg: dict, base: dict, faltou: list) -> dict:
     planilha = Path((cfg.get("obras_lineares") or {}).get("planilha") or "")
     if planilha.is_file():
         doc = gavetas.id_documento(planilha)
-        base = _substituir(base, gavetas_contrato.de_contrato(planilha, doc), gavetas_contrato.de_materiais(planilha, doc),
+        base = _substituir(gavetas_contrato.sem_contrato(base), gavetas_contrato.de_contrato(planilha, doc), gavetas_contrato.de_materiais(planilha, doc),
                       _sem_os_que_ja_tem({"documentos": [{"documento_id": doc, "arquivo": planilha.name, "sha256": doc,
                                                           "extensao": planilha.suffix, "classe": "planilha", "paginas": 1}]},
                                          base))
@@ -676,6 +675,30 @@ def _complementares(base: dict, dados: dict, out: Path, log=print) -> dict:
             "vala_mudou": len(vala) if vala is not None else None}
 
 
+def fechar_eap(cfg: dict, out: Path, dados: dict, log=print, resultados_contrato: list[dict] | None = None) -> dict | None:
+    """F5b: fecha a EAP depois do contrato. Lê `base/`, devolve às gavetas a quantidade que o `contrato_211` calculou
+    (`resultados_contrato`, de `quantificar`; fatos de natureza `calculado` em cada `item_contrato`), regrava a base
+    (idempotente: o que a rodada anterior gravou é trocado) e roda a EAP única (`eap_unica.json`) e o laço até a EAP
+    completa (`eap_laco.json`, `proximo_passe.jsonl`). O resumo entra no `gavetas_escopo.json`. Sem base, devolve None."""
+    pasta = Path(out) / "base"
+    if not (pasta / "objetos.parquet").exists():
+        log("EAP (fechamento): sem base das gavetas (pendência)")
+        return None
+    from . import gavetas_contrato
+
+    base = gavetas_contrato.aplicar_calculadas(gavetas.ler(pasta), resultados_contrato or [])
+    erros = gavetas.conferir_base(base)
+    gavetas.gravar(pasta, base)
+    calculadas = sum(1 for f in base["fatos"] if f["propriedade"] == "quantidade_calculada")
+    log(f"Gavetas (contrato calculado): {calculadas} linha(s) com quantidade calculada; {len(erros)} erros de conferência")
+    resumo = {"calculadas_do_contrato": calculadas, "erros": erros,
+              "eap_unica": _eap_unica(base, dados, out, log), "laco": _laco(base, cfg, out, log)}
+    arquivo = Path(out) / "gavetas_escopo.json"
+    anterior = json.loads(arquivo.read_text(encoding="utf-8")) if arquivo.exists() else {}
+    arquivo.write_text(json.dumps({**anterior, **resumo}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return resumo
+
+
 def _eap_unica(base: dict, dados: dict, out: Path, log=print) -> dict:
     """F3: a EAP única preenchida só pelas gavetas (`eap_preencher`), gravada em `eap_unica.json`, com a paridade contra a
     EAP codificada deste mesmo build (`dados["eap"]`, quando já montada): cada quantidade dela tem de sair igual."""
@@ -721,6 +744,6 @@ def metadados() -> dict:
         "descricao": "leitores (planilha de obras lineares, sondagens, decisões) gravam objetos, fatos e evidências "
                      "nas gavetas; valor ausente não vira fato; retornos de IA entram como inferido e a recusa vira pendência",
         "funcoes": ["de_obras_lineares", "de_sondagens", "de_decisoes", "de_setores", "de_valas", "paridade_valas",
-                    "de_cavas", "paridade_cavas", "de_retornos", "juntar", "etapa"],
+                    "de_cavas", "paridade_cavas", "de_retornos", "juntar", "etapa", "completar_escopo", "fechar_eap"],
         "conceitos": ["gavetas.json", "de_para_extracao.json"],
     }
