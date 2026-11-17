@@ -43,6 +43,8 @@
     pilares (0,1 pt); a 019 pela correlação de linhas com a 018.
   - EEB10: laje superior dos poços e do reservatório (809,20), lajes L23/L24 da casa de bombas (808,65) e a escada
     LE com 17 degraus de 17,2 cm, todos da folha 004 (8 pilares a < 0,1 pt da 003).
+  - EEB09: vigas do piso da 018 (pares de traços paralelos a 20 cm), laje do piso pela área fechada das vigas e as
+    escoras inclinadas ESC1/ESC2 até a cobertura (a PBES não tem escada da EEB09).
   - Descarregador de fundo da CSP04 em 3D pela 026, georreferenciado pelo P7 da EEB09 que a própria folha desenha
     (7,8 cm de mediana contra a PBHI 09). O terreno no local, 797,2–798,0, bate com a boca 798,00 dos furos da
     barragem: segunda conferência independente do controle vertical.
