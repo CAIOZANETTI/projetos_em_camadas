@@ -360,3 +360,21 @@ def test_fechar_eap_aplica_a_leitura_de_ia_e_sem_ela_nada_muda(base, raiz, tmp_p
         and "sem evidencias.ia" in sem["leitura_ia"]["motivo"]
     )
     assert [o["objeto_id"] for o in gavetas.ler(out / "base")["objetos"]] == ["e0"]
+
+
+def _linha_da_folha(codigo, quantidade, conflito=False):
+    return {"codigo": codigo, "servico": "", "unidade": "un", "citacoes": [{"documento": codigo}],
+            "quantidade": quantidade, "valores_afirmados": [quantidade] if quantidade is not None else [],
+            "conflito": conflito}
+
+
+def test_total_com_asterisco_e_partes_por_sistema_nao_somam():
+    from camadas import eap_preencher as ep
+
+    partes = [_linha_da_folha("U1.ACT360.GEO.FUN.EST", 100.0), _linha_da_folha("U1.ACT600.GEO.FUN.EST", 150.0)]
+    assert sum(x["quantidade"] for x in ep._sem_dupla_contagem(partes)) == 250.0  # só partes: somam
+    confere = ep._sem_dupla_contagem([_linha_da_folha("U1.*.GEO.FUN.EST", 250.0), *partes])
+    assert len(confere) == 1 and confere[0]["quantidade"] == 250.0 and not confere[0]["conflito"]
+    diverge = ep._sem_dupla_contagem([_linha_da_folha("U1.*.GEO.FUN.EST", 300.0), *partes])
+    assert len(diverge) == 1 and diverge[0]["quantidade"] is None and diverge[0]["conflito"]
+    assert diverge[0]["valores_afirmados"] == [250.0, 300.0]

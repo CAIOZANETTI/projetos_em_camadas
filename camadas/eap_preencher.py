@@ -444,7 +444,45 @@ def _declaradas_documento(folha: dict, vista: str, leituras: list[dict], reserva
     for x in leituras:
         if any(_vale_ia(x, alvo, vista, reservados) for alvo in folha["aponta"]):
             chaves.setdefault((x["codigo"], x["servico"], x["unidade"]), []).append(x)
-    return [_linha_da_leitura(c, ls) for c, ls in sorted(chaves.items(), key=lambda kv: tuple(map(str, kv[0])))]
+    linhas = [_linha_da_leitura(c, ls) for c, ls in sorted(chaves.items(), key=lambda kv: tuple(map(str, kv[0])))]
+    return _sem_dupla_contagem(linhas)
+
+
+def _generico(codigo: str) -> bool:
+    """O código da evidência deixa unidade ou sistema em aberto (`U1.*.GEO.FUN.EST`): é o total do item, não uma parte."""
+    return "*" in str(codigo).split(".")[:2]
+
+
+def _sem_dupla_contagem(linhas: list[dict]) -> list[dict]:
+    """O total com `*` (unidade ou sistema em aberto) e as partes por sistema do mesmo item, serviço e unidade não se
+    somam: o `*` já as inclui. Fica uma linha só: a do total, se confere com a soma das partes (tolerância de
+    `evidencias`), ou `conflito` sem quantidade. Só partes por sistema (ACT360, ACT600) seguem somando."""
+    grupos: dict[tuple, list[dict]] = {}
+    for linha in linhas:
+        item = ".".join(str(linha["codigo"]).split(".")[2:])
+        grupos.setdefault((item, linha["servico"], linha["unidade"]), []).append(linha)
+    saida = []
+    for grupo in grupos.values():
+        totais = [x for x in grupo if _generico(x["codigo"])]
+        partes = [x for x in grupo if not _generico(x["codigo"])]
+        if not totais or not partes:
+            saida += grupo
+            continue
+        saida.append(_total_com_partes(totais, partes))
+    return saida
+
+
+def _total_com_partes(totais: list[dict], partes: list[dict]) -> dict:
+    """Uma linha para o total `*` e as partes por sistema: o total, se ele e a soma das partes conferem; senão conflito."""
+    valores = sorted({v for x in totais for v in x["valores_afirmados"]})
+    soma = None if any(x["conflito"] for x in partes) else round(sum(x["quantidade"] for x in partes), 6)
+    afirmados = valores + ([soma] if soma is not None else [])
+    unico = (soma is not None and len(valores) == 1
+             and abs(valores[0] - soma) <= evidencias.TOLERANCIA_RELATIVA * max(1.0, abs(valores[0])))
+    base = totais[0]
+    return {**base, "citacoes": [c for x in totais + partes for c in x["citacoes"]],
+            "quantidade": valores[0] if unico else None, "valores_afirmados": sorted(set(afirmados)),
+            "conflito": not unico, "partes": [x["codigo"] for x in partes]}
 
 
 def _totais_por_unidade(linhas: list[dict]) -> list[dict]:
