@@ -544,14 +544,16 @@ if __name__ == "__main__":
     main()
 
 
-def ajustar_vertical(xyz: np.ndarray, pontos: list[dict], raio_m: float = 2.0, min_pontos: int = 30) -> dict:
+def ajustar_vertical(xyz: np.ndarray, pontos: list[dict], raio_m: float = 2.0, min_pontos: int = 30,
+                     so_offset: bool = False) -> dict:
     """Plano de correção z_nuvem -> cota a partir de pontos com cota conhecida no terreno (ex.: boca de sondagem).
 
     Terreno no ponto = percentil 10 da nuvem num raio de 2 m (até 5 m se faltar ponto): descarta telhado e copa.
     Ponto sob copa ou edificação dá diferença absurda e sai pela regra robusta (|resíduo| > max(3·MAD, 1,5 m) contra
     a mediana). Com 6 ou mais pontos válidos ajusta cota = z + a + b·(E − E0) + c·(N − N0) — o SfM georreferenciado
     pelo GPS do drone fica inclinado —; com menos, só o offset. A validação cruzada (deixa-um-fora) mede a qualidade.
-    `pontos`: [{"id", "E", "N", "cota"}] no mesmo referencial horizontal da nuvem.
+    `pontos`: [{"id", "E", "N", "cota"}] no mesmo referencial horizontal da nuvem. `so_offset`: só o deslocamento,
+    mesmo com 6 ou mais pontos (pontos concentrados numa estrutura não sustentam inclinação).
     """
     linhas = []
     for p in pontos:
@@ -574,7 +576,7 @@ def ajustar_vertical(xyz: np.ndarray, pontos: list[dict], raio_m: float = 2.0, m
     centro = np.mean([[l["E"], l["N"]] for l in usados], axis=0)
     matriz = np.array([[1.0, l["E"] - centro[0], l["N"] - centro[1]] for l in usados])
     alvo = np.array([l["cota"] - l["z_nuvem"] for l in usados])
-    colunas = 3 if len(usados) >= 6 else 1
+    colunas = 3 if len(usados) >= 6 and not so_offset else 1
     coef = np.zeros(3)
     coef[:colunas] = np.linalg.lstsq(matriz[:, :colunas], alvo, rcond=None)[0]
     erros_cruzados = []

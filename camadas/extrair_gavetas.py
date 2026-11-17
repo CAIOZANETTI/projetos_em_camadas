@@ -504,6 +504,8 @@ def etapa(cfg: dict, furos: list[dict], out: Path, log=print, redes_vala: list[d
     aplicados = [{**t, "metodo": escolha.get(ol.norm(t["local"]), t["metodo"])} for t in trechos]
     pasta = Path(out) / "base"
     setores = (cfg.get("gavetas") or {}).get("setores")
+    if cavas is not None and "g" not in cavas:      # só a conferência (obra sem `escavacao`): não há cava a gravar
+        cavas = None
     base = _base_da_etapa(cfg, furos, out, trechos, aba, redes_vala, cavas, epsg)
     if (Path(out) / "retornos_gavetas").is_dir():                       # fatos da IA: inferidos, com executor e trecho
         base = juntar(base, _conciliar_com_a_base(de_retornos(Path(out) / "retornos_gavetas"), base))

@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.74.1 — 2026-11-16 · Irati: Captação CSP04, EEB09 e EEB10 sobre o voo de 13/11
+- **Obra nova `exemplos/irati_captacao/obra.json`**: voo DJI Mini 2 de 13/11/2026 (32 fotos a 60 m) × pacote
+  `01_CAPT-EEB09 AAB07-EEB10` do `1023. SAA_IRATI.zip`, extraído para `dados/irati_captacao/` com a origem de cada
+  arquivo em `origem_zip.tsv`.
+  - Ortofoto verdadeira pelo SfM: 2,9 milhões de pontos, 149 × 182 m a 4 cm/px.
+  - As folhas 001 a 004 do CSP04 (locação, urbanização, interligação e drenagem) entram por afim absoluta. A afim vem
+    da malha G-MALHA, cujos rótulos são texto vetorial (E 546.850/546.900, N 7.183.500/7.183.550); escala isótropa
+    0,05307 m/pt (1:150).
+  - O controle absoluto pela LAYLOC deslocou a ortofoto em −0,16 m E e +1,06 m N (viés do GPS do drone), com resíduo
+    mediano de 36 cm.
+  - As vistas de detalhe 1:50 também entram por afim absoluta. A escala vem do título da vista, lido por OCR, e o
+    encaixe é vetor × vetor sobre a prancha georreferenciada: rotação por correlação de ocupação e ICP rígido.
+    - EEB09 (folha 09): sobre a LAYLOC, ICP com mediana de 0,4 cm.
+    - Barragem (folha 07): sobre a folha 09, mediana de 5 cm.
+    - EEB10 (folha 13): sobre a LAYLOC, mediana de 15 cm, encaixe a conferir.
+    - Cada uma foi conferida na ortofoto.
+  - Sondagens: os boletins SPT da captação não estão no pacote e as folhas PBGE não locam os furos. A Tabela 1 do
+    memorial (imagem) foi lida por OCR: SP 01 a SP 04, com cota de boca, NA e NSPT por camada, mas sem coordenada nem
+    profundidade. Por isso fica como pendência no obra.json, com as divergências do memorial, e não entra como
+    `sondagens`.
+  - Estrutura: as 28 pranchas PBES (vetoriais, sem texto) foram lidas por OCR: carimbo, Peso Total, resumo dos
+    materiais, estacas e níveis. Bateram com o "RESUMO DE MATERIAIS CAPTAÇÃO": 85.644 kg de aço e 596,67 m³ de
+    concreto. EEB10 e EEB09 ficam sobre estacas escavadas Ø 40 × 9 m (38 e 52); o descarregador da CSP04 fica em
+    fundação direta. As divergências (soma da folha 003, carimbo "esgotamento sanitário") estão no obra.json.
+  - Fundação da EEB09 georreferenciada a partir da folha 016: 29 blocos e 52 estacas, com face superior e
+    arrasamento. A folha 016 recebe a afim da PBHI 09 mais uma translação, porque as duas desenham a grade alinhada
+    aos eixos da folha; as linhas de viga coincidem a 2–4 cm. As estacas entram como camada (`estacas` no
+    obra.json).
+  - Fundação da EEB10 pela folha 002 sobre a PBHI 13: 38 blocos e 38 estacas, nos eixos das paredes do poço a
+    ≤ 1 pt. Na ortofoto, a escada e os poços em construção caem no lugar. As estacas das duas elevatórias ficam em
+    `estacas_captacao.csv` (90). Divergências da tabela (PC9 duplicado, P9 ausente, PC1=PC2) estão no obra.json.
+  - Controle vertical PROVISÓRIO: nenhum dos 20 pontos RTK cai na nuvem e as marcas de terreno da PBHI 13 caem sob
+    as araucárias ou na cava. O offset de 812,02 m vem de 8 marcas de nível da PBHI 13 nos pisos já concretados da
+    EEB10 (validação cruzada 0,41 m). Na EEB09, que não entrou no ajuste, o terreno sobre os blocos dá 799,52 m
+    para faces de 799,30 a 800,75. Com isso os 67 blocos entram no 3D (`solidos` no obra.json).
+  - EEB10 em 3D: paredes e pilares da folha 003 (preenchimento do layer 12), lajes de fundo e cobertura, com topos
+    pelos cortes das folhas 005/006 e fundos pela face dos blocos da 002. A 003 cai sobre a 002 a 0,1 pt; na ortofoto
+    as paredes ficam a 22 cm (mediana) das bordas da obra em construção.
+  - EEB09 em 3D: vigas baldrame (017) e de cobertura (019) pela cor de N.F.S. da legenda das folhas, pilares da 018
+    (os hachurados entram pelo bloco e pelo rótulo) e a laje do piso a 802,00. 017 e 018 caem sobre a 016 pelos
+    pilares (0,1 pt); a 019 pela correlação de linhas com a 018.
+  - EEB10: laje superior dos poços e do reservatório (809,20), lajes L23/L24 da casa de bombas (808,65) e a escada
+    LE com 17 degraus de 17,2 cm, todos da folha 004 (8 pilares a < 0,1 pt da 003).
+  - EEB09: vigas do piso da 018 (pares de traços paralelos a 20 cm), laje do piso pela área fechada das vigas e as
+    escoras inclinadas ESC1/ESC2 até a cobertura (a PBES não tem escada da EEB09).
+  - Descarregador de fundo da CSP04 em 3D pela 026, georreferenciado pelo P7 da EEB09 que a própria folha desenha
+    (7,8 cm de mediana contra a PBHI 09). O terreno no local, 797,2–798,0, bate com a boca 798,00 dos furos da
+    barragem: segunda conferência independente do controle vertical.
+  - Também estão pendentes o KMZ da supressão liberada e o ponto RTK `pt0`.
+- **`controle_vertical`**: aceita `pontos` (arquivo [{id, E, N, cota}]) além das sondagens, e `modelo: "offset"`
+  para não inclinar o plano com pontos concentrados (`sfm.ajustar_vertical(..., so_offset=True)`); o 3D diz
+  "deslocamento ajustado aos pontos de controle". **`solidos`**: lista de JSON com blocos já georreferenciados
+  (`obra.solidos_de_arquivos`), somados aos sólidos das fichas; aceita também `elementos` com z0/z1 (paredes,
+  pilares, lajes). Testes incluídos.
+- **`obra.estacas`**: a coluna opcional `execucao` do CSV dá o nome da camada ("Estacas escavada"); sem ela, continua
+  "hélice contínua". Teste incluído.
+- **Unidades do voo**: a estrutura em construção ao sul é a **EEB10 alto recalque**, a EEB09 fica junto ao rio, ao
+  norte, e a CSP04 atravessa o rio. O nome do exemplo antigo `exemplos/irati/` ("EEB 10") está certo. A pasta local
+  `drone_EEB10`, cerca de 5 km a oeste, é de outro local.
+- **`extrair_gavetas.etapa`**: obra sem `escavacao` no obra.json derrubava a etapa com `KeyError: 'g'`. A conferência
+  das cavas grava `cavas["conferencia"]` mesmo sem cava; agora um `cavas` sem a superfície vale como "sem cavas".
+  Teste de regressão incluído.
+
 ## 0.74.0 — 2026-11-09 · F4b da reconstrução: vala única pela vala_rede (fecha o portão da F4)
 Decisão do Caio (09/11): "usar só a vala_rede". A verificação noturna de 05/11 mostrou a F4 marcada como feita com
 dois caminhos para a vala; esta rodada fecha o portão "um só caminho por grandeza".
