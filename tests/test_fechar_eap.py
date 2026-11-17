@@ -591,3 +591,13 @@ def test_fechar_eap_leva_o_calculado_a_folha_e_e_idempotente(planilha, base, tmp
 
 def test_fechar_eap_sem_base_devolve_none(tmp_path):
     assert extrair_gavetas.fechar_eap({}, tmp_path, {}, log=lambda *a: None) is None
+
+
+def test_serial_de_data_so_vale_em_unidade_de_contagem():
+    """46 054 peças é data do Excel; 46 054 m de tubo é quantidade possível de uma adutora e segue como está."""
+    from camadas import gavetas_contrato
+
+    em_metro = {"unidade": "M", "qtd_etapa1": 46054.0, "qtd_etapa2": None}
+    assert gavetas_contrato._serial_de_data(em_metro) == [] and em_metro["qtd_etapa1"] == 46054.0
+    em_peca = {"unidade": "PÇ", "qtd_etapa1": 46054.0, "qtd_etapa2": None}
+    assert gavetas_contrato._serial_de_data(em_peca) and em_peca["qtd_etapa1"] is None

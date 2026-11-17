@@ -290,10 +290,14 @@ def classificar_material(item: dict) -> tuple[dict, str | None]:
 
 def _serial_de_data(item: dict) -> list[str]:
     """Motivos das quantidades da Relação que parecem data do Excel (número inteiro no intervalo de
-    `materiais.serial_de_data_excel`: 46023 é 01/01/2026): a quantidade sai do item (fica `None`) e o motivo vira pendência,
-    para o serial não inflar o total da folha. Quantidade fracionária ou fora do intervalo segue como está."""
+    `materiais.serial_de_data_excel`: 46023 é 01/01/2026) numa unidade de contagem (`unidades_contagem`: peça, unidade;
+    46 mil peças de um item é implausível, 46 mil metros de tubo não): a quantidade sai do item (fica `None`) e o motivo
+    vira pendência, para o serial não inflar o total da folha. Quantidade fracionária, fora do intervalo ou em outra
+    unidade segue como está."""
     menor, maior = MATERIAIS["serial_de_data_excel"]
     motivos = []
+    if str(item.get("unidade") or "").strip().lower() not in MATERIAIS["unidades_contagem"]:
+        return motivos
     for etapa in ("etapa1", "etapa2"):
         quantidade = item[f"qtd_{etapa}"]
         if (
