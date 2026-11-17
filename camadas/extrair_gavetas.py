@@ -687,16 +687,35 @@ def fechar_eap(cfg: dict, out: Path, dados: dict, log=print, resultados_contrato
     from . import gavetas_contrato
 
     base = gavetas_contrato.aplicar_calculadas(gavetas.ler(pasta), resultados_contrato or [])
+    base, leitura_ia = _leitura_ia(base, cfg, log)
     erros = gavetas.conferir_base(base)
     gavetas.gravar(pasta, base)
     calculadas = sum(1 for f in base["fatos"] if f["propriedade"] == "quantidade_calculada")
     log(f"Gavetas (contrato calculado): {calculadas} linha(s) com quantidade calculada; {len(erros)} erros de conferência")
-    resumo = {"calculadas_do_contrato": calculadas, "erros": erros,
+    resumo = {"calculadas_do_contrato": calculadas, "leitura_ia": leitura_ia, "erros": erros,
               "eap_unica": _eap_unica(base, dados, out, log), "laco": _laco(base, cfg, out, log)}
     arquivo = Path(out) / "gavetas_escopo.json"
     anterior = json.loads(arquivo.read_text(encoding="utf-8")) if arquivo.exists() else {}
     arquivo.write_text(json.dumps({**anterior, **resumo}, ensure_ascii=False, indent=1), encoding="utf-8")
     return resumo
+
+
+def _leitura_ia(base: dict, cfg: dict, log=print) -> tuple[dict, dict]:
+    """F5b-E3: a leitura de IA com citação conferida (`evidencias.ia` do obra.json) entra nas gavetas antes da EAP única
+    (`gavetas_ia.aplicar`: o código reconfere cada linha contra o texto dos documentos). Sem `evidencias.ia` ou sem o
+    arquivo, a base não muda e o resumo diz o motivo."""
+    from . import evidencias, gavetas_ia
+
+    caminho = (cfg.get("evidencias") or {}).get("ia")
+    if not caminho or not Path(caminho).is_file():
+        motivo = "sem evidencias.ia no obra.json" if not caminho else f"arquivo ausente: {caminho}"
+        log(f"Leitura de IA: nada a aplicar ({motivo})")
+        return gavetas_ia.sem_ia(base), {"aplicada": False, "motivo": motivo}
+    linhas = evidencias._ler_ia(caminho)
+    nova, resumo = gavetas_ia.aplicar(base, linhas, Path((cfg.get("inventario") or {}).get("pasta") or "."))
+    log(f"Leitura de IA: {resumo['linhas']} linha(s), {resumo['aceitas']} aceita(s) com citação conferida "
+        f"({resumo['mencoes']} menção(ões) sem número), {resumo['recusadas']} recusada(s) viraram pendência")
+    return nova, {"aplicada": True, **resumo}
 
 
 def _eap_unica(base: dict, dados: dict, out: Path, log=print) -> dict:
