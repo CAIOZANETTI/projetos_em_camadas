@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.75.0 — 2026-11-18 · F5b da reconstrução: as folhas obrigatórias pela escada (em andamento)
+- Os números do build real entram ao fechar a rodada.
+
 ## 0.74.0 — 2026-11-09 · F4b da reconstrução: vala única pela vala_rede (fecha o portão da F4)
 Decisão do Caio (09/11): "usar só a vala_rede". A verificação noturna de 05/11 mostrou a F4 marcada como feita com
 dois caminhos para a vala; esta rodada fecha o portão "um só caminho por grandeza".

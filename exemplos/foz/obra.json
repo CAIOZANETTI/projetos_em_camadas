@@ -903,5 +903,8 @@
      "escala": 50,
      "ancoras": "dados/foz/geotec/estacas.csv"
    }
- ]
+ ],
+ "evidencias": {"ia": "dados/foz/evidencias_ia.jsonl",
+                "observacoes": "leitura de IA da F5b (23 menções com citação conferida); as gavetas reconferem cada linha contra os documentos do inventário (camadas.gavetas_ia)"},
+ "decisoes_eap": "exemplos/foz/decisoes_eap.json"
 }

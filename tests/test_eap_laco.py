@@ -326,3 +326,21 @@ def test_roteiro_nao_traz_fragmento_de_regex_como_termo():
     termos = linha["itens"][0]["termos"]
     assert "estacas" in termos
     assert all(not t.startswith("(") and len(t.replace(" ", "")) >= 4 for t in termos)
+
+
+def test_item_global_confirmado_fecha_a_folha_mesmo_com_mencao(tmp_path):
+    """Canteiro a preço global: o TR cita o item, sem quantidade. A decisão 'item_global' do Caio fecha a folha; sem
+    `confirmado_por` ela não vale e o portão segue aberto."""
+    base = _base()
+    _documento(base, "memorial.pdf")
+    _mencao(base, "GER.PRE.MOB")
+    eap = _eap(_folha("OP.01.01", "GER.PRE.MOB"))
+    arquivo = tmp_path / "decisoes_eap.json"
+    proposta = {"folha": "OP.01.01", "decisao": "item_global", "motivo": "TR p. 25: por preço global"}
+    arquivo.write_text(json.dumps({"decisoes": [proposta]}), encoding="utf-8")
+    assert laco.ler_decisoes(arquivo) == {}
+    assert laco.portao(eap, laco.destinos(eap, base, laco.ler_decisoes(arquivo)))["fechada"] is False
+    arquivo.write_text(json.dumps({"decisoes": [{**proposta, "confirmado_por": "Caio"}]}), encoding="utf-8")
+    destinos = laco.destinos(eap, base, laco.ler_decisoes(arquivo))
+    assert destinos[0]["decisao"] == "item global (verba)" and destinos[0]["confirmado_por"] == "Caio"
+    assert laco.portao(eap, destinos)["fechada"] is True

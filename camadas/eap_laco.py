@@ -36,6 +36,9 @@ CANDIDATA = "candidata a declarada (documento)"
 MENCAO = "menção em documento"
 ESPERADO = "documento esperado ausente"
 AUSENTE = "ausente do projeto"
+DECISOES = ("ausente_do_projeto", "item_global")
+"""Decisões do Caio que fecham uma folha obrigatória no portão: "ausente do projeto" (só sem menção e sem documento
+esperado faltando) e "item global" (verba: o documento cita o item, mas não o quantifica, como canteiro a preço global)."""
 PRECEDENCIA = (CANDIDATA, MENCAO, ESPERADO, AUSENTE)
 """Destino principal da folha = a primeira da lista que existir entre as ações dela."""
 
@@ -227,7 +230,7 @@ def _folhas(eap_unica: dict):
 def ler_decisoes(caminho: str | Path | None) -> dict[str, dict]:
     """{folha: decisão} de `decisoes_eap.json`, se o arquivo existir (senão {}). Aceita `{"decisoes": [...]}` ou
     `{"decisoes": {folha: {...}}}`; cada decisão traz `folha`, `decisao` ("ausente_do_projeto"), `motivo`,
-    `confirmado_por` e `data`. Só vale a decisão com `confirmado_por` preenchido."""
+    `confirmado_por` e `data`; `decisao` é uma de `DECISOES`. Só vale a decisão com `confirmado_por` preenchido."""
     if not caminho or not Path(caminho).is_file():
         return {}
     bruto = json.loads(Path(caminho).read_text(encoding="utf-8")).get("decisoes", [])
@@ -237,7 +240,7 @@ def ler_decisoes(caminho: str | Path | None) -> dict[str, dict]:
         d["folha"]: d
         for d in bruto
         if d.get("folha")
-        and d.get("decisao") == "ausente_do_projeto"
+        and d.get("decisao") in DECISOES
         and d.get("confirmado_por")
     }
 
@@ -391,7 +394,10 @@ def destinos(eap: dict, base: dict, decisoes: dict | None = None) -> list[dict]:
             "texto": principal["texto"],
         }
         decisao = decisoes.get(folha["id"])
-        if principal["destino"] == AUSENTE and decisao:
+        if decisao and decisao["decisao"] == "item_global":    # o documento cita, não quantifica: verba
+            destino |= {"confirmado_por": decisao["confirmado_por"], "motivo_confirmado": decisao.get("motivo"),
+                        "decisao": "item global (verba)"}
+        elif principal["destino"] == AUSENTE and decisao:
             destino["confirmado_por"] = decisao["confirmado_por"]
             destino["motivo_confirmado"] = decisao.get("motivo")
         elif decisao:
