@@ -1,0 +1,121 @@
+{
+ "metadata": {
+  "fonte": "leitura de IA com citação conferida (dados/foz/evidencias_ia.jsonl, 23 menções aceitas, 0 número declarado) sobre o roteiro da F5b",
+  "estado": "premissa",
+  "observacoes": "Propostas do gerente para as 14 folhas obrigatórias que travam o portão EAP completa. Nenhuma vale até o Caio preencher `confirmado_por` (camadas.eap_laco.ler_decisoes). `decisao`: item_global (verba: o documento cita, não quantifica) ou ausente_do_projeto; null = sem proposta de fechamento (ler a prancha na próxima rodada)."
+ },
+ "decisoes": [
+  {
+   "folha": "OP.01.01",
+   "decisao": "item_global",
+   "motivo": "TR (Anexo A) p. 24-25: mobilização e canteiro pagos por preço global (80 % e 20 %); sem quantidade no texto",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OP.11.01",
+   "decisao": "item_global",
+   "motivo": "TR p. 29: teste de estanqueidade como obrigação, sem metragem de teste; o 3.160 m do AAT06 é da Unidade 2",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OP.12.03",
+   "decisao": "item_global",
+   "motivo": "TR p. 24: desmobilização do canteiro de inteira responsabilidade da contratada; parte do preço global",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OL.01.01",
+   "decisao": "item_global",
+   "motivo": "TR p. 24-25: mobilização e canteiro por preço global; placas de obra divergem (TR 01 un × AAT06 2 un), a decidir à parte",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OL.01.02",
+   "decisao": "item_global",
+   "motivo": "TR p. 6: topografia (locação, nivelamento e acompanhamento) como serviço, sem quantidade",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OL.09.01",
+   "decisao": "item_global",
+   "motivo": "TR p. 29 e AAT06 p. 3-5: a obra só se conclui após o teste de estanqueidade; sem metragem nem trechos",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OL.11.01",
+   "decisao": "item_global",
+   "motivo": "TR p. 30 e p. 51: cadastro e as built por adutora; TR p. 78 mede em 10 % do valor de cada adutora (percentual, não quantidade)",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OL.11.02",
+   "decisao": "item_global",
+   "motivo": "TR p. 29: limpeza de obra, raspagem, varrição e lavagem de ruas como obrigação, sem quantidade",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OL.11.03",
+   "decisao": "item_global",
+   "motivo": "TR p. 24-25: desmobilização faturada em 20 % na última medição; parte do preço global do canteiro",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OP.04.01",
+   "decisao": null,
+   "motivo": "Descritivo Civil ETA p. 6 e Especificações p. 23 citam pisos, sem área; ler a prancha (os 1.692 e 9.031 m² do texto são de pintura)",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OP.04.04",
+   "decisao": null,
+   "motivo": "Descritivo Civil ETA p. 6 e MEMODESC p. 28 citam paredes e alvenaria, sem área; ler a prancha",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OP.09.02",
+   "decisao": null,
+   "motivo": "MEMODESC p. 23: eletrodo de aterramento com cabo de cobre 50 mm² e hastes de 3,0 m, sem número de hastes nem malha; ler a prancha",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OL.01.03",
+   "decisao": null,
+   "motivo": "TR p. 28 e AAT06 p. 2: sinalização (cones, placas, sinalização noturna) sem quantidade; ler a prancha ou o plano de tráfego",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  },
+  {
+   "folha": "OL.05.02",
+   "decisao": null,
+   "motivo": "TR p. 27 (reaterro e compactação) e AAT06 p. 2-4 (GC 95 % e 100 %) especificam, não quantificam; volume viria do reaterro da vala, regra nova a decidir",
+   "confirmado_por": null,
+   "data": null,
+   "proposta_por": "gerente (F5b, leitura de IA com citação conferida, 17/11/2026)"
+  }
+ ]
+}

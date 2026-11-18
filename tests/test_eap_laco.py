@@ -3,7 +3,7 @@
 import json
 
 from camadas import eap_laco as laco
-from camadas import gavetas
+from camadas import gavetas, gavetas_texto
 
 DOC = "doc0000000000001"
 
@@ -233,3 +233,114 @@ def test_roteiro_une_itens_e_paginas_da_mesma_folha_e_documento():
     assert linhas[0]["paginas"] == [2, 5]
     assert [i["item"] for i in linhas[0]["itens"]] == ["GEO.FUN.EST", "GEO.FUN.BLO"]
     assert linhas[0]["documento"] == "laudo.pdf"
+
+
+def _mencao_com_trechos(
+    base: dict, item: str, trechos: dict, documento_id: str = DOC
+) -> None:
+    """Menção com um trecho próprio por página ({pagina: trecho}), como `gavetas_texto` grava."""
+    oid = f"txt-{documento_id}-{item}"
+    base["objetos"].append({"objeto_id": oid, "classe": "mencao_documento"})
+    paginas = sorted(trechos)
+    for pagina in paginas:
+        ev = f"EV-{oid}-p{pagina}"
+        base["evidencias"].append(
+            {
+                "evidencia_id": ev,
+                "documento": documento_id,
+                "localizador": {"pagina": pagina},
+                "trecho": trechos[pagina],
+            }
+        )
+        base["fatos"].append(
+            {
+                "fato_id": f"{oid}.mencao.{pagina}",
+                "objeto_id": oid,
+                "propriedade": "mencao",
+                "valor": trechos[pagina],
+                "natureza": "observado",
+                "evidencia_id": ev,
+            }
+        )
+    base["fatos"].append(
+        {
+            "fato_id": f"{oid}.item",
+            "objeto_id": oid,
+            "propriedade": "item_tecnico",
+            "valor": item,
+            "natureza": "observado",
+            "evidencia_id": f"EV-{oid}-p{paginas[0]}",
+        }
+    )
+
+
+def _roteiro_de_estacas(trechos: dict, regras=None, pendencias=()) -> list[dict]:
+    base = _base()
+    _documento(base, "pasta/memorial.pdf")
+    _mencao_com_trechos(base, "GEO.FUN.EST", trechos)
+    base["pendencias"] += list(pendencias)
+    destinos = laco.destinos(_eap(_folha("OP.03.01", "GEO.FUN.EST")), base)
+    return laco.roteiro(destinos, regras) if regras else laco.roteiro(destinos)
+
+
+def test_roteiro_ranqueia_paginas_pela_forca_e_corta_no_teto():
+    trechos = {n: "AS ESTACAS SEGUEM O PROJETO" for n in range(1, 9)}
+    trechos[6] = "FORNECIMENTO DE 250 ESTACAS HELICE"
+    trechos[4] = "ESTACAS HELICE CONTINUA CONFORME PROJETO"
+    regras = {**gavetas_texto.REGRAS, "teto_paginas_por_documento_folha": 3}
+    (linha,) = _roteiro_de_estacas(trechos, regras)
+    assert linha["paginas"] == [6, 1, 2]
+    assert linha["paginas_cortadas"] == 5
+    primeira = linha["paginas_ranqueadas"][0]
+    assert primeira["pagina"] == 6 and primeira["candidata"]["valor"] == 250
+    assert linha["forca"][0] == 1
+
+
+def test_roteiro_usa_o_teto_declarado_no_conceito():
+    trechos = {n: "AS ESTACAS SEGUEM O PROJETO" for n in range(1, 10)}
+    (linha,) = _roteiro_de_estacas(trechos)
+    teto = gavetas_texto.REGRAS["teto_paginas_por_documento_folha"]
+    assert len(linha["paginas"]) == teto
+    assert linha["paginas_cortadas"] == 9 - teto
+    assert laco.resumo_do_roteiro([linha])["paginas_cortadas"] == 9 - teto
+
+
+def test_roteiro_diz_quais_termos_foram_ignorados_e_por_que():
+    ignorado = {
+        "objeto_id": "termo:GEO.FUN.EST",
+        "regra": gavetas_texto.REGRA_TERMO_IGNORADO,
+        "motivo": "frequência de documento 14.4% acima de 8%",
+        "detalhe": r"\bESTACAS?\b(?!\s*\d+\s*\+)(?! (DE MADEIRA|PARA PROTECAO))",
+    }
+    (linha,) = _roteiro_de_estacas({3: "ESTACAS HELICE"}, pendencias=[ignorado])
+    item = linha["itens"][0]
+    assert item["termos_ignorados"] == [
+        {"termo": "estacas", "motivo": ignorado["motivo"]}
+    ]
+    assert "estacas" not in item["termos"]
+    assert laco.resumo_do_roteiro([linha])["termos_ignorados"] == 1
+
+
+def test_roteiro_nao_traz_fragmento_de_regex_como_termo():
+    (linha,) = _roteiro_de_estacas({3: "ESTACAS HELICE"})
+    termos = linha["itens"][0]["termos"]
+    assert "estacas" in termos
+    assert all(not t.startswith("(") and len(t.replace(" ", "")) >= 4 for t in termos)
+
+
+def test_item_global_confirmado_fecha_a_folha_mesmo_com_mencao(tmp_path):
+    """Canteiro a preço global: o TR cita o item, sem quantidade. A decisão 'item_global' do Caio fecha a folha; sem
+    `confirmado_por` ela não vale e o portão segue aberto."""
+    base = _base()
+    _documento(base, "memorial.pdf")
+    _mencao(base, "GER.PRE.MOB")
+    eap = _eap(_folha("OP.01.01", "GER.PRE.MOB"))
+    arquivo = tmp_path / "decisoes_eap.json"
+    proposta = {"folha": "OP.01.01", "decisao": "item_global", "motivo": "TR p. 25: por preço global"}
+    arquivo.write_text(json.dumps({"decisoes": [proposta]}), encoding="utf-8")
+    assert laco.ler_decisoes(arquivo) == {}
+    assert laco.portao(eap, laco.destinos(eap, base, laco.ler_decisoes(arquivo)))["fechada"] is False
+    arquivo.write_text(json.dumps({"decisoes": [{**proposta, "confirmado_por": "Caio"}]}), encoding="utf-8")
+    destinos = laco.destinos(eap, base, laco.ler_decisoes(arquivo))
+    assert destinos[0]["decisao"] == "item global (verba)" and destinos[0]["confirmado_por"] == "Caio"
+    assert laco.portao(eap, destinos)["fechada"] is True

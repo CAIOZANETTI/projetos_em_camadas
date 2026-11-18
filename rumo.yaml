@@ -1,62 +1,104 @@
-objetivo: 'Reconstrução F4b (docs/RECONSTRUCAO.md §5.5): vala única pela vala_rede
-  — os serviços da vala (demolição, escavação, escoramento, rebaixamento, berço, envoltória,
-  reaterro, bota-fora, transporte, recomposição) saem de um só caminho, as redes de
-  vala (RV-*) das gavetas; a vala do trecho e a vala refeita pelo contrato_211 deixam
-  de existir; fecha o portão da F4 (0 caminho paralelo)'
+objetivo: 'Reconstrução F5b (docs/RECONSTRUCAO.md §3, F5): fechar as 20 folhas obrigatórias
+  que travam o portão EAP completa pela escada — código primeiro (contrato e Relação
+  de Materiais nas folhas, quantidades calculadas do contrato), depois IA com citação
+  conferida sobre um roteiro limpo, e o que sobrar vai ao Caio como ausente do projeto'
 criterio_de_pronto:
-- 'camadas/gavetas_servicos.py: os elementos de vala vêm dos objetos rede_vala (classe
-  por metro e furo mais próximo), não dos trechos; nenhum serviço complementar repete
-  uma grandeza que a regra vala_rede já calcula (nada é calculado para ser descartado)'
-- 'camadas/eap_preencher.py: sem o descarte do caminho paralelo; teste ''0 caminho
-  paralelo'': cada (código da EAP, serviço) vem de uma regra só'
-- 'camadas/contrato_211.py: as quantidades da vala (comprimento, escavação, reaterro,
-  bota-fora, transporte, recomposição, rebaixamento) lidas dos serviços das gavetas;
-  o módulo não chama mais o dimensionador da vala'
-- 'três verdes (pytest, aferição, determinismo), build real: golden atualizado de
-  propósito com a justificativa no CHANGELOG, EAP única × codificada sem regressão,
-  interface 0 falha; balanço sem REVERTER; PR e merge'
-base: db92362
+- 'contrato e materiais nas folhas: folha pela unidade (U1 → OP, U2 → OL); a quantidade
+  calculada pelo contrato_211 entra como calculada; conexões, válvulas e peças da
+  Relação de Materiais como declarada; cada uma com aba e linha'
+- 'roteiro limpo: termos genéricos fora (frequência no corpus), candidata só com unidade
+  admitida pela folha; leituras obrigatórias medidas antes × depois'
+- leitura de IA conferida (evidencias.conferir) vira declarada (documento) na EAP
+  única, com página e trecho; nunca número sem citação conferida
+- 'build real: folhas obrigatórias que travam medidas antes (20) × depois; lista das
+  restantes ao Caio para ausente do projeto; três verdes, golden sem regressão não
+  explicada, interface 0 falha, balanço sem REVERTER, PR e merge'
+base: 4b85052
 etapas:
 - id: E1
-  nome: 'F4b: vala das gavetas pela rede_vala (gavetas_servicos e eap_preencher)'
+  nome: 'F5b: contrato e Relação de Materiais nas folhas da EAP única (código)'
   entregaveis:
-  - camadas/gavetas_servicos.py
+  - camadas/contrato_211.py
+  - conceitos/composicoes_sanepar.json
+  - camadas/gavetas_contrato.py
   - camadas/eap_preencher.py
-  - tests/test_gavetas_servicos.py
+  - camadas/extrair_gavetas.py
+  - camadas/obra.py
+  - tests/test_contrato_211.py
+  - tests/test_gavetas_contrato.py
   - tests/test_eap_preencher.py
+  - tests/test_fechar_eap.py
   depende_de: []
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 300000
   status: feito
-  inicio: '2026-11-09T13:05:25Z'
-  fim: '2026-11-09T14:08:40Z'
+  inicio: '2026-11-17T13:33:35Z'
+  fim: '2026-11-18T20:49:48Z'
   forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
-    que já falha na main (tesseract do ambiente; tarefa separada sugerida); balanço
-    SEM_GANHO sem piora; aferição ok; determinismo ok; build real: interface 331/0,
-    0 caminho paralelo, paridades 0, EAP única 37/37'
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
 - id: E2
-  nome: 'F4b: contrato_211 lê a vala das gavetas'
+  nome: 'F5b: roteiro limpo (termos genéricos fora, unidade admitida pela folha)'
   entregaveis:
-  - camadas/contrato_211.py
-  - camadas/obra.py
-  - tests/test_contrato_211.py
+  - camadas/eap_laco.py
+  - camadas/gavetas_texto.py
+  - tests/test_eap_laco.py
+  - tests/test_gavetas_texto.py
+  - conceitos/busca_texto.json
+  depende_de: []
+  agente: sonnet
+  estimativa_min: 45
+  estimativa_tokens: 200000
+  status: feito
+  inicio: '2026-11-17T13:33:36Z'
+  fim: '2026-11-18T20:49:49Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
+- id: E3
+  nome: 'F5b: ponte IA conferida → gavetas → EAP única (declarada por documento)'
+  entregaveis:
+  - camadas/gavetas_ia.py
+  - camadas/eap_preencher.py
+  - camadas/extrair_gavetas.py
+  - conceitos/gavetas.json
+  - tests/test_gavetas_ia.py
   depende_de:
   - E1
   agente: sonnet
-  estimativa_min: 60
-  estimativa_tokens: 300000
+  estimativa_min: 45
+  estimativa_tokens: 250000
   status: feito
-  inicio: '2026-11-09T13:22:53Z'
-  fim: '2026-11-09T14:08:41Z'
+  inicio: '2026-11-17T13:48:03Z'
+  fim: '2026-11-18T20:49:50Z'
   forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
-    que já falha na main (tesseract do ambiente; tarefa separada sugerida); balanço
-    SEM_GANHO sem piora; aferição ok; determinismo ok; build real: interface 331/0,
-    0 caminho paralelo, paridades 0, EAP única 37/37'
-- id: E3
-  nome: 'F4b: build real, golden de propósito, três verdes, balanço, PR e merge'
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
+- id: E4
+  nome: 'F5b: leitura de IA das folhas que travam, com citação conferida'
   entregaveis:
-  - camadas/extrair_gavetas.py
+  - exemplos/foz/evidencias_ia.jsonl
+  - exemplos/foz/obra.json
+  - exemplos/foz/decisoes_eap.json
+  depende_de:
+  - E2
+  agente: sonnet
+  estimativa_min: 60
+  estimativa_tokens: 400000
+  status: feito
+  inicio: '2026-11-17T14:01:46Z'
+  fim: '2026-11-18T20:49:51Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
+- id: E5
+  nome: 'F5b: build real, portão, lista ao Caio, três verdes, balanço, PR e merge'
+  entregaveis:
   - tests/golden_foz/quantidades_foz.json
   - CHANGELOG.md
   - camadas/__init__.py
@@ -70,47 +112,34 @@ etapas:
   - results/rumo.html
   - docs/RECONSTRUCAO.md
   depende_de:
-  - E1
-  - E2
+  - E3
+  - E4
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 150000
   status: feito
-  inicio: '2026-11-09T13:30:25Z'
-  fim: '2026-11-09T14:08:42Z'
+  inicio: '2026-11-18T20:49:52Z'
+  fim: '2026-11-18T20:49:52Z'
   forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
-    que já falha na main (tesseract do ambiente; tarefa separada sugerida); balanço
-    SEM_GANHO sem piora; aferição ok; determinismo ok; build real: interface 331/0,
-    0 caminho paralelo, paridades 0, EAP única 37/37'
-- id: E1b
-  nome: 'F4b: uma largura por rede (material do contrato e DN nominal nos três cálculos),
-    CRS da obra nas gavetas e sistema pelo trecho do contrato (achados do build real)'
-  entregaveis:
-  - camadas/valas.py
-  - camadas/gavetas.py
-  - camadas/dimensoes.py
-  - camadas/associados.py
-  - conceitos/de_para_extracao.json
-  - conceitos/de_para_servicos.json
-  - conceitos/gavetas.json
-  - tests/test_cavas_gavetas.py
-  - tests/test_gavetas_servicos.py
-  depende_de:
-  - E1
-  agente: sonnet
-  estimativa_min: 30
-  estimativa_tokens: 150000
-  status: feito
-  inicio: '2026-11-09T13:25:00Z'
-  fim: '2026-11-09T14:40:00Z'
-  forcado: 'etapa registrada depois de feita: o build real mostrou três larguras para
-    a mesma rede, o CRS 31982 fixo e 4 redes sem sistema; mesmo motivo do teste OCR'
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
 historico:
+- data: '2026-11-18'
+  mudanca: 'entregáveis acrescentados depois de feitos: tests/test_fechar_eap.py (E1),
+    conceitos/busca_texto.json (E2) e exemplos/foz/decisoes_eap.json (E4)'
+  motivo: 'os arquivos nasceram nas etapas; o plano não os listava'
+- data: '2026-11-17'
+  mudanca: 'objetivo anterior concluído: reconstrução F4b (PR #85, 0.74.0)'
+  motivo: 'pedido do Caio: seguir com a F5b; o roteiro da F5 tem ruído (566 leituras
+    obrigatórias, candidatas sem sentido como 3160 m para mobilização), então o código
+    vem antes da IA'
 - data: '2026-11-09'
-  mudanca: 'etapa E1b acrescentada depois de feita (arquivos fora do plano: valas, gavetas,
-    dimensoes, associados, conceitos e dois testes)'
-  motivo: 'o build real da E1 mostrou a vala com três larguras (FD de premissa, DE como DN),
-    o CRS fixo em 31982 e 4 redes da ETA sem sistema, que tiravam 8 linhas do contrato'
+  mudanca: 'etapa E1b acrescentada depois de feita (arquivos fora do plano: valas,
+    gavetas, dimensoes, associados, conceitos e dois testes)'
+  motivo: o build real da E1 mostrou a vala com três larguras (FD de premissa, DE
+    como DN), o CRS fixo em 31982 e 4 redes da ETA sem sistema, que tiravam 8 linhas
+    do contrato
 - data: '2026-11-09'
   mudanca: 'objetivo anterior concluído: reconstrução F5 infraestrutura (PR #83, 0.73.0)'
   motivo: a verificação noturna de 05/11 mostrou o portão da F4 aberto (dois caminhos

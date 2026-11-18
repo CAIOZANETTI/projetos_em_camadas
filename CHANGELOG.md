@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.75.0 — 2026-11-18 · F5b da reconstrução: as folhas obrigatórias pela escada (código → IA conferida → Caio)
+Pedido do Caio (17/11): "pode seguir com a F5b". Das 20 folhas obrigatórias que travavam o portão "EAP completa",
+o código fechou 6; a leitura de IA das 14 restantes achou só menções; o portão espera as decisões do Caio.
+- **Código primeiro (E1):**
+  - a folha do contrato sai da unidade da linha (U1 → OP, U2 → OL, tabela de equivalência em
+    `composicoes_sanepar.json`, premissa a conferir): a ALO de 12 meses das adutoras foi para OL.00.01;
+  - a quantidade calculada pelo `contrato_211` entra nas gavetas (`quantidade_calculada`, natureza `calculado`) e
+    fecha a folha como "calculada": locação 261,6 m² (OP.01.02), limpeza e cadastro 246,3 m (OP.12.01, OP.12.02);
+  - a Relação de Materiais vai às folhas (unidade pela coluna Local: ETA → U1, AAT → U2): conexões, válvulas e
+    peças em OP.07.02 (326 itens) e OL.07.03 (77 itens), tubos em OP.07.01 e OL.04.02;
+  - guarda para data do Excel digitada como quantidade (3 tubos especiais com 46 023 e 46 054 peças), só em unidade
+    de contagem;
+  - precedência na folha: medida > calculada pelo contrato > declarada (contrato, materiais) > declarada pelo
+    documento; nunca soma entre fontes; `extrair_gavetas.fechar_eap` roda depois do contrato.
+- **Roteiro limpo (E2):** termos sem poder de discriminação saem pela frequência no próprio corpus
+  (`conceitos/busca_texto.json`, a calibrar: 8 % palavra, 15 % termo composto), a candidata exige unidade admitida
+  pela folha e o termo a até 8 palavras, páginas ranqueadas com teto de 5; siglas presas por fronteira de palavra
+  (ALO, MND, PVS) ficam. Páginas obrigatórias do roteiro: 1 732 → 499.
+- **Ponte IA → EAP (E3, `camadas/gavetas_ia.py`):** a leitura de IA (`evidencias.ia` do obra.json) é reconferida
+  contra os documentos do inventário (`evidencias.conferir_arquivo`) e entra nas gavetas; o número conferido fecha a
+  folha como "declarada (documento)", com página e trecho; menção não fecha; total com `*` e partes por sistema não
+  se somam.
+- **Leitura de IA (E4):** as 14 folhas que travavam, em 2 leitores: 23 menções com citação conferida, nenhum número
+  declarado. O TR trata canteiro e desmobilização como preço global e cadastro como 10 % do valor de cada adutora;
+  pisos, paredes e SPDA têm só especificação (as áreas do texto são de pintura).
+- **Decisão "item global (verba)"** no laço: fecha a folha que o documento cita e não quantifica, só com
+  `confirmado_por`. `exemplos/foz/decisoes_eap.json` traz 9 propostas de item global e 5 de "ler a prancha", **todas
+  sem confirmação**: o portão segue aberto (14 travam). Simulado em memória, confirmar as 9 deixaria 5 (pisos,
+  paredes, SPDA, sinalização, compactação).
+- **Foz:** EAP única localizada 6 preenchidas + 15 calculadas + 7 declaradas de 45 (era 6 + 8 + 6), linear 1 + 10 + 2
+  de 32 (era 1 + 10 + 0); paridade com a EAP codificada 0; golden 0 diferença; interface 331/0.
+- Lição L074.
+
 ## 0.74.0 — 2026-11-09 · F4b da reconstrução: vala única pela vala_rede (fecha o portão da F4)
 Decisão do Caio (09/11): "usar só a vala_rede". A verificação noturna de 05/11 mostrou a F4 marcada como feita com
 dois caminhos para a vala; esta rodada fecha o portão "um só caminho por grandeza".

@@ -47,8 +47,9 @@ As fases da §3 foram reorganizadas nesses passos.
 | F3 | 0.71.0 | feita (PR #80) | EAP pelas gavetas: paridade 37/37 |
 | F4 | 0.72.0 | feita (PR #81); portão fechado na F4b | complementares pelas gavetas: paridade 25/25 com o associados.csv; localizada 6 preenchidas + 8 calculadas + 6 declaradas de 45, linear 1 + 10 de 32 |
 | F5 | 0.73.0 | infraestrutura feita (PR #83) | texto de 158 documentos nas gavetas (2 506 menções com página); laço com portão: EAP aberta, 20 obrigatórias travam, todas com menção; próximo passe: 955 leituras para a IA com citação conferida |
-| F4b | 0.74.0 | feita (este PR) | vala única pela `vala_rede`: 0 caminho paralelo; uma largura por rede (material do contrato e DN nominal) no HTML, nas gavetas e nos complementares; contrato_211 sem dimensionador (52 linhas calculadas); golden atualizado de propósito (25 diferenças, AAT00 4 055 → 3 345 m³ de vala) |
-| F5b | — | próxima | o passe de IA com citação conferida (skill eap-evidencias) sobre o roteiro; as decisões do Caio de 'ausente do projeto'; portão fechado |
+| F4b | 0.74.0 | feita (PR #85) | vala única pela `vala_rede`: 0 caminho paralelo; uma largura por rede (material do contrato e DN nominal) no HTML, nas gavetas e nos complementares; contrato_211 sem dimensionador (52 linhas calculadas); golden atualizado de propósito (25 diferenças, AAT00 4 055 → 3 345 m³ de vala) |
+| F5b | 0.75.0 | feita (este PR); portão aguarda o Caio | código fechou 6 das 20 obrigatórias (contrato calculado, folha pela unidade, Relação de Materiais); roteiro 1 732 → 499 páginas; IA com citação conferida: 23 menções, 0 número; decisão "item global (verba)"; 14 travam até o Caio confirmar (9 propostas de item global, 5 dependem das pranchas) |
+| F5c | — | próxima | as decisões do Caio; pisos, paredes, SPDA, sinalização e compactação pelas pranchas (código) |
 
 ## 1. Diagnóstico: o que temos (0.68.0)
 

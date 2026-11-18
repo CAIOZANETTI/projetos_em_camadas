@@ -3,7 +3,7 @@
   "fonte": "pedido do Caio (31/10/2026): cada informação extraída tem um lugar certo para ser guardada, georreferenciada e com evidência; os serviços são calculados dessa base e a entrega é a EAP (docs/MEMORIA_ESPACIAL.md)",
   "estado": "premissa",
   "data_referencia": "2026-10",
-  "observacoes": "Contrato LÓGICO das gavetas: nomes, campos obrigatórios e valores permitidos. O formato físico (JSONL, CSV, Parquet…) é experimento (G05): o mesmo contrato vale para qualquer formato, e `camadas.gavetas` grava e lê pelos formatos de `formato.implementados`. Um fato só entra se a propriedade estiver em `propriedades` e se apontar para uma evidência existente; o que não cabe vira pendência. v2 (04/11/2026, F0 da reconstrução): gavetas `documentos` e `paginas`; localizador da evidência com página (ou aba e linha); propriedades de elementos construtivos, contrato e materiais."
+  "observacoes": "Contrato LÓGICO das gavetas: nomes, campos obrigatórios e valores permitidos. O formato físico (JSONL, CSV, Parquet…) é experimento (G05): o mesmo contrato vale para qualquer formato, e `camadas.gavetas` grava e lê pelos formatos de `formato.implementados`. Um fato só entra se a propriedade estiver em `propriedades` e se apontar para uma evidência existente; o que não cabe vira pendência. v2 (04/11/2026, F0 da reconstrução): gavetas `documentos` e `paginas`; localizador da evidência com página (ou aba e linha); propriedades de elementos construtivos, contrato e materiais. v2 (F5b-E3, 17/11/2026): natureza `declarado` (o documento diz o número; abaixo de `projetado` e acima de `calculado` na prioridade) e executor `ia` para a leitura de IA com citação conferida pelo código (`camadas/gavetas_ia.py`); propriedades `servico`, `parcela` e `codigo_evidencia`."
  },
  "formato": {
   "atual": "parquet",
@@ -45,6 +45,8 @@
  "naturezas": [
   "observado",
   "projetado",
+  "calculado",
+  "declarado",
   "inferido",
   "decidido"
  ],
@@ -52,6 +54,8 @@
   "decidido",
   "observado",
   "projetado",
+  "declarado",
+  "calculado",
   "inferido"
  ],
  "executores": [
@@ -60,6 +64,7 @@
   "Sonnet",
   "Opus",
   "Fable",
+  "ia",
   "você"
  ],
  "gavetas": {
@@ -225,7 +230,7 @@
   "local": {
    "unidade": null,
    "tipo": "texto",
-   "obs": "nome do trecho na planilha (ex.: 'Entrada de água bruta') ou da rede (ex.: 'AAT06'); casa com as chaves de conceitos/unidades_construtivas.json"
+   "obs": "nome do trecho na planilha (ex.: 'Entrada de água bruta') ou da rede (ex.: 'AAT06'); na Relação de Materiais, a coluna Local (ETA VILA C, AAT 06…); casa com as chaves de conceitos/unidades_construtivas.json"
   },
   "trecho_contrato": {
    "unidade": null,
@@ -432,6 +437,46 @@
    "unidade": null,
    "tipo": "texto",
    "obs": "trecho do documento (≤ 200 caracteres) que menciona o item, numa página; a evidência traz a página (F5)"
+  },
+  "quantidade_calculada": {
+   "unidade": null,
+   "tipo": "numero",
+   "obs": "quantidade que o código calculou para a linha do contrato (contrato_211), na unidade de `unidade_calculada`; natureza calculado"
+  },
+  "unidade_calculada": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "unidade da quantidade calculada (m, m2, m3, vb, un…)"
+  },
+  "regra_calculo": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "regra do contrato_211 que calculou a quantidade (comprimento_trecho, soma_trechos, area_da_uc…)"
+  },
+  "situacao_calculo": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "situação do cálculo no contrato_211: calculada, parcial ou declarada · confere/diverge; só `calculada` fecha a folha"
+  },
+  "subcategoria": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "subcategoria do cadastro de materiais Sanepar na Relação de Materiais (conexao, valvula, tubo…)"
+  },
+  "servico": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "serviço da EAP geral (escavacao, forma…) que a leitura de IA conferida atribuiu à quantidade (F5b-E3); ausente = o item inteiro"
+  },
+  "parcela": {
+   "unidade": null,
+   "tipo": "booleano",
+   "obs": "a quantidade da leitura de IA é parcela (soma com as outras do mesmo documento) e não total (F5b-E3)"
+  },
+  "codigo_evidencia": {
+   "unidade": null,
+   "tipo": "texto",
+   "obs": "código da evidência de IA (U1.*.GEO.FUN.EST): `*` vale qualquer unidade ou sistema (F5b-E3)"
   }
  },
  "tipos_superficie": [

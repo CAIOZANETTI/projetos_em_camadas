@@ -26,6 +26,7 @@ import numpy as np
 import openpyxl
 
 from . import geotecnia as geo
+from .construtivos import REGRAS as UNIDADES
 
 DE_PARA = json.loads(
     (
@@ -218,11 +219,34 @@ def _entrada_para_linha(linha: dict, de_para: dict) -> tuple[dict | None, dict]:
     return None, {}
 
 
+def unidade_da_linha(linha: dict) -> str | None:
+    """Unidade construtiva (`u1`, `u2`) da linha pelo título da unidade de obra da planilha ("UNIDADE 02 - AAT06" → u2);
+    None se a linha não tem unidade de obra."""
+    achou = re.search(
+        r"UNIDADE\s*(\d+)", _sem_acento(linha.get("unidade_obra") or "").upper()
+    )
+    return f"u{int(achou[1])}" if achou else None
+
+
+def folha_da_unidade(
+    folha: str | None, unidade: str | None, de_para: dict
+) -> str | None:
+    """A folha do de-para (escrita com as folhas OP) na obra da unidade: unidade de obra linear (`obra` em
+    `unidades_construtivas.json`) troca a OP pela OL de `equivalencia_obra_linear`; unidade localizada, desconhecida ou
+    folha sem par ficam como estão."""
+    if UNIDADES["unidades"].get(unidade or "", {}).get("obra") != "linear":
+        return folha
+    return (
+        de_para.get("equivalencia_obra_linear", {}).get("folhas", {}).get(folha, folha)
+    )
+
+
 def classificar(linhas: list[dict], de_para: dict | None = None) -> list[dict]:
     """Cópia das linhas com `folha_eap`, `regra`, `material`, `dn_mm`, `estado` (e `grandeza`, `motivo`).
 
     Linha sem de-para recebe `regra="sem_regra"` e o `motivo`; linha de `sem_regra` do próprio de-para leva o motivo
-    escrito lá. `material` e `dn_mm` só existem nas composições por expressão (CVCA)."""
+    escrito lá. `material` e `dn_mm` só existem nas composições por expressão (CVCA). A `folha_eap` considera a unidade
+    da linha: a de unidade de obra linear (U2) cai na folha OL equivalente (`folha_da_unidade`), a de U1 na OP."""
     de_para = DE_PARA if de_para is None else de_para
     saida = []
     for linha in linhas:
@@ -239,7 +263,9 @@ def classificar(linhas: list[dict], de_para: dict | None = None) -> list[dict]:
             )
         else:
             nova.update(
-                folha_eap=entrada.get("folha_eap"),
+                folha_eap=folha_da_unidade(
+                    entrada.get("folha_eap"), unidade_da_linha(linha), de_para
+                ),
                 regra=entrada["regra"],
                 grandeza=entrada.get("grandeza"),
                 estado=entrada.get("estado"),
@@ -1058,6 +1084,8 @@ def para_html(resultados: list[dict]) -> list[dict]:
 
 FUNCOES = (
     "ler_custo_civil",
+    "unidade_da_linha",
+    "folha_da_unidade",
     "classificar",
     "resumo",
     "contexto_do_build",
@@ -1101,6 +1129,13 @@ def metadados() -> dict:
                 "estado": p["estado"],
             }
             for nome, p in DE_PARA["premissas"].items()
+        ]
+        + [
+            {
+                "aplicacao": {"folha_da_unidade": ["equivalencia_obra_linear"]},
+                "fonte": DE_PARA["equivalencia_obra_linear"]["fonte"],
+                "estado": DE_PARA["equivalencia_obra_linear"]["estado"],
+            }
         ],
         "ultima_revisao": meta["data_referencia"],
     }

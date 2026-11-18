@@ -171,7 +171,7 @@ def test_relacao_so_le_as_colunas_nomeadas(planilha, monkeypatch):
     )
     gc.ler_relacao(planilha)
     colunas = {c for c in pedidas if c[0] is not None}
-    assert colunas == {(2, 2), (5, 5), (6, 6), (7, 7), (8, 8)}
+    assert colunas == {(2, 2), (3, 3), (5, 5), (6, 6), (7, 7), (8, 8)}
 
 
 def test_base_confere_com_documento_registrado(planilha):
