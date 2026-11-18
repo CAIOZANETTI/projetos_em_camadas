@@ -682,7 +682,7 @@ def fechar_eap(cfg: dict, out: Path, dados: dict, log=print, resultados_contrato
     completa (`eap_laco.json`, `proximo_passe.jsonl`). O resumo entra no `gavetas_escopo.json`. Sem base, devolve None."""
     pasta = Path(out) / "base"
     if not (pasta / "objetos.parquet").exists():
-        log("EAP (fechamento): sem base das gavetas (pendência)")
+        log("EAP (fechamento): sem base das gavetas, nada a fechar (o que faltou está no log do escopo)")
         return None
     from . import gavetas_contrato
 
