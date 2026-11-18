@@ -27,14 +27,18 @@ etapas:
   - tests/test_contrato_211.py
   - tests/test_gavetas_contrato.py
   - tests/test_eap_preencher.py
+  - tests/test_fechar_eap.py
   depende_de: []
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 300000
-  status: fazendo
+  status: feito
   inicio: '2026-11-17T13:33:35Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-18T20:49:48Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
 - id: E2
   nome: 'F5b: roteiro limpo (termos genéricos fora, unidade admitida pela folha)'
   entregaveis:
@@ -42,14 +46,18 @@ etapas:
   - camadas/gavetas_texto.py
   - tests/test_eap_laco.py
   - tests/test_gavetas_texto.py
+  - conceitos/busca_texto.json
   depende_de: []
   agente: sonnet
   estimativa_min: 45
   estimativa_tokens: 200000
-  status: fazendo
+  status: feito
   inicio: '2026-11-17T13:33:36Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-18T20:49:49Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
 - id: E3
   nome: 'F5b: ponte IA conferida → gavetas → EAP única (declarada por documento)'
   entregaveis:
@@ -63,24 +71,31 @@ etapas:
   agente: sonnet
   estimativa_min: 45
   estimativa_tokens: 250000
-  status: fazendo
+  status: feito
   inicio: '2026-11-17T13:48:03Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-18T20:49:50Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
 - id: E4
   nome: 'F5b: leitura de IA das folhas que travam, com citação conferida'
   entregaveis:
   - exemplos/foz/evidencias_ia.jsonl
   - exemplos/foz/obra.json
+  - exemplos/foz/decisoes_eap.json
   depende_de:
   - E2
   agente: sonnet
   estimativa_min: 60
   estimativa_tokens: 400000
-  status: fazendo
+  status: feito
   inicio: '2026-11-17T14:01:46Z'
-  fim: null
-  forcado: null
+  fim: '2026-11-18T20:49:51Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
 - id: E5
   nome: 'F5b: build real, portão, lista ao Caio, três verdes, balanço, PR e merge'
   entregaveis:
@@ -102,11 +117,18 @@ etapas:
   agente: opus
   estimativa_min: 60
   estimativa_tokens: 150000
-  status: a_fazer
-  inicio: null
-  fim: null
-  forcado: null
+  status: feito
+  inicio: '2026-11-18T20:49:52Z'
+  fim: '2026-11-18T20:49:52Z'
+  forcado: 'o único teste falhando é tests/test_lineares.py::test_ler_perfil_ocr,
+    que já falha na main (tesseract do ambiente); balanço MANTER; aferição ok; determinismo
+    ok; build real: interface 331/0, golden 0, EAP única × codificada 0, 23 leituras
+    de IA reconferidas'
 historico:
+- data: '2026-11-18'
+  mudanca: 'entregáveis acrescentados depois de feitos: tests/test_fechar_eap.py (E1),
+    conceitos/busca_texto.json (E2) e exemplos/foz/decisoes_eap.json (E4)'
+  motivo: 'os arquivos nasceram nas etapas; o plano não os listava'
 - data: '2026-11-17'
   mudanca: 'objetivo anterior concluído: reconstrução F4b (PR #85, 0.74.0)'
   motivo: 'pedido do Caio: seguir com a F5b; o roteiro da F5 tem ruído (566 leituras
